@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useSshStore } from './ssh'
 import { useToastStore } from './toast'
+import { resolve, dirname } from '../utils/path'
 
 export interface FileItem {
   filename: string
@@ -16,29 +17,33 @@ export type ViewMode = 'list' | 'grid'
 export const useFileStore = defineStore('file', () => {
   const sshStore = useSshStore()
   const toast = useToastStore()
-  
-  const currentPath = ref('.')
+
+  const currentPath = ref('/')
   const files = ref<FileItem[]>([])
   const viewMode = ref<ViewMode>('list')
   const selectedFiles = ref<Set<string>>(new Set())
   const loading = ref(false)
-  
+
   // Clipboard for copy/move operations
   // structure: { action: 'copy' | 'move', paths: string[], sourcePath: string }
   const clipboard = ref<{ action: 'copy' | 'move', paths: string[], sourcePath: string } | null>(null)
 
   const fetchFiles = async (path?: string) => {
     if (!sshStore.sessionId) return
-    // Update path if provided
+
+    // Calculate target path
+    let targetPath = currentPath.value
     if (path !== undefined) {
-      currentPath.value = path
+      // Resolve new path relative to current path if not absolute
+      // This handles '..', '.', and normalizes the path
+      targetPath = resolve(currentPath.value, path)
     }
-    
+
     loading.value = true
     try {
-      const res = await fetch(`/api/files/list?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(currentPath.value)}`)
+      const res = await fetch(`/api/files/list?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(targetPath)}`)
       if (!res.ok) throw new Error('Failed to fetch files')
-      
+
       const data = await res.json()
       // sort: folders first, then files
       files.value = data.sort((a: FileItem, b: FileItem) => {
@@ -48,6 +53,9 @@ export const useFileStore = defineStore('file', () => {
         return a.isDirectory ? -1 : 1
       })
       selectedFiles.value.clear()
+
+      // Only update currentPath if request succeeds
+      currentPath.value = targetPath
     } catch (e: any) {
       toast.error(`Failed to list files: ${e.message}`)
     } finally {
@@ -56,35 +64,14 @@ export const useFileStore = defineStore('file', () => {
   }
 
   const navigate = (filename: string) => {
-    let newPath = currentPath.value
-    if (newPath === '.') {
-      newPath = filename
-    } else {
-      if (newPath.endsWith('/')) {
-        newPath += filename
-      } else {
-        newPath += '/' + filename
-      }
-    }
-    fetchFiles(newPath)
+    fetchFiles(filename)
   }
 
   const navigateUp = () => {
-    if (currentPath.value === '/' || currentPath.value === '.') {
-        // If at . we can't really go up without knowing absolute path.
-        // But for user experience, let's assume we can't go up from . unless we know parent.
-        // Or we can try '..'
-        if (currentPath.value === '.') {
-             fetchFiles('..')
-             return
-        }
-        return
+    const parent = dirname(currentPath.value)
+    if (parent !== currentPath.value) {
+      fetchFiles(parent)
     }
-    
-    const parts = currentPath.value.split('/').filter(p => p && p !== '.')
-    parts.pop()
-    const newPath = parts.length === 0 ? '/' : '/' + parts.join('/')
-    fetchFiles(newPath)
   }
 
   const refresh = () => fetchFiles()
@@ -103,11 +90,11 @@ export const useFileStore = defineStore('file', () => {
   }
 
   const clearSelection = () => selectedFiles.value.clear()
-  
+
   const selectAll = () => {
     files.value.forEach(f => selectedFiles.value.add(f.filename))
   }
-  
+
   const copySelection = () => {
     if (selectedFiles.value.size === 0) return
     clipboard.value = {
@@ -117,7 +104,7 @@ export const useFileStore = defineStore('file', () => {
     }
     toast.info(`Copied ${selectedFiles.value.size} items to clipboard`)
   }
-  
+
   const cutSelection = () => {
     if (selectedFiles.value.size === 0) return
     clipboard.value = {

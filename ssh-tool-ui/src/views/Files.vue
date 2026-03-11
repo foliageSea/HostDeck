@@ -91,6 +91,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useFileStore, type FileItem } from '../stores/file'
 import { useSshStore } from '../stores/ssh'
 import { useToastStore } from '../stores/toast'
+import { resolve, dirname } from '../utils/path'
 import FileToolbar from '../components/file/FileToolbar.vue'
 import FileList from '../components/file/FileList.vue'
 import FileGrid from '../components/file/FileGrid.vue'
@@ -99,7 +100,7 @@ import FileEditor from '../components/file/FileEditor.vue'
 import Modal from '../components/ui/Modal.vue'
 import Loading from '../components/ui/Loading.vue'
 import { 
-  FolderIcon, FileIcon, DownloadIcon, UploadIcon, 
+  FolderIcon, DownloadIcon, 
   CopyIcon, ScissorsIcon, ClipboardPasteIcon, 
   EditIcon, Trash2Icon, RefreshCwIcon, TypeIcon
 } from 'lucide-vue-next'
@@ -131,14 +132,7 @@ onMounted(() => {
 
 // Methods
 const getFullPath = (filename: string) => {
-  if (fileStore.currentPath === '/' || fileStore.currentPath === '.') return filename.startsWith('/') ? filename : (fileStore.currentPath === '.' ? filename : '/' + filename)
-  // Cleaner logic:
-  let base = fileStore.currentPath
-  if (base === '.') base = '' // relative to current work dir? No, currentPath should be absolute usually.
-  // If currentPath is '.', it means we are at home or initial dir.
-  // Let's assume currentPath is always valid path string.
-  if (base.endsWith('/')) return base + filename
-  return base + '/' + filename
+  return resolve(fileStore.currentPath, filename)
 }
 
 const handleDownload = async () => {
@@ -195,8 +189,8 @@ const handlePaste = async () => {
   fileStore.loading = true
   try {
     for (const filename of paths) { 
-       const fullSourcePath = (sourcePath === '/' ? '' : sourcePath) + '/' + filename
-       const fullTargetPath = (fileStore.currentPath === '/' ? '' : fileStore.currentPath) + '/' + filename
+       const fullSourcePath = resolve(sourcePath, filename)
+       const fullTargetPath = resolve(fileStore.currentPath, filename)
        
        if (action === 'copy') {
          await fetch(`/api/files/copy?sessionId=${sshStore.sessionId}`, {
@@ -223,14 +217,15 @@ const handlePaste = async () => {
 
 const openRenameModal = () => {
   const filename = Array.from(fileStore.selectedFiles)[0]
+  if (!filename) return
   newItemName.value = filename
   showRenameModal.value = true
   nextTick(() => renameInput.value?.focus())
 }
 
 const handleRename = async () => {
-  if (!newItemName.value) return
   const oldName = Array.from(fileStore.selectedFiles)[0]
+  if (!newItemName.value || !oldName) return
   const oldPath = getFullPath(oldName)
   const newPath = getFullPath(newItemName.value)
   
@@ -309,7 +304,10 @@ const uploadFiles = async (files: FileList) => {
   try {
     const formData = new FormData()
     for (let i = 0; i < files.length; i++) {
-      formData.append('file', files[i])
+      const file = files[i]
+      if (file) {
+        formData.append('file', file)
+      }
     }
     
     const res = await fetch(`/api/files/upload?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(fileStore.currentPath)}`, {
@@ -336,6 +334,10 @@ const handleUpload = async (e: Event) => {
   }
 }
 
+
+const handleSelectAll = () => {
+  fileStore.selectAll()
+}
 
 const handleOpen = async (file: FileItem) => {
   if (file.isDirectory) {
@@ -384,7 +386,8 @@ const openEditor = async (file: FileItem) => {
 const handleSaveFile = async (content: string) => {
   try {
     fileStore.loading = true
-    const res = await fetch(`/api/files/upload?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(fileStore.currentPath)}`, {
+    const targetDir = dirname(editorFile.value.path)
+    const res = await fetch(`/api/files/upload?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(targetDir)}`, {
       method: 'POST',
       body: createFormData(editorFile.value.filename, content)
     })
