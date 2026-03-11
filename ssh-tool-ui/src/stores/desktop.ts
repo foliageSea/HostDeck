@@ -1,0 +1,176 @@
+import { defineStore } from 'pinia';
+import { markRaw, type Component } from 'vue';
+import Terminal from '../views/Terminal.vue';
+import Files from '../views/Files.vue';
+import Dashboard from '../views/Dashboard.vue';
+import { useSshStore } from './ssh';
+
+export interface AppConfig {
+  id: string;
+  title: string;
+  icon: string;
+  component: Component;
+  width?: number;
+  height?: number;
+}
+
+export interface WindowState {
+  id: string;
+  appId: string;
+  title: string;
+  component: Component;
+  icon: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isMinimized: boolean;
+  isMaximized: boolean;
+  zIndex: number;
+}
+
+export const useDesktopStore = defineStore('desktop', {
+  state: () => ({
+    windows: [] as WindowState[],
+    activeWindowId: null as string | null,
+    nextZIndex: 100,
+    apps: {
+      'terminal': {
+        id: 'terminal',
+        title: 'Terminal',
+        icon: '💻',
+        component: markRaw(Terminal),
+        width: 800,
+        height: 500
+      },
+      'files': {
+        id: 'files',
+        title: 'Finder',
+        icon: '📁',
+        component: markRaw(Files),
+        width: 700,
+        height: 500
+      },
+      'dashboard': {
+        id: 'dashboard',
+        title: 'Activity Monitor',
+        icon: '📊',
+        component: markRaw(Dashboard),
+        width: 400,
+        height: 600
+      },
+      'logout': {
+        id: 'logout',
+        title: 'Disconnect',
+        icon: '🔒',
+        component: markRaw({ render: () => null }), // Dummy component
+        width: 0,
+        height: 0
+      }
+    } as Record<string, AppConfig>,
+  }),
+
+  actions: {
+    openWindow(appId: string) {
+      if (appId === 'logout') {
+        const sshStore = useSshStore();
+        sshStore.clearSession();
+        // Clear all windows on logout
+        this.windows = [];
+        return;
+      }
+
+      const app = this.apps[appId];
+      if (!app) {
+        console.error(`App ${appId} not found`);
+        return;
+      }
+
+      const id = `${appId}-${Date.now()}`;
+      const newWindow: WindowState = {
+        id,
+        appId,
+        title: app.title,
+        component: app.component,
+        icon: app.icon,
+        x: 100 + (this.windows.length * 30),
+        y: 100 + (this.windows.length * 30),
+        width: app.width || 800,
+        height: app.height || 600,
+        isMinimized: false,
+        isMaximized: false,
+        zIndex: this.nextZIndex++,
+      };
+
+      this.windows.push(newWindow);
+      this.focusWindow(id);
+    },
+
+    closeWindow(id: string) {
+      const index = this.windows.findIndex(w => w.id === id);
+      if (index !== -1) {
+        this.windows.splice(index, 1);
+        if (this.activeWindowId === id) {
+          this.activeWindowId = null;
+          if (this.windows.length > 0) {
+            const topWindow = this.windows.reduce((prev, current) => 
+              (prev.zIndex > current.zIndex) ? prev : current
+            );
+            this.focusWindow(topWindow.id);
+          }
+        }
+      }
+    },
+
+    minimizeWindow(id: string) {
+      const window = this.windows.find(w => w.id === id);
+      if (window) {
+        window.isMinimized = true;
+        this.activeWindowId = null;
+      }
+    },
+
+    restoreWindow(id: string) {
+        const window = this.windows.find(w => w.id === id);
+        if (window) {
+            window.isMinimized = false;
+            this.focusWindow(id);
+        }
+    },
+
+    maximizeWindow(id: string) {
+      const window = this.windows.find(w => w.id === id);
+      if (window) {
+        window.isMaximized = !window.isMaximized;
+        this.focusWindow(id);
+      }
+    },
+
+    focusWindow(id: string) {
+      const window = this.windows.find(w => w.id === id);
+      if (window) {
+        if (window.isMinimized) {
+            window.isMinimized = false;
+        }
+        window.zIndex = this.nextZIndex++;
+        this.activeWindowId = id;
+      }
+    },
+
+    updateWindowPosition(id: string, x: number, y: number) {
+      const window = this.windows.find(w => w.id === id);
+      if (window) {
+        window.x = x;
+        window.y = y;
+      }
+    },
+
+    updateWindowSize(id: string, width: number, height: number) {
+      const window = this.windows.find(w => w.id === id);
+      if (window) {
+        window.width = width;
+        window.height = height;
+      }
+    }
+  }
+});
