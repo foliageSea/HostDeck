@@ -32,6 +32,11 @@ class ApiRoutes {
     router.get('/api/files/read', fileController.readFile);
     router.post('/api/files/write', fileController.writeFile);
     router.post('/api/files/delete', fileController.deleteFile);
+    router.post('/api/files/upload', fileController.uploadFile);
+    router.post('/api/files/batch-download', fileController.batchDownload);
+    router.post('/api/files/rename', fileController.rename);
+    router.post('/api/files/mkdir', fileController.mkdir);
+    router.post('/api/files/copy', fileController.copy);
 
     // Terminal
     router.get('/socket.io', terminalController.handler);

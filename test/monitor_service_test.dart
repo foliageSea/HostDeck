@@ -22,15 +22,36 @@ class MockSshRepository implements SshRepository {
     }
     return "";
   }
-  
+
   @override
-  Future<List<FileItem>> listFiles(SshSession session, String path) => throw UnimplementedError();
+  Future<List<FileItem>> listFiles(SshSession session, String path) =>
+      throw UnimplementedError();
   @override
-  Future<Uint8List> readFile(SshSession session, String path) => throw UnimplementedError();
+  Future<Stream<Uint8List>> readFileStream(SshSession session, String path) =>
+      throw UnimplementedError();
   @override
-  Future<void> writeFile(SshSession session, String path, Uint8List content) => throw UnimplementedError();
+  Future<void> writeFileStream(
+    SshSession session,
+    String path,
+    Stream<List<int>> content,
+  ) => throw UnimplementedError();
   @override
-  Future<void> delete(SshSession session, String path) => throw UnimplementedError();
+  Future<void> rename(SshSession session, String oldPath, String newPath) =>
+      throw UnimplementedError();
+  @override
+  Future<void> mkdir(SshSession session, String path) =>
+      throw UnimplementedError();
+  @override
+  Future<void> copy(SshSession session, String source, String target) =>
+      throw UnimplementedError();
+  @override
+  Future<Stream<Uint8List>> downloadBatch(
+    SshSession session,
+    List<String> paths,
+  ) => throw UnimplementedError();
+  @override
+  Future<void> delete(SshSession session, String path) =>
+      throw UnimplementedError();
   @override
   void resize(SshSession session, int width, int height) {}
   @override
