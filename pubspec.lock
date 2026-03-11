@@ -316,7 +316,7 @@ packages:
     source: hosted
     version: "2.2.0"
   shelf:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: shelf
       sha256: e7dd780a7ffb623c57850b33f43309312fc863fb6aa3d276a754bb299839ef12
@@ -340,7 +340,7 @@ packages:
     source: hosted
     version: "1.11.0"
   shelf_router:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: shelf_router
       sha256: f5e5d492440a7fb165fe1e2e1a623f31f734d3370900070b2b1e0d0428d59864
@@ -497,7 +497,7 @@ packages:
     source: hosted
     version: "1.0.1"
   web_socket_channel:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: web_socket_channel
       sha256: d645757fb0f4773d602444000a8131ff5d48c9e47adfe9772652dd1a4f2d45c8
