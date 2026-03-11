@@ -67,7 +67,7 @@ onMounted(async () => {
   socket = new WebSocket(wsUrl);
   
   socket.onopen = () => {
-    term?.write('\r\nConnected to server...\r\n');
+    term?.write('\r\n已连接到服务器...\r\n');
     fitAddon?.fit();
     if (term) {
         sendResize(term.cols, term.rows);
@@ -87,11 +87,11 @@ onMounted(async () => {
   };
   
   socket.onclose = () => {
-    term?.write('\r\nDisconnected from server.\r\n');
+    term?.write('\r\n已断开连接。\r\n');
   };
   
   socket.onerror = (err) => {
-    term?.write(`\r\nError: Connection failed\r\n`);
+    term?.write(`\r\n错误：连接失败\r\n`);
     console.error(err);
   };
   

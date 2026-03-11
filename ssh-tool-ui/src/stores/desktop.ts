@@ -37,32 +37,32 @@ export const useDesktopStore = defineStore('desktop', {
     apps: {
       'terminal': {
         id: 'terminal',
-        title: 'Terminal',
-        icon: '💻',
+        title: '终端',
+        icon: 'terminal',
         component: markRaw(Terminal),
         width: 800,
         height: 500
       },
       'files': {
         id: 'files',
-        title: 'Finder',
-        icon: '📁',
+        title: '文件管理',
+        icon: 'folder',
         component: markRaw(Files),
         width: 700,
         height: 500
       },
       'dashboard': {
         id: 'dashboard',
-        title: 'Activity Monitor',
-        icon: '📊',
+        title: '系统监控',
+        icon: 'activity',
         component: markRaw(Dashboard),
         width: 400,
         height: 600
       },
       'logout': {
         id: 'logout',
-        title: 'Disconnect',
-        icon: '🔒',
+        title: '断开连接',
+        icon: 'lock',
         component: markRaw({ render: () => null }), // Dummy component
         width: 0,
         height: 0
@@ -113,7 +113,7 @@ export const useDesktopStore = defineStore('desktop', {
         if (this.activeWindowId === id) {
           this.activeWindowId = null;
           if (this.windows.length > 0) {
-            const topWindow = this.windows.reduce((prev, current) => 
+            const topWindow = this.windows.reduce((prev, current) =>
               (prev.zIndex > current.zIndex) ? prev : current
             );
             this.focusWindow(topWindow.id);
@@ -131,11 +131,11 @@ export const useDesktopStore = defineStore('desktop', {
     },
 
     restoreWindow(id: string) {
-        const window = this.windows.find(w => w.id === id);
-        if (window) {
-            window.isMinimized = false;
-            this.focusWindow(id);
-        }
+      const window = this.windows.find(w => w.id === id);
+      if (window) {
+        window.isMinimized = false;
+        this.focusWindow(id);
+      }
     },
 
     maximizeWindow(id: string) {
@@ -150,7 +150,7 @@ export const useDesktopStore = defineStore('desktop', {
       const window = this.windows.find(w => w.id === id);
       if (window) {
         if (window.isMinimized) {
-            window.isMinimized = false;
+          window.isMinimized = false;
         }
         window.zIndex = this.nextZIndex++;
         this.activeWindowId = id;

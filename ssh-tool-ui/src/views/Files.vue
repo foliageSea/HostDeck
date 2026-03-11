@@ -3,13 +3,13 @@
     <!-- Toolbar -->
     <div class="h-10 bg-gray-100 border-b border-gray-200 flex items-center px-2 space-x-2">
       <button @click="navigate('..')" class="p-1 hover:bg-gray-200 rounded disabled:opacity-50" :disabled="currentPath === '/' || currentPath === '.'">
-        <span class="text-gray-600">⬆️ Up</span>
+        <span class="text-gray-600 flex items-center"><ArrowUp class="w-4 h-4 mr-1"/> 上级目录</span>
       </button>
       <div class="flex-1 px-2 py-1 bg-white border border-gray-300 rounded text-gray-700 truncate select-all">
         {{ currentPath }}
       </div>
       <button @click="fetchFiles" class="p-1 hover:bg-gray-200 rounded">
-        🔄
+        <RefreshCcw class="w-4 h-4 text-gray-600"/>
       </button>
     </div>
 
@@ -19,9 +19,9 @@
         <thead class="bg-gray-50 sticky top-0 z-10 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="p-2 font-medium w-8"></th>
-            <th class="p-2 font-medium">Name</th>
-            <th class="p-2 font-medium w-24 text-right">Size</th>
-            <th class="p-2 font-medium w-32 text-right">Date</th>
+            <th class="p-2 font-medium">名称</th>
+            <th class="p-2 font-medium w-24 text-right">大小</th>
+            <th class="p-2 font-medium w-32 text-right">修改日期</th>
             <th class="p-2 font-medium w-16 text-center"></th>
           </tr>
         </thead>
@@ -30,7 +30,7 @@
             v-if="files.length === 0" 
             class="text-center text-gray-400 py-8"
           >
-            <td colspan="5" class="p-8">No files found</td>
+            <td colspan="5" class="p-8">暂无文件</td>
           </tr>
           <tr 
             v-for="file in files" 
@@ -39,7 +39,8 @@
             @dblclick="handleItemClick(file)"
           >
             <td class="p-2 text-center text-lg">
-              {{ file.isDirectory ? '📁' : '📄' }}
+              <Folder v-if="file.isDirectory" class="w-5 h-5 text-blue-500 inline-block" />
+              <File v-else class="w-5 h-5 text-gray-500 inline-block" />
             </td>
             <td class="p-2 font-medium truncate max-w-[200px]" :title="file.filename">
               {{ file.filename }}
@@ -54,9 +55,9 @@
               <button 
                 @click.stop="deleteFile(file.filename)" 
                 class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-all"
-                title="Delete"
+                title="删除"
               >
-                🗑️
+                <Trash2 class="w-4 h-4" />
               </button>
             </td>
           </tr>
@@ -66,7 +67,7 @@
     
     <!-- Status Bar -->
     <div class="h-6 bg-gray-100 border-t border-gray-200 flex items-center px-2 text-xs text-gray-500">
-      {{ files.length }} items
+      {{ files.length }} 项
     </div>
   </div>
 </template>
@@ -74,6 +75,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useSshStore } from '../stores/ssh';
+import { ArrowUp, RefreshCcw, Folder, File, Trash2 } from 'lucide-vue-next';
 
 const props = defineProps<{
   windowId?: string

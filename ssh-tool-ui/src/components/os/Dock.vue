@@ -8,15 +8,20 @@
     >
       <div class="w-12 h-12 rounded-xl flex items-center justify-center text-3xl shadow-lg bg-gray-800 text-white relative overflow-hidden">
         <!-- Icon Placeholder -->
-        <span v-if="!app.icon.startsWith('http')">{{ app.icon }}</span>
-        <img v-else :src="app.icon" class="w-full h-full object-cover" />
+        <component 
+          v-if="iconMap[app.icon]" 
+          :is="iconMap[app.icon]" 
+          class="w-6 h-6 text-white" 
+        />
+        <img v-else-if="app.icon.startsWith('http')" :src="app.icon" class="w-full h-full object-cover" />
+        <span v-else>{{ app.icon }}</span>
       </div>
       
       <!-- Indicator for open apps -->
       <div v-if="isAppOpen(app.id)" class="w-1 h-1 bg-white rounded-full mt-1"></div>
       
       <!-- Tooltip -->
-      <div class="absolute -top-10 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+      <div class="absolute -top-10 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
         {{ app.title }}
       </div>
     </div>
@@ -26,10 +31,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useDesktopStore } from '@/stores/desktop';
+import { Terminal, Folder, Activity, Lock } from 'lucide-vue-next';
 
 const desktopStore = useDesktopStore();
 
 const apps = computed(() => Object.values(desktopStore.apps));
+
+const iconMap: Record<string, any> = {
+  'terminal': Terminal,
+  'folder': Folder,
+  'activity': Activity,
+  'lock': Lock
+};
 
 const isAppOpen = (appId: string) => {
   return desktopStore.windows.some(w => w.appId === appId);

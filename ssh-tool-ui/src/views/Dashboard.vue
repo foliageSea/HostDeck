@@ -4,8 +4,8 @@
       <!-- CPU Card -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         <div class="flex items-center justify-between mb-2">
-          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">CPU Load</h3>
-          <span class="text-2xl">🧠</span>
+          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">CPU 负载</h3>
+          <Cpu class="text-2xl w-6 h-6 text-gray-600" />
         </div>
         <div class="text-2xl font-bold text-gray-800">{{ cpuLoad }}</div>
         <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
@@ -16,8 +16,8 @@
       <!-- RAM Card -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         <div class="flex items-center justify-between mb-2">
-          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Memory</h3>
-          <span class="text-2xl">💾</span>
+          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">内存</h3>
+          <MemoryStick class="text-2xl w-6 h-6 text-gray-600" />
         </div>
         <div class="text-2xl font-bold text-gray-800">{{ ramUsage }}%</div>
         <div class="text-xs text-gray-400 mt-1">{{ ramDetails }}</div>
@@ -29,8 +29,8 @@
       <!-- Disk Card -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         <div class="flex items-center justify-between mb-2">
-          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Disk (Root)</h3>
-          <span class="text-2xl">💿</span>
+          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">磁盘 (根目录)</h3>
+          <HardDrive class="text-2xl w-6 h-6 text-gray-600" />
         </div>
         <div class="text-2xl font-bold text-gray-800">{{ diskUsage }}</div>
         <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
@@ -44,6 +44,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useSshStore } from '../stores/ssh';
+import { Cpu, MemoryStick, HardDrive } from 'lucide-vue-next';
 
 const props = defineProps<{
   windowId?: string

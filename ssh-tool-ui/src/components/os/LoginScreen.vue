@@ -10,12 +10,12 @@
       
       <!-- Avatar -->
       <div class="w-24 h-24 rounded-full bg-gray-200/50 backdrop-blur-xl flex items-center justify-center text-4xl mb-6 shadow-2xl border border-white/20">
-        🖥️
+        <Monitor class="w-12 h-12 text-gray-700" />
       </div>
 
       <!-- Server Selection -->
       <div v-if="!selectedServer && !isNewConnection" class="w-full space-y-4">
-        <h2 class="text-white text-xl font-semibold text-center mb-6 drop-shadow-md">Select a Server</h2>
+        <h2 class="text-white text-xl font-semibold text-center mb-6 drop-shadow-md">选择服务器</h2>
         
         <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar px-2">
           <div 
@@ -38,7 +38,7 @@
           @click="isNewConnection = true"
           class="w-full py-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-xl transition-all border border-white/10 flex items-center justify-center mt-4"
         >
-          <span class="mr-2">+</span> New Connection
+          <span class="mr-2">+</span> 新建连接
         </button>
       </div>
 
@@ -48,10 +48,10 @@
         <!-- Header -->
         <div class="flex items-center justify-between mb-4">
           <button @click="resetSelection" class="text-white/70 hover:text-white text-sm flex items-center">
-            ← Back
+            <ArrowLeft class="w-4 h-4 mr-1"/> 返回
           </button>
           <h3 class="text-white font-semibold">
-            {{ isNewConnection ? 'New Connection' : selectedServer?.name }}
+            {{ isNewConnection ? '新建连接' : selectedServer?.name }}
           </h3>
           <div class="w-8"></div> <!-- Spacer -->
         </div>
@@ -59,18 +59,18 @@
         <form @submit.prevent="connect" class="space-y-4">
           
           <template v-if="isNewConnection">
-            <input v-model="form.name" placeholder="Display Name (Optional)" class="input-field" />
+            <input v-model="form.name" placeholder="显示名称（可选）" class="input-field" />
             <div class="grid grid-cols-3 gap-2">
-              <input v-model="form.host" placeholder="Host" class="input-field col-span-2" required />
-              <input v-model.number="form.port" type="number" placeholder="Port" class="input-field" required />
+              <input v-model="form.host" placeholder="主机" class="input-field col-span-2" required />
+              <input v-model.number="form.port" type="number" placeholder="端口" class="input-field" required />
             </div>
-            <input v-model="form.username" placeholder="Username" class="input-field" required />
+            <input v-model="form.username" placeholder="用户名" class="input-field" required />
           </template>
 
           <input 
             v-model="form.password" 
             type="password" 
-            placeholder="Password" 
+            placeholder="密码" 
             class="input-field" 
             :required="!form.privateKey"
           />
@@ -78,7 +78,7 @@
            <textarea 
               v-if="isNewConnection"
               v-model="form.privateKey" 
-              placeholder="Private Key (Optional)"
+              placeholder="私钥（可选）"
               class="input-field h-20 resize-none py-2"
             ></textarea>
 
@@ -87,8 +87,8 @@
             class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg shadow-lg transition-all transform hover:scale-[1.02] flex justify-center items-center mt-2"
             :disabled="loading"
           >
-            <span v-if="loading" class="animate-spin mr-2">⏳</span>
-            {{ loading ? 'Connecting...' : 'Login' }}
+            <Loader2 v-if="loading" class="animate-spin mr-2 w-4 h-4" />
+            {{ loading ? '连接中...' : '登录' }}
           </button>
         </form>
 
@@ -102,6 +102,7 @@
 import { ref, reactive } from 'vue';
 import { useSshStore, type SavedServer } from '@/stores/ssh';
 import { useDesktopStore } from '@/stores/desktop';
+import { Monitor, ArrowLeft, Loader2 } from 'lucide-vue-next';
 
 const sshStore = useSshStore();
 const desktopStore = useDesktopStore(); // Maybe not needed directly here, but good to have context
