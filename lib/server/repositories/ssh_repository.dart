@@ -12,51 +12,58 @@ class SshRepository {
   }
 
   Future<List<FileItem>> listFiles(SshSession session, String path) async {
-    final sftp = await session.client.sftp();
-    try {
-      final items = await sftp.listdir(path);
-      return items
-          .map(
-            (item) => FileItem(
-              filename: item.filename,
-              longname: item.longname,
-              isDirectory: item.attr.isDirectory,
-              size: item.attr.size ?? 0,
-              mtime: item.attr.modifyTime != null
-                  ? DateTime.fromMillisecondsSinceEpoch(
-                      item.attr.modifyTime! * 1000,
-                    )
-                  : null,
-            ),
-          )
-          .toList();
-    } finally {
-      sftp.close();
-    }
+    final sftp = await session.sftp();
+    final items = await sftp.listdir(path);
+    return items
+        .map(
+          (item) => FileItem(
+            filename: item.filename,
+            longname: item.longname,
+            isDirectory: item.attr.isDirectory,
+            size: item.attr.size ?? 0,
+            mtime: item.attr.modifyTime != null
+                ? DateTime.fromMillisecondsSinceEpoch(
+                    item.attr.modifyTime! * 1000,
+                  )
+                : null,
+          ),
+        )
+        .toList();
   }
 
   Future<Stream<Uint8List>> readFileStream(
     SshSession session,
     String path,
   ) async {
-    final sftp = await session.client.sftp();
+    final sftp = await session.sftp();
     final file = await sftp.open(path);
-    // Return a stream that closes the SFTP channel when done
-    return file.read().transform(
-      StreamTransformer<Uint8List, Uint8List>.fromHandlers(
-        handleDone: (sink) {
-          sink.close();
-          sftp.close();
+    final controller = StreamController<Uint8List>();
+    StreamSubscription? subscription;
+
+    controller.onListen = () {
+      subscription = file.read().listen(
+        (data) {
+          controller.add(data);
         },
-        handleError: (error, stackTrace, sink) {
-          sink.addError(error, stackTrace);
-          sftp.close();
+        onError: (Object error, StackTrace stackTrace) {
+          controller.addError(error, stackTrace);
+          // 发生错误时关闭文件
+          file.close();
+          controller.close();
         },
-        handleData: (data, sink) {
-          sink.add(data);
+        onDone: () {
+          controller.close();
+          file.close();
         },
-      ),
-    );
+      );
+    };
+
+    controller.onCancel = () async {
+      await subscription?.cancel();
+      await file.close();
+    };
+
+    return controller.stream;
   }
 
   Future<void> writeFileStream(
@@ -64,18 +71,18 @@ class SshRepository {
     String path,
     Stream<List<int>> content,
   ) async {
-    final sftp = await session.client.sftp();
+    final sftp = await session.sftp();
+    final file = await sftp.open(
+      path,
+      mode:
+          SftpFileOpenMode.write |
+          SftpFileOpenMode.create |
+          SftpFileOpenMode.truncate,
+    );
     try {
-      final file = await sftp.open(
-        path,
-        mode:
-            SftpFileOpenMode.write |
-            SftpFileOpenMode.create |
-            SftpFileOpenMode.truncate,
-      );
       await file.write(content.cast<Uint8List>());
     } finally {
-      sftp.close();
+      await file.close();
     }
   }
 
@@ -84,21 +91,13 @@ class SshRepository {
     String oldPath,
     String newPath,
   ) async {
-    final sftp = await session.client.sftp();
-    try {
-      await sftp.rename(oldPath, newPath);
-    } finally {
-      sftp.close();
-    }
+    final sftp = await session.sftp();
+    await sftp.rename(oldPath, newPath);
   }
 
   Future<void> mkdir(SshSession session, String path) async {
-    final sftp = await session.client.sftp();
-    try {
-      await sftp.mkdir(path);
-    } finally {
-      sftp.close();
-    }
+    final sftp = await session.sftp();
+    await sftp.mkdir(path);
   }
 
   Future<void> copy(SshSession session, String source, String target) async {
@@ -127,16 +126,12 @@ class SshRepository {
   }
 
   Future<void> delete(SshSession session, String path) async {
-    final sftp = await session.client.sftp();
-    try {
-      final stat = await sftp.stat(path);
-      if (stat.isDirectory) {
-        await sftp.rmdir(path);
-      } else {
-        await sftp.remove(path);
-      }
-    } finally {
-      sftp.close();
+    final sftp = await session.sftp();
+    final stat = await sftp.stat(path);
+    if (stat.isDirectory) {
+      await sftp.rmdir(path);
+    } else {
+      await sftp.remove(path);
     }
   }
 

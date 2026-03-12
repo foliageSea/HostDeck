@@ -1,39 +1,44 @@
 <template>
-  <div class="h-full flex flex-col relative bg-white dark:bg-gray-900" @click="closeContextMenu">
-    <FileToolbar 
-      :currentPath="fileStore.currentPath" 
-      :viewMode="fileStore.viewMode"
-      @navigate="fileStore.navigate"
-      @navigateUp="fileStore.navigateUp"
-      @refresh="fileStore.refresh"
-      @upload="triggerUpload"
-      @mkdir="openMkdirModal"
-      @toggleView="v => fileStore.viewMode = v"
-    />
-    
-    <div class="flex-1 overflow-hidden relative" 
-      @dragover.prevent 
-      @drop.prevent="handleDrop"
-    >
-      <FileList 
-        v-if="fileStore.viewMode === 'list'"
-        :files="fileStore.files"
-        :selectedFiles="fileStore.selectedFiles"
-        @select="fileStore.toggleSelection"
-        @selectAll="handleSelectAll"
-        @open="handleOpen"
-        @contextmenu="handleContextMenu"
-      />
-      <FileGrid 
-        v-else
-        :files="fileStore.files"
-        :selectedFiles="fileStore.selectedFiles"
-        @select="fileStore.toggleSelection"
-        @open="handleOpen"
-        @contextmenu="handleContextMenu"
+  <div class="h-full flex bg-white dark:bg-[#1e1e1e]" @click="closeContextMenu">
+
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#1e1e1e]">
+      <FileToolbar 
+        :currentPath="fileStore.currentPath" 
+        :viewMode="fileStore.viewMode"
+        @navigate="fileStore.navigate"
+        @navigateUp="fileStore.navigateUp"
+        @refresh="fileStore.refresh"
+        @upload="triggerUpload"
+        @mkdir="openMkdirModal"
+        @toggleView="v => fileStore.viewMode = v"
       />
       
-      <Loading :loading="fileStore.loading" />
+      <div class="flex-1 overflow-hidden relative" 
+        @dragover.prevent 
+        @drop.prevent="handleDrop"
+      >
+        <FileList 
+          v-if="fileStore.viewMode === 'list'"
+          :files="fileStore.files"
+          :selectedFiles="fileStore.selectedFiles"
+          @select="fileStore.toggleSelection"
+          @selectAll="handleSelectAll"
+          @open="handleOpen"
+          @contextmenu="handleContextMenu"
+        />
+        <FileGrid 
+          v-else
+          :files="fileStore.files"
+          :selectedFiles="fileStore.selectedFiles"
+          @select="fileStore.toggleSelection"
+          @open="handleOpen"
+          @contextmenu="handleContextMenu"
+        />
+        
+        <Loading :loading="fileStore.loading" />
+      </div>
     </div>
 
     <!-- Context Menu -->
@@ -102,7 +107,8 @@ import Loading from '../components/ui/Loading.vue'
 import { 
   FolderIcon, DownloadIcon, 
   CopyIcon, ScissorsIcon, ClipboardPasteIcon, 
-  EditIcon, Trash2Icon, RefreshCwIcon, TypeIcon
+  EditIcon, Trash2Icon, RefreshCwIcon, TypeIcon,
+  HomeIcon, MonitorIcon, FileTextIcon, HardDriveIcon, CloudIcon, ClockIcon
 } from 'lucide-vue-next'
 
 const fileStore = useFileStore()
@@ -122,6 +128,42 @@ const editorLanguage = ref('plaintext')
 const fileInput = ref<HTMLInputElement>()
 const mkdirInput = ref<HTMLInputElement>()
 const renameInput = ref<HTMLInputElement>()
+
+// Sidebar Items
+const favorites = [
+  { name: '最近使用', path: '/recent', icon: ClockIcon, color: 'text-blue-500' },
+  { name: '桌面', path: '/root/Desktop', icon: MonitorIcon, color: 'text-blue-500' }, // Assuming root for now, ideally dynamic
+  { name: '文档', path: '/root/Documents', icon: FileTextIcon, color: 'text-blue-500' },
+  { name: '下载', path: '/root/Downloads', icon: DownloadIcon, color: 'text-blue-500' },
+  { name: '主文件夹', path: '~', icon: HomeIcon, color: 'text-blue-500' },
+]
+
+const locations = [
+  { name: '根目录', path: '/', icon: HardDriveIcon },
+  { name: '临时目录', path: '/tmp', icon: CloudIcon },
+]
+
+const currentPath = computed(() => fileStore.currentPath)
+
+const navigateTo = (path: string) => {
+  // Handle ~ for home
+  if (path === '~') {
+    // In a real app, we'd know the home dir. 
+    // For now, let's assume navigating to empty string or a specific command might be needed, 
+    // or we just rely on the store to handle it if we pass a special flag.
+    // But since the store probably expects absolute paths:
+    // Let's just try to go to user home if we can guess it or if backend supports it.
+    // For now, let's just use '.' which usually means current, but maybe we can use a known path.
+    // Or we can just use the initial path logic.
+    // Let's try navigating to '.' and let backend handle or just '/root' for this demo if we are root.
+    fileStore.navigate('.') 
+  } else if (path === '/recent') {
+    // Not implemented
+    toast.info('最近使用功能暂未实现')
+  } else {
+    fileStore.navigate(path)
+  }
+}
 
 // Initial load
 onMounted(() => {

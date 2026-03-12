@@ -1,52 +1,44 @@
 <template>
-  <div class="overflow-auto h-full">
-    <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
-      <thead class="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
+  <div class="overflow-auto h-full bg-white dark:bg-[#1e1e1e]">
+    <table class="w-full text-left text-[13px] text-gray-700 dark:text-gray-300 border-collapse">
+      <thead class="bg-white dark:bg-[#2d2d2d] sticky top-0 z-10 text-gray-500 border-b border-gray-200 dark:border-black">
         <tr>
-          <th class="px-4 py-3 w-10 text-center">
-            <input type="checkbox" 
-              :checked="allSelected" 
-              @change="$emit('selectAll')"
-              class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            >
+          <th class="px-4 py-1.5 w-8 text-center font-normal">
           </th>
-          <th class="px-4 py-3 font-medium">名称</th>
-          <th class="px-4 py-3 w-32 font-medium">大小</th>
-          <th class="px-4 py-3 w-48 font-medium">修改时间</th>
-          <th class="px-4 py-3 w-20 font-medium text-right">操作</th>
+          <th class="px-2 py-1.5 font-normal">名称</th>
+          <th class="px-2 py-1.5 w-24 font-normal">大小</th>
+          <th class="px-2 py-1.5 w-40 font-normal">修改时间</th>
+          <th class="px-2 py-1.5 w-32 font-normal">种类</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
-        <tr v-for="file in files" :key="file.filename" 
+      <tbody class="divide-y divide-transparent">
+        <tr v-for="(file, index) in files" :key="file.filename" 
           @click="$emit('select', file.filename, $event.ctrlKey || $event.metaKey)"
           @dblclick="$emit('open', file)"
           @contextmenu.prevent="$emit('contextmenu', $event, file)"
-          :class="['hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors', 
-            selectedFiles.has(file.filename) ? 'bg-blue-50 dark:bg-blue-900/30' : '']">
-          <td class="px-4 py-2 text-center" @click.stop>
-            <input type="checkbox" 
-              :checked="selectedFiles.has(file.filename)" 
-              @change="$emit('select', file.filename, true)"
-              class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            >
+          :class="['cursor-default select-none group', 
+            selectedFiles.has(file.filename) 
+              ? 'bg-[#007AFF] text-white dark:text-white' 
+              : index % 2 === 0 ? 'bg-white dark:bg-[#1e1e1e]' : 'bg-[#f5f5f5] dark:bg-[#252526]'
+          ]">
+          <td class="px-4 py-1 text-center">
+            <div v-if="selectedFiles.has(file.filename)" class="w-1.5 h-1.5 rounded-full bg-white/50 mx-auto"></div>
           </td>
-          <td class="px-4 py-2">
-            <div class="flex items-center gap-3">
-              <FolderIcon v-if="file.isDirectory" class="w-5 h-5 text-yellow-500 flex-shrink-0" />
-              <FileIcon v-else class="w-5 h-5 text-gray-400 flex-shrink-0" />
-              <span class="truncate">{{ file.filename }}</span>
+          <td class="px-2 py-1">
+            <div class="flex items-center gap-2">
+              <FolderIcon v-if="file.isDirectory" :class="['w-4 h-4', selectedFiles.has(file.filename) ? 'text-white' : 'text-[#00aaff] fill-current']" />
+              <FileIcon v-else :class="['w-4 h-4', selectedFiles.has(file.filename) ? 'text-white' : 'text-gray-400']" />
+              <span class="truncate font-medium">{{ file.filename }}</span>
             </div>
           </td>
-          <td class="px-4 py-2 text-gray-500 dark:text-gray-400 font-mono text-xs">
-            {{ file.isDirectory ? '-' : formatSize(file.size) }}
+          <td :class="['px-2 py-1 font-mono text-xs', selectedFiles.has(file.filename) ? 'text-white/80' : 'text-gray-500 dark:text-gray-400']">
+            {{ file.isDirectory ? '--' : formatSize(file.size) }}
           </td>
-          <td class="px-4 py-2 text-gray-500 dark:text-gray-400 text-xs">
+          <td :class="['px-2 py-1 text-xs', selectedFiles.has(file.filename) ? 'text-white/80' : 'text-gray-500 dark:text-gray-400']">
             {{ formatDate(file.modifyTime) }}
           </td>
-          <td class="px-4 py-2 text-right">
-            <button @click.stop="$emit('contextmenu', $event, file)" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
-              <MoreVerticalIcon class="w-4 h-4" />
-            </button>
+          <td :class="['px-2 py-1 text-xs', selectedFiles.has(file.filename) ? 'text-white/80' : 'text-gray-500 dark:text-gray-400']">
+            {{ getKind(file) }}
           </td>
         </tr>
         <tr v-if="files.length === 0">
@@ -61,7 +53,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { FolderIcon, FileIcon, MoreVerticalIcon } from 'lucide-vue-next'
+import { FolderIcon, FileIcon } from 'lucide-vue-next'
 import type { FileItem } from '@/stores/file'
 
 const props = defineProps<{
@@ -70,10 +62,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['select', 'selectAll', 'open', 'contextmenu'])
-
-const allSelected = computed(() => {
-  return props.files.length > 0 && props.selectedFiles.size === props.files.length
-})
 
 const formatSize = (bytes: number) => {
   if (bytes === 0) return '0 B'
@@ -85,6 +73,13 @@ const formatSize = (bytes: number) => {
 
 const formatDate = (isoString?: string) => {
   if (!isoString) return '-'
-  return new Date(isoString).toLocaleString()
+  const d = new Date(isoString)
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+const getKind = (file: FileItem) => {
+  if (file.isDirectory) return '文件夹'
+  const ext = file.filename.split('.').pop()?.toUpperCase()
+  return ext ? `${ext} 文件` : '文件'
 }
 </script>
