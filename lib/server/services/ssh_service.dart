@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:dartssh2/dartssh2.dart';
 import '../models/ssh_session.dart';
 
 class SshService {
   final Map<String, SshSession> _sessions = {};
+  final Map<String, SSHClient> _clients = {};
 
   Future<SshSession> connect({
     required String host,
@@ -28,6 +30,29 @@ class SshService {
 
     await client.authenticated;
     
+    final connectionId = _generateId();
+    _clients[connectionId] = client;
+
+    // Handle unexpected disconnection
+    client.done.then((_) {
+      _disconnectInternal(connectionId);
+    });
+
+    // Create initial shell (Main Session)
+    return await createShell(connectionId);
+  }
+  
+  Future<SshSession> createShell(String connectionId) async {
+    final client = _clients[connectionId];
+    if (client == null) {
+      throw Exception('Connection not found: $connectionId');
+    }
+
+    if (client.isClosed) {
+       _disconnectInternal(connectionId);
+       throw Exception('Connection is closed');
+    }
+
     final shell = await client.shell(
       pty: SSHPtyConfig(
         width: 80,
@@ -35,7 +60,7 @@ class SshService {
       ),
     );
 
-    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final sessionId = _generateId();
     final outputController = StreamController<String>.broadcast();
     
     // Pipe shell output to controller
@@ -47,21 +72,30 @@ class SshService {
     });
 
     final session = SshSession(
-      id: id,
+      id: sessionId,
+      connectionId: connectionId,
       client: client,
       shell: shell,
       outputController: outputController,
     );
     
-    _sessions[id] = session;
+    _sessions[sessionId] = session;
     
-    // Handle session close
-    client.done.then((_) {
-      closeSession(id);
-    });
+    // Handle client disconnection (only once per client usually, but safe to add listener?)
+    // Actually client.done is a future. We should set it up when client is created.
+    // But we didn't do it in connect() fully.
+    // Let's do it here? No, better in connect.
+    // However, if we do it in connect, we need to know how to clean up.
     
     return session;
   }
+
+  // Helper to setup client cleanup. 
+  // Since we modified connect to return SshSession via createShell, 
+  // we need to attach the listener in connect or right after client creation.
+  // But wait, connect calls createShell.
+  
+  // Let's fix connect() to attach listener.
   
   SshSession? getSession(String id) => _sessions[id];
   
@@ -71,5 +105,28 @@ class SshService {
       await session.close();
       _sessions.remove(id);
     }
+  }
+
+  Future<void> disconnect(String connectionId) async {
+    final client = _clients[connectionId];
+    if (client != null) {
+      client.close();
+      _disconnectInternal(connectionId);
+    }
+  }
+
+  void _disconnectInternal(String connectionId) {
+    final sessionsToRemove = _sessions.values.where((s) => s.connectionId == connectionId).toList();
+    for (final session in sessionsToRemove) {
+      // We don't await here because this might be called from sync context or fire-and-forget
+      session.close(); 
+      _sessions.remove(session.id);
+    }
+    _clients.remove(connectionId);
+  }
+
+  String _generateId() {
+    return DateTime.now().millisecondsSinceEpoch.toString() + 
+           Random().nextInt(1000).toString();
   }
 }

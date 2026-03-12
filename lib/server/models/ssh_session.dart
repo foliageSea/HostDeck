@@ -3,6 +3,7 @@ import 'package:dartssh2/dartssh2.dart';
 
 class SshSession {
   final String id;
+  final String connectionId;
   final SSHClient client;
   final SSHSession shell;
   final StreamController<String> _outputController;
@@ -31,6 +32,7 @@ class SshSession {
 
   SshSession({
     required this.id,
+    required this.connectionId,
     required this.client,
     required this.shell,
     StreamController<String>? outputController,
@@ -39,7 +41,8 @@ class SshSession {
   Future<void> close() async {
     _sftpClient?.close();
     shell.close();
-    client.close();
+    // Do not close client here, as it may be shared across sessions
+    // client.close(); 
     await _outputController.close();
   }
 }

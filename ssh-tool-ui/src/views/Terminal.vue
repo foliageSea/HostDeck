@@ -21,9 +21,10 @@ let term: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
 let socket: WebSocket | null = null;
 let resizeObserver: ResizeObserver | null = null;
+const mySessionId = ref<string | null>(null);
 
 onMounted(async () => {
-  if (!sshStore.isConnected || !sshStore.sessionId) {
+  if (!sshStore.isConnected) {
     return;
   }
   
@@ -61,8 +62,33 @@ onMounted(async () => {
     resizeObserver.observe(terminalContainer.value);
   }
 
+  // Create new session
+  try {
+      if (sshStore.connectionId) {
+          const res = await fetch('/api/terminal/session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ connectionId: sshStore.connectionId })
+          });
+          if (!res.ok) {
+              term?.write(`\r\n错误：创建会话失败 - ${await res.text()}\r\n`);
+              return;
+          }
+          const data = await res.json();
+          mySessionId.value = data.sessionId;
+      } else if (sshStore.sessionId) {
+          mySessionId.value = sshStore.sessionId;
+      } else {
+          term?.write('\r\n错误：未连接\r\n');
+          return;
+      }
+  } catch (e) {
+      term?.write(`\r\n错误：连接异常 - ${e}\r\n`);
+      return;
+  }
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}/socket.io?sessionId=${sshStore.sessionId}`;
+  const wsUrl = `${protocol}//${window.location.host}/socket.io?sessionId=${mySessionId.value}`;
   
   socket = new WebSocket(wsUrl);
   
@@ -75,14 +101,6 @@ onMounted(async () => {
   };
   
   socket.onmessage = (event) => {
-      // Check if it is a resize ack or data
-      // For now assume raw data unless we wrap it
-      // The current backend implementation seems to send raw strings?
-      // Wait, the previous code had `if (typeof event.data === 'string')`
-      // But sendResize sends JSON stringify.
-      // Backend probably handles JSON for resize but sends raw string for output.
-      
-      // Let's assume backend sends raw text for output.
       term?.write(event.data);
   };
   
@@ -106,9 +124,20 @@ function sendResize(cols: number, rows: number) {
   }
 }
 
-onBeforeUnmount(() => {
+onBeforeUnmount(async () => {
   resizeObserver?.disconnect();
   socket?.close();
   term?.dispose();
+  
+  // Close session if it's a dedicated one
+  if (mySessionId.value && mySessionId.value !== sshStore.sessionId) {
+      try {
+          await fetch(`/api/terminal/session?sessionId=${mySessionId.value}`, {
+              method: 'DELETE'
+          });
+      } catch (e) {
+          console.error('Failed to close session', e);
+      }
+  }
 });
 </script>

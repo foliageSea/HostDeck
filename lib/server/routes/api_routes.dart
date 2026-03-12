@@ -40,6 +40,8 @@ class ApiRoutes {
 
     // Terminal
     router.get('/socket.io', terminalController.handler);
+    router.post('/api/terminal/session', terminalController.createSession);
+    router.delete('/api/terminal/session', terminalController.closeSession);
 
     return router;
   }

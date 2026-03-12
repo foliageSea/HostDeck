@@ -20,7 +20,10 @@ class AuthController {
         privateKey: data['privateKey'],
       );
       
-      return Response.ok(jsonEncode({'sessionId': session.id}), 
+      return Response.ok(jsonEncode({
+        'sessionId': session.id,
+        'connectionId': session.connectionId,
+      }), 
         headers: {'content-type': 'application/json'});
     } catch (e) {
       print('Connect Error: $e');

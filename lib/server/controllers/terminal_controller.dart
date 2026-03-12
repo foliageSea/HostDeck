@@ -29,6 +29,43 @@ class TerminalController {
     };
   }
 
+  Future<Response> createSession(Request request) async {
+    try {
+      final payload = await request.readAsString();
+      final data = jsonDecode(payload);
+      final connectionId = data['connectionId'];
+      
+      if (connectionId == null) {
+        return Response.badRequest(body: 'Missing connectionId');
+      }
+
+      final session = await _sshService.createShell(connectionId);
+      
+      return Response.ok(jsonEncode({
+        'sessionId': session.id,
+      }), headers: {'content-type': 'application/json'});
+    } catch (e) {
+      return Response.internalServerError(body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'});
+    }
+  }
+
+  Future<Response> closeSession(Request request) async {
+    try {
+      final sessionId = request.url.queryParameters['sessionId'];
+      if (sessionId == null) {
+        return Response.badRequest(body: 'Missing sessionId');
+      }
+      
+      await _sshService.closeSession(sessionId);
+      
+      return Response.ok('Session closed');
+    } catch (e) {
+      return Response.internalServerError(body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'});
+    }
+  }
+
   void _attachSession(WebSocketChannel channel, SshSession session) {
     // Forward SSH output to WS
     final sub = session.output.listen((data) {

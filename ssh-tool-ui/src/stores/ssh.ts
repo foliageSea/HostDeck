@@ -11,6 +11,7 @@ export interface SavedServer {
 
 export const useSshStore = defineStore('ssh', () => {
   const sessionId = ref<string | null>(null)
+  const connectionId = ref<string | null>(null)
   const isConnected = ref(false)
   const host = ref('')
   const username = ref('')
@@ -32,8 +33,9 @@ export const useSshStore = defineStore('ssh', () => {
     localStorage.setItem('savedServers', JSON.stringify(newVal))
   }, { deep: true })
 
-  function setSession(id: string, h: string, u: string) {
+  function setSession(id: string, connId: string, h: string, u: string) {
     sessionId.value = id
+    connectionId.value = connId
     host.value = h
     username.value = u
     isConnected.value = true
@@ -41,6 +43,7 @@ export const useSshStore = defineStore('ssh', () => {
 
   function clearSession() {
     sessionId.value = null
+    connectionId.value = null
     isConnected.value = false
     host.value = ''
     username.value = ''
@@ -66,7 +69,8 @@ export const useSshStore = defineStore('ssh', () => {
   }
 
   return { 
-    sessionId, 
+    sessionId,
+    connectionId,
     isConnected, 
     host, 
     username, 

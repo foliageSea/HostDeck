@@ -175,7 +175,7 @@ const connect = async () => {
       })
     }
 
-    sshStore.setSession(data.sessionId, form.host, form.username);
+    sshStore.setSession(data.sessionId, data.connectionId, form.host, form.username);
     
   } catch (e) {
     alert('Connection failed: ' + e);

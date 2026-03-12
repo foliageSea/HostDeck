@@ -249,7 +249,7 @@ async function connect() {
     }
     
     const data = await res.json()
-    sshStore.setSession(data.sessionId, form.host, form.username)
+    sshStore.setSession(data.sessionId, data.connectionId, form.host, form.username)
     router.push('/dashboard')
   } catch (e) {
     alert('Connection failed: ' + e)
