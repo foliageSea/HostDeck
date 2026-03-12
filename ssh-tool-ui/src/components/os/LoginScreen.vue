@@ -1,6 +1,6 @@
 <template>
   <div class="h-screen w-screen bg-cover bg-center flex items-center justify-center relative overflow-hidden"
-       style="background-image: url('https://images.unsplash.com/photo-1494548162494-384bba4ab999?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80')">
+       :style="{ backgroundImage: `url(${bgImage})` }">
     
     <!-- Blur Overlay -->
     <div class="absolute inset-0 bg-background/20 backdrop-blur-md"></div>
@@ -112,6 +112,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import bgImage from '@/assets/bg.jpg';
 
 const sshStore = useSshStore();
 

@@ -1,6 +1,6 @@
 <template>
   <div class="h-screen w-screen overflow-hidden bg-cover bg-center bg-no-repeat relative font-sans text-gray-900" 
-       style="background-image: url('https://images.unsplash.com/photo-1494548162494-384bba4ab999?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80')">
+       :style="{ backgroundImage: `url(${bgImage})` }">
     
     <!-- Top Bar -->
     <TopBar />
@@ -28,6 +28,7 @@ import { useDesktopStore } from '@/stores/desktop';
 import TopBar from './TopBar.vue';
 import Dock from './Dock.vue';
 import Window from './Window.vue';
+import bgImage from '@/assets/bg.jpg';
 
 const desktopStore = useDesktopStore();
 const windows = computed(() => desktopStore.windows);
