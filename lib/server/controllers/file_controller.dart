@@ -12,6 +12,27 @@ class FileController {
 
   FileController(this._sshService, this._fileService);
 
+  Future<Response> createSession(Request request) async {
+    try {
+      final body = await request.readAsString();
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final connectionId = data['connectionId'];
+      
+      if (connectionId == null) {
+        return Response.badRequest(body: 'Missing connectionId');
+      }
+
+      final session = await _sshService.createSftpSession(connectionId);
+      
+      return Response.ok(jsonEncode({
+        'sessionId': session.id,
+      }), headers: {'content-type': 'application/json'});
+    } catch (e) {
+      return Response.internalServerError(body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'});
+    }
+  }
+
   Future<Response> listFiles(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'] ?? '.';

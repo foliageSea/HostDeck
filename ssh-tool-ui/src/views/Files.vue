@@ -10,7 +10,7 @@
         @navigate="fileStore.navigate"
         @navigateUp="fileStore.navigateUp"
         @refresh="fileStore.refresh"
-        @upload="triggerUpload"
+        @upload-files="uploadFiles"
         @mkdir="openMkdirModal"
         @toggleView="v => fileStore.viewMode = v"
       />
@@ -18,6 +18,7 @@
       <div class="flex-1 overflow-hidden relative" 
         @dragover.prevent 
         @drop.prevent="handleDrop"
+        @contextmenu.prevent
       >
         <FileList 
           v-if="fileStore.viewMode === 'list'"
@@ -38,6 +39,7 @@
         />
         
         <Loading :loading="fileStore.loading" />
+        <FileUploadProgress />
       </div>
     </div>
 
@@ -83,9 +85,6 @@
         @save="handleSaveFile" 
       />
     </div>
-    
-    <!-- Hidden File Input -->
-    <input type="file" ref="fileInput" multiple style="display: none" @change="handleUpload" />
   </div>
 </template>
 
@@ -100,6 +99,7 @@ import FileList from '../components/file/FileList.vue'
 import FileGrid from '../components/file/FileGrid.vue'
 import FileContextMenu, { type MenuItem } from '../components/file/FileContextMenu.vue'
 import FileEditor from '../components/file/FileEditor.vue'
+import FileUploadProgress from '../components/file/FileUploadProgress.vue'
 import Modal from '../components/ui/Modal.vue'
 import Loading from '../components/ui/Loading.vue'
 import { Input } from '@/components/ui/input'
@@ -123,13 +123,13 @@ const newItemName = ref('')
 const editorFile = ref({ filename: '', path: '' })
 const editorContent = ref('')
 const editorLanguage = ref('plaintext')
-const fileInput = ref<HTMLInputElement>()
 const mkdirInput = ref<any>()
 const renameInput = ref<any>()
 
 // Initial load
-onMounted(() => {
+onMounted(async () => {
   if (sshStore.isConnected) {
+    await fileStore.initSession()
     fileStore.fetchFiles()
   }
 })
@@ -156,7 +156,7 @@ const handleDownload = async () => {
     fileStore.loading = true
     const paths = Array.from(fileStore.selectedFiles).map(filename => getFullPath(filename))
     
-    const res = await fetch(`/api/files/batch-download?sessionId=${sshStore.sessionId}`, {
+    const res = await fetch(`/api/files/batch-download?sessionId=${fileStore.sessionId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paths })
@@ -197,21 +197,21 @@ const handlePaste = async () => {
        const fullTargetPath = resolve(fileStore.currentPath, filename)
        
        if (action === 'copy') {
-         await fetch(`/api/files/copy?sessionId=${sshStore.sessionId}`, {
+         await fetch(`/api/files/copy?sessionId=${fileStore.sessionId}`, {
            method: 'POST',
            body: JSON.stringify({ source: fullSourcePath, target: fullTargetPath })
          })
        } else {
-         await fetch(`/api/files/rename?sessionId=${sshStore.sessionId}`, {
+         await fetch(`/api/files/rename?sessionId=${fileStore.sessionId}`, {
             method: 'POST',
             body: JSON.stringify({ oldPath: fullSourcePath, newPath: fullTargetPath })
          })
        }
     }
     
-    toast.success(action === 'copy' ? 'Copied' : 'Moved')
     fileStore.refresh()
     if (action === 'move') fileStore.clipboard = null
+    toast.success(action === 'copy' ? 'Copied' : 'Moved')
   } catch (e: any) {
     toast.error(`Paste failed: ${e.message}`)
   } finally {
@@ -234,7 +234,7 @@ const handleRename = async () => {
   const newPath = getFullPath(newItemName.value)
   
   try {
-    const res = await fetch(`/api/files/rename?sessionId=${sshStore.sessionId}`, {
+    const res = await fetch(`/api/files/rename?sessionId=${fileStore.sessionId}`, {
       method: 'POST',
       body: JSON.stringify({ oldPath, newPath })
     })
@@ -259,7 +259,7 @@ const handleMkdir = async () => {
   const path = getFullPath(newItemName.value)
   
   try {
-    const res = await fetch(`/api/files/mkdir?sessionId=${sshStore.sessionId}`, {
+    const res = await fetch(`/api/files/mkdir?sessionId=${fileStore.sessionId}`, {
       method: 'POST',
       body: JSON.stringify({ path })
     })
@@ -283,7 +283,7 @@ const handleDelete = async () => {
       // router.post('/api/files/delete', fileController.deleteFile);
       // deleteFile reads queryParameters['path']
       
-      await fetch(`/api/files/delete?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(path)}`, {
+      await fetch(`/api/files/delete?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(path)}`, {
         method: 'POST'
       })
     }
@@ -297,47 +297,58 @@ const handleDelete = async () => {
   }
 }
 
-const triggerUpload = () => {
-  fileInput.value?.click()
-}
-
 const uploadFiles = async (files: FileList) => {
   if (!files || files.length === 0) return
 
-  fileStore.loading = true
+  const fileArray = Array.from(files)
+  
+  fileStore.uploadStatus = {
+    uploading: true,
+    total: fileArray.length,
+    current: 0,
+    currentFilename: '',
+    success: 0,
+    failed: 0
+  }
+
   try {
-    const formData = new FormData()
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      if (file) {
-        formData.append('file', file)
+    for (const file of fileArray) {
+      fileStore.uploadStatus.currentFilename = file.name
+      fileStore.uploadStatus.current++
+      
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      // Use webkitRelativePath if available (for folder upload), otherwise just name
+      // Note: Backend might need to create directories if we pass a path with subdirectories.
+      // For now, we just use the filename to keep it simple and safe (flattening).
+      // TODO: Support recursive directory creation for folder uploads
+      
+      try {
+        const res = await fetch(`/api/files/upload?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(fileStore.currentPath)}`, {
+          method: 'POST',
+          body: formData
+        })
+        
+        if (!res.ok) throw new Error('Upload failed')
+        fileStore.uploadStatus.success++
+      } catch (e) {
+        console.error(`Failed to upload ${file.name}`, e)
+        fileStore.uploadStatus.failed++
+        toast.error(`Failed to upload ${file.name}`)
       }
     }
     
-    const res = await fetch(`/api/files/upload?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(fileStore.currentPath)}`, {
-      method: 'POST',
-      body: formData
-    })
-    
-    if (!res.ok) throw new Error('Upload failed')
-    
-    toast.success(`Uploaded ${files.length} files`)
-    fileStore.refresh()
+    if (fileStore.uploadStatus.success > 0) {
+      toast.success(`Uploaded ${fileStore.uploadStatus.success} files` + (fileStore.uploadStatus.failed > 0 ? `, ${fileStore.uploadStatus.failed} failed` : ''))
+      fileStore.refresh()
+    }
   } catch (e: any) {
-    toast.error(`Upload failed: ${e.message}`)
+    toast.error(`Upload process failed: ${e.message}`)
   } finally {
-    fileStore.loading = false
+    fileStore.uploadStatus.uploading = false
   }
 }
-
-const handleUpload = async (e: Event) => {
-  const input = e.target as HTMLInputElement
-  if (input.files) {
-    await uploadFiles(input.files)
-    input.value = ''
-  }
-}
-
 
 const handleSelectAll = () => {
   fileStore.selectAll()
@@ -363,7 +374,7 @@ const openEditor = async (file: FileItem) => {
   try {
     fileStore.loading = true
     const path = getFullPath(file.filename)
-    const res = await fetch(`/api/files/read?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(path)}`)
+    const res = await fetch(`/api/files/read?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(path)}`)
     if (!res.ok) throw new Error('Failed to read file')
     
     // Read as text
@@ -391,7 +402,7 @@ const handleSaveFile = async (content: string) => {
   try {
     fileStore.loading = true
     const targetDir = dirname(editorFile.value.path)
-    const res = await fetch(`/api/files/upload?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(targetDir)}`, {
+    const res = await fetch(`/api/files/upload?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(targetDir)}`, {
       method: 'POST',
       body: createFormData(editorFile.value.filename, content)
     })
@@ -415,7 +426,7 @@ const createFormData = (filename: string, content: string) => {
 
 const downloadFile = async (file: FileItem) => {
   const path = getFullPath(file.filename)
-  window.open(`/api/files/read?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(path)}`, '_blank')
+  window.open(`/api/files/read?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(path)}`, '_blank')
 }
 
 const handleContextMenu = (e: MouseEvent, file: FileItem) => {

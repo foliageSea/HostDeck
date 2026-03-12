@@ -23,13 +23,56 @@ export const useFileStore = defineStore('file', () => {
   const viewMode = ref<ViewMode>('list')
   const selectedFiles = ref<Set<string>>(new Set())
   const loading = ref(false)
+  const sessionId = ref<string | null>(null)
+
+  // Upload state
+  const uploadStatus = ref<{
+    uploading: boolean,
+    total: number,
+    current: number,
+    currentFilename: string,
+    success: number,
+    failed: number
+  }>({
+    uploading: false,
+    total: 0,
+    current: 0,
+    currentFilename: '',
+    success: 0,
+    failed: 0
+  })
 
   // Clipboard for copy/move operations
   // structure: { action: 'copy' | 'move', paths: string[], sourcePath: string }
   const clipboard = ref<{ action: 'copy' | 'move', paths: string[], sourcePath: string } | null>(null)
 
+  const initSession = async () => {
+    if (!sshStore.connectionId) return
+    if (sessionId.value) return
+
+    try {
+      const res = await fetch('/api/files/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId: sshStore.connectionId })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        sessionId.value = data.sessionId
+      } else {
+        throw new Error(await res.text())
+      }
+    } catch (e: any) {
+      console.error('Failed to init file session', e)
+      toast.error(`Failed to init file session: ${e.message}`)
+    }
+  }
+
   const fetchFiles = async (path?: string) => {
-    if (!sshStore.sessionId) return
+    if (!sessionId.value) {
+      await initSession()
+    }
+    if (!sessionId.value) return
 
     // Calculate target path
     let targetPath = currentPath.value
@@ -41,7 +84,7 @@ export const useFileStore = defineStore('file', () => {
 
     loading.value = true
     try {
-      const res = await fetch(`/api/files/list?sessionId=${sshStore.sessionId}&path=${encodeURIComponent(targetPath)}`)
+      const res = await fetch(`/api/files/list?sessionId=${sessionId.value}&path=${encodeURIComponent(targetPath)}`)
       if (!res.ok) throw new Error('Failed to fetch files')
 
       const data = await res.json()
@@ -121,7 +164,10 @@ export const useFileStore = defineStore('file', () => {
     viewMode,
     selectedFiles,
     loading,
+    sessionId,
+    uploadStatus,
     clipboard,
+    initSession,
     fetchFiles,
     navigate,
     navigateUp,

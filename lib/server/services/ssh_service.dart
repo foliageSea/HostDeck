@@ -90,6 +90,30 @@ class SshService {
     return session;
   }
 
+  Future<SshSession> createSftpSession(String connectionId) async {
+    final client = _clients[connectionId];
+    if (client == null) {
+      throw Exception('Connection not found: $connectionId');
+    }
+
+    if (client.isClosed) {
+       _disconnectInternal(connectionId);
+       throw Exception('Connection is closed');
+    }
+
+    final sessionId = _generateId();
+    // Create session without shell
+    final session = SshSession(
+      id: sessionId,
+      connectionId: connectionId,
+      client: client,
+      shell: null,
+    );
+    
+    _sessions[sessionId] = session;
+    return session;
+  }
+
   // Helper to setup client cleanup. 
   // Since we modified connect to return SshSession via createShell, 
   // we need to attach the listener in connect or right after client creation.

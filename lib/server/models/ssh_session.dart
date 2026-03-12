@@ -5,7 +5,7 @@ class SshSession {
   final String id;
   final String connectionId;
   final SSHClient client;
-  final SSHSession shell;
+  final SSHSession? shell;
   final StreamController<String> _outputController;
   SftpClient? _sftpClient;
   Future<SftpClient>? _sftpInitFuture;
@@ -34,13 +34,13 @@ class SshSession {
     required this.id,
     required this.connectionId,
     required this.client,
-    required this.shell,
+    this.shell,
     StreamController<String>? outputController,
   }) : _outputController = outputController ?? StreamController.broadcast();
 
   Future<void> close() async {
     _sftpClient?.close();
-    shell.close();
+    shell?.close();
     // Do not close client here, as it may be shared across sessions
     // client.close(); 
     await _outputController.close();

@@ -1,7 +1,7 @@
 <template>
   <div v-if="visible" 
     :style="{ top: y + 'px', left: x + 'px' }"
-    class="fixed z-50 min-w-[12rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 select-none"
+    class="fixed z-[10000] min-w-[12rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 select-none"
     @click.stop
   >
     <div v-for="(item, index) in items" :key="index">
@@ -16,7 +16,7 @@
     </div>
   </div>
   <!-- Overlay to close menu on click outside -->
-  <div v-if="visible" class="fixed inset-0 z-40" @click="$emit('close')"></div>
+  <div v-if="visible" class="fixed inset-0 z-[9999]" @click="$emit('close')"></div>
 </template>
 
 <script setup lang="ts">

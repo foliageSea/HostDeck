@@ -136,10 +136,18 @@ class SshRepository {
   }
 
   void resize(SshSession session, int width, int height) {
-    session.shell.resizeTerminal(width, height);
+    final shell = session.shell;
+    if (shell == null) {
+      throw StateError('Shell is not initialized for session ${session.id}');
+    }
+    shell.resizeTerminal(width, height);
   }
 
   void writeToShell(SshSession session, String data) {
-    session.shell.write(Uint8List.fromList(utf8.encode(data)));
+    final shell = session.shell;
+    if (shell == null) {
+      throw StateError('Shell is not initialized for session ${session.id}');
+    }
+    shell.write(Uint8List.fromList(utf8.encode(data)));
   }
 }

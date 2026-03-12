@@ -34,19 +34,22 @@ class TerminalController {
       final payload = await request.readAsString();
       final data = jsonDecode(payload);
       final connectionId = data['connectionId'];
-      
+
       if (connectionId == null) {
         return Response.badRequest(body: 'Missing connectionId');
       }
 
       final session = await _sshService.createShell(connectionId);
-      
-      return Response.ok(jsonEncode({
-        'sessionId': session.id,
-      }), headers: {'content-type': 'application/json'});
+
+      return Response.ok(
+        jsonEncode({'sessionId': session.id}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response.internalServerError(body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'});
+      return Response.internalServerError(
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -56,41 +59,55 @@ class TerminalController {
       if (sessionId == null) {
         return Response.badRequest(body: 'Missing sessionId');
       }
-      
+
       await _sshService.closeSession(sessionId);
-      
+
       return Response.ok('Session closed');
     } catch (e) {
-      return Response.internalServerError(body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'});
+      return Response.internalServerError(
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
   void _attachSession(WebSocketChannel channel, SshSession session) {
+    final shell = session.shell;
+    if (shell == null) {
+      channel.sink.close(1011, 'Shell not available');
+      return;
+    }
+
     // Forward SSH output to WS
-    final sub = session.output.listen((data) {
-      channel.sink.add(data);
-    }, onDone: () {
-      channel.sink.close();
-    });
+    final sub = session.output.listen(
+      (data) {
+        channel.sink.add(data);
+      },
+      onDone: () {
+        channel.sink.close();
+      },
+    );
 
     // Forward WS input to SSH
-    channel.stream.listen((message) {
-      if (message is String) {
-        try {
-           if (message.startsWith('{')) {
+    channel.stream.listen(
+      (message) {
+        if (message is String) {
+          try {
+            if (message.startsWith('{')) {
               final data = jsonDecode(message);
               if (data['type'] == 'resize') {
-                session.shell.resizeTerminal(data['cols'], data['rows']);
+                shell.resizeTerminal(data['cols'], data['rows']);
                 return;
               }
-           }
-        } catch (_) {}
-        
-        session.shell.write(Uint8List.fromList(utf8.encode(message)));
-      }
-    }, onDone: () {
-      sub.cancel();
-    });
+            }
+          } catch (_) {}
+
+          shell.write(Uint8List.fromList(utf8.encode(message)));
+        }
+      },
+      onDone: () {
+        sub.cancel();
+      },
+    );
   }
 }

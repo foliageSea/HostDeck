@@ -62,6 +62,8 @@ class MockSshSession implements SshSession {
   @override
   String get id => 'test_id';
   @override
+  String get connectionId => 'test_connection_id';
+  @override
   SSHClient get client => throw UnimplementedError();
   @override
   SSHSession get shell => throw UnimplementedError();
@@ -69,6 +71,8 @@ class MockSshSession implements SshSession {
   Stream<String> get output => Stream.empty();
   @override
   StreamController<String> get outputController => StreamController();
+  @override
+  Future<SftpClient> sftp() => throw UnimplementedError();
   @override
   Future<void> close() async {}
 }

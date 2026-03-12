@@ -29,6 +29,7 @@ class ApiRoutes {
 
     // Files
     router.get('/api/files/list', fileController.listFiles);
+    router.post('/api/files/session', fileController.createSession);
     router.get('/api/files/read', fileController.readFile);
     router.post('/api/files/write', fileController.writeFile);
     router.post('/api/files/delete', fileController.deleteFile);

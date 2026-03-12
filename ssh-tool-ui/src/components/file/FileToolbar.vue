@@ -52,6 +52,16 @@
 
       <div class="w-px h-6 bg-border mx-2"></div>
 
+      <Button variant="ghost" size="icon" class="h-8 w-8" title="上传文件" @click="triggerUpload('file')">
+        <FileUpIcon class="w-4 h-4" />
+      </Button>
+      <Button variant="ghost" size="icon" class="h-8 w-8" title="上传文件夹" @click="triggerUpload('folder')">
+        <FolderUpIcon class="w-4 h-4" />
+      </Button>
+
+      <input type="file" ref="fileInput" multiple class="hidden" @change="handleFileChange" />
+      <input type="file" ref="folderInput" webkitdirectory class="hidden" @change="handleFileChange" />
+
       <Button variant="ghost" size="icon" @click="$emit('refresh')" title="刷新" class="h-8 w-8">
         <RotateCwIcon class="w-4 h-4" />
       </Button>
@@ -63,9 +73,6 @@
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-           <DropdownMenuItem @click="$emit('upload')">
-             上传文件
-           </DropdownMenuItem>
            <DropdownMenuItem @click="$emit('mkdir')">
              新建文件夹
            </DropdownMenuItem>
@@ -89,7 +96,8 @@
 import { ref, watch, computed } from 'vue'
 import { 
   ChevronLeftIcon, ChevronRightIcon, RotateCwIcon, 
-  ListIcon, LayoutGridIcon, SearchIcon, MoreHorizontalIcon 
+  ListIcon, LayoutGridIcon, SearchIcon, MoreHorizontalIcon,
+  FileUpIcon, FolderUpIcon
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -105,7 +113,26 @@ const props = defineProps<{
   viewMode: 'list' | 'grid'
 }>()
 
-const emit = defineEmits(['navigate', 'navigateUp', 'refresh', 'upload', 'mkdir', 'toggleView'])
+const emit = defineEmits(['navigate', 'navigateUp', 'refresh', 'upload', 'upload-folder', 'upload-files', 'mkdir', 'toggleView'])
+
+const fileInput = ref<HTMLInputElement>()
+const folderInput = ref<HTMLInputElement>()
+
+const triggerUpload = (mode: 'file' | 'folder') => {
+  if (mode === 'folder') {
+    folderInput.value?.click()
+  } else {
+    fileInput.value?.click()
+  }
+}
+
+const handleFileChange = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  if (input.files && input.files.length > 0) {
+    emit('upload-files', input.files)
+    input.value = ''
+  }
+}
 
 const path = ref(props.currentPath)
 
