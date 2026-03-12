@@ -1,15 +1,79 @@
 <template>
-  <div class="h-full w-full bg-black flex flex-col overflow-hidden">
+  <div class="h-full w-full bg-black flex flex-col overflow-hidden relative">
     <div ref="terminalContainer" class="flex-1 w-full h-full"></div>
+
+    <!-- Settings Button -->
+    <div class="absolute top-2 right-4 z-10 opacity-50 hover:opacity-100 transition-opacity">
+      <Dialog>
+        <DialogTrigger as-child>
+          <Button variant="ghost" size="icon" class="h-8 w-8 text-white hover:bg-white/20">
+            <Settings class="h-5 w-5" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent class="sm:max-w-[425px] bg-zinc-900 text-white border-zinc-800">
+          <DialogHeader>
+            <DialogTitle>终端设置</DialogTitle>
+            <DialogDescription class="text-zinc-400">
+              调整终端的显示偏好设置。
+            </DialogDescription>
+          </DialogHeader>
+          <div class="grid gap-4 py-4">
+            <div class="grid grid-cols-4 items-center gap-4">
+              <Label for="font-size" class="text-right">
+                字体大小
+              </Label>
+              <Input
+                id="font-size"
+                type="number"
+                v-model.number="settingsStore.terminalFontSize"
+                class="col-span-3 bg-zinc-800 border-zinc-700 text-white"
+                min="8"
+                max="72"
+              />
+            </div>
+            <div class="grid grid-cols-4 items-center gap-4">
+              <Label for="font-family" class="text-right">
+                字体名称
+              </Label>
+              <Input
+                id="font-family"
+                v-model="settingsStore.terminalFontFamily"
+                class="col-span-3 bg-zinc-800 border-zinc-700 text-white"
+                placeholder="例如: Menlo, monospace"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+             <Button @click="resetSettings" variant="outline" class="mr-auto text-black dark:text-white border-zinc-700 hover:bg-zinc-800">
+               重置默认
+             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { useSshStore } from '../stores/ssh';
+import { useSettingsStore } from '../stores/settings';
+import { Settings } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const props = defineProps<{
   windowId?: string
@@ -17,11 +81,32 @@ const props = defineProps<{
 
 const terminalContainer = ref<HTMLElement | null>(null);
 const sshStore = useSshStore();
+const settingsStore = useSettingsStore();
 let term: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
 let socket: WebSocket | null = null;
 let resizeObserver: ResizeObserver | null = null;
 const mySessionId = ref<string | null>(null);
+
+const resetSettings = () => {
+  settingsStore.resetTerminalSettings();
+};
+
+watch(() => settingsStore.terminalFontSize, (newSize) => {
+  if (term) {
+    term.options.fontSize = newSize;
+    fitAddon?.fit();
+    sendResize(term.cols, term.rows);
+  }
+});
+
+watch(() => settingsStore.terminalFontFamily, (newFamily) => {
+  if (term) {
+    term.options.fontFamily = newFamily;
+    fitAddon?.fit();
+    sendResize(term.cols, term.rows);
+  }
+});
 
 onMounted(async () => {
   if (!sshStore.isConnected) {
@@ -36,8 +121,8 @@ onMounted(async () => {
       background: '#000000',
       foreground: '#ffffff',
     },
-    fontSize: 14,
-    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    fontSize: settingsStore.terminalFontSize,
+    fontFamily: settingsStore.terminalFontFamily,
     allowProposedApi: true
   });
   
