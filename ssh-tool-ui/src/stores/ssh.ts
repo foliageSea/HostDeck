@@ -61,7 +61,7 @@ export const useSshStore = defineStore('ssh', () => {
   function updateServer(id: string, server: Partial<SavedServer>) {
     const index = savedServers.value.findIndex(s => s.id === id)
     if (index !== -1) {
-      savedServers.value[index] = { ...savedServers.value[index], ...server }
+      savedServers.value[index] = { ...savedServers.value[index], ...server } as SavedServer
     }
   }
 

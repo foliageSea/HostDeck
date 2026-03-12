@@ -1,42 +1,42 @@
 <template>
-  <div class="h-full bg-gray-100 p-4 overflow-auto">
-    <div class="grid grid-cols-1 gap-4">
+  <div class="h-full bg-background p-4 overflow-auto">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <!-- CPU Card -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">CPU 负载</h3>
-          <Cpu class="text-2xl w-6 h-6 text-gray-600" />
-        </div>
-        <div class="text-2xl font-bold text-gray-800">{{ cpuLoad }}</div>
-        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-          <div class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" :style="{ width: `${Math.min(parseFloat(cpuLoad) * 10, 100)}%` }"></div>
-        </div>
-      </div>
+      <Card>
+        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle class="text-sm font-medium">CPU 负载</CardTitle>
+          <Cpu class="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div class="text-2xl font-bold">{{ cpuLoad }}</div>
+          <Progress :model-value="parseFloat(cpuLoad) * 10" class="mt-4 h-2" />
+        </CardContent>
+      </Card>
       
       <!-- RAM Card -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">内存</h3>
-          <MemoryStick class="text-2xl w-6 h-6 text-gray-600" />
-        </div>
-        <div class="text-2xl font-bold text-gray-800">{{ ramUsage }}%</div>
-        <div class="text-xs text-gray-400 mt-1">{{ ramDetails }}</div>
-        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-          <div class="bg-green-500 h-1.5 rounded-full transition-all duration-500" :style="{ width: `${ramUsage}%` }"></div>
-        </div>
-      </div>
+      <Card>
+        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle class="text-sm font-medium">内存</CardTitle>
+          <MemoryStick class="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div class="text-2xl font-bold">{{ ramUsage }}%</div>
+          <p class="text-xs text-muted-foreground mb-4">{{ ramDetails }}</p>
+          <Progress :model-value="ramUsage" class="h-2" />
+        </CardContent>
+      </Card>
       
       <!-- Disk Card -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">磁盘 (根目录)</h3>
-          <HardDrive class="text-2xl w-6 h-6 text-gray-600" />
-        </div>
-        <div class="text-2xl font-bold text-gray-800">{{ diskUsage }}</div>
-        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-          <div class="bg-purple-500 h-1.5 rounded-full transition-all duration-500" :style="{ width: diskUsage }"></div>
-        </div>
-      </div>
+      <Card>
+        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle class="text-sm font-medium">磁盘 (根目录)</CardTitle>
+          <HardDrive class="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div class="text-2xl font-bold">{{ diskUsage }}</div>
+          <Progress :model-value="parseFloat(diskUsage)" class="mt-4 h-2" />
+        </CardContent>
+      </Card>
     </div>
   </div>
 </template>
@@ -45,6 +45,8 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useSshStore } from '../stores/ssh';
 import { Cpu, MemoryStick, HardDrive } from 'lucide-vue-next';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
 
 const props = defineProps<{
   windowId?: string

@@ -1,74 +1,148 @@
-# 前端 UI 优化与服务器列表记忆功能计划
+# Refactor UI with shadcn-vue
 
-## 1. 概述
-本计划旨在优化 `ssh-tool-ui` 的前端样式，使其更加现代、美观（Modern Clean 风格），并增加服务器连接信息的本地记忆功能（不保存密码），提升用户体验。
+This plan outlines the steps to refactor the `ssh-tool-ui` project using `shadcn-vue`, replacing the existing hand-rolled UI components with a comprehensive component library and a consistent Blue theme.
 
-## 2. 现状分析
-- **UI**: 当前 `Home.vue` 仅包含一个简单的连接表单，样式较为基础，缺乏设计感。
-- **功能**: 每次连接都需要手动输入所有信息，且没有历史记录或收藏功能。
-- **状态管理**: `ssh.ts` 仅管理当前会话状态，未涉及持久化存储。
+## 1. Setup & Configuration
 
-## 3. 拟定变更
+* **Install Dependencies**:
 
-### 3.1 数据结构与状态管理 (src/stores/ssh.ts)
-- **新增类型定义**:
-  ```typescript
-  interface SavedServer {
-    id: string;
-    name: string; // 显示名称，默认为 user@host
-    host: string;
-    port: number;
-    username: string;
-    // 不保存密码
-  }
-  ```
-- **Store 更新**:
-  - 新增 `savedServers` 状态，初始化时从 `localStorage` 读取。
-  - 新增 Actions:
-    - `addServer(server: SavedServer)`: 添加并保存到 localStorage。
-    - `removeServer(id: string)`: 删除并更新 localStorage。
-    - `updateServer(id: string, server: Partial<SavedServer>)`: 更新信息。
+  * `shadcn-vue-next` (or `shadcn-vue` depending on latest), `clsx`, `tailwind-merge`, `class-variance-authority`, `radix-vue`, `lucide-vue-next`.
 
-### 3.2 页面布局与样式重构 (src/views/Home.vue)
-- **布局调整**:
-  - 采用 **双栏布局**（在宽屏下）或 **上下布局**（在移动端）。
-  - **左侧/顶部**: “已保存的服务器”列表。
-    - 展示服务器名称、地址。
-    - 提供“连接”、“编辑”、“删除”操作。
-    - 选中某项时，自动填充右侧表单。
-  - **右侧/底部**: “新建/编辑连接”表单。
-    - 包含：主机、端口、用户名、密码（必填，不保存）、私钥（可选）。
-    - 提交按钮：“连接” 和 “保存并连接”。
+  * Ensure `tailwindcss` and `autoprefixer` are correctly configured.
 
-- **样式优化 (Modern Clean)**:
-  - **色彩**: 使用柔和的背景色（如 `bg-gray-50`），卡片使用白色背景加轻微阴影（`shadow-sm` -> `shadow-md`）。
-  - **圆角**: 统一使用较大的圆角（`rounded-lg` 或 `rounded-xl`）。
-  - **输入框**: 去除默认边框，使用背景色填充（`bg-gray-100`）+ 底部边框动画，或使用清晰的边框加 focus ring。
-  - **按钮**: 使用渐变色或纯色加阴影，悬停时有位移或亮度变化。
-  - **列表项**: 卡片式设计，悬停高亮。
+* **Configure Path Aliases**:
 
-### 3.3 全局样式微调 (src/App.vue & src/style.css)
-- 优化字体设置，确保跨平台显示效果。
-- 调整侧边栏（如果存在）的样式，使其与新 Home 页面风格一致。
+  * Verify `tsconfig.app.json` and `vite.config.ts` correctly map `@` to `./src`.
 
-## 4. 实施步骤
+* **Initialize shadcn-vue**:
 
-1.  **更新 Store**: 修改 `src/stores/ssh.ts`，添加 `SavedServer` 类型及相关 CRUD 逻辑。
-2.  **重构 Home.vue**:
-    - 拆分组件（可选，如果代码量大）：`ServerList.vue` 和 `ConnectionForm.vue`。
-    - 实现布局和基础样式。
-    - 绑定 Store 数据。
-3.  **样式美化**: 使用 Tailwind CSS 细化 UI 细节（阴影、过渡、圆角）。
-4.  **交互逻辑**:
-    - 点击列表项填充表单。
-    - 连接成功后询问是否保存（如果是由手动输入触发）。
-    - 密码输入框的显隐切换。
+  * Run `npx shadcn-vue@latest init`.
 
-## 5. 验证计划
-- **功能验证**:
-  - 添加服务器：确认列表更新且 localStorage 写入正确。
-  - 删除服务器：确认列表移除且 localStorage 更新。
-  - 连接流程：点击列表项 -> 填充表单 -> 输入密码 -> 连接成功。
-  - 样式检查：在不同分辨率下查看布局响应性。
-- **安全性验证**: 确认 `localStorage` 中 **没有** 明文存储密码。
+  * **Settings**:
+
+    * Framework: `Vite`
+
+    * Style: `New York` (Default)
+
+    * Base Color: `Slate`
+
+    * CSS Variables: `Yes`
+
+    * Main CSS file: `src/assets/index.css` (or `src/style.css`)
+
+    * Components directory: `src/components/ui`
+
+    * Utils directory: `src/lib/utils.ts`
+
+  * **Theme Customization**:
+
+    * Update the CSS variables in the main CSS file to implement the **Blue** theme (using standard shadcn blue tokens).
+
+## 2. Core Component Installation
+
+Install the following components via CLI:
+
+* `button` (Buttons)
+
+* `dialog` (Modals)
+
+* `input` (Text inputs)
+
+* `label` (Form labels)
+
+* `toast` (Notifications)
+
+* `card` (Containers)
+
+* `context-menu` (Right-click menus)
+
+* `dropdown-menu` (Menu bars/actions)
+
+* `tooltip` (Dock/Help tips)
+
+* `skeleton` (Loading states)
+
+* `table` (File list view)
+
+* `sheet` (Side panels if needed)
+
+* `popover` (General popups)
+
+* `separator` (Dividers)
+
+## 3. Component Migration Strategy
+
+### 3.1 UI Primitives (`src/components/ui`)
+
+* **`Modal.vue`**: Refactor to wrap `Dialog`, `DialogContent`, `DialogHeader`, `DialogFooter` from shadcn.
+
+* **`Toast.vue`**: Replace with `Toaster` component and `useToast` composable.
+
+* **`Loading.vue`**: Replace with `Skeleton` or a custom spinner using `lucide-vue-next`.
+
+### 3.2 File System Components (`src/components/file`)
+
+* **`FileGrid.vue`**: Use `Card` for file items.
+
+* **`FileList.vue`**: Use `Table` for list view.
+
+* **`FileContextMenu.vue`**: Use `ContextMenu` primitive.
+
+* **`FileToolbar.vue`**: Use `Button` (variant: outline/ghost) and `Input` for search.
+
+### 3.3 OS Components (`src/components/os`)
+
+* **`Window.vue`**: Refactor using `Card` styling (border, shadow, bg) for the window frame.
+
+* **`Dock.vue`**: Use `Tooltip` for icon labels.
+
+* **`TopBar.vue`**: Use `DropdownMenu` for system menus.
+
+* **`LoginScreen.vue`**: Use `Card`, `Input`, `Button` for the login form.
+
+### 3.4 Views (`src/views`)
+
+* **`Dashboard.vue`**: Layout using `Card`s for widgets.
+
+* **`Files.vue`**: Integrate updated `File*` components.
+
+* **`Terminal.vue`**: Ensure terminal container matches the theme (dark mode support).
+
+## 4. Execution Steps
+
+1. **Initialization**:
+
+   * Install dependencies.
+
+   * Run init command.
+
+   * Apply Blue theme CSS variables.
+2. **Install Components**:
+
+   * Batch install all required components.
+3. **Refactor Global UI**:
+
+   * Update `App.vue` to include `Toaster`.
+
+   * Replace `Modal.vue` logic.
+4. **Refactor Features**:
+
+   * Update File Browser (Grid/List/Context Menu).
+
+   * Update OS Shell (Dock, Window, TopBar).
+5. **Cleanup**:
+
+   * Remove unused CSS classes.
+
+   * verify all interactions.
+
+## 5. Verification
+
+* Check if all components render correctly.
+
+* Verify "Blue" theme application.
+
+* Test interactions (Modals opening, Toasts appearing, Context Menus working).
+
+* Ensure responsiveness is maintained.
 

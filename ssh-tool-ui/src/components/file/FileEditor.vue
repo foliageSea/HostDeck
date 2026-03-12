@@ -1,14 +1,10 @@
 <template>
-  <div class="h-full flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-    <div class="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700">
+  <div class="h-full flex flex-col bg-background text-foreground">
+    <div class="flex items-center justify-between p-2 border-b">
       <h3 class="font-semibold text-sm">{{ filename }}</h3>
       <div class="flex gap-2">
-        <button @click="save" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors">
-          保存
-        </button>
-        <button @click="$emit('close')" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1 rounded text-sm transition-colors">
-          关闭
-        </button>
+        <Button @click="save" size="sm">保存</Button>
+        <Button @click="$emit('close')" variant="secondary" size="sm">关闭</Button>
       </div>
     </div>
     <div ref="editorContainer" class="flex-1 overflow-hidden"></div>
@@ -16,8 +12,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import * as monaco from 'monaco-editor'
+import { Button } from '@/components/ui/button'
 
 const props = defineProps<{
   filename: string

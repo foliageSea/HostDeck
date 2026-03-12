@@ -34,7 +34,7 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const sshStore = useSshStore()
   if (to.meta.requiresAuth && !sshStore.isConnected) {
     next('/')

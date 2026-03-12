@@ -1,60 +1,66 @@
 <template>
-  <div class="overflow-auto h-full bg-white dark:bg-[#1e1e1e]">
-    <table class="w-full text-left text-[13px] text-gray-700 dark:text-gray-300 border-collapse">
-      <thead class="bg-white dark:bg-[#2d2d2d] sticky top-0 z-10 text-gray-500 border-b border-gray-200 dark:border-black">
-        <tr>
-          <th class="px-4 py-1.5 w-8 text-center font-normal">
-          </th>
-          <th class="px-2 py-1.5 font-normal">名称</th>
-          <th class="px-2 py-1.5 w-24 font-normal">大小</th>
-          <th class="px-2 py-1.5 w-40 font-normal">修改时间</th>
-          <th class="px-2 py-1.5 w-32 font-normal">种类</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-transparent">
-        <tr v-for="(file, index) in files" :key="file.filename" 
+  <div class="h-full overflow-auto bg-background">
+    <Table>
+      <TableHeader class="sticky top-0 z-10 bg-background shadow-sm">
+        <TableRow>
+          <TableHead class="w-8 text-center"></TableHead>
+          <TableHead>名称</TableHead>
+          <TableHead class="w-24">大小</TableHead>
+          <TableHead class="w-40">修改时间</TableHead>
+          <TableHead class="w-32">种类</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow v-for="file in files" :key="file.filename" 
           @click="$emit('select', file.filename, $event.ctrlKey || $event.metaKey)"
           @dblclick="$emit('open', file)"
           @contextmenu.prevent="$emit('contextmenu', $event, file)"
           :class="['cursor-default select-none group', 
             selectedFiles.has(file.filename) 
-              ? 'bg-[#007AFF] text-white dark:text-white' 
-              : index % 2 === 0 ? 'bg-white dark:bg-[#1e1e1e]' : 'bg-[#f5f5f5] dark:bg-[#252526]'
+              ? 'bg-accent text-accent-foreground data-[state=selected]:bg-muted' 
+              : 'hover:bg-muted/50'
           ]">
-          <td class="px-4 py-1 text-center">
-            <div v-if="selectedFiles.has(file.filename)" class="w-1.5 h-1.5 rounded-full bg-white/50 mx-auto"></div>
-          </td>
-          <td class="px-2 py-1">
+          <TableCell class="py-1 text-center">
+            <div v-if="selectedFiles.has(file.filename)" class="w-1.5 h-1.5 rounded-full bg-primary mx-auto"></div>
+          </TableCell>
+          <TableCell class="py-1">
             <div class="flex items-center gap-2">
-              <FolderIcon v-if="file.isDirectory" :class="['w-4 h-4', selectedFiles.has(file.filename) ? 'text-white' : 'text-[#00aaff] fill-current']" />
-              <FileIcon v-else :class="['w-4 h-4', selectedFiles.has(file.filename) ? 'text-white' : 'text-gray-400']" />
+              <FolderIcon v-if="file.isDirectory" class="w-4 h-4 text-blue-500 fill-current" />
+              <FileIcon v-else class="w-4 h-4 text-muted-foreground" />
               <span class="truncate font-medium">{{ file.filename }}</span>
             </div>
-          </td>
-          <td :class="['px-2 py-1 font-mono text-xs', selectedFiles.has(file.filename) ? 'text-white/80' : 'text-gray-500 dark:text-gray-400']">
+          </TableCell>
+          <TableCell class="py-1 font-mono text-xs text-muted-foreground">
             {{ file.isDirectory ? '--' : formatSize(file.size) }}
-          </td>
-          <td :class="['px-2 py-1 text-xs', selectedFiles.has(file.filename) ? 'text-white/80' : 'text-gray-500 dark:text-gray-400']">
+          </TableCell>
+          <TableCell class="py-1 text-xs text-muted-foreground">
             {{ formatDate(file.modifyTime) }}
-          </td>
-          <td :class="['px-2 py-1 text-xs', selectedFiles.has(file.filename) ? 'text-white/80' : 'text-gray-500 dark:text-gray-400']">
+          </TableCell>
+          <TableCell class="py-1 text-xs text-muted-foreground">
             {{ getKind(file) }}
-          </td>
-        </tr>
-        <tr v-if="files.length === 0">
-          <td colspan="5" class="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+          </TableCell>
+        </TableRow>
+        <TableRow v-if="files.length === 0">
+          <TableCell colspan="5" class="h-24 text-center text-muted-foreground">
             暂无文件
-          </td>
-        </tr>
-      </tbody>
-    </table>
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { FolderIcon, FileIcon } from 'lucide-vue-next'
 import type { FileItem } from '@/stores/file'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 const props = defineProps<{
   files: FileItem[]

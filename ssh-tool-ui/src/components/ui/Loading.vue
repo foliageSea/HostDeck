@@ -1,10 +1,12 @@
 <template>
-  <div v-if="loading" class="absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-    <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-white"></div>
+  <div v-if="loading" class="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+    <Loader2 class="h-10 w-10 animate-spin text-primary" />
   </div>
 </template>
 
 <script setup lang="ts">
+import { Loader2 } from 'lucide-vue-next'
+
 defineProps<{
   loading: boolean
 }>()

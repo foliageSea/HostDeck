@@ -1,16 +1,16 @@
 <template>
   <div v-if="visible" 
     :style="{ top: y + 'px', left: x + 'px' }"
-    class="fixed z-50 bg-white/90 dark:bg-[#2d2d2d]/90 backdrop-blur-md shadow-xl rounded-lg border border-gray-200/50 dark:border-black/50 py-1.5 min-w-[200px] text-gray-800 dark:text-gray-200 select-none"
+    class="fixed z-50 min-w-[12rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 select-none"
     @click.stop
   >
     <div v-for="(item, index) in items" :key="index">
-      <div v-if="item.separator" class="border-t border-gray-200 dark:border-gray-600 my-1 mx-3"></div>
+      <div v-if="item.separator" class="-mx-1 my-1 h-px bg-muted"></div>
       <div v-else
         @click="handleClick(item)"
-        class="px-3 py-1 mx-1 rounded-[4px] hover:bg-[#007AFF] hover:text-white cursor-default text-[13px] flex items-center gap-3 transition-colors group"
+        class="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
       >
-        <component :is="item.icon" class="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-white" />
+        <component :is="item.icon" class="mr-2 h-4 w-4" />
         <span class="flex-1">{{ item.label }}</span>
       </div>
     </div>

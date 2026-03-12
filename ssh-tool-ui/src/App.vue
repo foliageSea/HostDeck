@@ -4,7 +4,7 @@
       <Desktop v-if="sshStore.isConnected" />
       <LoginScreen v-else />
     </Transition>
-    <Toast />
+    <Toaster />
   </div>
 </template>
 
@@ -12,7 +12,7 @@
 import { useSshStore } from './stores/ssh';
 import Desktop from './components/os/Desktop.vue';
 import LoginScreen from './components/os/LoginScreen.vue';
-import Toast from './components/ui/Toast.vue';
+import Toaster from '@/components/ui/toast/Toaster.vue';
 
 const sshStore = useSshStore();
 </script>

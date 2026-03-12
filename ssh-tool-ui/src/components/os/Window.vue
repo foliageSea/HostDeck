@@ -120,7 +120,7 @@ const stopDrag = () => {
 
 // Resize Logic
 const isResizing = ref(false);
-const startResize = (e: MouseEvent) => {
+const startResize = () => {
   if (props.window.isMaximized) return;
 
   focusWindow();
