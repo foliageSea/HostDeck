@@ -1,6 +1,6 @@
 <template>
   <TooltipProvider>
-    <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-background/80 backdrop-blur-xl border border-border rounded-2xl px-4 py-2 flex items-end space-x-4 shadow-2xl z-50">
+    <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-background/40 backdrop-blur-2xl border border-border/50 rounded-2xl px-4 py-2 flex items-end space-x-4 shadow-2xl z-50">
       <Tooltip v-for="app in apps" :key="app.id">
         <TooltipTrigger as-child>
           <div 
