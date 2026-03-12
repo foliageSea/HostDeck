@@ -1,7 +1,18 @@
 <template>
   <div 
-    class="absolute flex flex-col bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden select-none"
-    :style="{
+    class="absolute flex flex-col bg-white shadow-2xl overflow-hidden select-none"
+    :class="[
+      window.isMaximized ? 'rounded-none border-0' : 'rounded-lg border border-gray-200',
+      (isDragging || isResizing) ? '' : 'transition-all duration-200 ease-in-out'
+    ]"
+    :style="window.isMaximized ? {
+      left: '0px',
+      top: '0px',
+      width: '100%',
+      height: '100%',
+      zIndex: window.zIndex,
+      display: window.isMinimized ? 'none' : 'flex'
+    } : {
       left: `${window.x}px`,
       top: `${window.y}px`,
       width: `${window.width}px`,
@@ -13,8 +24,9 @@
   >
     <!-- Title Bar -->
     <div 
-      class="h-8 bg-gray-100 border-b border-gray-200 flex items-center justify-between px-3 cursor-move"
+      :class="['h-8 bg-gray-100 border-b border-gray-200 flex items-center justify-between px-3', window.isMaximized ? 'cursor-default' : 'cursor-move']"
       @mousedown.prevent="startDrag"
+      @dblclick="maximizeWindow"
     >
       <div class="flex items-center space-x-2">
         <!-- Controls -->
@@ -50,7 +62,7 @@
 
     <!-- Resize Handles -->
     <div 
-      class="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-50"
+      :class="['absolute bottom-0 right-0 w-4 h-4 z-50', window.isMaximized ? 'hidden' : 'cursor-se-resize']"
       @mousedown.prevent="startResize"
     ></div>
   </div>
