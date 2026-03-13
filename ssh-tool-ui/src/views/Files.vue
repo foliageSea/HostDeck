@@ -89,8 +89,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
-import { useFileStore, type FileItem } from '../stores/file'
+import { ref, computed, onMounted, nextTick, provide } from 'vue'
+import { createFileStore, FileStoreKey, type FileItem } from '../stores/file'
 import { useSshStore } from '../stores/ssh'
 import { useToastStore } from '../stores/toast'
 import { resolve, dirname } from '../utils/path'
@@ -109,7 +109,8 @@ import {
   EditIcon, Trash2Icon, TypeIcon, RefreshCwIcon
 } from 'lucide-vue-next'
 
-const fileStore = useFileStore()
+const fileStore = createFileStore()
+provide(FileStoreKey, fileStore)
 const sshStore = useSshStore()
 const toast = useToastStore()
 
@@ -301,6 +302,8 @@ const uploadFiles = async (files: FileList) => {
   if (!files || files.length === 0) return
 
   const fileArray = Array.from(files)
+  const totalSize = fileArray.reduce((acc, file) => acc + file.size, 0)
+  let uploadedSize = 0
   
   fileStore.uploadStatus = {
     uploading: true,
@@ -308,7 +311,8 @@ const uploadFiles = async (files: FileList) => {
     current: 0,
     currentFilename: '',
     success: 0,
-    failed: 0
+    failed: 0,
+    percent: 0
   }
 
   try {
@@ -319,23 +323,43 @@ const uploadFiles = async (files: FileList) => {
       const formData = new FormData()
       formData.append('file', file)
       
-      // Use webkitRelativePath if available (for folder upload), otherwise just name
-      // Note: Backend might need to create directories if we pass a path with subdirectories.
-      // For now, we just use the filename to keep it simple and safe (flattening).
-      // TODO: Support recursive directory creation for folder uploads
-      
       try {
-        const res = await fetch(`/api/files/upload?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(fileStore.currentPath)}`, {
-          method: 'POST',
-          body: formData
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          const url = `/api/files/upload?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(fileStore.currentPath)}`
+          
+          xhr.open('POST', url)
+          
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const currentFileProgress = e.loaded
+              const totalProgress = uploadedSize + currentFileProgress
+              fileStore.uploadStatus.percent = Math.min(100, Math.round((totalProgress / totalSize) * 100))
+            }
+          }
+          
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve()
+            } else {
+              reject(new Error(xhr.responseText || 'Upload failed'))
+            }
+          }
+          
+          xhr.onerror = () => reject(new Error('Network error'))
+          
+          xhr.send(formData)
         })
         
-        if (!res.ok) throw new Error('Upload failed')
         fileStore.uploadStatus.success++
-      } catch (e) {
+      } catch (e: any) {
         console.error(`Failed to upload ${file.name}`, e)
         fileStore.uploadStatus.failed++
-        toast.error(`Failed to upload ${file.name}`)
+        toast.error(`Failed to upload ${file.name}: ${e.message}`)
+      } finally {
+        uploadedSize += file.size
+        // Update progress after each file (success or fail)
+        fileStore.uploadStatus.percent = Math.min(100, Math.round((uploadedSize / totalSize) * 100))
       }
     }
     
@@ -346,7 +370,10 @@ const uploadFiles = async (files: FileList) => {
   } catch (e: any) {
     toast.error(`Upload process failed: ${e.message}`)
   } finally {
-    fileStore.uploadStatus.uploading = false
+    // Delay hiding the progress bar slightly to show 100%
+    setTimeout(() => {
+      fileStore.uploadStatus.uploading = false
+    }, 1000)
   }
 }
 

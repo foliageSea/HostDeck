@@ -1,5 +1,4 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, inject, reactive, type InjectionKey } from 'vue'
 import { useSshStore } from './ssh'
 import { useToastStore } from './toast'
 import { resolve, dirname } from '../utils/path'
@@ -14,7 +13,11 @@ export interface FileItem {
 
 export type ViewMode = 'list' | 'grid'
 
-export const useFileStore = defineStore('file', () => {
+export type FileStore = ReturnType<typeof createFileStore>
+
+export const FileStoreKey: InjectionKey<FileStore> = Symbol('FileStore')
+
+export function createFileStore() {
   const sshStore = useSshStore()
   const toast = useToastStore()
 
@@ -32,14 +35,16 @@ export const useFileStore = defineStore('file', () => {
     current: number,
     currentFilename: string,
     success: number,
-    failed: number
+    failed: number,
+    percent: number
   }>({
     uploading: false,
     total: 0,
     current: 0,
     currentFilename: '',
     success: 0,
-    failed: 0
+    failed: 0,
+    percent: 0
   })
 
   // Clipboard for copy/move operations
@@ -158,7 +163,7 @@ export const useFileStore = defineStore('file', () => {
     toast.info(`Cut ${selectedFiles.value.size} items to clipboard`)
   }
 
-  return {
+  return reactive({
     currentPath,
     files,
     viewMode,
@@ -177,5 +182,13 @@ export const useFileStore = defineStore('file', () => {
     selectAll,
     copySelection,
     cutSelection
+  })
+}
+
+export function useFileStore() {
+  const store = inject(FileStoreKey)
+  if (!store) {
+    throw new Error('useFileStore must be used within a component that provides it via createFileStore')
   }
-})
+  return store
+}
