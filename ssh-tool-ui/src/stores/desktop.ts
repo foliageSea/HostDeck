@@ -3,6 +3,7 @@ import { markRaw, type Component } from 'vue';
 import Terminal from '../views/Terminal.vue';
 import Files from '../views/Files.vue';
 import Dashboard from '../views/Dashboard.vue';
+import TextEditor from '../views/TextEditor.vue';
 import { useSshStore } from './ssh';
 
 export interface AppConfig {
@@ -27,6 +28,7 @@ export interface WindowState {
   isMinimized: boolean;
   isMaximized: boolean;
   zIndex: number;
+  props?: Record<string, any>;
 }
 
 export const useDesktopStore = defineStore('desktop', {
@@ -51,6 +53,14 @@ export const useDesktopStore = defineStore('desktop', {
         width: 700,
         height: 500
       },
+      'editor': {
+        id: 'editor',
+        title: '文本编辑',
+        icon: 'file-text',
+        component: markRaw(TextEditor),
+        width: 800,
+        height: 600
+      },
       'dashboard': {
         id: 'dashboard',
         title: '系统监控',
@@ -71,7 +81,7 @@ export const useDesktopStore = defineStore('desktop', {
   }),
 
   actions: {
-    openWindow(appId: string) {
+    openWindow(appId: string, props?: Record<string, any>) {
       if (appId === 'logout') {
         const sshStore = useSshStore();
         sshStore.clearSession();
@@ -90,7 +100,7 @@ export const useDesktopStore = defineStore('desktop', {
       const newWindow: WindowState = {
         id,
         appId,
-        title: app.title,
+        title: props?.title || app.title,
         component: app.component,
         icon: app.icon,
         x: 100 + (this.windows.length * 30),
@@ -100,6 +110,7 @@ export const useDesktopStore = defineStore('desktop', {
         isMinimized: false,
         isMaximized: false,
         zIndex: this.nextZIndex++,
+        props
       };
 
       this.windows.push(newWindow);

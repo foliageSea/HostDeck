@@ -50,14 +50,21 @@
         </button>
       </div>
       
-      <span class="text-xs font-medium text-gray-600 truncate px-2">{{ window.title }}</span>
+      <div class="flex items-center justify-center gap-2 px-2 flex-1 min-w-0">
+        <component 
+          v-if="iconMap[window.icon]" 
+          :is="iconMap[window.icon]" 
+          class="w-3.5 h-3.5 text-gray-500" 
+        />
+        <span class="text-xs font-medium text-gray-600 truncate">{{ window.title }}</span>
+      </div>
       
       <div class="w-12"></div> <!-- Spacer for balance -->
     </div>
 
     <!-- Content -->
     <div class="flex-1 overflow-hidden relative bg-white">
-      <component :is="window.component" :window-id="window.id" />
+      <component :is="window.component" :window-id="window.id" v-bind="window.props" />
     </div>
 
     <!-- Resize Handles -->
@@ -71,12 +78,21 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue';
 import { useDesktopStore, type WindowState } from '@/stores/desktop';
+import { Terminal, Folder, Activity, Lock, FileText } from 'lucide-vue-next';
 
 const props = defineProps<{
   window: WindowState
 }>();
 
 const desktopStore = useDesktopStore();
+
+const iconMap: Record<string, any> = {
+  'terminal': Terminal,
+  'folder': Folder,
+  'activity': Activity,
+  'lock': Lock,
+  'file-text': FileText
+};
 
 const focusWindow = () => {
   desktopStore.focusWindow(props.window.id);

@@ -74,17 +74,6 @@
     <Modal :show="showDeleteModal" title="确认删除" @close="showDeleteModal = false" @confirm="handleDelete">
       <p class="text-muted-foreground">确定要删除选中的 {{ fileStore.selectedFiles.size }} 个项目吗？此操作无法撤销。</p>
     </Modal>
-
-    <!-- Editor Overlay -->
-    <div v-if="showEditor" class="fixed inset-0 z-50 bg-background">
-      <FileEditor 
-        :filename="editorFile.filename" 
-        :content="editorContent" 
-        :language="editorLanguage"
-        @close="showEditor = false" 
-        @save="handleSaveFile" 
-      />
-    </div>
   </div>
 </template>
 
@@ -93,12 +82,12 @@ import { ref, computed, onMounted, nextTick, provide } from 'vue'
 import { createFileStore, FileStoreKey, type FileItem } from '../stores/file'
 import { useSshStore } from '../stores/ssh'
 import { useToastStore } from '../stores/toast'
+import { useDesktopStore } from '../stores/desktop'
 import { resolve, dirname } from '../utils/path'
 import FileToolbar from '../components/file/FileToolbar.vue'
 import FileList from '../components/file/FileList.vue'
 import FileGrid from '../components/file/FileGrid.vue'
 import FileContextMenu, { type MenuItem } from '../components/file/FileContextMenu.vue'
-import FileEditor from '../components/file/FileEditor.vue'
 import FileUploadProgress from '../components/file/FileUploadProgress.vue'
 import Modal from '../components/ui/Modal.vue'
 import Loading from '../components/ui/Loading.vue'
@@ -113,17 +102,14 @@ const fileStore = createFileStore()
 provide(FileStoreKey, fileStore)
 const sshStore = useSshStore()
 const toast = useToastStore()
+const desktopStore = useDesktopStore()
 
 // State
 const contextMenu = ref({ visible: false, x: 0, y: 0, file: null as FileItem | null })
 const showMkdirModal = ref(false)
 const showRenameModal = ref(false)
 const showDeleteModal = ref(false)
-const showEditor = ref(false)
 const newItemName = ref('')
-const editorFile = ref({ filename: '', path: '' })
-const editorContent = ref('')
-const editorLanguage = ref('plaintext')
 const mkdirInput = ref<any>()
 const renameInput = ref<any>()
 
@@ -387,68 +373,21 @@ const handleOpen = async (file: FileItem) => {
   } else {
     // Check file extension
     const ext = file.filename.split('.').pop()?.toLowerCase()
-    const textExts = ['txt', 'md', 'json', 'js', 'ts', 'vue', 'html', 'css', 'py', 'java', 'c', 'cpp', 'h', 'go', 'rs', 'sh', 'yaml', 'yml', 'xml', 'conf', 'ini', 'log']
     
-    if (ext && textExts.includes(ext)) {
+    if (ext && fileStore.editableExtensions.includes(ext)) {
       openEditor(file)
     } else {
-      downloadFile(file)
+      // downloadFile(file)
     }
   }
 }
 
 const openEditor = async (file: FileItem) => {
-  try {
-    fileStore.loading = true
-    const path = getFullPath(file.filename)
-    const res = await fetch(`/api/files/read?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(path)}`)
-    if (!res.ok) throw new Error('Failed to read file')
-    
-    // Read as text
-    const text = await res.text()
-    editorContent.value = text
-    editorFile.value = { filename: file.filename, path }
-    
-    // Detect language
-    const ext = file.filename.split('.').pop()?.toLowerCase()
-    const langMap: Record<string, string> = {
-      'js': 'javascript', 'ts': 'typescript', 'py': 'python', 'sh': 'shell',
-      'md': 'markdown', 'yml': 'yaml', 'rs': 'rust', 'go': 'go'
-    }
-    editorLanguage.value = langMap[ext || ''] || ext || 'plaintext'
-    
-    showEditor.value = true
-  } catch (e: any) {
-    toast.error(`Failed to open file: ${e.message}`)
-  } finally {
-    fileStore.loading = false
-  }
-}
-
-const handleSaveFile = async (content: string) => {
-  try {
-    fileStore.loading = true
-    const targetDir = dirname(editorFile.value.path)
-    const res = await fetch(`/api/files/upload?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(targetDir)}`, {
-      method: 'POST',
-      body: createFormData(editorFile.value.filename, content)
-    })
-    if (!res.ok) throw new Error('Failed to save file')
-    toast.success('Saved successfully')
-    showEditor.value = false
-    fileStore.refresh()
-  } catch (e: any) {
-    toast.error(`Failed to save: ${e.message}`)
-  } finally {
-    fileStore.loading = false
-  }
-}
-
-const createFormData = (filename: string, content: string) => {
-  const formData = new FormData()
-  const blob = new Blob([content], { type: 'text/plain' })
-  formData.append('file', blob, filename)
-  return formData
+  desktopStore.openWindow('editor', {
+    path: getFullPath(file.filename),
+    sessionId: fileStore.sessionId,
+    title: file.filename
+  })
 }
 
 const downloadFile = async (file: FileItem) => {

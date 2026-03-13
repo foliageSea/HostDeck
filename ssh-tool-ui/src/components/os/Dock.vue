@@ -33,7 +33,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useDesktopStore } from '@/stores/desktop';
-import { Terminal, Folder, Activity, Lock } from 'lucide-vue-next';
+import { Terminal, Folder, Activity, Lock, FileText } from 'lucide-vue-next';
 import {
   Tooltip,
   TooltipContent,
@@ -49,7 +49,8 @@ const iconMap: Record<string, any> = {
   'terminal': Terminal,
   'folder': Folder,
   'activity': Activity,
-  'lock': Lock
+  'lock': Lock,
+  'file-text': FileText
 };
 
 const isAppOpen = (appId: string) => {

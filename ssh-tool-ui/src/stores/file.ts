@@ -51,6 +51,14 @@ export function createFileStore() {
   // structure: { action: 'copy' | 'move', paths: string[], sourcePath: string }
   const clipboard = ref<{ action: 'copy' | 'move', paths: string[], sourcePath: string } | null>(null)
 
+  // Configurable editable file extensions
+  const editableExtensions = ref([
+    'txt', 'md', 'json', 'js', 'ts', 'vue', 'html', 'css', 'scss', 'less',
+    'py', 'java', 'c', 'cpp', 'h', 'hpp', 'go', 'rs', 'sh', 'bash', 'zsh',
+    'yaml', 'yml', 'xml', 'conf', 'ini', 'log', 'sql', 'php', 'rb', 'pl',
+    'dockerfile', 'gitignore', 'env', 'bashrc', 'npmrc'
+  ])
+
   const initSession = async () => {
     if (!sshStore.connectionId) return
     if (sessionId.value) return
@@ -172,6 +180,7 @@ export function createFileStore() {
     sessionId,
     uploadStatus,
     clipboard,
+    editableExtensions,
     initSession,
     fetchFiles,
     navigate,
