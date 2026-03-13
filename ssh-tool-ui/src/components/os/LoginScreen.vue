@@ -57,7 +57,7 @@
           <template v-if="isNewConnection">
             <div class="space-y-2">
               <Label>名称</Label>
-              <Input v-model="form.name" placeholder="显示名称（可选）" />
+              <Input v-model="form.name" placeholder="显示名称（可选）" autofocus />
             </div>
             <div class="grid grid-cols-3 gap-2">
               <div class="col-span-2 space-y-2">
@@ -78,6 +78,7 @@
           <div class="space-y-2">
             <Label>密码</Label>
             <Input 
+              ref="passwordInputRef"
               v-model="form.password" 
               type="password" 
               placeholder="请输入密码" 
@@ -105,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, nextTick } from 'vue';
 import { useSshStore, type SavedServer } from '@/stores/ssh';
 import { Monitor, ArrowLeft, Loader2 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button'
@@ -129,6 +130,8 @@ const form = reactive({
   privateKey: ''
 });
 
+const passwordInputRef = ref<any>(null);
+
 const selectServer = (server: SavedServer) => {
   selectedServer.value = server;
   form.name = server.name;
@@ -137,6 +140,9 @@ const selectServer = (server: SavedServer) => {
   form.username = server.username;
   form.password = '';
   form.privateKey = '';
+  nextTick(() => {
+    passwordInputRef.value?.focus();
+  });
 };
 
 const resetSelection = () => {
