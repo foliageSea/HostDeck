@@ -133,8 +133,8 @@
 import { ref, watch, computed } from 'vue'
 import { 
   ChevronLeftIcon, ChevronRightIcon, RotateCwIcon, 
-  ListIcon, LayoutGridIcon, SearchIcon, MoreHorizontalIcon,
-  FileUpIcon, FolderUpIcon, StarIcon, BookmarkIcon
+  ListIcon, LayoutGridIcon, MoreHorizontalIcon,
+  FileUpIcon, StarIcon, BookmarkIcon
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
