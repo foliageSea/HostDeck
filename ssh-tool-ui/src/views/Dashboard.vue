@@ -1,6 +1,6 @@
 <template>
-  <div class="h-full bg-background p-4 overflow-auto">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div class="h-full bg-background p-4 overflow-auto flex justify-center items-start">
+    <div class="flex flex-col gap-4 w-full max-w-md">
       <!-- CPU Card -->
       <Card>
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
