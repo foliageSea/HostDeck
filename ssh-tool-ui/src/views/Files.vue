@@ -96,7 +96,7 @@ import {
   FolderIcon, DownloadIcon, 
   CopyIcon, ScissorsIcon, ClipboardPasteIcon, 
   EditIcon, Trash2Icon, TypeIcon, RefreshCwIcon,
-  ClipboardIcon
+  ClipboardIcon, StarIcon
 } from 'lucide-vue-next'
 
 const fileStore = createFileStore()
@@ -441,6 +441,16 @@ const contextMenuItems = computed<MenuItem[]>(() => {
         icon: file.isDirectory ? FolderIcon : EditIcon, 
         action: () => handleOpen(file) 
       })
+      
+      if (file.isDirectory) {
+        const fullPath = getFullPath(file.filename)
+        const isFav = fileStore.isFavorite(fullPath)
+        items.push({
+          label: isFav ? '取消收藏' : '收藏目录',
+          icon: StarIcon,
+          action: () => fileStore.toggleFavorite(fullPath)
+        })
+      }
     }
   }
   

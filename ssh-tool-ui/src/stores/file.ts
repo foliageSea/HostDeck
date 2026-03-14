@@ -1,4 +1,5 @@
 import { ref, inject, reactive, type InjectionKey } from 'vue'
+import { useStorage } from '@vueuse/core'
 import { useSshStore } from './ssh'
 import { useToastStore } from './toast'
 import { resolve, dirname } from '../utils/path'
@@ -50,6 +51,22 @@ export function createFileStore() {
   // Clipboard for copy/move operations
   // structure: { action: 'copy' | 'move', paths: string[], sourcePath: string }
   const clipboard = ref<{ action: 'copy' | 'move', paths: string[], sourcePath: string } | null>(null)
+
+  // Favorites
+  const favorites = useStorage<string[]>('ssh-tool-file-favorites', [])
+
+  const toggleFavorite = (path: string) => {
+    const index = favorites.value.indexOf(path)
+    if (index > -1) {
+      favorites.value.splice(index, 1)
+    } else {
+      favorites.value.push(path)
+    }
+  }
+
+  const isFavorite = (path: string) => {
+    return favorites.value.includes(path)
+  }
 
   // Configurable editable file extensions
   const editableExtensions = ref([
@@ -190,7 +207,10 @@ export function createFileStore() {
     clearSelection,
     selectAll,
     copySelection,
-    cutSelection
+    cutSelection,
+    favorites,
+    toggleFavorite,
+    isFavorite
   })
 }
 

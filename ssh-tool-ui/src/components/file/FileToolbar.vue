@@ -79,14 +79,51 @@
         </DropdownMenuContent>
       </DropdownMenu>
       
-      <div class="ml-2 relative w-64">
-         <!-- <SearchIcon class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /> -->
-         <Input 
-            v-model="path"
-            @keyup.enter="$emit('navigate', path)"
-            class="h-9"
-            placeholder="搜索 / 路径"
-          />
+      <div class="ml-2 relative w-64 flex items-center gap-1">
+         <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-9 w-9 shrink-0" title="收藏夹">
+                <BookmarkIcon class="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" class="w-64 z-[99999]">
+              <DropdownMenuLabel>收藏夹</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <div v-if="fileStore.favorites.length === 0" class="px-2 py-1.5 text-sm text-muted-foreground text-center">
+                暂无收藏
+              </div>
+              <DropdownMenuItem 
+                v-for="fav in fileStore.favorites" 
+                :key="fav" 
+                @click="$emit('navigate', fav)"
+                class="cursor-pointer truncate"
+                :title="fav"
+              >
+                <span class="truncate">{{ fav }}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+         </DropdownMenu>
+
+         <div class="relative flex-1">
+            <Input 
+              v-model="path"
+              @keyup.enter="$emit('navigate', path)"
+              class="h-9 pr-8" 
+              placeholder="搜索 / 路径"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              class="absolute right-0 top-0 h-9 w-9 hover:bg-transparent"
+              @click="fileStore.toggleFavorite(currentPath)"
+              :title="fileStore.isFavorite(currentPath) ? '取消收藏' : '收藏当前目录'"
+            >
+              <StarIcon 
+                class="w-4 h-4 transition-colors" 
+                :class="fileStore.isFavorite(currentPath) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'" 
+              />
+            </Button>
+         </div>
       </div>
     </div>
   </div>
@@ -97,7 +134,7 @@ import { ref, watch, computed } from 'vue'
 import { 
   ChevronLeftIcon, ChevronRightIcon, RotateCwIcon, 
   ListIcon, LayoutGridIcon, SearchIcon, MoreHorizontalIcon,
-  FileUpIcon, FolderUpIcon
+  FileUpIcon, FolderUpIcon, StarIcon, BookmarkIcon
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -106,7 +143,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel
 } from '@/components/ui/dropdown-menu'
+import { useFileStore } from '@/stores/file'
+
+const fileStore = useFileStore()
 
 const props = defineProps<{
   currentPath: string

@@ -12,7 +12,7 @@
               <component 
                 v-if="iconMap[app.icon]" 
                 :is="iconMap[app.icon]" 
-                class="w-6 h-6" 
+                class="w-6 h-6 " 
               />
               <img v-else-if="app.icon.startsWith('http')" :src="app.icon" class="w-full h-full object-cover" />
               <span v-else>{{ app.icon }}</span>
