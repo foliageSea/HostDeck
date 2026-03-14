@@ -95,7 +95,8 @@ import { Input } from '@/components/ui/input'
 import { 
   FolderIcon, DownloadIcon, 
   CopyIcon, ScissorsIcon, ClipboardPasteIcon, 
-  EditIcon, Trash2Icon, TypeIcon, RefreshCwIcon
+  EditIcon, Trash2Icon, TypeIcon, RefreshCwIcon,
+  ClipboardIcon
 } from 'lucide-vue-next'
 
 const fileStore = createFileStore()
@@ -409,6 +410,20 @@ const handleContextMenu = (e: MouseEvent, file: FileItem) => {
   }
 }
 
+const handleCopyPath = async () => {
+  const paths = Array.from(fileStore.selectedFiles).map(filename => getFullPath(filename))
+  if (paths.length === 0) return
+  
+  try {
+    await navigator.clipboard.writeText(paths.join('\n'))
+    toast.success('已复制路径')
+    closeContextMenu()
+  } catch (e) {
+    console.error(e)
+    toast.error('复制失败')
+  }
+}
+
 const closeContextMenu = () => {
   contextMenu.value.visible = false
 }
@@ -434,6 +449,11 @@ const contextMenuItems = computed<MenuItem[]>(() => {
       label: '下载', 
       icon: DownloadIcon, 
       action: handleDownload 
+    })
+    items.push({ 
+      label: '复制路径', 
+      icon: ClipboardIcon, 
+      action: handleCopyPath 
     })
     items.push({ separator: true, label: '' })
     items.push({ 

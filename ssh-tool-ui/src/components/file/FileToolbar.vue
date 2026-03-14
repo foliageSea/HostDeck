@@ -55,9 +55,9 @@
       <Button variant="ghost" size="icon" class="h-8 w-8" title="上传文件" @click="triggerUpload('file')">
         <FileUpIcon class="w-4 h-4" />
       </Button>
-      <Button variant="ghost" size="icon" class="h-8 w-8" title="上传文件夹" @click="triggerUpload('folder')">
+      <!-- <Button variant="ghost" size="icon" class="h-8 w-8" title="上传文件夹" @click="triggerUpload('folder')">
         <FolderUpIcon class="w-4 h-4" />
-      </Button>
+      </Button> -->
 
       <input type="file" ref="fileInput" multiple class="hidden" @change="handleFileChange" />
       <input type="file" ref="folderInput" webkitdirectory class="hidden" @change="handleFileChange" />
@@ -65,14 +65,14 @@
       <Button variant="ghost" size="icon" @click="$emit('refresh')" title="刷新" class="h-8 w-8">
         <RotateCwIcon class="w-4 h-4" />
       </Button>
-      
+
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <Button variant="ghost" size="icon" class="h-8 w-8">
             <MoreHorizontalIcon class="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" class="z-[99999]">
            <DropdownMenuItem @click="$emit('mkdir')">
              新建文件夹
            </DropdownMenuItem>
@@ -80,11 +80,11 @@
       </DropdownMenu>
       
       <div class="ml-2 relative w-64">
-         <SearchIcon class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+         <!-- <SearchIcon class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /> -->
          <Input 
             v-model="path"
             @keyup.enter="$emit('navigate', path)"
-            class="pl-9 h-9"
+            class="h-9"
             placeholder="搜索 / 路径"
           />
       </div>

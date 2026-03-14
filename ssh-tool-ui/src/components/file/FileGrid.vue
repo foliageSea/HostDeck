@@ -1,5 +1,5 @@
 <template>
-  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 p-4 overflow-auto h-full content-start bg-background">
+  <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4 p-4 overflow-auto h-full content-start bg-background">
     <div v-for="file in files" :key="file.filename"
       @click="$emit('select', file.filename, $event.ctrlKey || $event.metaKey)"
       @dblclick="$emit('open', file)"

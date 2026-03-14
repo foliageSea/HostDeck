@@ -23,7 +23,7 @@ export function createFileStore() {
 
   const currentPath = ref('/')
   const files = ref<FileItem[]>([])
-  const viewMode = ref<ViewMode>('list')
+  const viewMode = ref<ViewMode>('grid')
   const selectedFiles = ref<Set<string>>(new Set())
   const loading = ref(false)
   const sessionId = ref<string | null>(null)
