@@ -59,6 +59,7 @@
       </DropdownMenu>
     </div>
     <div class="flex items-center space-x-4">
+      <SystemMonitor />
       <span class="text-sm font-medium text-foreground">{{ currentTime }}</span>
     </div>
   </div>
@@ -68,6 +69,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Terminal } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button'
+import SystemMonitor from './SystemMonitor.vue';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,7 +85,7 @@ const updateTime = () => {
   currentTime.value = now.toLocaleTimeString('zh-CN', { 
     hour: 'numeric', 
     minute: '2-digit',
-    hour12: true 
+    hour12: false 
   });
 };
 

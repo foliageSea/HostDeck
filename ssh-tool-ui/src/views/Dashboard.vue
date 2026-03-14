@@ -4,12 +4,13 @@
       <!-- CPU Card -->
       <Card>
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">CPU 负载</CardTitle>
+          <CardTitle class="text-sm font-medium">CPU 使用率</CardTitle>
           <Cpu class="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">{{ cpuLoad }}</div>
-          <Progress :model-value="parseFloat(cpuLoad) * 10" class="mt-4 h-2" />
+          <div class="text-2xl font-bold">{{ cpuUsageDisplay }}</div>
+          <p class="text-xs text-muted-foreground mb-4">Load: {{ cpuLoad }}</p>
+          <Progress :model-value="cpuUsagePercent" class="h-2" />
         </CardContent>
       </Card>
       
@@ -42,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useSshStore } from '../stores/ssh';
 import { Cpu, MemoryStick, HardDrive } from 'lucide-vue-next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -54,10 +55,15 @@ const props = defineProps<{
 
 const sshStore = useSshStore();
 const cpuLoad = ref('0.0');
+const cpuUsagePercent = ref(0);
 const ramUsage = ref(0);
 const ramDetails = ref('0 / 0 MB');
 const diskUsage = ref('0%');
 let interval: any = null;
+
+const cpuUsageDisplay = computed(() => {
+  return `${cpuUsagePercent.value.toFixed(1)}%`;
+});
 
 async function fetchData() {
   if (!sshStore.sessionId) return;
@@ -66,6 +72,16 @@ async function fetchData() {
     if (res.ok) {
       const data = await res.json();
       cpuLoad.value = data.cpu;
+      
+      if (typeof data.cpuUsage === 'number') {
+        cpuUsagePercent.value = data.cpuUsage;
+      } else {
+        // Fallback: estimate from load average if cpuUsage is missing (not ideal but keeps UI working)
+        // actually, better to just show 0 or keep last value if we can't get it.
+        // But for now, let's just default to 0 if null to avoid NaN
+        cpuUsagePercent.value = 0;
+      }
+
       diskUsage.value = data.disk;
       
       const total = data.ram.total;

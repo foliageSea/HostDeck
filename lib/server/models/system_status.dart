@@ -1,12 +1,19 @@
 class SystemStatus {
   final String cpu;
+  final double? cpuUsage;
   final RamStatus ram;
   final String disk;
 
-  SystemStatus({required this.cpu, required this.ram, required this.disk});
+  SystemStatus({
+    required this.cpu,
+    this.cpuUsage,
+    required this.ram,
+    required this.disk,
+  });
 
   Map<String, dynamic> toJson() => {
     'cpu': cpu,
+    'cpuUsage': cpuUsage,
     'ram': ram.toJson(),
     'disk': disk,
   };

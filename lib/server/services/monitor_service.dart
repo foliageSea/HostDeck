@@ -14,8 +14,11 @@ class MonitorService {
     final diskFuture = _repository.exec(session, "df -h / | awk 'NR==2 {print \$5}'"); 
     // Load average from uptime
     final uptimeFuture = _repository.exec(session, "uptime");
+    // CPU usage from top (batch mode, 1 iteration)
+    final topFuture = _repository.exec(session, "LC_ALL=C top -bn1 | grep 'Cpu(s)' || true")
+        .catchError((_) => "");
 
-    final results = await Future.wait([ramFuture, diskFuture, uptimeFuture]);
+    final results = await Future.wait([ramFuture, diskFuture, uptimeFuture, topFuture]);
     
     // Parse RAM
     // Mem: 7963 3855 ...
@@ -36,8 +39,33 @@ class MonitorService {
       }
     }
 
+    // Parse CPU usage from top: "%Cpu(s):  0.3 us,  0.3 sy,  0.0 ni, 99.3 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st"
+    double? cpuUsage;
+    try {
+      final topStr = results[3].trim();
+      if (topStr.isNotEmpty) {
+        // Find "id" (idle) value
+        // Split by comma first
+        final parts = topStr.split(',');
+        for (var part in parts) {
+          if (part.trim().endsWith('id')) {
+             // extract number " 99.3 id"
+             final valStr = part.trim().split(' ')[0];
+             final idle = double.tryParse(valStr);
+             if (idle != null) {
+               cpuUsage = 100.0 - idle;
+             }
+             break;
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore parsing errors
+    }
+
     return SystemStatus(
       cpu: loadAvg,
+      cpuUsage: cpuUsage,
       ram: RamStatus(total: totalRam, used: usedRam),
       disk: diskUsage,
     );
