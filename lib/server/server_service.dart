@@ -17,9 +17,13 @@ class ServerService {
   HttpServer? _server;
   final int port;
 
+  bool get isRunning => _server != null;
+
   ServerService({this.port = 8080});
 
-  Future<void> start() async {
+  Future<void> start({void Function(String)? onLog}) async {
+    if (isRunning) return;
+
     // 1. Initialize dependencies
     final sshRepository = SshRepository();
     final sshService = SshService(); // Manages connections
@@ -42,14 +46,29 @@ class ServerService {
 
     // 4. Setup Server
     final handler = Pipeline()
-        .addMiddleware(logRequests())
+        .addMiddleware(logRequests(logger: (message, isError) {
+          if (onLog != null) {
+            onLog(message);
+          } else {
+            print(message);
+          }
+        }))
         .addHandler(apiRoutes.router.call);
 
     _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
-    print('Server running on port ${_server?.port}');
+    
+    final startMsg = 'Server running on port ${_server?.port}';
+    if (onLog != null) {
+      onLog(startMsg);
+    } else {
+      print(startMsg);
+    }
   }
 
   Future<void> stop() async {
-    await _server?.close();
+    if (_server != null) {
+      await _server?.close(force: true);
+      _server = null;
+    }
   }
 }
