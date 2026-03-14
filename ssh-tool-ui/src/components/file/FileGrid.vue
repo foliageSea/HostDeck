@@ -14,9 +14,9 @@
          <FileIcon v-else class="w-14 h-14 text-muted-foreground drop-shadow-sm" />
       </div>
 
-      <div class="mt-2 w-full text-center">
+      <div class="mt-2 w-full text-center h-[36px] flex items-start justify-center">
         <span 
-          :class="['text-[13px] leading-tight break-words line-clamp-2 px-1 rounded', 
+          :class="['text-[13px] leading-tight break-words line-clamp-2 px-1 rounded max-w-full', 
             selectedFiles.has(file.filename) 
               ? 'bg-primary text-primary-foreground' 
               : 'text-foreground']"
