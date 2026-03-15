@@ -118,8 +118,11 @@ export function createFileStore() {
       if (!res.ok) throw new Error('Failed to fetch files')
 
       const data = await res.json()
+      // filter out . and .. directories
+      const filteredData = data.filter((f: FileItem) => f.filename !== '.' && f.filename !== '..')
+      
       // sort: folders first, then files
-      files.value = data.sort((a: FileItem, b: FileItem) => {
+      files.value = filteredData.sort((a: FileItem, b: FileItem) => {
         if (a.isDirectory === b.isDirectory) {
           return a.filename.localeCompare(b.filename)
         }
