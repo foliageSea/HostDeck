@@ -1,6 +1,7 @@
 <template>
-  <div class="h-full w-full bg-black flex flex-col overflow-hidden relative">
-    <div ref="terminalContainer" class="flex-1 w-full h-full"></div>
+  <div class="h-full w-full bg-black flex flex-col overflow-hidden relative" @mouseup="handleMouseUp"
+    @mousedown="handleMouseDown">
+    <div ref="terminalContainer" class="flex-1 w-full h-full pl-2 pr-2"></div>
 
     <!-- Settings Button -->
     <div class="absolute top-2 right-4 z-10 opacity-50 hover:opacity-100 transition-opacity">
@@ -42,6 +43,18 @@
         </DialogContent>
       </Dialog>
     </div>
+
+    <!-- Copy Button -->
+    <div v-if="showCopyBtn" :style="copyBtnStyle" @mousedown.stop
+      class="fixed z-50 transform -translate-x-1/2 -translate-y-full pb-2 pointer-events-none">
+      <div class="pointer-events-auto">
+        <Button size="sm" @click.stop="copySelection"
+          class="shadow-lg h-8 px-3 bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700">
+          <Copy class="w-3.5 h-3.5 mr-2" />
+          复制
+        </Button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -53,7 +66,8 @@ import '@xterm/xterm/css/xterm.css';
 import { useSshStore } from '../stores/ssh';
 import { useSettingsStore } from '../stores/settings';
 import { useDesktopStore } from '../stores/desktop';
-import { Settings } from 'lucide-vue-next';
+import { useToastStore } from '../stores/toast';
+import { Settings, Copy } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -75,6 +89,46 @@ const terminalContainer = ref<HTMLElement | null>(null);
 const sshStore = useSshStore();
 const settingsStore = useSettingsStore();
 const desktopStore = useDesktopStore();
+const toast = useToastStore();
+const showCopyBtn = ref(false);
+const copyBtnStyle = ref({ top: '0px', left: '0px' });
+const selectedText = ref('');
+
+const handleMouseUp = (e: MouseEvent) => {
+  if (!term) return;
+  if (term.hasSelection()) {
+    const selection = term.getSelection();
+    if (selection) {
+      selectedText.value = selection;
+      copyBtnStyle.value = {
+        top: `${e.clientY}px`,
+        left: `${e.clientX}px`
+      };
+      showCopyBtn.value = true;
+    }
+  } else {
+    showCopyBtn.value = false;
+  }
+};
+
+const handleMouseDown = () => {
+  showCopyBtn.value = false;
+};
+
+const copySelection = async () => {
+  if (selectedText.value) {
+    try {
+      await navigator.clipboard.writeText(selectedText.value);
+      toast.success('已复制');
+      showCopyBtn.value = false;
+      if (term) term.clearSelection();
+    } catch (e) {
+      console.error('Copy failed', e);
+      toast.error('复制失败');
+    }
+  }
+};
+
 let term: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
 let socket: WebSocket | null = null;
@@ -129,14 +183,14 @@ onMounted(async () => {
   term.loadAddon(fitAddon);
 
   if (terminalContainer.value) {
-      term.open(terminalContainer.value);
-      term.focus();
+    term.open(terminalContainer.value);
+    term.focus();
 
-      // Initial fit
-      setTimeout(() => {
-        fitAddon?.fit();
-        term?.focus();
-      }, 100);
+    // Initial fit
+    setTimeout(() => {
+      fitAddon?.fit();
+      term?.focus();
+    }, 100);
 
     // Resize Observer
     resizeObserver = new ResizeObserver(() => {
