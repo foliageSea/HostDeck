@@ -46,10 +46,12 @@ jobs:
           flutter-version: '3.41.2'
       - run: flutter pub get
       - run: flutter build apk --release
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk ssh-tool-android-${{ github.ref_name }}.apk
       - name: Upload APK
         uses: softprops/action-gh-release@v1
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: ssh-tool-android-${{ github.ref_name }}.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -68,11 +70,11 @@ jobs:
       - run: flutter pub get
       - run: flutter build windows --release
       - name: Archive Windows Build
-        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ssh-tool-windows.zip
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ssh-tool-windows-${{ github.ref_name }}.zip
       - name: Upload Windows
         uses: softprops/action-gh-release@v1
         with:
-          files: ssh-tool-windows.zip
+          files: ssh-tool-windows-${{ github.ref_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -95,11 +97,11 @@ jobs:
       - run: flutter pub get
       - run: flutter build linux --release
       - name: Archive Linux Build
-        run: tar -czf ssh-tool-linux.tar.gz -C build/linux/x64/release/bundle .
+        run: tar -czf ssh-tool-linux-${{ github.ref_name }}.tar.gz -C build/linux/x64/release/bundle .
       - name: Upload Linux
         uses: softprops/action-gh-release@v1
         with:
-          files: ssh-tool-linux.tar.gz
+          files: ssh-tool-linux-${{ github.ref_name }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -118,10 +120,10 @@ jobs:
       - run: flutter pub get
       - run: flutter build macos --release
       - name: Archive MacOS Build
-        run: ditto -c -k --keepParent build/macos/Build/Products/Release/ssh_tool.app ssh-tool-macos.zip
+        run: ditto -c -k --keepParent build/macos/Build/Products/Release/ssh_tool.app ssh-tool-macos-${{ github.ref_name }}.zip
       - name: Upload MacOS
         uses: softprops/action-gh-release@v1
         with:
-          files: ssh-tool-macos.zip
+          files: ssh-tool-macos-${{ github.ref_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
