@@ -35,7 +35,7 @@
         </CardHeader>
         <CardContent>
           <div class="text-2xl font-bold">{{ diskUsage }}</div>
-          <Progress :model-value="parseFloat(diskUsage)" class="mt-4 h-2" />
+          <Progress :model-value="diskUsagePercent" class="mt-4 h-2" />
         </CardContent>
       </Card>
     </div>
@@ -43,65 +43,55 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { computed } from 'vue';
 import { useSshStore } from '../stores/ssh';
 import { Cpu, MemoryStick, HardDrive } from 'lucide-vue-next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { useQuery } from '@tanstack/vue-query';
+import { systemApi } from '@/api/system';
 
 const props = defineProps<{
   windowId?: string
 }>();
 
 const sshStore = useSshStore();
-const cpuLoad = ref('0.0');
-const cpuUsagePercent = ref(0);
-const ramUsage = ref(0);
-const ramDetails = ref('0 / 0 MB');
-const diskUsage = ref('0%');
-let interval: any = null;
+
+const { data: monitorData } = useQuery({
+  queryKey: computed(() => ['monitor', sshStore.sessionId]),
+  queryFn: () => systemApi.getMonitorStatus(sshStore.sessionId!),
+  enabled: computed(() => !!sshStore.sessionId && sshStore.isConnected),
+  refetchInterval: 3000
+});
+
+const cpuLoad = computed(() => monitorData.value?.cpu || '0.0');
+
+const cpuUsagePercent = computed(() => {
+  if (monitorData.value?.cpuUsage !== undefined) {
+    return monitorData.value.cpuUsage;
+  }
+  return 0;
+});
 
 const cpuUsageDisplay = computed(() => {
   return `${cpuUsagePercent.value.toFixed(1)}%`;
 });
 
-async function fetchData() {
-  if (!sshStore.sessionId) return;
-  try {
-    const res = await fetch(`/api/monitor?sessionId=${sshStore.sessionId}`);
-    if (res.ok) {
-      const data = await res.json();
-      cpuLoad.value = data.cpu;
-      
-      if (typeof data.cpuUsage === 'number') {
-        cpuUsagePercent.value = data.cpuUsage;
-      } else {
-        // Fallback: estimate from load average if cpuUsage is missing (not ideal but keeps UI working)
-        // actually, better to just show 0 or keep last value if we can't get it.
-        // But for now, let's just default to 0 if null to avoid NaN
-        cpuUsagePercent.value = 0;
-      }
-
-      diskUsage.value = data.disk;
-      
-      const total = data.ram.total;
-      const used = data.ram.used;
-      ramUsage.value = total > 0 ? Math.round((used / total) * 100) : 0;
-      ramDetails.value = `${used} / ${total} MB`;
-    }
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-onMounted(() => {
-  if (sshStore.isConnected) {
-    fetchData();
-    interval = setInterval(fetchData, 3000);
-  }
+const ramUsage = computed(() => {
+  const data = monitorData.value;
+  if (!data) return 0;
+  const total = data.ram.total;
+  const used = data.ram.used;
+  return total > 0 ? Math.round((used / total) * 100) : 0;
 });
 
-onUnmounted(() => {
-  if (interval) clearInterval(interval);
+const ramDetails = computed(() => {
+  const data = monitorData.value;
+  if (!data) return '0 / 0 MB';
+  return `${data.ram.used} / ${data.ram.total} MB`;
 });
+
+const diskUsage = computed(() => monitorData.value?.disk || '0%');
+const diskUsagePercent = computed(() => parseFloat(diskUsage.value) || 0);
+
 </script>

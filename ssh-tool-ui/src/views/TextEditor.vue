@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { useDesktopStore } from '@/stores/desktop'
 import { useToastStore } from '@/stores/toast'
 import { dirname } from '@/utils/path'
+import { fileApi } from '@/api/files'
 
 const props = defineProps<{
   path: string
@@ -61,9 +62,7 @@ const loadFile = async () => {
   loading.value = true
   error.value = ''
   try {
-    const res = await fetch(`/api/files/read?sessionId=${props.sessionId}&path=${encodeURIComponent(props.path)}`)
-    if (!res.ok) throw new Error('Failed to read file')
-    content.value = await res.text()
+    content.value = await fileApi.readFile(props.sessionId, props.path)
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -78,12 +77,8 @@ const saveFile = async (newContent: string) => {
     const blob = new Blob([newContent], { type: 'text/plain' })
     formData.append('file', blob, filename.value)
 
-    const res = await fetch(`/api/files/upload?sessionId=${props.sessionId}&path=${encodeURIComponent(targetDir)}`, {
-      method: 'POST',
-      body: formData
-    })
+    await fileApi.uploadFile(props.sessionId, targetDir, formData)
     
-    if (!res.ok) throw new Error('Failed to save file')
     toast.success('Saved successfully')
   } catch (e: any) {
     toast.error(`Failed to save: ${e.message}`)

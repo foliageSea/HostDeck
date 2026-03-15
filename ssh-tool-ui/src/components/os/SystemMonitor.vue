@@ -16,33 +16,47 @@
       <MemoryStick class="w-3.5 h-3.5" />
       <span>{{ ramDisplay }}</span>
     </div>
-
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { computed } from 'vue';
 import { useSshStore } from '../../stores/ssh';
 import { Cpu, MemoryStick, ArrowUp, ArrowDown } from 'lucide-vue-next';
+import { useQuery } from '@tanstack/vue-query';
+import { systemApi } from '@/api/system';
 
 const sshStore = useSshStore();
-const cpuUsage = ref<number | null>(null);
-const cpuLoad = ref('0.0');
-const ramUsage = ref(0);
-const uploadSpeed = ref(0);
-const downloadSpeed = ref(0);
-let interval: any = null;
+
+const { data: monitorData } = useQuery({
+  queryKey: computed(() => ['monitor', sshStore.sessionId]),
+  queryFn: () => systemApi.getMonitorStatus(sshStore.sessionId!),
+  enabled: computed(() => !!sshStore.sessionId && sshStore.isConnected),
+  refetchInterval: 3000
+});
 
 const cpuDisplay = computed(() => {
-  if (cpuUsage.value !== null) {
-    return `${cpuUsage.value.toFixed(1)}%`;
+  const data = monitorData.value;
+  if (!data) return '0.0%';
+  
+  if (data.cpuUsage !== undefined && data.cpuUsage !== null) {
+    return `${data.cpuUsage.toFixed(1)}%`;
   }
-  return `Load: ${cpuLoad.value}`;
+  return `Load: ${data.cpu || '0.0'}`;
 });
 
 const ramDisplay = computed(() => {
-  return `${ramUsage.value}%`;
+  const data = monitorData.value;
+  if (!data) return '0%';
+  
+  const total = data.ram.total;
+  const used = data.ram.used;
+  const percentage = total > 0 ? Math.round((used / total) * 100) : 0;
+  return `${percentage}%`;
 });
+
+const uploadSpeed = computed(() => monitorData.value?.network?.uploadSpeed || 0);
+const downloadSpeed = computed(() => monitorData.value?.network?.downloadSpeed || 0);
 
 function formatSpeed(bytes: number) {
   if (bytes === 0) return '0 B/s';
@@ -51,46 +65,4 @@ function formatSpeed(bytes: number) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
-
-async function fetchData() {
-  if (!sshStore.sessionId) return;
-  try {
-    const res = await fetch(`/api/monitor?sessionId=${sshStore.sessionId}`);
-    if (res.ok) {
-      const data = await res.json();
-
-      // CPU
-      if (typeof data.cpuUsage === 'number') {
-        cpuUsage.value = data.cpuUsage;
-      } else {
-        cpuUsage.value = null;
-      }
-      cpuLoad.value = data.cpu;
-
-      // RAM
-      const total = data.ram.total;
-      const used = data.ram.used;
-      ramUsage.value = total > 0 ? Math.round((used / total) * 100) : 0;
-
-      // Network
-      if (data.network) {
-        uploadSpeed.value = data.network.uploadSpeed;
-        downloadSpeed.value = data.network.downloadSpeed;
-      }
-    }
-  } catch (e) {
-    console.error('Failed to fetch system status', e);
-  }
-}
-
-onMounted(() => {
-  if (sshStore.isConnected) {
-    fetchData();
-    interval = setInterval(fetchData, 3000);
-  }
-});
-
-onUnmounted(() => {
-  if (interval) clearInterval(interval);
-});
 </script>

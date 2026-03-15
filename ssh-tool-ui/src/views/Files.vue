@@ -98,6 +98,7 @@ import {
   EditIcon, Trash2Icon, TypeIcon, RefreshCwIcon,
   ClipboardIcon, StarIcon
 } from 'lucide-vue-next'
+import { fileApi } from '@/api/files'
 
 const fileStore = createFileStore()
 provide(FileStoreKey, fileStore)
@@ -144,15 +145,8 @@ const handleDownload = async () => {
     fileStore.loading = true
     const paths = Array.from(fileStore.selectedFiles).map(filename => getFullPath(filename))
     
-    const res = await fetch(`/api/files/batch-download?sessionId=${fileStore.sessionId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paths })
-    })
+    const blob = await fileApi.batchDownload(fileStore.sessionId!, paths)
     
-    if (!res.ok) throw new Error('Download failed')
-    
-    const blob = await res.blob()
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -185,15 +179,9 @@ const handlePaste = async () => {
        const fullTargetPath = resolve(fileStore.currentPath, filename)
        
        if (action === 'copy') {
-         await fetch(`/api/files/copy?sessionId=${fileStore.sessionId}`, {
-           method: 'POST',
-           body: JSON.stringify({ source: fullSourcePath, target: fullTargetPath })
-         })
+         await fileApi.copy(fileStore.sessionId!, fullSourcePath, fullTargetPath)
        } else {
-         await fetch(`/api/files/rename?sessionId=${fileStore.sessionId}`, {
-            method: 'POST',
-            body: JSON.stringify({ oldPath: fullSourcePath, newPath: fullTargetPath })
-         })
+         await fileApi.rename(fileStore.sessionId!, fullSourcePath, fullTargetPath)
        }
     }
     
@@ -222,11 +210,7 @@ const handleRename = async () => {
   const newPath = getFullPath(newItemName.value)
   
   try {
-    const res = await fetch(`/api/files/rename?sessionId=${fileStore.sessionId}`, {
-      method: 'POST',
-      body: JSON.stringify({ oldPath, newPath })
-    })
-    if (!res.ok) throw new Error('Rename failed')
+    await fileApi.rename(fileStore.sessionId!, oldPath, newPath)
     
     toast.success('Renamed')
     showRenameModal.value = false
@@ -247,11 +231,7 @@ const handleMkdir = async () => {
   const path = getFullPath(newItemName.value)
   
   try {
-    const res = await fetch(`/api/files/mkdir?sessionId=${fileStore.sessionId}`, {
-      method: 'POST',
-      body: JSON.stringify({ path })
-    })
-    if (!res.ok) throw new Error('Mkdir failed')
+    await fileApi.mkdir(fileStore.sessionId!, path)
     
     toast.success('Directory created')
     showMkdirModal.value = false
@@ -266,14 +246,7 @@ const handleDelete = async () => {
     fileStore.loading = true
     for (const filename of fileStore.selectedFiles) {
       const path = getFullPath(filename)
-      // Note: delete API uses POST and query param for path based on my implementation
-      // wait, let me check routes.
-      // router.post('/api/files/delete', fileController.deleteFile);
-      // deleteFile reads queryParameters['path']
-      
-      await fetch(`/api/files/delete?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(path)}`, {
-        method: 'POST'
-      })
+      await fileApi.deleteFile(fileStore.sessionId!, path)
     }
     toast.success('Deleted')
     showDeleteModal.value = false
@@ -311,32 +284,16 @@ const uploadFiles = async (files: FileList) => {
       formData.append('file', file)
       
       try {
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest()
-          const url = `/api/files/upload?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(fileStore.currentPath)}`
-          
-          xhr.open('POST', url)
-          
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const currentFileProgress = e.loaded
-              const totalProgress = uploadedSize + currentFileProgress
-              fileStore.uploadStatus.percent = Math.min(100, Math.round((totalProgress / totalSize) * 100))
+        await fileApi.uploadFile(
+            fileStore.sessionId!, 
+            fileStore.currentPath, 
+            formData, 
+            (loaded, total) => {
+                const currentFileProgress = loaded
+                const totalProgress = uploadedSize + currentFileProgress
+                fileStore.uploadStatus.percent = Math.min(100, Math.round((totalProgress / totalSize) * 100))
             }
-          }
-          
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve()
-            } else {
-              reject(new Error(xhr.responseText || 'Upload failed'))
-            }
-          }
-          
-          xhr.onerror = () => reject(new Error('Network error'))
-          
-          xhr.send(formData)
-        })
+        )
         
         fileStore.uploadStatus.success++
       } catch (e: any) {

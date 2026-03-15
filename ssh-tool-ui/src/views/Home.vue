@@ -166,10 +166,11 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSshStore, type SavedServer } from '../stores/ssh'
 import { Monitor, Trash2, Eye, EyeOff, Loader2, Save } from 'lucide-vue-next'
+import { authApi } from '@/api/auth';
+import { useMutation } from '@tanstack/vue-query';
 
 const router = useRouter()
 const sshStore = useSshStore()
-const loading = ref(false)
 const showPassword = ref(false)
 const currentServerId = ref<string | null>(null)
 
@@ -234,28 +235,19 @@ function saveServer() {
   }
 }
 
-async function connect() {
-  loading.value = true
-  try {
-    const res = await fetch('/api/connect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
-    })
-    
-    if (!res.ok) {
-      const text = await res.text()
-      throw new Error(text)
-    }
-    
-    const data = await res.json()
+const { mutate: connectMutate, isPending: loading } = useMutation({
+  mutationFn: authApi.connect,
+  onSuccess: (data) => {
     sshStore.setSession(data.sessionId, data.connectionId, form.host, form.username)
     router.push('/dashboard')
-  } catch (e) {
-    alert('Connection failed: ' + e)
-  } finally {
-    loading.value = false
+  },
+  onError: (error: any) => {
+    alert('Connection failed: ' + (error.response?.data || error.message))
   }
+})
+
+const connect = () => {
+  connectMutate(form)
 }
 </script>
 

@@ -3,6 +3,7 @@ import { useStorage } from '@vueuse/core'
 import { useSshStore } from './ssh'
 import { useToastStore } from './toast'
 import { resolve, dirname } from '../utils/path'
+import { fileApi } from '@/api/files'
 
 export interface FileItem {
   filename: string
@@ -81,17 +82,8 @@ export function createFileStore() {
     if (sessionId.value) return
 
     try {
-      const res = await fetch('/api/files/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connectionId: sshStore.connectionId })
-      })
-      if (res.ok) {
-        const data = await res.json()
-        sessionId.value = data.sessionId
-      } else {
-        throw new Error(await res.text())
-      }
+      const data = await fileApi.createSession(sshStore.connectionId)
+      sessionId.value = data.sessionId
     } catch (e: any) {
       console.error('Failed to init file session', e)
       toast.error(`Failed to init file session: ${e.message}`)
@@ -114,10 +106,8 @@ export function createFileStore() {
 
     loading.value = true
     try {
-      const res = await fetch(`/api/files/list?sessionId=${sessionId.value}&path=${encodeURIComponent(targetPath)}`)
-      if (!res.ok) throw new Error('Failed to fetch files')
-
-      const data = await res.json()
+      const data = await fileApi.listFiles(sessionId.value, targetPath)
+      
       // filter out . and .. directories
       const filteredData = data.filter((f: FileItem) => f.filename !== '.' && f.filename !== '..')
       

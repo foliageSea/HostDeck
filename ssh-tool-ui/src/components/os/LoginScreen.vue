@@ -124,13 +124,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useToast } from '@/components/ui/toast/use-toast';
 import { processBackgroundImage } from '@/utils/image';
 import bgImage from '@/assets/bg.jpg';
+import { useMutation } from '@tanstack/vue-query';
+import { authApi } from '@/api/auth';
 
 const sshStore = useSshStore();
 const settingsStore = useSettingsStore();
@@ -138,7 +137,6 @@ const { toast } = useToast();
 
 const currentBgImage = computed(() => settingsStore.customBackground || bgImage);
 
-const loading = ref(false);
 const isNewConnection = ref(false);
 const selectedServer = ref<SavedServer | null>(null);
 
@@ -157,14 +155,6 @@ const bgInputRef = ref<HTMLInputElement | null>(null);
 
 const triggerBackgroundUpload = () => {
   bgInputRef.value?.click();
-};
-
-const setBackgroundQuality = (quality: number) => {
-  settingsStore.setBackgroundQuality(quality);
-  toast({
-    title: "清晰度已更新",
-    description: `背景清晰度已设置为 ${quality * 100}%，重新上传背景后生效。`,
-  });
 };
 
 const onBackgroundSelected = async (event: Event) => {
@@ -225,22 +215,9 @@ const resetSelection = () => {
   form.privateKey = '';
 };
 
-const connect = async () => {
-  loading.value = true;
-  try {
-    const res = await fetch('/api/connect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
-    })
-
-    if (!res.ok) {
-      const text = await res.text()
-      throw new Error(text)
-    }
-
-    const data = await res.json()
-
+const { mutate: connectMutate, isPending: loading } = useMutation({
+  mutationFn: authApi.connect,
+  onSuccess: (data) => {
     if (isNewConnection.value) {
       sshStore.addServer({
         name: form.name || `${form.username}@${form.host}`,
@@ -249,14 +226,16 @@ const connect = async () => {
         username: form.username
       })
     }
-
     sshStore.setSession(data.sessionId, data.connectionId, form.host, form.username);
-
-  } catch (e) {
-    alert('Connection failed: ' + e);
-  } finally {
-    loading.value = false;
+  },
+  onError: (error: any) => {
+    const msg = error.response?.data || error.message || 'Unknown error';
+    alert('Connection failed: ' + msg);
   }
+})
+
+const connect = () => {
+  connectMutate(form);
 };
 </script>
 

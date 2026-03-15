@@ -80,6 +80,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { terminalApi } from '@/api/terminal';
 
 const props = defineProps<{
   windowId?: string
@@ -205,16 +206,11 @@ onMounted(async () => {
   // Create new session
   try {
     if (sshStore.connectionId) {
-      const res = await fetch('/api/terminal/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connectionId: sshStore.connectionId })
+      const data = await terminalApi.createSession({
+        connectionId: sshStore.connectionId,
+        cols: term?.cols || 80,
+        rows: term?.rows || 24
       });
-      if (!res.ok) {
-        term?.write(`\r\n错误：创建会话失败 - ${await res.text()}\r\n`);
-        return;
-      }
-      const data = await res.json();
       mySessionId.value = data.sessionId;
     } else if (sshStore.sessionId) {
       mySessionId.value = sshStore.sessionId;
@@ -222,8 +218,8 @@ onMounted(async () => {
       term?.write('\r\n错误：未连接\r\n');
       return;
     }
-  } catch (e) {
-    term?.write(`\r\n错误：连接异常 - ${e}\r\n`);
+  } catch (e: any) {
+    term?.write(`\r\n错误：创建会话失败 - ${e.response?.data || e.message}\r\n`);
     return;
   }
 
@@ -272,9 +268,7 @@ onBeforeUnmount(async () => {
   // Close session if it's a dedicated one
   if (mySessionId.value && mySessionId.value !== sshStore.sessionId) {
     try {
-      await fetch(`/api/terminal/session?sessionId=${mySessionId.value}`, {
-        method: 'DELETE'
-      });
+      await terminalApi.deleteSession(mySessionId.value);
     } catch (e) {
       console.error('Failed to close session', e);
     }
