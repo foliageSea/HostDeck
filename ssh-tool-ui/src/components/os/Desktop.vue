@@ -1,6 +1,13 @@
 <template>
-  <div class="h-screen w-screen overflow-hidden bg-cover bg-center bg-no-repeat relative font-sans text-gray-900" 
-       :style="{ backgroundImage: `url(${currentBgImage})` }">
+  <div class="h-screen w-screen overflow-hidden relative font-sans text-gray-900 dark:text-gray-100">
+    <!-- Background Layer -->
+    <div 
+      class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-300"
+      :style="{ backgroundImage: `url(${currentBgImage})` }"
+    >
+      <!-- Dark mode overlay -->
+      <div class="absolute inset-0 bg-black/0 dark:bg-black/40 transition-colors duration-300"></div>
+    </div>
     
     <!-- Top Bar -->
     <TopBar />
@@ -18,7 +25,6 @@
     
     <!-- Dock -->
     <Dock />
-    
   </div>
 </template>
 

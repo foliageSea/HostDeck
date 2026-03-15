@@ -1,25 +1,25 @@
 <template>
-  <div class="absolute flex flex-col bg-white shadow-2xl overflow-hidden select-none" :class="[
-    window.isMaximized ? 'rounded-none border-0' : 'rounded-lg border border-gray-200',
+  <div class="absolute flex flex-col bg-background dark:bg-card shadow-2xl overflow-hidden select-none" :class="[
+    window.isMaximized ? 'rounded-none border-0' : 'rounded-lg border border-border/50',
     (isDragging || isResizing) ? '' : 'transition-all duration-200 ease-in-out'
   ]" :style="window.isMaximized ? {
-      left: '0px',
-      top: '0px',
-      width: '100%',
-      height: '100%',
-      zIndex: window.zIndex,
-      display: window.isMinimized ? 'none' : 'flex'
-    } : {
-      left: `${window.x}px`,
-      top: `${window.y}px`,
-      width: `${window.width}px`,
-      height: `${window.height}px`,
-      zIndex: window.zIndex,
-      display: window.isMinimized ? 'none' : 'flex'
-    }" @mousedown="focusWindow">
+    left: '0px',
+    top: '0px',
+    width: '100%',
+    height: '100%',
+    zIndex: window.zIndex,
+    display: window.isMinimized ? 'none' : 'flex'
+  } : {
+    left: `${window.x}px`,
+    top: `${window.y}px`,
+    width: `${window.width}px`,
+    height: `${window.height}px`,
+    zIndex: window.zIndex,
+    display: window.isMinimized ? 'none' : 'flex'
+  }" @mousedown="focusWindow">
     <!-- Title Bar -->
     <div
-      :class="['h-8 bg-gray-100 border-b border-gray-200 flex items-center justify-between px-3', window.isMaximized ? 'cursor-default' : 'cursor-move']"
+      :class="['h-8 bg-muted/50 border-b border-border/50 flex items-center justify-between px-3', window.isMaximized ? 'cursor-default' : 'cursor-move']"
       @mousedown.prevent="startDrag" @dblclick="maximizeWindow">
       <div class="flex items-center space-x-2">
         <!-- Controls -->
@@ -40,15 +40,15 @@
       </div>
 
       <div class="flex items-center justify-center gap-2 px-2 flex-1 min-w-0">
-        <component v-if="iconMap[window.icon]" :is="iconMap[window.icon]" class="w-3.5 h-3.5 text-gray-500" />
-        <span class="text-xs font-medium text-gray-600 truncate">{{ window.title }}</span>
+        <component v-if="iconMap[window.icon]" :is="iconMap[window.icon]" class="w-3.5 h-3.5 text-muted-foreground" />
+        <span class="text-xs font-medium text-foreground truncate">{{ window.title }}</span>
       </div>
 
       <div class="w-12"></div> <!-- Spacer for balance -->
     </div>
 
     <!-- Content -->
-    <div class="flex-1 overflow-hidden relative bg-white">
+    <div class="flex-1 overflow-hidden relative bg-background">
       <component :is="window.component" :window-id="window.id" v-bind="window.props" />
     </div>
 

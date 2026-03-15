@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
-import { ref, watch } from 'vue';
-import { useStorage } from '@vueuse/core';
+import { ref, watch, computed } from 'vue';
+import { useStorage, usePreferredDark } from '@vueuse/core';
 
 export const useSettingsStore = defineStore('settings', () => {
     // Default values
@@ -11,6 +11,26 @@ export const useSettingsStore = defineStore('settings', () => {
     // State
     const terminalFontSize = ref<number>(parseInt(localStorage.getItem('terminalFontSize') || String(defaultFontSize)));
     const terminalFontFamily = ref<string>(localStorage.getItem('terminalFontFamily') || defaultFontFamily);
+
+    // Theme settings
+    const themeMode = useStorage<'auto' | 'light' | 'dark'>('theme-mode', 'auto');
+    const preferredDark = usePreferredDark();
+
+    const isDark = computed(() => {
+        if (themeMode.value === 'auto') {
+            return preferredDark.value;
+        }
+        return themeMode.value === 'dark';
+    });
+
+    // Watch for theme changes and apply to document
+    watch(isDark, (val) => {
+        if (val) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, { immediate: true });
 
     // Background image and quality
     const customBackground = useStorage<string>('customBackground', '');
@@ -34,6 +54,10 @@ export const useSettingsStore = defineStore('settings', () => {
         terminalFontFamily.value = family;
     }
 
+    function setThemeMode(mode: 'auto' | 'light' | 'dark') {
+        themeMode.value = mode;
+    }
+
     function setCustomBackground(dataUrl: string) {
         customBackground.value = dataUrl;
     }
@@ -55,10 +79,13 @@ export const useSettingsStore = defineStore('settings', () => {
     return {
         terminalFontSize,
         terminalFontFamily,
+        themeMode,
+        isDark,
         customBackground,
         backgroundQuality,
         setTerminalFontSize,
         setTerminalFontFamily,
+        setThemeMode,
         setCustomBackground,
         setBackgroundQuality,
         resetCustomBackground,

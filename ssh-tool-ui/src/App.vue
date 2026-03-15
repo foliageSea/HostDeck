@@ -10,11 +10,13 @@
 
 <script setup lang="ts">
 import { useSshStore } from './stores/ssh';
+import { useSettingsStore } from './stores/settings';
 import Desktop from './components/os/Desktop.vue';
 import LoginScreen from './components/os/LoginScreen.vue';
 import Toaster from '@/components/ui/toast/Toaster.vue';
 
 const sshStore = useSshStore();
+useSettingsStore(); // Initialize settings store to apply theme
 </script>
 
 <style>

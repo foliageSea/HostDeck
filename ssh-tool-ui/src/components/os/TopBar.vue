@@ -11,6 +11,31 @@
           <Button variant="ghost" size="sm" class="h-7 px-2 text-sm font-normal">外观</Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Sun class="mr-2 h-4 w-4" v-if="settingsStore.themeMode === 'light'" />
+              <Moon class="mr-2 h-4 w-4" v-else-if="settingsStore.themeMode === 'dark'" />
+              <Monitor class="mr-2 h-4 w-4" v-else />
+              <span>主题模式</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup v-model="settingsStore.themeMode">
+                <DropdownMenuRadioItem value="light">
+                  <Sun class="mr-2 h-4 w-4" />
+                  <span>明亮模式</span>
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dark">
+                  <Moon class="mr-2 h-4 w-4" />
+                  <span>暗黑模式</span>
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="auto">
+                  <Monitor class="mr-2 h-4 w-4" />
+                  <span>跟随系统</span>
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSeparator />
           <DropdownMenuItem @click="triggerBackgroundUpload">设置桌面背景</DropdownMenuItem>
           <DropdownMenuItem @click="resetBackground">恢复默认背景</DropdownMenuItem>
         </DropdownMenuContent>
@@ -37,7 +62,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { Terminal } from 'lucide-vue-next';
+import { Terminal, Sun, Moon, Monitor } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button'
 import SystemMonitor from './SystemMonitor.vue';
 import {
@@ -45,6 +70,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { useSettingsStore } from '@/stores/settings';
 import { useToast } from '@/components/ui/toast/use-toast';
