@@ -1,6 +1,6 @@
 <template>
   <div class="h-screen w-screen overflow-hidden bg-cover bg-center bg-no-repeat relative font-sans text-gray-900" 
-       :style="{ backgroundImage: `url(${bgImage})` }">
+       :style="{ backgroundImage: `url(${currentBgImage})` }">
     
     <!-- Top Bar -->
     <TopBar />
@@ -25,11 +25,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useDesktopStore } from '@/stores/desktop';
+import { useSettingsStore } from '@/stores/settings';
 import TopBar from './TopBar.vue';
 import Dock from './Dock.vue';
 import Window from './Window.vue';
 import bgImage from '@/assets/bg.jpg';
 
 const desktopStore = useDesktopStore();
+const settingsStore = useSettingsStore();
+
 const windows = computed(() => desktopStore.windows);
+const currentBgImage = computed(() => settingsStore.customBackground || bgImage);
 </script>

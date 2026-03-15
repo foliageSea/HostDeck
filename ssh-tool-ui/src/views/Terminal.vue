@@ -22,31 +22,22 @@
               <Label for="font-size" class="text-right">
                 字体大小
               </Label>
-              <Input
-                id="font-size"
-                type="number"
-                v-model.number="settingsStore.terminalFontSize"
-                class="col-span-3 bg-zinc-800 border-zinc-700 text-white"
-                min="8"
-                max="72"
-              />
+              <Input id="font-size" type="number" v-model.number="settingsStore.terminalFontSize"
+                class="col-span-3 bg-zinc-800 border-zinc-700 text-white" min="8" max="72" />
             </div>
             <div class="grid grid-cols-4 items-center gap-4">
               <Label for="font-family" class="text-right">
                 字体名称
               </Label>
-              <Input
-                id="font-family"
-                v-model="settingsStore.terminalFontFamily"
-                class="col-span-3 bg-zinc-800 border-zinc-700 text-white"
-                placeholder="例如: Menlo, monospace"
-              />
+              <Input id="font-family" v-model="settingsStore.terminalFontFamily"
+                class="col-span-3 bg-zinc-800 border-zinc-700 text-white" placeholder="例如: Menlo, monospace" />
             </div>
           </div>
           <DialogFooter>
-             <Button @click="resetSettings" variant="outline" class="mr-auto text-black dark:text-white border-zinc-700 hover:bg-zinc-800">
-               重置默认
-             </Button>
+            <Button @click="resetSettings" variant="outline"
+              class="mr-auto text-black dark:text-white border-zinc-700 hover:bg-zinc-800">
+              重置默认
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -112,9 +103,9 @@ onMounted(async () => {
   if (!sshStore.isConnected) {
     return;
   }
-  
+
   await nextTick();
-  
+
   term = new Terminal({
     cursorBlink: true,
     theme: {
@@ -125,16 +116,16 @@ onMounted(async () => {
     fontFamily: settingsStore.terminalFontFamily,
     allowProposedApi: true
   });
-  
+
   fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
-  
+
   if (terminalContainer.value) {
     term.open(terminalContainer.value);
-    
+
     // Initial fit
     setTimeout(() => {
-        fitAddon?.fit();
+      fitAddon?.fit();
     }, 100);
 
     // Resize Observer
@@ -149,55 +140,55 @@ onMounted(async () => {
 
   // Create new session
   try {
-      if (sshStore.connectionId) {
-          const res = await fetch('/api/terminal/session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ connectionId: sshStore.connectionId })
-          });
-          if (!res.ok) {
-              term?.write(`\r\n错误：创建会话失败 - ${await res.text()}\r\n`);
-              return;
-          }
-          const data = await res.json();
-          mySessionId.value = data.sessionId;
-      } else if (sshStore.sessionId) {
-          mySessionId.value = sshStore.sessionId;
-      } else {
-          term?.write('\r\n错误：未连接\r\n');
-          return;
+    if (sshStore.connectionId) {
+      const res = await fetch('/api/terminal/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId: sshStore.connectionId })
+      });
+      if (!res.ok) {
+        term?.write(`\r\n错误：创建会话失败 - ${await res.text()}\r\n`);
+        return;
       }
-  } catch (e) {
-      term?.write(`\r\n错误：连接异常 - ${e}\r\n`);
+      const data = await res.json();
+      mySessionId.value = data.sessionId;
+    } else if (sshStore.sessionId) {
+      mySessionId.value = sshStore.sessionId;
+    } else {
+      term?.write('\r\n错误：未连接\r\n');
       return;
+    }
+  } catch (e) {
+    term?.write(`\r\n错误：连接异常 - ${e}\r\n`);
+    return;
   }
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/socket.io?sessionId=${mySessionId.value}`;
-  
+
   socket = new WebSocket(wsUrl);
-  
+
   socket.onopen = () => {
-    term?.write('\r\n已连接到服务器...\r\n');
+    // term?.write('\r\n已连接到服务器...\r\n');
     fitAddon?.fit();
     if (term) {
-        sendResize(term.cols, term.rows);
+      sendResize(term.cols, term.rows);
     }
   };
-  
+
   socket.onmessage = (event) => {
-      term?.write(event.data);
+    term?.write(event.data);
   };
-  
+
   socket.onclose = () => {
     term?.write('\r\n已断开连接。\r\n');
   };
-  
+
   socket.onerror = (err) => {
     term?.write(`\r\n错误：连接失败\r\n`);
     console.error(err);
   };
-  
+
   term.onData(data => {
     socket?.send(data);
   });
@@ -213,16 +204,16 @@ onBeforeUnmount(async () => {
   resizeObserver?.disconnect();
   socket?.close();
   term?.dispose();
-  
+
   // Close session if it's a dedicated one
   if (mySessionId.value && mySessionId.value !== sshStore.sessionId) {
-      try {
-          await fetch(`/api/terminal/session?sessionId=${mySessionId.value}`, {
-              method: 'DELETE'
-          });
-      } catch (e) {
-          console.error('Failed to close session', e);
-      }
+    try {
+      await fetch(`/api/terminal/session?sessionId=${mySessionId.value}`, {
+        method: 'DELETE'
+      });
+    } catch (e) {
+      console.error('Failed to close session', e);
+    }
   }
 });
 </script>

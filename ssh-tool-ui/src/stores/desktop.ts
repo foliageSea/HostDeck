@@ -50,7 +50,7 @@ export const useDesktopStore = defineStore('desktop', {
         title: '文件管理',
         icon: 'folder',
         component: markRaw(Files),
-        width: 700,
+        width: 800,
         height: 500
       },
       'editor': {

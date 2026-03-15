@@ -1,23 +1,25 @@
 <template>
   <div class="h-screen w-screen bg-cover bg-center flex items-center justify-center relative overflow-hidden"
-       :style="{ backgroundImage: `url(${bgImage})` }">
-    
+    :style="{ backgroundImage: `url(${currentBgImage})` }">
+
     <!-- Blur Overlay -->
     <div class="absolute inset-0 bg-background/20 backdrop-blur-md"></div>
 
     <!-- Login Container -->
-    <Card class="relative z-10 w-full max-w-md bg-background/60 backdrop-blur-xl border-white/20 shadow-2xl animate-fade-in">
+    <Card
+      class="relative z-10 w-full max-w-md bg-background/60 backdrop-blur-xl border-white/20 shadow-2xl animate-fade-in">
       <CardHeader class="flex flex-col items-center pb-6">
-        <div class="w-24 h-24 rounded-full bg-muted/80 backdrop-blur-xl flex items-center justify-center text-4xl mb-2 shadow-2xl border border-white/20">
+        <div
+          class="w-24 h-24 rounded-full bg-muted/80 backdrop-blur-xl flex items-center justify-center text-4xl mb-2 shadow-2xl border border-white/20">
           <Monitor class="w-12 h-12 text-foreground" />
         </div>
-        
+
         <div v-if="!selectedServer && !isNewConnection" class="w-full text-center">
           <CardTitle class="text-xl">选择服务器</CardTitle>
         </div>
         <div v-else class="flex items-center w-full relative">
           <Button variant="ghost" size="sm" @click="resetSelection" class="absolute left-0 -ml-2">
-            <ArrowLeft class="w-4 h-4 mr-1"/> 返回
+            <ArrowLeft class="w-4 h-4 mr-1" /> 返回
           </Button>
           <CardTitle class="mx-auto">{{ isNewConnection ? '新建连接' : selectedServer?.name }}</CardTitle>
         </div>
@@ -27,27 +29,21 @@
         <!-- Server Selection -->
         <div v-if="!selectedServer && !isNewConnection" class="space-y-4">
           <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar px-1">
-            <div 
-              v-for="server in sshStore.savedServers" 
-              :key="server.id"
-              @click="selectServer(server)"
-              class="flex items-center p-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl cursor-pointer transition-all border border-white/10 group"
-            >
-              <div class="w-10 h-10 rounded-full bg-primary/80 flex items-center justify-center text-primary-foreground mr-3 shadow-sm">
+            <div v-for="server in sshStore.savedServers" :key="server.id" @click="selectServer(server)"
+              class="flex items-center p-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl cursor-pointer transition-all border border-white/10 group">
+              <div
+                class="w-10 h-10 rounded-full bg-primary/80 flex items-center justify-center text-primary-foreground mr-3 shadow-sm">
                 {{ server.name?.[0]?.toUpperCase() || 'S' }}
               </div>
               <div class="flex-1 min-w-0">
-                <div class="text-foreground font-medium truncate group-hover:text-primary transition-colors">{{ server.name || server.host }}</div>
+                <div class="text-foreground font-medium truncate group-hover:text-primary transition-colors">{{
+                  server.name || server.host }}</div>
                 <div class="text-muted-foreground text-xs truncate">{{ server.username }}@{{ server.host }}</div>
               </div>
             </div>
           </div>
 
-          <Button 
-            @click="isNewConnection = true"
-            class="w-full"
-            variant="secondary"
-          >
+          <Button @click="isNewConnection = true" class="w-full" variant="secondary">
             <span class="mr-2">+</span> 新建连接
           </Button>
         </div>
@@ -77,22 +73,14 @@
 
           <div class="space-y-2">
             <Label>密码</Label>
-            <Input 
-              ref="passwordInputRef"
-              v-model="form.password" 
-              type="password" 
-              placeholder="请输入密码" 
-              :required="!form.privateKey"
-            />
+            <Input ref="passwordInputRef" v-model="form.password" type="password" placeholder="请输入密码"
+              :required="!form.privateKey" />
           </div>
 
           <div v-if="isNewConnection" class="space-y-2">
             <Label>私钥 (可选)</Label>
-            <textarea 
-              v-model="form.privateKey" 
-              placeholder="-----BEGIN RSA PRIVATE KEY-----"
-              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-            ></textarea>
+            <textarea v-model="form.privateKey" placeholder="-----BEGIN RSA PRIVATE KEY-----"
+              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"></textarea>
           </div>
 
           <Button type="submit" class="w-full mt-4" :disabled="loading">
@@ -102,20 +90,53 @@
         </form>
       </CardContent>
     </Card>
+
+    <!-- Background Settings Button -->
+    <div class="absolute bottom-4 right-4 z-20">
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button variant="ghost" size="icon"
+            class="rounded-full bg-background/20 backdrop-blur-sm hover:bg-background/40">
+            <ImageIcon class="w-5 h-5 text-foreground/80" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem @click="triggerBackgroundUpload">设置自定义背景</DropdownMenuItem>
+          <DropdownMenuItem @click="resetBackground">恢复默认背景</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <input type="file" ref="bgInputRef" accept="image/*" class="hidden" @change="onBackgroundSelected" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick } from 'vue';
+import { ref, reactive, nextTick, computed } from 'vue';
 import { useSshStore, type SavedServer } from '@/stores/ssh';
-import { Monitor, ArrowLeft, Loader2 } from 'lucide-vue-next';
+import { useSettingsStore } from '@/stores/settings';
+import { Monitor, ArrowLeft, Loader2, Image as ImageIcon } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useToast } from '@/components/ui/toast/use-toast';
+import { processBackgroundImage } from '@/utils/image';
 import bgImage from '@/assets/bg.jpg';
 
 const sshStore = useSshStore();
+const settingsStore = useSettingsStore();
+const { toast } = useToast();
+
+const currentBgImage = computed(() => settingsStore.customBackground || bgImage);
 
 const loading = ref(false);
 const isNewConnection = ref(false);
@@ -131,6 +152,54 @@ const form = reactive({
 });
 
 const passwordInputRef = ref<any>(null);
+
+const bgInputRef = ref<HTMLInputElement | null>(null);
+
+const triggerBackgroundUpload = () => {
+  bgInputRef.value?.click();
+};
+
+const setBackgroundQuality = (quality: number) => {
+  settingsStore.setBackgroundQuality(quality);
+  toast({
+    title: "清晰度已更新",
+    description: `背景清晰度已设置为 ${quality * 100}%，重新上传背景后生效。`,
+  });
+};
+
+const onBackgroundSelected = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  try {
+    const dataUrl = await processBackgroundImage(file, settingsStore.backgroundQuality, 1920, 1080);
+    settingsStore.setCustomBackground(dataUrl);
+    toast({
+      title: "背景已更新",
+      description: "自定义背景已保存。",
+    });
+  } catch (err) {
+    console.error('Failed to save background:', err);
+    toast({
+      title: "保存失败",
+      description: "图片过大，请尝试降低清晰度或选择更小的图片。",
+      variant: "destructive"
+    });
+  }
+
+  if (target) {
+    target.value = '';
+  }
+};
+
+const resetBackground = () => {
+  settingsStore.resetCustomBackground();
+  toast({
+    title: "背景已重置",
+    description: "已恢复默认背景。",
+  });
+};
 
 const selectServer = (server: SavedServer) => {
   selectedServer.value = server;
@@ -164,16 +233,16 @@ const connect = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form)
     })
-    
+
     if (!res.ok) {
       const text = await res.text()
       throw new Error(text)
     }
-    
+
     const data = await res.json()
-    
+
     if (isNewConnection.value) {
-       sshStore.addServer({
+      sshStore.addServer({
         name: form.name || `${form.username}@${form.host}`,
         host: form.host,
         port: form.port,
@@ -182,7 +251,7 @@ const connect = async () => {
     }
 
     sshStore.setSession(data.sessionId, data.connectionId, form.host, form.username);
-    
+
   } catch (e) {
     alert('Connection failed: ' + e);
   } finally {
@@ -196,18 +265,28 @@ const connect = async () => {
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.3);
   border-radius: 2px;
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 .animate-fade-in {
   animation: fade-in 0.5s ease-out;
 }

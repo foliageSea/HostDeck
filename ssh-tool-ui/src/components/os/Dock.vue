@@ -1,31 +1,29 @@
 <template>
   <TooltipProvider>
-    <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-background/40 backdrop-blur-2xl border border-border/50 rounded-2xl px-4 py-2 flex items-end space-x-4 shadow-2xl z-50">
-      <Tooltip v-for="app in apps" :key="app.id">
+    <div
+      class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-background/40 backdrop-blur-2xl border border-border/50 rounded-2xl px-4 py-2 flex items-end space-x-4 shadow-2xl z-50">
+      <Tooltip v-for="app in apps" :key="app.id"">
         <TooltipTrigger as-child>
-          <div 
-            class="group relative flex flex-col items-center cursor-pointer transition-all duration-300 hover:scale-110"
-            @click="openApp(app.id)"
-          >
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-3xl shadow-lg bg-card text-card-foreground relative overflow-hidden border border-border">
-              <!-- Icon Placeholder -->
-              <component 
-                v-if="iconMap[app.icon]" 
-                :is="iconMap[app.icon]" 
-                class="w-6 h-6 " 
-              />
-              <img v-else-if="app.icon.startsWith('http')" :src="app.icon" class="w-full h-full object-cover" />
-              <span v-else>{{ app.icon }}</span>
-            </div>
-            
-            <!-- Indicator for open apps -->
-            <div v-if="isAppOpen(app.id)" class="w-1 h-1 bg-primary rounded-full mt-1"></div>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{{ app.title }}</p>
-        </TooltipContent>
-      </Tooltip>
+          <div
+           v-show="app.id != 'editor'"
+            class=" group relative flex flex-col items-center cursor-pointer transition-all duration-300
+        hover:scale-110" @click="openApp(app.id)">
+        <div
+          class="w-12 h-12 rounded-xl flex items-center justify-center text-3xl shadow-lg bg-card text-card-foreground relative overflow-hidden border border-border">
+          <!-- Icon Placeholder -->
+          <component v-if="iconMap[app.icon]" :is="iconMap[app.icon]" class="w-6 h-6 " />
+          <img v-else-if="app.icon.startsWith('http')" :src="app.icon" class="w-full h-full object-cover" />
+          <span v-else>{{ app.icon }}</span>
+        </div>
+
+        <!-- Indicator for open apps -->
+        <div v-if="isAppOpen(app.id)" class="w-1 h-1 bg-primary rounded-full mt-1"></div>
+    </div>
+    </TooltipTrigger>
+    <TooltipContent>
+      <p>{{ app.title }}</p>
+    </TooltipContent>
+    </Tooltip>
     </div>
   </TooltipProvider>
 </template>
