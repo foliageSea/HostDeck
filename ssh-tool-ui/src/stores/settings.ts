@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, watch, computed } from 'vue';
 import { useStorage, usePreferredDark } from '@vueuse/core';
+import { db } from '@/utils/db';
 
 export const useSettingsStore = defineStore('settings', () => {
     // Default values
@@ -35,6 +36,8 @@ export const useSettingsStore = defineStore('settings', () => {
     // Background image and quality
     const customBackground = useStorage<string>('customBackground', '');
     const backgroundQuality = useStorage<number>('backgroundQuality', defaultBackgroundQuality);
+    const backgroundType = useStorage<'image' | 'video'>('backgroundType', 'image');
+    const backgroundVideoTimestamp = ref(Date.now());
 
     // Watch and save to localStorage
     watch(terminalFontSize, (newVal) => {
@@ -60,15 +63,25 @@ export const useSettingsStore = defineStore('settings', () => {
 
     function setCustomBackground(dataUrl: string) {
         customBackground.value = dataUrl;
+        backgroundType.value = 'image';
+    }
+
+    async function setVideoBackground(file: Blob) {
+        await db.saveVideo(file);
+        backgroundType.value = 'video';
+        customBackground.value = ''; // Clear image to save space
+        backgroundVideoTimestamp.value = Date.now();
     }
 
     function setBackgroundQuality(quality: number) {
         backgroundQuality.value = quality;
     }
 
-    function resetCustomBackground() {
+    async function resetCustomBackground() {
         customBackground.value = '';
         backgroundQuality.value = defaultBackgroundQuality;
+        backgroundType.value = 'image';
+        await db.deleteVideo();
     }
 
     function resetTerminalSettings() {
@@ -83,10 +96,13 @@ export const useSettingsStore = defineStore('settings', () => {
         isDark,
         customBackground,
         backgroundQuality,
+        backgroundType,
+        backgroundVideoTimestamp,
         setTerminalFontSize,
         setTerminalFontFamily,
         setThemeMode,
         setCustomBackground,
+        setVideoBackground,
         setBackgroundQuality,
         resetCustomBackground,
         resetTerminalSettings

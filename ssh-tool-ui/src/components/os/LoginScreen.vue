@@ -1,6 +1,22 @@
 <template>
-  <div class="h-screen w-screen bg-cover bg-center flex items-center justify-center relative overflow-hidden"
-    :style="{ backgroundImage: `url(${currentBgImage})` }">
+  <div class="h-screen w-screen bg-cover bg-center flex items-center justify-center relative overflow-hidden">
+    <!-- Background Layer -->
+    <div class="absolute inset-0 overflow-hidden">
+      <video
+        v-if="settingsStore.backgroundType === 'video' && videoUrl"
+        :src="videoUrl"
+        class="absolute inset-0 w-full h-full object-cover"
+        autoplay
+        loop
+        muted
+        playsinline
+      ></video>
+      <div 
+        v-else
+        class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-300"
+        :style="{ backgroundImage: `url(${currentBgImage})` }"
+      ></div>
+    </div>
 
     <!-- Blur Overlay -->
     <div class="absolute inset-0 bg-background/20 backdrop-blur-md"></div>
@@ -102,16 +118,18 @@
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem @click="triggerBackgroundUpload">设置自定义背景</DropdownMenuItem>
+          <DropdownMenuItem @click="triggerVideoUpload">设置视频背景</DropdownMenuItem>
           <DropdownMenuItem @click="resetBackground">恢复默认背景</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <input type="file" ref="bgInputRef" accept="image/*" class="hidden" @change="onBackgroundSelected" />
+      <input type="file" ref="videoInputRef" accept="video/*" class="hidden" @change="onVideoSelected" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick, computed } from 'vue';
+import { ref, reactive, nextTick, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useSshStore, type SavedServer } from '@/stores/ssh';
 import { useSettingsStore } from '@/stores/settings';
 import { Monitor, ArrowLeft, Loader2, Image as ImageIcon } from 'lucide-vue-next';
@@ -127,6 +145,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useToast } from '@/components/ui/toast/use-toast';
 import { processBackgroundImage } from '@/utils/image';
+import { db } from '@/utils/db';
 import bgImage from '@/assets/bg.jpg';
 import { useMutation } from '@tanstack/vue-query';
 import { authApi } from '@/api/auth';
@@ -136,6 +155,40 @@ const settingsStore = useSettingsStore();
 const { toast } = useToast();
 
 const currentBgImage = computed(() => settingsStore.customBackground || bgImage);
+const videoUrl = ref<string>('');
+
+const loadVideo = async () => {
+  if (settingsStore.backgroundType === 'video') {
+    try {
+      const blob = await db.getVideo();
+      if (blob) {
+        if (videoUrl.value) URL.revokeObjectURL(videoUrl.value);
+        videoUrl.value = URL.createObjectURL(blob);
+      }
+    } catch (error) {
+      console.error('Failed to load video background:', error);
+    }
+  }
+};
+
+watch([() => settingsStore.backgroundType, () => settingsStore.backgroundVideoTimestamp], ([newType]) => {
+  if (newType === 'video') {
+    loadVideo();
+  } else {
+    if (videoUrl.value) {
+      URL.revokeObjectURL(videoUrl.value);
+      videoUrl.value = '';
+    }
+  }
+});
+
+onMounted(() => {
+  loadVideo();
+});
+
+onUnmounted(() => {
+  if (videoUrl.value) URL.revokeObjectURL(videoUrl.value);
+});
 
 const isNewConnection = ref(false);
 const selectedServer = ref<SavedServer | null>(null);
@@ -152,9 +205,50 @@ const form = reactive({
 const passwordInputRef = ref<any>(null);
 
 const bgInputRef = ref<HTMLInputElement | null>(null);
+const videoInputRef = ref<HTMLInputElement | null>(null);
 
 const triggerBackgroundUpload = () => {
   bgInputRef.value?.click();
+};
+
+const triggerVideoUpload = () => {
+  videoInputRef.value?.click();
+};
+
+const onVideoSelected = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  // 100MB limit
+  if (file.size > 100 * 1024 * 1024) {
+    toast({
+      title: "文件过大",
+      description: "视频文件大小不能超过 100MB。",
+      variant: "destructive"
+    });
+    target.value = '';
+    return;
+  }
+
+  try {
+    await settingsStore.setVideoBackground(file);
+    toast({
+      title: "背景已更新",
+      description: "视频背景已设置。",
+    });
+  } catch (err) {
+    console.error('Failed to save video background:', err);
+    toast({
+      title: "保存失败",
+      description: "无法保存视频背景，请重试。",
+      variant: "destructive"
+    });
+  }
+
+  if (target) {
+    target.value = '';
+  }
 };
 
 const onBackgroundSelected = async (event: Event) => {

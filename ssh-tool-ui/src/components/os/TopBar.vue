@@ -37,6 +37,7 @@
           </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem @click="triggerBackgroundUpload">设置桌面背景</DropdownMenuItem>
+          <DropdownMenuItem @click="triggerVideoUpload">设置视频背景</DropdownMenuItem>
           <DropdownMenuItem @click="resetBackground">恢复默认背景</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -57,6 +58,7 @@
 
     <!-- Hidden file input for background upload -->
     <input type="file" ref="bgInputRef" accept="image/*" class="hidden" @change="onBackgroundSelected" />
+    <input type="file" ref="videoInputRef" accept="video/*" class="hidden" @change="onVideoSelected" />
   </div>
 </template>
 
@@ -86,9 +88,14 @@ const settingsStore = useSettingsStore();
 const { toast } = useToast();
 
 const bgInputRef = ref<HTMLInputElement | null>(null);
+const videoInputRef = ref<HTMLInputElement | null>(null);
 
 const triggerBackgroundUpload = () => {
   bgInputRef.value?.click();
+};
+
+const triggerVideoUpload = () => {
+  videoInputRef.value?.click();
 };
 
 const setBackgroundQuality = (quality: number) => {
@@ -101,6 +108,43 @@ const setBackgroundQuality = (quality: number) => {
 
 // Make it available to template
 defineExpose({ setBackgroundQuality });
+
+const onVideoSelected = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  // 100MB limit
+  if (file.size > 100 * 1024 * 1024) {
+    toast({
+      title: "文件过大",
+      description: "视频文件大小不能超过 100MB。",
+      variant: "destructive"
+    });
+    target.value = '';
+    return;
+  }
+
+  try {
+    await settingsStore.setVideoBackground(file);
+    toast({
+      title: "背景已更新",
+      description: "视频背景已设置。",
+    });
+  } catch (err) {
+    console.error('Failed to save video background:', err);
+    toast({
+      title: "保存失败",
+      description: "无法保存视频背景，请重试。",
+      variant: "destructive"
+    });
+  }
+
+  // Reset input
+  if (target) {
+    target.value = '';
+  }
+};
 
 const onBackgroundSelected = async (event: Event) => {
   const target = event.target as HTMLInputElement;
