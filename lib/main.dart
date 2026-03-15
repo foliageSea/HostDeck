@@ -179,7 +179,7 @@ class _MyAppState extends State<MyApp> {
                               _logs[index],
                               style: const TextStyle(
                                 color: Colors.greenAccent,
-                                fontFamily: 'monospace',
+                                fontFamily: 'consolas',
                                 fontSize: 13,
                               ),
                             ),
