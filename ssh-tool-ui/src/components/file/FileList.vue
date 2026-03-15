@@ -12,7 +12,7 @@
         </TableRow>
       </TableHeader>
       <TableBody>
-        <TableRow v-for="file in files" :key="file.filename"
+        <TableRow v-for="file in files" :key="file.filename" :data-filename="file.filename"
           @click="$emit('select', file.filename, $event.ctrlKey || $event.metaKey)" @dblclick="$emit('open', file)"
           @contextmenu.prevent.stop="$emit('contextmenu', $event, file)" :class="['cursor-default select-none group',
             selectedFiles.has(file.filename)

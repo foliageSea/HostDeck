@@ -2,7 +2,7 @@
   <div
     class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4 p-4 overflow-auto h-full content-start bg-background custom-scrollbar"
     :class="{ 'scrolling': isScrolling }" @scroll="handleScroll">
-    <div v-for="file in files" :key="file.filename"
+    <div v-for="file in files" :key="file.filename" :data-filename="file.filename"
       @click="$emit('select', file.filename, $event.ctrlKey || $event.metaKey)" @dblclick="$emit('open', file)"
       @contextmenu.prevent.stop="$emit('contextmenu', $event, file)" :class="['flex flex-col items-center p-2 rounded-lg cursor-default transition-all border border-transparent group w-full aspect-[4/5]',
         selectedFiles.has(file.filename)

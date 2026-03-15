@@ -8,8 +8,19 @@
         @navigateUp="fileStore.navigateUp" @refresh="fileStore.refresh" @upload-files="uploadFiles"
         @mkdir="openMkdirModal" @toggleView="v => fileStore.viewMode = v" />
 
-      <div class="flex-1 overflow-hidden relative" @dragover.prevent @drop.prevent="handleDrop"
-        @contextmenu.prevent="handleContainerContextMenu">
+      <div class="flex-1 overflow-hidden relative select-none" @dragover.prevent @drop.prevent="handleDrop"
+        @contextmenu.prevent="handleContainerContextMenu" @mousedown="handleMouseDown" ref="containerRef">
+
+        <!-- Selection Box -->
+        <div v-if="selectionBox.visible" class="absolute border border-primary bg-primary/20 z-50 pointer-events-none"
+          :style="{
+            left: selectionBox.x + 'px',
+            top: selectionBox.y + 'px',
+            width: selectionBox.width + 'px',
+            height: selectionBox.height + 'px'
+          }">
+        </div>
+
         <FileList v-if="fileStore.viewMode === 'list'" :files="fileStore.files" :selectedFiles="fileStore.selectedFiles"
           @select="fileStore.toggleSelection" @selectAll="handleSelectAll" @open="handleOpen"
           @contextmenu="handleContextMenu" />
@@ -41,7 +52,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, provide } from 'vue'
+import { ref, computed, onMounted, nextTick, provide, reactive } from 'vue'
+import { useEventListener } from '@vueuse/core'
 import { createFileStore, FileStoreKey, type FileItem } from '../stores/file'
 import { useSshStore } from '../stores/ssh'
 import { useToastStore } from '../stores/toast'
@@ -69,6 +81,23 @@ const sshStore = useSshStore()
 const toast = useToastStore()
 const desktopStore = useDesktopStore()
 
+// Selection State
+const containerRef = ref<HTMLElement | null>(null)
+const isSelecting = ref(false)
+const selectionBox = reactive({
+  visible: false,
+  x: 0,
+  y: 0,
+  width: 0,
+  height: 0,
+  startX: 0,
+  startY: 0,
+  startClientX: 0,
+  startClientY: 0
+})
+let fileRects: { filename: string, rect: DOMRect }[] = []
+let initialSelection = new Set<string>()
+
 // State
 const contextMenu = ref({ visible: false, x: 0, y: 0, file: null as FileItem | null })
 const showMkdirModal = ref(false)
@@ -87,6 +116,106 @@ onMounted(async () => {
 })
 
 // Methods
+const handleMouseDown = (e: MouseEvent) => {
+  // Only handle left click
+  if (e.button !== 0) return
+
+  // Ignore if clicked on a file or scrollbar (if possible to detect)
+  // Check if target is inside a file item
+  if ((e.target as Element).closest('[data-filename]')) return
+
+  // Start selection
+  isSelecting.value = true
+  const container = containerRef.value
+  if (!container) return
+
+  const rect = container.getBoundingClientRect()
+  selectionBox.startX = e.clientX - rect.left
+  selectionBox.startY = e.clientY - rect.top
+  selectionBox.startClientX = e.clientX
+  selectionBox.startClientY = e.clientY
+
+  selectionBox.x = selectionBox.startX
+  selectionBox.y = selectionBox.startY
+  selectionBox.width = 0
+  selectionBox.height = 0
+  selectionBox.visible = true
+
+  // Cache file rects
+  const elements = container.querySelectorAll('[data-filename]')
+  fileRects = Array.from(elements).map(el => ({
+    filename: el.getAttribute('data-filename') || '',
+    rect: el.getBoundingClientRect()
+  }))
+
+  // Handle modifiers
+  if (e.ctrlKey || e.metaKey) {
+    initialSelection = new Set(fileStore.selectedFiles)
+  } else {
+    initialSelection = new Set()
+    fileStore.clearSelection()
+  }
+}
+
+const handleMouseMove = (e: MouseEvent) => {
+  if (!isSelecting.value) return
+  if (!containerRef.value) return
+
+  const containerRect = containerRef.value.getBoundingClientRect()
+
+  // Update box position relative to container
+  // Clamp to container bounds
+  const currentX = Math.max(0, Math.min(e.clientX - containerRect.left, containerRect.width))
+  const currentY = Math.max(0, Math.min(e.clientY - containerRect.top, containerRect.height))
+
+  const x = Math.min(selectionBox.startX, currentX)
+  const y = Math.min(selectionBox.startY, currentY)
+  const width = Math.abs(currentX - selectionBox.startX)
+  const height = Math.abs(currentY - selectionBox.startY)
+
+  selectionBox.x = x
+  selectionBox.y = y
+  selectionBox.width = width
+  selectionBox.height = height
+
+  // Calculate intersection in client coordinates
+  // Use the actual box coordinates relative to viewport for intersection check
+  const boxLeft = containerRect.left + x
+  const boxTop = containerRect.top + y
+  const boxRight = boxLeft + width
+  const boxBottom = boxTop + height
+
+  const newSelection = new Set(initialSelection)
+
+  fileRects.forEach(({ filename, rect }) => {
+    // Check intersection
+    const isIntersecting = !(
+      rect.right < boxLeft ||
+      rect.left > boxRight ||
+      rect.bottom < boxTop ||
+      rect.top > boxBottom
+    )
+
+    if (isIntersecting) {
+      newSelection.add(filename)
+    }
+  })
+
+  // Update store
+  fileStore.selectedFiles = newSelection
+}
+
+const handleMouseUp = () => {
+  if (!isSelecting.value) return
+  isSelecting.value = false
+  selectionBox.visible = false
+  fileRects = []
+  initialSelection.clear()
+}
+
+useEventListener(window, 'mousemove', handleMouseMove)
+useEventListener(window, 'mouseup', handleMouseUp)
+
 const getFullPath = (filename: string) => {
   return resolve(fileStore.currentPath, filename)
 }
