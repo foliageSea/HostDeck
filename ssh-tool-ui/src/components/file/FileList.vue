@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full overflow-auto bg-background">
+  <div class="h-full overflow-auto bg-background custom-scrollbar" :class="{ 'scrolling': isScrolling }" @scroll="handleScroll">
     <Table>
       <TableHeader class="sticky top-0 z-10 bg-background shadow-sm">
         <TableRow>
@@ -51,6 +51,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onUnmounted } from 'vue'
 import { FolderIcon, FileIcon } from 'lucide-vue-next'
 import type { FileItem } from '@/stores/file'
 import {
@@ -68,6 +69,21 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['select', 'selectAll', 'open', 'contextmenu'])
+
+const isScrolling = ref(false)
+let scrollTimeout: any
+
+const handleScroll = () => {
+  isScrolling.value = true
+  clearTimeout(scrollTimeout)
+  scrollTimeout = setTimeout(() => {
+    isScrolling.value = false
+  }, 1000)
+}
+
+onUnmounted(() => {
+  clearTimeout(scrollTimeout)
+})
 
 const formatSize = (bytes: number) => {
   if (bytes === 0) return '0 B'

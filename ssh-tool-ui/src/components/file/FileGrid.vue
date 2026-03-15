@@ -1,5 +1,8 @@
 <template>
-  <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4 p-4 overflow-auto h-full content-start bg-background">
+  <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4 p-4 overflow-auto h-full content-start bg-background custom-scrollbar"
+    :class="{ 'scrolling': isScrolling }" 
+    @scroll="handleScroll"
+  >
     <div v-for="file in files" :key="file.filename"
       @click="$emit('select', file.filename, $event.ctrlKey || $event.metaKey)"
       @dblclick="$emit('open', file)"
@@ -34,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onUnmounted } from 'vue'
 import { FolderIcon, FileIcon } from 'lucide-vue-next'
 import type { FileItem } from '@/stores/file'
 
@@ -43,6 +47,21 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['select', 'open', 'contextmenu'])
+
+const isScrolling = ref(false)
+let scrollTimeout: any
+
+const handleScroll = () => {
+  isScrolling.value = true
+  clearTimeout(scrollTimeout)
+  scrollTimeout = setTimeout(() => {
+    isScrolling.value = false
+  }, 1000)
+}
+
+onUnmounted(() => {
+  clearTimeout(scrollTimeout)
+})
 
 const formatSize = (bytes: number) => {
   if (bytes === 0) return '0 B'
