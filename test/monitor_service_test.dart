@@ -9,6 +9,8 @@ import 'package:dartssh2/dartssh2.dart';
 
 // Manual Mock
 class MockSshRepository implements SshRepository {
+  int _callCount = 0;
+
   @override
   Future<String> exec(SshSession session, String command) async {
     if (command.contains('grep Mem')) {
@@ -19,6 +21,23 @@ class MockSshRepository implements SshRepository {
     }
     if (command.contains('uptime')) {
       return " 13:22:01 up 1 day,  3:10,  1 user,  load average: 0.50, 0.05, 0.01";
+    }
+    if (command.contains('top')) {
+       return "%Cpu(s):  0.3 us,  0.3 sy,  0.0 ni, 99.3 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st";
+    }
+    if (command.contains('/proc/net/dev')) {
+      _callCount++;
+      // Simulate increasing traffic
+      // 1st call: rx=1000, tx=1000
+      // 2nd call: rx=2000, tx=3000
+      final rx = 1000 * _callCount;
+      final tx = 1000 + (2000 * (_callCount - 1)); // 1000, 3000, ...
+      return """
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 6445690   76906    0    0    0     0          0         0  6445690   76906    0    0    0     0       0          0
+  eth0: $rx 1446736    0    0    0     0          0         0 $tx 1034567    0    0    0     0       0          0
+""";
     }
     return "";
   }
@@ -89,5 +108,26 @@ void main() {
     expect(status.ram.total, equals(8000));
     expect(status.ram.used, equals(4000));
     expect(status.disk, equals('45%'));
+  });
+
+  test('MonitorService calculates network speed', () async {
+    final repo = MockSshRepository();
+    final service = MonitorService(repo);
+    final session = MockSshSession();
+
+    // First call: initial snapshot
+    var status = await service.getSystemStatus(session);
+    expect(status.network, isNotNull);
+    expect(status.network!.downloadSpeed, equals(0.0));
+    expect(status.network!.uploadSpeed, equals(0.0));
+
+    // Wait a bit to ensure non-zero duration
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    // Second call
+    // MockSshRepository increments rx by 1000, tx by 2000 per call
+    status = await service.getSystemStatus(session);
+    expect(status.network!.downloadSpeed, greaterThan(0));
+    expect(status.network!.uploadSpeed, greaterThan(0));
   });
 }
