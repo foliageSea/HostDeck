@@ -5,6 +5,7 @@ import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../services/ssh_service.dart';
 import '../models/ssh_session.dart';
+import '../models/result.dart';
 
 class TerminalController {
   final SshService _sshService;
@@ -36,20 +37,14 @@ class TerminalController {
       final connectionId = data['connectionId'];
 
       if (connectionId == null) {
-        return Response.badRequest(body: 'Missing connectionId');
+        return Result.fail(400, 'Missing connectionId');
       }
 
       final session = await _sshService.createShell(connectionId);
 
-      return Response.ok(
-        jsonEncode({'sessionId': session.id}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Result.ok({'sessionId': session.id});
     } catch (e) {
-      return Response.internalServerError(
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Result.fail(500, e.toString());
     }
   }
 
@@ -57,17 +52,14 @@ class TerminalController {
     try {
       final sessionId = request.url.queryParameters['sessionId'];
       if (sessionId == null) {
-        return Response.badRequest(body: 'Missing sessionId');
+        return Result.fail(400, 'Missing sessionId');
       }
 
       await _sshService.closeSession(sessionId);
 
-      return Response.ok('Session closed');
+      return Result.ok('Session closed');
     } catch (e) {
-      return Response.internalServerError(
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Result.fail(500, e.toString());
     }
   }
 

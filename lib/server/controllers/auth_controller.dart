@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import '../services/ssh_service.dart';
+import '../models/result.dart';
 
 class AuthController {
   final SshService _sshService;
@@ -20,15 +21,13 @@ class AuthController {
         privateKey: data['privateKey'],
       );
       
-      return Response.ok(jsonEncode({
+      return Result.ok({
         'sessionId': session.id,
         'connectionId': session.connectionId,
-      }), 
-        headers: {'content-type': 'application/json'});
+      });
     } catch (e) {
       print('Connect Error: $e');
-      return Response.internalServerError(body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'});
+      return Result.fail(500, e.toString());
     }
   }
 }

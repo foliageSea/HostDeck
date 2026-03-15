@@ -7,21 +7,83 @@ export const http = axios.create({
 })
 
 interface ApiError {
-  code?: string
+  code?: string | number
   message?: string
 }
 
 let isRedirecting = false
 
+const handleSessionError = () => {
+  if (!isRedirecting) {
+    // Access store directly - Pinia should be active when requests happen
+    const sshStore = useSshStore()
+    if (sshStore.isConnected) {
+      isRedirecting = true
+      toast({
+        title: '会话已断开',
+        description: 'SSH会话已失效，请重新登录。',
+        variant: 'destructive',
+      })
+      sshStore.clearSession()
+
+      setTimeout(() => {
+        isRedirecting = false
+      }, 2000)
+    }
+  }
+}
+
 http.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Check for Unified Result structure
+    const data = response.data
+    // Check if data has code (number) and message
+    if (data && typeof data === 'object' && 'code' in data && typeof data.code === 'number') {
+      if (data.code === 200) {
+        // Unwrap success data, making it transparent to the caller
+        // If data.data is undefined (e.g. void return), response.data becomes undefined, which is fine
+        response.data = data.data
+        return response
+      }
+
+      // Handle business error from Unified Result (HTTP 200 but code != 200)
+      const errorCode = data.code
+      const errorMessage = data.message || 'Unknown error'
+
+      // Check for session errors
+      // Code 404: Session not found (from our new backend logic)
+      // Code 500: Connection lost (SSHChannelOpenError/SocketException)
+      const isSessionError =
+          (errorCode === 404) ||
+          (errorCode === 500 && (errorMessage.includes('SSHChannelOpenError') || errorMessage.includes('SocketException')))
+
+      if (isSessionError) {
+        handleSessionError()
+      }
+
+      // Create AxiosError to propagate to catch blocks
+      const error = new AxiosError(
+          errorMessage,
+          String(errorCode),
+          response.config,
+          response.request,
+          response
+      )
+      return Promise.reject(error)
+    }
+    
+    // For non-unified results (e.g. blobs, streams, or legacy responses), return as is
+    return response
+  },
   async (error: AxiosError<ApiError | string>) => {
+    // Handle standard HTTP errors (non-2xx status)
+    // This is still needed for stream endpoints (readFile/batchDownload) which return 500 on error
     if (error.response) {
       const { status, data, config } = error.response
       const url = config?.url
 
       if (url && url.includes('/api/')) {
-        let errorCode = ''
+        let errorCode: string | number = ''
         let errorMessage = ''
 
         if (typeof data === 'string') {
@@ -38,31 +100,13 @@ http.interceptors.response.use(
           errorMessage = (data as ApiError).message || JSON.stringify(data)
         }
 
-        // Check for session errors:
-        // 1. 404 SESSION_NOT_FOUND (Structured) or "Session not found" (Legacy)
-        // 2. 500 SSHChannelOpenError (Connection lost) or SocketException
+        // Check for session errors (Legacy/Stream logic)
         const isSessionError =
           (status === 404 && (errorCode === 'SESSION_NOT_FOUND' || errorMessage.includes('Session not found'))) ||
           (status === 500 && (errorMessage.includes('SSHChannelOpenError') || errorMessage.includes('SocketException')))
 
         if (isSessionError) {
-          if (!isRedirecting) {
-            // Access store directly - Pinia should be active when requests happen
-            const sshStore = useSshStore()
-            if (sshStore.isConnected) {
-              isRedirecting = true
-              toast({
-                title: '会话已断开',
-                description: 'SSH会话已失效，请重新登录。',
-                variant: 'destructive',
-              })
-              sshStore.clearSession()
-
-              setTimeout(() => {
-                isRedirecting = false
-              }, 2000)
-            }
-          }
+          handleSessionError()
         }
       }
     }
