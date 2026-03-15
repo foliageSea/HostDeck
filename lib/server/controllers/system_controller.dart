@@ -10,22 +10,47 @@ class SystemController {
   SystemController(this._sshService, this._monitorService);
 
   Response status(Request request) {
-    return Response.ok('{"status": "running"}', headers: {'content-type': 'application/json'});
+    return Response.ok(
+      '{"status": "running"}',
+      headers: {'content-type': 'application/json'},
+    );
   }
 
   Future<Response> monitor(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) return Response.badRequest(body: 'Missing sessionId');
-    
+    if (sessionId == null) {
+      return _errorResponse(
+        400,
+        'MISSING_SESSION_ID',
+        'Missing sessionId parameter',
+      );
+    }
+
     final session = _sshService.getSession(sessionId);
-    if (session == null) return Response.notFound('Session not found');
-    
+    if (session == null) {
+      return _errorResponse(
+        404,
+        'SESSION_NOT_FOUND',
+        'Session not found or expired',
+      );
+    }
+
     try {
       final status = await _monitorService.getSystemStatus(session);
-      return Response.ok(jsonEncode(status), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode(status),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response.internalServerError(body: jsonEncode({'error': e.toString()}),
-         headers: {'content-type': 'application/json'});
+      return _errorResponse(500, 'MONITOR_ERROR', e.toString());
     }
+  }
+
+  Response _errorResponse(int statusCode, String code, String message) {
+    return Response(
+      statusCode,
+      body: jsonEncode({'code': code, 'message': message}),
+      headers: {'content-type': 'application/json'},
+    );
   }
 }
