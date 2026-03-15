@@ -4,71 +4,34 @@
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col min-w-0 bg-background">
-      <FileToolbar 
-        :currentPath="fileStore.currentPath" 
-        :viewMode="fileStore.viewMode"
-        @navigate="fileStore.navigate"
-        @navigateUp="fileStore.navigateUp"
-        @refresh="fileStore.refresh"
-        @upload-files="uploadFiles"
-        @mkdir="openMkdirModal"
-        @toggleView="v => fileStore.viewMode = v"
-      />
-      
-      <div class="flex-1 overflow-hidden relative" 
-        @dragover.prevent 
-        @drop.prevent="handleDrop"
-        @contextmenu.prevent
-      >
-        <FileList 
-          v-if="fileStore.viewMode === 'list'"
-          :files="fileStore.files"
-          :selectedFiles="fileStore.selectedFiles"
-          @select="fileStore.toggleSelection"
-          @selectAll="handleSelectAll"
-          @open="handleOpen"
-          @contextmenu="handleContextMenu"
-        />
-        <FileGrid 
-          v-else
-          :files="fileStore.files"
-          :selectedFiles="fileStore.selectedFiles"
-          @select="fileStore.toggleSelection"
-          @open="handleOpen"
-          @contextmenu="handleContextMenu"
-        />
-        
+      <FileToolbar :currentPath="fileStore.currentPath" :viewMode="fileStore.viewMode" @navigate="fileStore.navigate"
+        @navigateUp="fileStore.navigateUp" @refresh="fileStore.refresh" @upload-files="uploadFiles"
+        @mkdir="openMkdirModal" @toggleView="v => fileStore.viewMode = v" />
+
+      <div class="flex-1 overflow-hidden relative" @dragover.prevent @drop.prevent="handleDrop"
+        @contextmenu.prevent="handleContainerContextMenu">
+        <FileList v-if="fileStore.viewMode === 'list'" :files="fileStore.files" :selectedFiles="fileStore.selectedFiles"
+          @select="fileStore.toggleSelection" @selectAll="handleSelectAll" @open="handleOpen"
+          @contextmenu="handleContextMenu" />
+        <FileGrid v-else :files="fileStore.files" :selectedFiles="fileStore.selectedFiles"
+          @select="fileStore.toggleSelection" @open="handleOpen" @contextmenu="handleContextMenu" />
+
         <Loading :loading="fileStore.loading" />
         <FileUploadProgress />
       </div>
     </div>
 
     <!-- Context Menu -->
-    <FileContextMenu 
-      :visible="contextMenu.visible" 
-      :x="contextMenu.x" 
-      :y="contextMenu.y" 
-      :items="contextMenuItems"
-      @close="closeContextMenu"
-    />
+    <FileContextMenu :visible="contextMenu.visible" :x="contextMenu.x" :y="contextMenu.y" :items="contextMenuItems"
+      @close="closeContextMenu" />
 
     <!-- Modals -->
     <Modal :show="showMkdirModal" title="新建文件夹" @close="showMkdirModal = false" @confirm="handleMkdir">
-      <Input 
-        v-model="newItemName" 
-        placeholder="文件夹名称" 
-        @keyup.enter="handleMkdir"
-        ref="mkdirInput"
-      />
+      <Input v-model="newItemName" placeholder="文件夹名称" @keyup.enter="handleMkdir" ref="mkdirInput" />
     </Modal>
-    
+
     <Modal :show="showRenameModal" title="重命名" @close="showRenameModal = false" @confirm="handleRename">
-      <Input 
-        v-model="newItemName" 
-        placeholder="新名称" 
-        @keyup.enter="handleRename"
-        ref="renameInput"
-      />
+      <Input v-model="newItemName" placeholder="新名称" @keyup.enter="handleRename" ref="renameInput" />
     </Modal>
 
     <Modal :show="showDeleteModal" title="确认删除" @close="showDeleteModal = false" @confirm="handleDelete">
@@ -92,9 +55,9 @@ import FileUploadProgress from '../components/file/FileUploadProgress.vue'
 import Modal from '../components/ui/Modal.vue'
 import Loading from '../components/ui/Loading.vue'
 import { Input } from '@/components/ui/input'
-import { 
-  FolderIcon, DownloadIcon, 
-  CopyIcon, ScissorsIcon, ClipboardPasteIcon, 
+import {
+  FolderIcon, FolderPlusIcon, DownloadIcon,
+  CopyIcon, ScissorsIcon, ClipboardPasteIcon,
   EditIcon, Trash2Icon, TypeIcon, RefreshCwIcon,
   ClipboardIcon, StarIcon
 } from 'lucide-vue-next'
@@ -130,7 +93,7 @@ const getFullPath = (filename: string) => {
 
 const handleDownload = async () => {
   if (fileStore.selectedFiles.size === 0) return
-  
+
   if (fileStore.selectedFiles.size === 1) {
     const filename = Array.from(fileStore.selectedFiles)[0]
     const file = fileStore.files.find(f => f.filename === filename)
@@ -144,9 +107,9 @@ const handleDownload = async () => {
   try {
     fileStore.loading = true
     const paths = Array.from(fileStore.selectedFiles).map(filename => getFullPath(filename))
-    
+
     const blob = await fileApi.batchDownload(fileStore.sessionId!, paths)
-    
+
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -164,27 +127,27 @@ const handleDownload = async () => {
 
 const handlePaste = async () => {
   if (!fileStore.clipboard) return
-  
+
   const { action, paths, sourcePath } = fileStore.clipboard
   // If moving, check if source and target are same
   if (action === 'move' && sourcePath === fileStore.currentPath) {
     toast.info('Source and destination are same')
     return
   }
-  
+
   fileStore.loading = true
   try {
-    for (const filename of paths) { 
-       const fullSourcePath = resolve(sourcePath, filename)
-       const fullTargetPath = resolve(fileStore.currentPath, filename)
-       
-       if (action === 'copy') {
-         await fileApi.copy(fileStore.sessionId!, fullSourcePath, fullTargetPath)
-       } else {
-         await fileApi.rename(fileStore.sessionId!, fullSourcePath, fullTargetPath)
-       }
+    for (const filename of paths) {
+      const fullSourcePath = resolve(sourcePath, filename)
+      const fullTargetPath = resolve(fileStore.currentPath, filename)
+
+      if (action === 'copy') {
+        await fileApi.copy(fileStore.sessionId!, fullSourcePath, fullTargetPath)
+      } else {
+        await fileApi.rename(fileStore.sessionId!, fullSourcePath, fullTargetPath)
+      }
     }
-    
+
     fileStore.refresh()
     if (action === 'move') fileStore.clipboard = null
     toast.success(action === 'copy' ? 'Copied' : 'Moved')
@@ -208,10 +171,10 @@ const handleRename = async () => {
   if (!newItemName.value || !oldName) return
   const oldPath = getFullPath(oldName)
   const newPath = getFullPath(newItemName.value)
-  
+
   try {
     await fileApi.rename(fileStore.sessionId!, oldPath, newPath)
-    
+
     toast.success('Renamed')
     showRenameModal.value = false
     fileStore.refresh()
@@ -229,10 +192,10 @@ const openMkdirModal = () => {
 const handleMkdir = async () => {
   if (!newItemName.value) return
   const path = getFullPath(newItemName.value)
-  
+
   try {
     await fileApi.mkdir(fileStore.sessionId!, path)
-    
+
     toast.success('Directory created')
     showMkdirModal.value = false
     fileStore.refresh()
@@ -264,7 +227,7 @@ const uploadFiles = async (files: FileList) => {
   const fileArray = Array.from(files)
   const totalSize = fileArray.reduce((acc, file) => acc + file.size, 0)
   let uploadedSize = 0
-  
+
   fileStore.uploadStatus = {
     uploading: true,
     total: fileArray.length,
@@ -279,22 +242,22 @@ const uploadFiles = async (files: FileList) => {
     for (const file of fileArray) {
       fileStore.uploadStatus.currentFilename = file.name
       fileStore.uploadStatus.current++
-      
+
       const formData = new FormData()
       formData.append('file', file)
-      
+
       try {
         await fileApi.uploadFile(
-            fileStore.sessionId!, 
-            fileStore.currentPath, 
-            formData, 
-            (loaded, total) => {
-                const currentFileProgress = loaded
-                const totalProgress = uploadedSize + currentFileProgress
-                fileStore.uploadStatus.percent = Math.min(100, Math.round((totalProgress / totalSize) * 100))
-            }
+          fileStore.sessionId!,
+          fileStore.currentPath,
+          formData,
+          (loaded, _total) => {
+            const currentFileProgress = loaded
+            const totalProgress = uploadedSize + currentFileProgress
+            fileStore.uploadStatus.percent = Math.min(100, Math.round((totalProgress / totalSize) * 100))
+          }
         )
-        
+
         fileStore.uploadStatus.success++
       } catch (e: any) {
         console.error(`Failed to upload ${file.name}`, e)
@@ -306,7 +269,7 @@ const uploadFiles = async (files: FileList) => {
         fileStore.uploadStatus.percent = Math.min(100, Math.round((uploadedSize / totalSize) * 100))
       }
     }
-    
+
     if (fileStore.uploadStatus.success > 0) {
       toast.success(`Uploaded ${fileStore.uploadStatus.success} files` + (fileStore.uploadStatus.failed > 0 ? `, ${fileStore.uploadStatus.failed} failed` : ''))
       fileStore.refresh()
@@ -331,9 +294,14 @@ const handleOpen = async (file: FileItem) => {
   } else {
     // Check file extension
     const ext = file.filename.split('.').pop()?.toLowerCase()
-    
+
+    const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico']
+    const videoExts = ['mp4', 'webm', 'ogg', 'mov', 'mkv', 'avi']
+
     if (ext && fileStore.editableExtensions.includes(ext)) {
       openEditor(file)
+    } else if (ext && (imageExts.includes(ext) || videoExts.includes(ext))) {
+      openMediaViewer(file)
     } else {
       // downloadFile(file)
     }
@@ -342,6 +310,14 @@ const handleOpen = async (file: FileItem) => {
 
 const openEditor = async (file: FileItem) => {
   desktopStore.openWindow('editor', {
+    path: getFullPath(file.filename),
+    sessionId: fileStore.sessionId,
+    title: file.filename
+  })
+}
+
+const openMediaViewer = async (file: FileItem) => {
+  desktopStore.openWindow('media-viewer', {
     path: getFullPath(file.filename),
     sessionId: fileStore.sessionId,
     title: file.filename
@@ -358,7 +334,7 @@ const handleContextMenu = (e: MouseEvent, file: FileItem) => {
   if (!fileStore.selectedFiles.has(file.filename)) {
     fileStore.toggleSelection(file.filename, false)
   }
-  
+
   contextMenu.value = {
     visible: true,
     x: e.clientX,
@@ -367,10 +343,20 @@ const handleContextMenu = (e: MouseEvent, file: FileItem) => {
   }
 }
 
+const handleContainerContextMenu = (e: MouseEvent) => {
+  fileStore.clearSelection()
+  contextMenu.value = {
+    visible: true,
+    x: e.clientX,
+    y: e.clientY,
+    file: null
+  }
+}
+
 const handleCopyPath = async () => {
   const paths = Array.from(fileStore.selectedFiles).map(filename => getFullPath(filename))
   if (paths.length === 0) return
-  
+
   try {
     await navigator.clipboard.writeText(paths.join('\n'))
     toast.success('已复制路径')
@@ -389,16 +375,25 @@ const contextMenuItems = computed<MenuItem[]>(() => {
   const items: MenuItem[] = []
   const singleSelection = fileStore.selectedFiles.size === 1
   const hasSelection = fileStore.selectedFiles.size > 0
-  
+
+  if (!hasSelection) {
+    items.push({
+      label: '新建文件夹',
+      icon: FolderPlusIcon,
+      action: openMkdirModal
+    })
+    items.push({ separator: true, label: '' })
+  }
+
   if (singleSelection) {
     const file = fileStore.files.find(f => f.filename === Array.from(fileStore.selectedFiles)[0])
     if (file) {
-      items.push({ 
-        label: '打开', 
-        icon: file.isDirectory ? FolderIcon : EditIcon, 
-        action: () => handleOpen(file) 
+      items.push({
+        label: '打开',
+        icon: file.isDirectory ? FolderIcon : EditIcon,
+        action: () => handleOpen(file)
       })
-      
+
       if (file.isDirectory) {
         const fullPath = getFullPath(file.filename)
         const isFav = fileStore.isFavorite(fullPath)
@@ -410,62 +405,62 @@ const contextMenuItems = computed<MenuItem[]>(() => {
       }
     }
   }
-  
+
   if (hasSelection) {
-    items.push({ 
-      label: '下载', 
-      icon: DownloadIcon, 
-      action: handleDownload 
+    items.push({
+      label: '下载',
+      icon: DownloadIcon,
+      action: handleDownload
     })
-    items.push({ 
-      label: '复制路径', 
-      icon: ClipboardIcon, 
-      action: handleCopyPath 
+    items.push({
+      label: '复制路径',
+      icon: ClipboardIcon,
+      action: handleCopyPath
     })
     items.push({ separator: true, label: '' })
-    items.push({ 
-      label: '复制', 
-      icon: CopyIcon, 
-      action: () => fileStore.copySelection() 
+    items.push({
+      label: '复制',
+      icon: CopyIcon,
+      action: () => fileStore.copySelection()
     })
-    items.push({ 
-      label: '剪切', 
-      icon: ScissorsIcon, 
-      action: () => fileStore.cutSelection() 
+    items.push({
+      label: '剪切',
+      icon: ScissorsIcon,
+      action: () => fileStore.cutSelection()
     })
   }
-  
+
   if (fileStore.clipboard) {
-    items.push({ 
-      label: '粘贴', 
-      icon: ClipboardPasteIcon, 
-      action: handlePaste 
+    items.push({
+      label: '粘贴',
+      icon: ClipboardPasteIcon,
+      action: handlePaste
     })
   }
-  
+
   if (hasSelection) {
     items.push({ separator: true, label: '' })
     if (singleSelection) {
-      items.push({ 
-        label: '重命名', 
-        icon: TypeIcon, 
-        action: openRenameModal 
+      items.push({
+        label: '重命名',
+        icon: TypeIcon,
+        action: openRenameModal
       })
     }
-    items.push({ 
-      label: '删除', 
-      icon: Trash2Icon, 
-      action: () => showDeleteModal.value = true 
+    items.push({
+      label: '删除',
+      icon: Trash2Icon,
+      action: () => showDeleteModal.value = true
     })
   }
-  
+
   items.push({ separator: true, label: '' })
-  items.push({ 
-    label: '刷新', 
-    icon: RefreshCwIcon, 
-    action: fileStore.refresh 
+  items.push({
+    label: '刷新',
+    icon: RefreshCwIcon,
+    action: fileStore.refresh
   })
-  
+
   return items
 })
 

@@ -1,5 +1,6 @@
 <template>
-  <div class="h-full overflow-auto bg-background custom-scrollbar" :class="{ 'scrolling': isScrolling }" @scroll="handleScroll">
+  <div class="h-full overflow-auto bg-background custom-scrollbar" :class="{ 'scrolling': isScrolling }"
+    @scroll="handleScroll">
     <Table>
       <TableHeader class="sticky top-0 z-10 bg-background shadow-sm">
         <TableRow>
@@ -11,13 +12,11 @@
         </TableRow>
       </TableHeader>
       <TableBody>
-        <TableRow v-for="file in files" :key="file.filename" 
-          @click="$emit('select', file.filename, $event.ctrlKey || $event.metaKey)"
-          @dblclick="$emit('open', file)"
-          @contextmenu.prevent="$emit('contextmenu', $event, file)"
-          :class="['cursor-default select-none group', 
-            selectedFiles.has(file.filename) 
-              ? 'bg-accent text-accent-foreground data-[state=selected]:bg-muted' 
+        <TableRow v-for="file in files" :key="file.filename"
+          @click="$emit('select', file.filename, $event.ctrlKey || $event.metaKey)" @dblclick="$emit('open', file)"
+          @contextmenu.prevent.stop="$emit('contextmenu', $event, file)" :class="['cursor-default select-none group',
+            selectedFiles.has(file.filename)
+              ? 'bg-accent text-accent-foreground data-[state=selected]:bg-muted'
               : 'hover:bg-muted/50'
           ]">
           <TableCell class="py-1 text-center">
@@ -26,6 +25,8 @@
           <TableCell class="py-1">
             <div class="flex items-center gap-2">
               <FolderIcon v-if="file.isDirectory" class="w-4 h-4 text-blue-500 fill-current" />
+              <ImageIcon v-else-if="isImage(file.filename)" class="w-4 h-4 text-green-500" />
+              <FilmIcon v-else-if="isVideo(file.filename)" class="w-4 h-4 text-purple-500" />
               <FileIcon v-else class="w-4 h-4 text-muted-foreground" />
               <span class="truncate font-medium">{{ file.filename }}</span>
             </div>
@@ -52,7 +53,7 @@
 
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
-import { FolderIcon, FileIcon } from 'lucide-vue-next'
+import { FolderIcon, FileIcon, ImageIcon, FilmIcon } from 'lucide-vue-next'
 import type { FileItem } from '@/stores/file'
 import {
   Table,
@@ -84,6 +85,16 @@ const handleScroll = () => {
 onUnmounted(() => {
   clearTimeout(scrollTimeout)
 })
+
+const isImage = (filename: string) => {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico'].includes(ext || '')
+}
+
+const isVideo = (filename: string) => {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  return ['mp4', 'webm', 'ogg', 'mov', 'mkv', 'avi'].includes(ext || '')
+}
 
 const formatSize = (bytes: number) => {
   if (bytes === 0) return '0 B'

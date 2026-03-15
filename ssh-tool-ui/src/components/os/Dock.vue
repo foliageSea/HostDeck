@@ -5,8 +5,7 @@
       <Tooltip v-for="app in apps" :key="app.id"">
         <TooltipTrigger as-child>
           <div
-           v-show="app.id != 'editor'"
-            class=" group relative flex flex-col items-center cursor-pointer transition-all duration-300
+           v-show="app.hide !== true" class=" group relative flex flex-col items-center cursor-pointer transition-all duration-300
         hover:scale-110" @click="openApp(app.id)">
         <div
           class="w-12 h-12 rounded-xl flex items-center justify-center text-3xl shadow-lg bg-card text-card-foreground relative overflow-hidden border border-border">

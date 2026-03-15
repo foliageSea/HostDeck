@@ -4,6 +4,7 @@ import Terminal from '../views/Terminal.vue';
 import Files from '../views/Files.vue';
 import Dashboard from '../views/Dashboard.vue';
 import TextEditor from '../views/TextEditor.vue';
+import MediaViewer from '../views/MediaViewer.vue';
 import { useSshStore } from './ssh';
 
 export interface AppConfig {
@@ -13,6 +14,7 @@ export interface AppConfig {
   component: Component;
   width?: number;
   height?: number;
+  hide?: boolean;
 }
 
 export interface WindowState {
@@ -59,7 +61,17 @@ export const useDesktopStore = defineStore('desktop', {
         icon: 'file-text',
         component: markRaw(TextEditor),
         width: 800,
-        height: 600
+        height: 600,
+        hide: true
+      },
+      'media-viewer': {
+        id: 'media-viewer',
+        title: '媒体预览',
+        icon: 'image',
+        component: markRaw(MediaViewer),
+        width: 800,
+        height: 600,
+        hide: true
       },
       'dashboard': {
         id: 'dashboard',

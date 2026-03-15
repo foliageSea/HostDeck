@@ -45,9 +45,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useSettingsStore } from '@/stores/settings';
 import { useToast } from '@/components/ui/toast/use-toast';
@@ -70,6 +67,9 @@ const setBackgroundQuality = (quality: number) => {
     description: `背景清晰度已设置为 ${quality * 100}%，重新上传背景后生效。`,
   });
 };
+
+// Make it available to template
+defineExpose({ setBackgroundQuality });
 
 const onBackgroundSelected = async (event: Event) => {
   const target = event.target as HTMLInputElement;

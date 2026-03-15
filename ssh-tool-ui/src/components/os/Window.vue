@@ -85,9 +85,9 @@ const closeWindow = () => {
   desktopStore.closeWindow(props.window.id);
 };
 
-const minimizeWindow = () => {
-  desktopStore.minimizeWindow(props.window.id);
-};
+// const minimizeWindow = () => {
+//   desktopStore.minimizeWindow(props.id)
+// };
 
 const maximizeWindow = () => {
   desktopStore.maximizeWindow(props.window.id);
