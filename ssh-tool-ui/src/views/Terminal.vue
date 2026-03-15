@@ -52,6 +52,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { useSshStore } from '../stores/ssh';
 import { useSettingsStore } from '../stores/settings';
+import { useDesktopStore } from '../stores/desktop';
 import { Settings } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
@@ -73,6 +74,7 @@ const props = defineProps<{
 const terminalContainer = ref<HTMLElement | null>(null);
 const sshStore = useSshStore();
 const settingsStore = useSettingsStore();
+const desktopStore = useDesktopStore();
 let term: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
 let socket: WebSocket | null = null;
@@ -99,6 +101,12 @@ watch(() => settingsStore.terminalFontFamily, (newFamily) => {
   }
 });
 
+watch(() => desktopStore.activeWindowId, (newId) => {
+  if (props.windowId && newId === props.windowId) {
+    term?.focus();
+  }
+});
+
 onMounted(async () => {
   if (!sshStore.isConnected) {
     return;
@@ -121,12 +129,14 @@ onMounted(async () => {
   term.loadAddon(fitAddon);
 
   if (terminalContainer.value) {
-    term.open(terminalContainer.value);
+      term.open(terminalContainer.value);
+      term.focus();
 
-    // Initial fit
-    setTimeout(() => {
-      fitAddon?.fit();
-    }, 100);
+      // Initial fit
+      setTimeout(() => {
+        fitAddon?.fit();
+        term?.focus();
+      }, 100);
 
     // Resize Observer
     resizeObserver = new ResizeObserver(() => {
