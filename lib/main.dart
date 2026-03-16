@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'server/server_service.dart';
+import 'dart:io';
 
 void main() {
   runApp(const MyApp());
@@ -84,6 +85,22 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  /// Launch the GitHub repository URL in the default browser
+  Future<void> _launchUrl() async {
+    const url = 'https://github.com/foliageSea/ssh_tool';
+    try {
+      if (Platform.isWindows) {
+        await Process.run('start', [url], runInShell: true);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', [url]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [url]);
+      }
+    } catch (e) {
+      _addLog('Error launching URL: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -103,6 +120,11 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: const Text('SSH Tool Host'),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.code),
+              tooltip: 'GitHub Repository',
+              onPressed: _launchUrl,
+            ),
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),

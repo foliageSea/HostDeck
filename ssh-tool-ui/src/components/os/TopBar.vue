@@ -47,9 +47,45 @@
           <Button variant="ghost" size="sm" class="h-7 px-2 text-sm font-normal">帮助</Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem>关于 SSH Tool</DropdownMenuItem>
+          <DropdownMenuItem @click="openGithub">
+            <Github class="mr-2 h-4 w-4" />
+            <span>GitHub 仓库</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem @click="showAboutDialog = true">关于 SSH Tool</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog v-model:open="showAboutDialog">
+        <DialogContent class="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>关于 SSH Tool</DialogTitle>
+            <DialogDescription>
+              一个简单易用的 SSH 客户端工具。
+            </DialogDescription>
+          </DialogHeader>
+          <div class="flex flex-col items-center justify-center py-4 space-y-4">
+            <div class="w-20 h-20 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Terminal class="w-10 h-10 text-primary" />
+            </div>
+            <div class="text-center">
+              <h3 class="font-semibold text-lg">SSH Tool</h3>
+              <p class="text-sm text-muted-foreground">Version 1.0.0</p>
+            </div>
+            <div class="flex space-x-4 pt-2">
+              <Button variant="outline" size="sm" @click="openGithub">
+                <Github class="w-4 h-4 mr-2" />
+                GitHub
+              </Button>
+            </div>
+          </div>
+          <DialogFooter class="sm:justify-center">
+            <p class="text-xs text-center text-muted-foreground w-full">
+              &copy; {{ new Date().getFullYear() }} FoliageSea. All rights reserved.
+            </p>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     <div class="flex items-center space-x-4">
       <SystemMonitor />
@@ -64,7 +100,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { Terminal, Sun, Moon, Monitor } from 'lucide-vue-next';
+import { Terminal, Sun, Moon, Monitor, Github } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button'
 import SystemMonitor from './SystemMonitor.vue';
 import {
@@ -79,6 +115,14 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useSettingsStore } from '@/stores/settings';
 import { useToast } from '@/components/ui/toast/use-toast';
 import { processBackgroundImage } from '@/utils/image';
@@ -89,6 +133,14 @@ const { toast } = useToast();
 
 const bgInputRef = ref<HTMLInputElement | null>(null);
 const videoInputRef = ref<HTMLInputElement | null>(null);
+const showAboutDialog = ref(false);
+
+/**
+ * Open GitHub repository in a new tab
+ */
+const openGithub = () => {
+  window.open('https://github.com/foliageSea/ssh_tool', '_blank');
+};
 
 const triggerBackgroundUpload = () => {
   bgInputRef.value?.click();

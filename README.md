@@ -97,3 +97,7 @@ ssh_tool/
 ├── pubspec.yaml         # Flutter 依赖配置
 └── README.md            # 项目说明
 ```
+
+## 📄 开源协议
+
+本项目采用 [MIT License](LICENSE) 开源协议。
