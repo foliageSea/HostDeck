@@ -37,23 +37,35 @@
     
     <!-- Dock -->
     <Dock />
+    
+    <!-- Window Switcher -->
+    <WindowSwitcher
+      v-if="switcherVisible"
+      :windows="switcherWindows"
+      :selected-index="switcherIndex"
+      @select="selectWindow"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
-import { useDesktopStore } from '@/stores/desktop';
+import { useDesktopStore, type WindowState } from '@/stores/desktop';
 import { useSettingsStore } from '@/stores/settings';
 import { db } from '@/utils/db';
 import TopBar from './TopBar.vue';
 import Dock from './Dock.vue';
 import Window from './Window.vue';
+import WindowSwitcher from './WindowSwitcher.vue';
 import bgImage from '@/assets/bg.jpg';
 
 const desktopStore = useDesktopStore();
 const settingsStore = useSettingsStore();
 
 const videoUrl = ref<string>('');
+const switcherVisible = ref(false);
+const switcherIndex = ref(0);
+const switcherWindows = ref<WindowState[]>([]);
 
 const loadVideo = async () => {
   if (settingsStore.backgroundType === 'video') {
@@ -80,12 +92,65 @@ watch([() => settingsStore.backgroundType, () => settingsStore.backgroundVideoTi
   }
 });
 
+const selectWindow = (index: number) => {
+  const targetWindow = switcherWindows.value[index];
+  if (targetWindow) {
+    desktopStore.focusWindow(targetWindow.id);
+  }
+  switcherVisible.value = false;
+};
+
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && switcherVisible.value) {
+    switcherVisible.value = false;
+    return;
+  }
+
+  const isSwitchKey = (e.ctrlKey && e.key === 'Tab') || (e.altKey && (e.key === 'q' || e.key === '`'));
+
+  if (isSwitchKey) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!switcherVisible.value) {
+      // Open switcher
+      // Sort windows by zIndex descending (most recent first)
+      const sorted = [...desktopStore.windows].sort((a, b) => b.zIndex - a.zIndex);
+      if (sorted.length < 2) return;
+
+      switcherWindows.value = sorted;
+      switcherVisible.value = true;
+      // Select the previous window (index 1) by default, or last if shift is held
+      switcherIndex.value = e.shiftKey ? sorted.length - 1 : 1;
+    } else {
+      // Cycle selection
+      if (e.shiftKey) {
+        switcherIndex.value = (switcherIndex.value - 1 + switcherWindows.value.length) % switcherWindows.value.length;
+      } else {
+        switcherIndex.value = (switcherIndex.value + 1) % switcherWindows.value.length;
+      }
+    }
+  }
+};
+
+const handleKeyUp = (e: KeyboardEvent) => {
+  if (e.key === 'Control' || e.key === 'Alt') {
+    if (switcherVisible.value) {
+      selectWindow(switcherIndex.value);
+    }
+  }
+};
+
 onMounted(() => {
   loadVideo();
+  window.addEventListener('keydown', handleKeyDown, true);
+  window.addEventListener('keyup', handleKeyUp, true);
 });
 
 onUnmounted(() => {
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value);
+  window.removeEventListener('keydown', handleKeyDown, true);
+  window.removeEventListener('keyup', handleKeyUp, true);
 });
 
 const windows = computed(() => desktopStore.windows);
