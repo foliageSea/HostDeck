@@ -446,10 +446,27 @@ const openEditor = async (file: FileItem) => {
 }
 
 const openMediaViewer = async (file: FileItem) => {
+  const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico']
+  const videoExts = ['mp4', 'webm', 'ogg', 'mov', 'mkv', 'avi']
+  const mediaExts = [...imageExts, ...videoExts]
+
+  const playlist = fileStore.files
+    .filter(f => !f.isDirectory)
+    .filter(f => {
+      const ext = f.filename.split('.').pop()?.toLowerCase()
+      return ext && mediaExts.includes(ext)
+    })
+    .map(f => ({
+      path: getFullPath(f.filename),
+      filename: f.filename,
+      type: videoExts.includes(f.filename.split('.').pop()?.toLowerCase() || '') ? 'video' : 'image'
+    }))
+
   desktopStore.openWindow('media-viewer', {
     path: getFullPath(file.filename),
     sessionId: fileStore.sessionId,
-    title: file.filename
+    title: file.filename,
+    playlist
   })
 }
 
