@@ -1,4 +1,4 @@
-import { ref, inject, reactive, type InjectionKey } from 'vue'
+import { ref, inject, reactive, type InjectionKey, watch } from 'vue'
 import { useStorage } from '@vueuse/core'
 import { useSshStore } from './ssh'
 import { useToastStore } from './toast'
@@ -18,6 +18,10 @@ export type ViewMode = 'list' | 'grid'
 export type FileStore = ReturnType<typeof createFileStore>
 
 export const FileStoreKey: InjectionKey<FileStore> = Symbol('FileStore')
+
+// Global state shared across all file manager instances
+const globalClipboard = ref<{ action: 'copy' | 'move', paths: string[], sourcePath: string } | null>(null)
+const refreshSignal = ref(0)
 
 export function createFileStore() {
   const sshStore = useSshStore()
@@ -49,9 +53,19 @@ export function createFileStore() {
     percent: 0
   })
 
-  // Clipboard for copy/move operations
-  // structure: { action: 'copy' | 'move', paths: string[], sourcePath: string }
-  const clipboard = ref<{ action: 'copy' | 'move', paths: string[], sourcePath: string } | null>(null)
+  // Clipboard for copy/move operations (shared global state)
+  const clipboard = globalClipboard
+
+  // Watch for global refresh signal
+  watch(refreshSignal, () => {
+    if (sessionId.value) {
+      fetchFiles()
+    }
+  })
+
+  const notifyFileSystemChange = () => {
+    refreshSignal.value++
+  }
 
   // Favorites
   const favorites = useStorage<string[]>('ssh-tool-file-favorites', [])
@@ -196,6 +210,7 @@ export function createFileStore() {
     navigate,
     navigateUp,
     refresh,
+    notifyFileSystemChange,
     toggleSelection,
     clearSelection,
     selectAll,

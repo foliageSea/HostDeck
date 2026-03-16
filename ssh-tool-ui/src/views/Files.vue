@@ -277,7 +277,7 @@ const handlePaste = async () => {
       }
     }
 
-    fileStore.refresh()
+    fileStore.notifyFileSystemChange()
     if (action === 'move') fileStore.clipboard = null
     toast.success(action === 'copy' ? 'Copied' : 'Moved')
   } catch (e: any) {
@@ -306,7 +306,7 @@ const handleRename = async () => {
 
     toast.success('Renamed')
     showRenameModal.value = false
-    fileStore.refresh()
+    fileStore.notifyFileSystemChange()
   } catch (e: any) {
     toast.error(`Rename failed: ${e.message}`)
   }
@@ -327,7 +327,7 @@ const handleMkdir = async () => {
 
     toast.success('Directory created')
     showMkdirModal.value = false
-    fileStore.refresh()
+    fileStore.notifyFileSystemChange()
   } catch (e: any) {
     toast.error(`Mkdir failed: ${e.message}`)
   }
@@ -342,7 +342,7 @@ const handleDelete = async () => {
     }
     toast.success('Deleted')
     showDeleteModal.value = false
-    fileStore.refresh()
+    fileStore.notifyFileSystemChange()
   } catch (e: any) {
     toast.error(`Delete failed: ${e.message}`)
   } finally {
@@ -401,7 +401,7 @@ const uploadFiles = async (files: FileList) => {
 
     if (fileStore.uploadStatus.success > 0) {
       toast.success(`Uploaded ${fileStore.uploadStatus.success} files` + (fileStore.uploadStatus.failed > 0 ? `, ${fileStore.uploadStatus.failed} failed` : ''))
-      fileStore.refresh()
+      fileStore.notifyFileSystemChange()
     }
   } catch (e: any) {
     toast.error(`Upload process failed: ${e.message}`)
