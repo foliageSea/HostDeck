@@ -57,7 +57,7 @@ const handleError = () => {
 }
 
 const handleDownload = () => {
-  window.open(fileUrl.value, '_blank')
+  window.open(fileUrl.value + '&download=true', '_blank')
 }
 
 const initPlayer = () => {

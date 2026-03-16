@@ -18,13 +18,13 @@ class FileController {
       final body = await request.readAsString();
       final data = jsonDecode(body) as Map<String, dynamic>;
       final connectionId = data['connectionId'];
-      
+
       if (connectionId == null) {
         return Result.fail(400, 'Missing connectionId');
       }
 
       final session = await _sshService.createSftpSession(connectionId);
-      
+
       return Result.ok({'sessionId': session.id});
     } catch (e) {
       return Result.fail(500, e.toString());
@@ -34,8 +34,7 @@ class FileController {
   Future<Response> listFiles(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'] ?? '.';
-    if (sessionId == null)
-      return Result.fail(400, 'Missing sessionId');
+    if (sessionId == null) return Result.fail(400, 'Missing sessionId');
 
     final session = _sshService.getSession(sessionId);
     if (session == null) return Result.fail(404, 'Session not found');
@@ -63,6 +62,8 @@ class FileController {
   Future<Response> readFile(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'];
+    final download = request.url.queryParameters['download'] == 'true';
+
     if (sessionId == null || path == null)
       return Response.badRequest(body: 'Missing sessionId or path');
 
@@ -71,10 +72,19 @@ class FileController {
 
     try {
       final stream = await _fileService.readFileStream(session, path);
-      return Response.ok(
-        stream,
-        headers: {'content-type': 'application/octet-stream'},
-      );
+
+      final headers = <String, Object>{
+        'content-type': 'application/octet-stream',
+      };
+
+      if (download) {
+        final filename = path.split('/').last;
+        final encodedFilename = Uri.encodeComponent(filename);
+        headers['content-disposition'] =
+            "attachment; filename*=UTF-8''$encodedFilename";
+      }
+
+      return Response.ok(stream, headers: headers);
     } catch (e) {
       return Response.internalServerError(body: e.toString());
     }
@@ -161,8 +171,7 @@ class FileController {
 
   Future<Response> rename(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null)
-      return Result.fail(400, 'Missing sessionId');
+    if (sessionId == null) return Result.fail(400, 'Missing sessionId');
 
     final session = _sshService.getSession(sessionId);
     if (session == null) return Result.fail(404, 'Session not found');
@@ -182,8 +191,7 @@ class FileController {
 
   Future<Response> mkdir(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null)
-      return Result.fail(400, 'Missing sessionId');
+    if (sessionId == null) return Result.fail(400, 'Missing sessionId');
 
     final session = _sshService.getSession(sessionId);
     if (session == null) return Result.fail(404, 'Session not found');
@@ -202,8 +210,7 @@ class FileController {
 
   Future<Response> copy(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null)
-      return Result.fail(400, 'Missing sessionId');
+    if (sessionId == null) return Result.fail(400, 'Missing sessionId');
 
     final session = _sshService.getSession(sessionId);
     if (session == null) return Result.fail(404, 'Session not found');

@@ -82,7 +82,7 @@ export const fileApi = {
 
   download: async (sessionId: string, path: string) => {
     const response = await http.get('/api/files/read', {
-      params: { sessionId, path },
+      params: { sessionId, path, download: 'true' },
       responseType: 'blob'
     })
     return response.data

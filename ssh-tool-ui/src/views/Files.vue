@@ -455,7 +455,7 @@ const openMediaViewer = async (file: FileItem) => {
 
 const downloadFile = async (file: FileItem) => {
   const path = getFullPath(file.filename)
-  window.open(`/api/files/read?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(path)}`, '_blank')
+  window.open(`/api/files/read?sessionId=${fileStore.sessionId}&path=${encodeURIComponent(path)}&download=true`, '_blank')
 }
 
 const handleContextMenu = (e: MouseEvent, file: FileItem) => {
