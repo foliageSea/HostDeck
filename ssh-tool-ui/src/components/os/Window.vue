@@ -1,6 +1,6 @@
 <template>
   <div class="absolute flex flex-col bg-background dark:bg-card shadow-2xl overflow-hidden select-none" :class="[
-    window.isMaximized ? 'rounded-none border-0' : 'rounded-lg border border-border/50',
+    window.isMaximized ? 'rounded-none border-0' : 'rounded-lg border border-primary',
     (isDragging || isResizing) ? '' : 'transition-all duration-200 ease-in-out'
   ]" :style="window.isMaximized ? {
     left: '0px',
@@ -19,7 +19,7 @@
   }" @mousedown="focusWindow">
     <!-- Title Bar -->
     <div
-      :class="['h-8 bg-muted/50 border-b border-border/50 flex items-center justify-between px-3', window.isMaximized ? 'cursor-default' : 'cursor-move']"
+      :class="['h-8 bg-muted/50 border-b border-border flex items-center justify-between px-3', window.isMaximized ? 'cursor-default' : 'cursor-move']"
       @mousedown.prevent="startDrag" @dblclick="maximizeWindow">
       <div class="flex items-center space-x-2">
         <!-- Controls -->
