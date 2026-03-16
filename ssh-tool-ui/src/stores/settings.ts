@@ -8,10 +8,21 @@ export const useSettingsStore = defineStore('settings', () => {
     const defaultFontSize = 14;
     const defaultFontFamily = '"Maple Mono NF CN",Menlo, Monaco, "Courier New", monospace';
     const defaultBackgroundQuality = 1.0;
+    const defaultLanguageMap: Record<string, string> = {
+        'js': 'javascript', 'ts': 'typescript', 'py': 'python', 'sh': 'shell', 'bash': 'shell', 'zsh': 'shell',
+        'md': 'markdown', 'yml': 'yaml', 'rs': 'rust', 'go': 'go',
+        'cpp': 'cpp', 'c': 'c', 'h': 'cpp', 'hpp': 'cpp', 'java': 'java',
+        'html': 'html', 'css': 'css', 'scss': 'scss', 'less': 'less',
+        'json': 'json', 'xml': 'xml', 'sql': 'sql', 'php': 'php', 'rb': 'ruby',
+        'dockerfile': 'dockerfile', 'ini': 'ini', 'conf': 'ini',
+        'txt': 'plaintext', 'log': 'plaintext', 'vue': 'html', 'pl': 'perl',
+        'gitignore': 'plaintext', 'env': 'ini', 'bashrc': 'shell', 'npmrc': 'ini'
+    };
 
     // State
     const terminalFontSize = ref<number>(parseInt(localStorage.getItem('terminalFontSize') || String(defaultFontSize)));
     const terminalFontFamily = ref<string>(localStorage.getItem('terminalFontFamily') || defaultFontFamily);
+    const languageMap = useStorage<Record<string, string>>('language-map', defaultLanguageMap);
 
     // Theme settings
     const themeMode = useStorage<'auto' | 'light' | 'dark'>('theme-mode', 'auto');
@@ -89,6 +100,18 @@ export const useSettingsStore = defineStore('settings', () => {
         terminalFontFamily.value = defaultFontFamily;
     }
 
+    function updateLanguageMap(ext: string, lang: string) {
+        languageMap.value[ext] = lang;
+    }
+
+    function removeLanguageMap(ext: string) {
+        delete languageMap.value[ext];
+    }
+
+    function resetLanguageMap() {
+        languageMap.value = { ...defaultLanguageMap };
+    }
+
     return {
         terminalFontSize,
         terminalFontFamily,
@@ -98,6 +121,7 @@ export const useSettingsStore = defineStore('settings', () => {
         backgroundQuality,
         backgroundType,
         backgroundVideoTimestamp,
+        languageMap,
         setTerminalFontSize,
         setTerminalFontFamily,
         setThemeMode,
@@ -105,7 +129,10 @@ export const useSettingsStore = defineStore('settings', () => {
         setVideoBackground,
         setBackgroundQuality,
         resetCustomBackground,
-        resetTerminalSettings
+        resetTerminalSettings,
+        updateLanguageMap,
+        removeLanguageMap,
+        resetLanguageMap
     };
 });
 

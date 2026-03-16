@@ -1,7 +1,8 @@
-import { ref, inject, reactive, type InjectionKey, watch } from 'vue'
+import { ref, inject, reactive, type InjectionKey, watch, computed } from 'vue'
 import { useStorage } from '@vueuse/core'
 import { useSshStore } from './ssh'
 import { useToastStore } from './toast'
+import { useSettingsStore } from './settings'
 import { resolve, dirname } from '../utils/path'
 import { fileApi } from '@/api/files'
 
@@ -26,6 +27,7 @@ const refreshSignal = ref(0)
 export function createFileStore() {
   const sshStore = useSshStore()
   const toast = useToastStore()
+  const settingsStore = useSettingsStore()
 
   const currentPath = ref('/')
   const files = ref<FileItem[]>([])
@@ -84,12 +86,9 @@ export function createFileStore() {
   }
 
   // Configurable editable file extensions
-  const editableExtensions = ref([
-    'txt', 'md', 'json', 'js', 'ts', 'vue', 'html', 'css', 'scss', 'less',
-    'py', 'java', 'c', 'cpp', 'h', 'hpp', 'go', 'rs', 'sh', 'bash', 'zsh',
-    'yaml', 'yml', 'xml', 'conf', 'ini', 'log', 'sql', 'php', 'rb', 'pl',
-    'dockerfile', 'gitignore', 'env', 'bashrc', 'npmrc'
-  ])
+  const editableExtensions = computed(() => {
+    return Object.keys(settingsStore.languageMap)
+  })
 
   const initSession = async () => {
     if (!sshStore.connectionId) return
@@ -121,10 +120,10 @@ export function createFileStore() {
     loading.value = true
     try {
       const data = await fileApi.listFiles(sessionId.value, targetPath)
-      
+
       // filter out . and .. directories
       const filteredData = data.filter((f: FileItem) => f.filename !== '.' && f.filename !== '..')
-      
+
       // sort: folders first, then files
       files.value = filteredData.sort((a: FileItem, b: FileItem) => {
         if (a.isDirectory === b.isDirectory) {

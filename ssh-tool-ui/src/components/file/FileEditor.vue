@@ -38,6 +38,11 @@
                 </DropdownMenuRadioGroup>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            
+            <DropdownMenuSeparator />
+            <DropdownMenuItem @click="$emit('open-settings')">
+              <span>语言关联设置...</span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -66,6 +71,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
 
 const props = defineProps<{
@@ -74,7 +80,7 @@ const props = defineProps<{
   language?: string
 }>()
 
-const emit = defineEmits(['close', 'save'])
+const emit = defineEmits(['close', 'save', 'open-settings'])
 const editorContainer = ref<HTMLElement>()
 let editor: monaco.editor.IStandaloneCodeEditor
 

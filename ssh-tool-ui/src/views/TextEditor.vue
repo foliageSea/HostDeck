@@ -15,16 +15,20 @@
       :language="language"
       @save="saveFile"
       @close="closeWindow"
+      @open-settings="showLanguageSettings = true"
     />
+    <LanguageMapDialog v-model:open="showLanguageSettings" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import FileEditor from '@/components/file/FileEditor.vue'
+import LanguageMapDialog from '@/components/settings/LanguageMapDialog.vue'
 import { Button } from '@/components/ui/button'
 import { useDesktopStore } from '@/stores/desktop'
 import { useToastStore } from '@/stores/toast'
+import { useSettingsStore } from '@/stores/settings'
 import { dirname } from '@/utils/path'
 import { fileApi } from '@/api/files'
 
@@ -36,10 +40,12 @@ const props = defineProps<{
 
 const desktopStore = useDesktopStore()
 const toast = useToastStore()
+const settingsStore = useSettingsStore()
 
 const loading = ref(true)
 const error = ref('')
 const content = ref('')
+const showLanguageSettings = ref(false)
 
 const filename = computed(() => {
   return props.path.split('/').pop() || props.path
@@ -47,15 +53,7 @@ const filename = computed(() => {
 
 const language = computed(() => {
   const ext = filename.value.split('.').pop()?.toLowerCase()
-  const langMap: Record<string, string> = {
-    'js': 'javascript', 'ts': 'typescript', 'py': 'python', 'sh': 'shell', 'bash': 'shell', 'zsh': 'shell',
-    'md': 'markdown', 'yml': 'yaml', 'rs': 'rust', 'go': 'go',
-    'cpp': 'cpp', 'c': 'c', 'h': 'cpp', 'hpp': 'cpp', 'java': 'java',
-    'html': 'html', 'css': 'css', 'scss': 'scss', 'less': 'less',
-    'json': 'json', 'xml': 'xml', 'sql': 'sql', 'php': 'php', 'rb': 'ruby',
-    'dockerfile': 'dockerfile', 'ini': 'ini', 'conf': 'ini'
-  }
-  return langMap[ext || ''] || ext || 'plaintext'
+  return settingsStore.languageMap[ext || ''] || ext || 'plaintext'
 })
 
 const loadFile = async () => {
