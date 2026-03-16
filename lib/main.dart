@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'server/server_service.dart';
 import 'dart:io';
 
@@ -88,13 +89,21 @@ class _MyAppState extends State<MyApp> {
   /// Launch the GitHub repository URL in the default browser
   Future<void> _launchUrl() async {
     const url = 'https://github.com/foliageSea/ssh_tool';
+    final uri = Uri.parse(url);
     try {
-      if (Platform.isWindows) {
-        await Process.run('start', [url], runInShell: true);
-      } else if (Platform.isMacOS) {
-        await Process.run('open', [url]);
-      } else if (Platform.isLinux) {
-        await Process.run('xdg-open', [url]);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        // Fallback for desktop platforms if canLaunchUrl fails
+        if (Platform.isWindows) {
+          await Process.run('start', [url], runInShell: true);
+        } else if (Platform.isMacOS) {
+          await Process.run('open', [url]);
+        } else if (Platform.isLinux) {
+          await Process.run('xdg-open', [url]);
+        } else {
+          _addLog('Could not launch $url');
+        }
       }
     } catch (e) {
       _addLog('Error launching URL: $e');
@@ -153,29 +162,71 @@ class _MyAppState extends State<MyApp> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: _isRunning ? null : _startServer,
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text('启动服务'),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: !_isRunning ? null : _stopServer,
-                    icon: const Icon(Icons.stop),
-                    label: const Text('停止服务'),
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                    ),
-                  ),
-                  const Spacer(),
-                  OutlinedButton.icon(
-                    onPressed: _clearLogs,
-                    icon: const Icon(Icons.clear_all),
-                    label: const Text('清空日志'),
-                  ),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // 移动端适配：如果宽度小于 600，使用垂直布局
+                  if (constraints.maxWidth < 600) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _isRunning ? null : _startServer,
+                                icon: const Icon(Icons.play_arrow),
+                                label: const Text('启动服务'),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: !_isRunning ? null : _stopServer,
+                                icon: const Icon(Icons.stop),
+                                label: const Text('停止服务'),
+                                style: ElevatedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: _clearLogs,
+                          icon: const Icon(Icons.clear_all),
+                          label: const Text('清空日志'),
+                        ),
+                      ],
+                    );
+                  } else {
+                    // 桌面端布局：保持原有的横向排列
+                    return Row(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _isRunning ? null : _startServer,
+                          icon: const Icon(Icons.play_arrow),
+                          label: const Text('启动服务'),
+                        ),
+                        const SizedBox(width: 16),
+                        ElevatedButton.icon(
+                          onPressed: !_isRunning ? null : _stopServer,
+                          icon: const Icon(Icons.stop),
+                          label: const Text('停止服务'),
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                        ),
+                        const Spacer(),
+                        OutlinedButton.icon(
+                          onPressed: _clearLogs,
+                          icon: const Icon(Icons.clear_all),
+                          label: const Text('清空日志'),
+                        ),
+                      ],
+                    );
+                  }
+                },
               ),
             ),
             const Divider(height: 1),
