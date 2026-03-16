@@ -62,6 +62,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import { useSshStore } from '../stores/ssh';
 import { useSettingsStore } from '../stores/settings';
@@ -132,6 +133,7 @@ const copySelection = async () => {
 
 let term: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
+let webLinksAddon: WebLinksAddon | null = null;
 let socket: WebSocket | null = null;
 let resizeObserver: ResizeObserver | null = null;
 const mySessionId = ref<string | null>(null);
@@ -182,6 +184,14 @@ onMounted(async () => {
 
   fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
+
+  webLinksAddon = new WebLinksAddon((event, uri) => {
+    // 阻止默认行为，防止终端失去焦点或其他意外行为
+    event.preventDefault();
+    // 使用默认浏览器打开链接
+    window.open(uri, '_blank');
+  });
+  term.loadAddon(webLinksAddon);
 
   if (terminalContainer.value) {
     term.open(terminalContainer.value);
@@ -263,6 +273,8 @@ function sendResize(cols: number, rows: number) {
 onBeforeUnmount(async () => {
   resizeObserver?.disconnect();
   socket?.close();
+  webLinksAddon?.dispose();
+  fitAddon?.dispose();
   term?.dispose();
 
   // Close session if it's a dedicated one

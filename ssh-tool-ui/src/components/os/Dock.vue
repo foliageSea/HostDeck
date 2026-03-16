@@ -126,7 +126,9 @@ const handleAppClick = (appId: string) => {
     desktopStore.openWindow(appId);
   } else if (windows.length === 1) {
     // One window: Focus it
-    activateWindow(windows[0].id);
+    if (windows[0] && windows[0].id) {
+      activateWindow(windows[0].id);
+    }
   } else {
     // Multiple windows: Show selector
     showSelector.value = appId;

@@ -57,13 +57,13 @@ export const useSshStore = defineStore('ssh', () => {
       throw e
     }
   }
-  
+
   async function updateServer(id: number, server: Partial<SavedServer>) {
     try {
       await serverApi.update(id, server)
       const index = savedServers.value.findIndex(s => s.id === id)
       if (index !== -1) {
-        savedServers.value[index] = { ...savedServers.value[index], ...server }
+        savedServers.value[index] = { ...savedServers.value[index], ...server } as SavedServer;
       }
     } catch (e) {
       console.error('Failed to update server:', e)
@@ -71,13 +71,13 @@ export const useSshStore = defineStore('ssh', () => {
     }
   }
 
-  return { 
+  return {
     sessionId,
     connectionId,
-    isConnected, 
-    host, 
-    username, 
-    setSession, 
+    isConnected,
+    host,
+    username,
+    setSession,
     clearSession,
     savedServers,
     fetchServers,
