@@ -126,12 +126,18 @@ class SshRepository {
   }
 
   Future<void> delete(SshSession session, String path) async {
-    final sftp = await session.sftp();
-    final stat = await sftp.stat(path);
-    if (stat.isDirectory) {
-      await sftp.rmdir(path);
-    } else {
-      await sftp.remove(path);
+    // SFTP rmdir 在目录非空时会失败 (code 4)
+    // 使用 rm -rf 命令通过 SSH 执行进行递归删除，更可靠且支持非空目录
+    // 使用单引号包裹路径以避免 Shell 扩展，并转义路径中已有的单引号
+    final safePath = path.replaceAll("'", "'\\''");
+    final cmd = "rm -rf '$safePath'";
+    final result = await session.client.run(cmd);
+    if (result.isNotEmpty) {
+      final output = utf8.decode(result);
+      // rm -rf 成功时通常没有输出，如果有输出通常表示错误
+      if (output.trim().isNotEmpty) {
+        throw Exception(output.trim());
+      }
     }
   }
 
