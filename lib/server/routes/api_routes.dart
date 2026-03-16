@@ -3,18 +3,21 @@ import '../controllers/auth_controller.dart';
 import '../controllers/system_controller.dart';
 import '../controllers/file_controller.dart';
 import '../controllers/terminal_controller.dart';
+import '../controllers/server_controller.dart';
 
 class ApiRoutes {
   final AuthController authController;
   final SystemController systemController;
   final FileController fileController;
   final TerminalController terminalController;
+  final ServerController serverController;
 
   ApiRoutes({
     required this.authController,
     required this.systemController,
     required this.fileController,
     required this.terminalController,
+    required this.serverController,
   });
 
   Router get router {
@@ -22,6 +25,12 @@ class ApiRoutes {
 
     // Auth
     router.post('/api/connect', authController.connect);
+
+    // Servers
+    router.get('/api/servers', serverController.list);
+    router.post('/api/servers', serverController.create);
+    router.put('/api/servers/<id>', serverController.update);
+    router.delete('/api/servers/<id>', serverController.delete);
 
     // System
     router.get('/api/status', systemController.status);

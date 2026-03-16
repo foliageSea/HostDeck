@@ -184,6 +184,7 @@ watch([() => settingsStore.backgroundType, () => settingsStore.backgroundVideoTi
 
 onMounted(() => {
   loadVideo();
+  sshStore.fetchServers();
 });
 
 onUnmounted(() => {
@@ -291,8 +292,8 @@ const selectServer = (server: SavedServer) => {
   form.host = server.host;
   form.port = server.port;
   form.username = server.username;
-  form.password = '';
-  form.privateKey = '';
+  form.password = server.password || '';
+  form.privateKey = server.privateKey || '';
   nextTick(() => {
     passwordInputRef.value?.focus();
   });
@@ -317,7 +318,9 @@ const { mutate: connectMutate, isPending: loading } = useMutation({
         name: form.name || `${form.username}@${form.host}`,
         host: form.host,
         port: form.port,
-        username: form.username
+        username: form.username,
+        password: form.password,
+        privateKey: form.privateKey
       })
     }
     sshStore.setSession(data.sessionId, data.connectionId, form.host, form.username);

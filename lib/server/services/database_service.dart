@@ -1,0 +1,44 @@
+import 'dart:io';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:sqlite3/sqlite3.dart';
+
+class DatabaseService {
+  late final Database _db;
+
+  Database get db => _db;
+
+  Future<void> init() async {
+    final dir = await getApplicationSupportDirectory();
+    final dbPath = p.join(dir.path, 'ssh_tool.db');
+    
+    // Ensure directory exists
+    await dir.create(recursive: true);
+
+    print('Database path: $dbPath');
+    
+    _db = sqlite3.open(dbPath);
+    
+    _migrate();
+  }
+
+  void _migrate() {
+    // Simple migration: Create table if not exists
+    _db.execute('''
+      CREATE TABLE IF NOT EXISTS servers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        host TEXT NOT NULL,
+        port INTEGER NOT NULL,
+        username TEXT NOT NULL,
+        password TEXT,
+        privateKey TEXT,
+        createdAt INTEGER
+      )
+    ''');
+  }
+
+  void close() {
+    _db.dispose();
+  }
+}

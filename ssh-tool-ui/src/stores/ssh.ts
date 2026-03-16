@@ -1,13 +1,8 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
+import { serverApi, type SavedServer } from '@/api/server'
 
-export interface SavedServer {
-  id: string
-  name: string
-  host: string
-  port: number
-  username: string
-}
+export { type SavedServer }
 
 export const useSshStore = defineStore('ssh', () => {
   const sessionId = ref<string | null>(null)
@@ -16,22 +11,16 @@ export const useSshStore = defineStore('ssh', () => {
   const host = ref('')
   const username = ref('')
 
-  // Load saved servers from localStorage
   const savedServers = ref<SavedServer[]>([])
-  
-  try {
-    const saved = localStorage.getItem('savedServers')
-    if (saved) {
-      savedServers.value = JSON.parse(saved)
-    }
-  } catch (e) {
-    console.error('Failed to load saved servers:', e)
-  }
 
-  // Watch for changes and save to localStorage
-  watch(savedServers, (newVal) => {
-    localStorage.setItem('savedServers', JSON.stringify(newVal))
-  }, { deep: true })
+  async function fetchServers() {
+    try {
+      const servers = await serverApi.list()
+      savedServers.value = servers
+    } catch (e) {
+      console.error('Failed to fetch servers:', e)
+    }
+  }
 
   function setSession(id: string, connId: string, h: string, u: string) {
     sessionId.value = id
@@ -49,22 +38,36 @@ export const useSshStore = defineStore('ssh', () => {
     username.value = ''
   }
 
-  function addServer(server: Omit<SavedServer, 'id'>) {
-    const id = typeof crypto !== 'undefined' && crypto.randomUUID 
-      ? crypto.randomUUID() 
-      : Date.now().toString(36) + Math.random().toString(36).substring(2)
-      
-    savedServers.value.push({ ...server, id })
+  async function addServer(server: Omit<SavedServer, 'id'>) {
+    try {
+      const newServer = await serverApi.create(server)
+      savedServers.value.unshift(newServer)
+    } catch (e) {
+      console.error('Failed to add server:', e)
+      throw e
+    }
   }
 
-  function removeServer(id: string) {
-    savedServers.value = savedServers.value.filter(s => s.id !== id)
+  async function removeServer(id: number) {
+    try {
+      await serverApi.delete(id)
+      savedServers.value = savedServers.value.filter(s => s.id !== id)
+    } catch (e) {
+      console.error('Failed to remove server:', e)
+      throw e
+    }
   }
   
-  function updateServer(id: string, server: Partial<SavedServer>) {
-    const index = savedServers.value.findIndex(s => s.id === id)
-    if (index !== -1) {
-      savedServers.value[index] = { ...savedServers.value[index], ...server } as SavedServer
+  async function updateServer(id: number, server: Partial<SavedServer>) {
+    try {
+      await serverApi.update(id, server)
+      const index = savedServers.value.findIndex(s => s.id === id)
+      if (index !== -1) {
+        savedServers.value[index] = { ...savedServers.value[index], ...server }
+      }
+    } catch (e) {
+      console.error('Failed to update server:', e)
+      throw e
     }
   }
 
@@ -77,6 +80,7 @@ export const useSshStore = defineStore('ssh', () => {
     setSession, 
     clearSession,
     savedServers,
+    fetchServers,
     addServer,
     removeServer,
     updateServer

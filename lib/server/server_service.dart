@@ -5,19 +5,23 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
 
 import 'repositories/ssh_repository.dart';
+import 'repositories/server_repository.dart';
 import 'services/ssh_service.dart';
 import 'services/monitor_service.dart';
 import 'services/file_service.dart';
+import 'services/database_service.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/system_controller.dart';
 import 'controllers/file_controller.dart';
 import 'controllers/terminal_controller.dart';
+import 'controllers/server_controller.dart';
 import 'routes/api_routes.dart';
 import '../utils/asset_extractor.dart';
 
 class ServerService {
   HttpServer? _server;
   final int port;
+  DatabaseService? _dbService;
 
   bool get isRunning => _server != null;
 
@@ -37,7 +41,16 @@ class ServerService {
     }
 
     // 1. Initialize dependencies
+    _dbService = DatabaseService();
+    try {
+      await _dbService!.init();
+      if (onLog != null) onLog('Database initialized.');
+    } catch (e) {
+      if (onLog != null) onLog('Database initialization failed: $e');
+    }
+
     final sshRepository = SshRepository();
+    final serverRepository = ServerRepository(_dbService!);
     final sshService = SshService(); // Manages connections
     final monitorService = MonitorService(sshRepository);
     final fileService = FileService(sshRepository);
@@ -47,6 +60,7 @@ class ServerService {
     final systemController = SystemController(sshService, monitorService);
     final fileController = FileController(sshService, fileService);
     final terminalController = TerminalController(sshService);
+    final serverController = ServerController(serverRepository);
 
     // 3. Initialize Routes
     final apiRoutes = ApiRoutes(
@@ -54,6 +68,7 @@ class ServerService {
       systemController: systemController,
       fileController: fileController,
       terminalController: terminalController,
+      serverController: serverController,
     );
 
     // 4. Setup Static Handler
@@ -113,5 +128,6 @@ class ServerService {
       await _server?.close(force: true);
       _server = null;
     }
+    _dbService?.close();
   }
 }
