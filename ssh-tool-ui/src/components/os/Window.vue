@@ -1,6 +1,7 @@
 <template>
-  <div class="absolute flex flex-col bg-background dark:bg-card shadow-2xl overflow-hidden select-none" :class="[
-    window.isMaximized ? 'rounded-none border-0' : 'rounded-lg border border-primary',
+  <div class="absolute flex flex-col bg-background dark:bg-card overflow-hidden select-none" :class="[
+    window.isMaximized ? 'rounded-none border-0' : 'rounded-lg border',
+    isActive ? 'border-primary shadow-2xl' : 'border-border shadow-lg',
     (isDragging || isResizing) ? '' : 'transition-all duration-200 ease-in-out'
   ]" :style="window.isMaximized ? {
     left: '0px',
@@ -59,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue';
+import { ref, onUnmounted, computed } from 'vue';
 import { useDesktopStore, type WindowState } from '@/stores/desktop';
 import { Terminal, Folder, Activity, Lock, FileText } from 'lucide-vue-next';
 
@@ -68,6 +69,8 @@ const props = defineProps<{
 }>();
 
 const desktopStore = useDesktopStore();
+
+const isActive = computed(() => desktopStore.activeWindowId === props.window.id);
 
 const iconMap: Record<string, any> = {
   'terminal': Terminal,
