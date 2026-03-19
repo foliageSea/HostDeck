@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
+import 'package:logging/logging.dart';
 
 import 'repositories/ssh_repository.dart';
 import 'repositories/server_repository.dart';
@@ -19,6 +20,7 @@ import 'routes/api_routes.dart';
 import '../utils/asset_extractor.dart';
 
 class ServerService {
+  final _log = Logger('ServerService');
   HttpServer? _server;
   int port;
   DatabaseService? _dbService;
@@ -27,26 +29,26 @@ class ServerService {
 
   ServerService({this.port = 8080});
 
-  Future<void> start({void Function(String)? onLog}) async {
+  Future<void> start() async {
     if (isRunning) return;
 
     // 0. Extract Web Assets
     String staticPath;
     try {
       staticPath = await extractWebAssets();
-      if (onLog != null) onLog('Web assets extracted to: $staticPath');
+      _log.info('Web assets extracted to: $staticPath');
     } catch (e) {
       staticPath = '';
-      if (onLog != null) onLog('Failed to extract web assets: $e');
+      _log.severe('Failed to extract web assets: $e');
     }
 
     // 1. Initialize dependencies
     _dbService = DatabaseService();
     try {
       await _dbService!.init();
-      if (onLog != null) onLog('Database initialized.');
+      _log.info('Database initialized.');
     } catch (e) {
-      if (onLog != null) onLog('Database initialization failed: $e');
+      _log.severe('Database initialization failed: $e');
     }
 
     final sshRepository = SshRepository();
@@ -105,10 +107,10 @@ class ServerService {
 
     final handler = Pipeline()
         .addMiddleware(logRequests(logger: (message, isError) {
-          if (onLog != null) {
-            onLog(message);
+          if (isError) {
+            _log.severe(message);
           } else {
-            print(message);
+            _log.info(message);
           }
         }))
         .addHandler(cascade.handler);
@@ -116,11 +118,7 @@ class ServerService {
     _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
     
     final startMsg = 'Server running on port ${_server?.port}';
-    if (onLog != null) {
-      onLog(startMsg);
-    } else {
-      print(startMsg);
-    }
+    _log.info(startMsg);
   }
 
   Future<void> stop() async {

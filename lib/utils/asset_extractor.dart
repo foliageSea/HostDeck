@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:logging/logging.dart';
+
+final _log = Logger('AssetExtractor');
 
 /// Extracts web assets from the app bundle to the application support directory.
 /// Returns the path to the extracted web directory.
@@ -20,11 +23,11 @@ Future<String> extractWebAssets() async {
     final webAssets = assetManifest.listAssets().where((string) => string.startsWith('assets/web/')).toList();
 
     if (webAssets.isEmpty) {
-      print('No web assets found in bundle.');
+      _log.info('No web assets found in bundle.');
       return webDir.path;
     }
 
-    print('Found ${webAssets.length} web assets. Extracting...');
+    _log.info('Found ${webAssets.length} web assets. Extracting...');
 
     for (final assetPath in webAssets) {
       final relativePath = assetPath.replaceFirst('assets/web/', '');
@@ -41,9 +44,9 @@ Future<String> extractWebAssets() async {
       await file.writeAsBytes(byteData.buffer.asUint8List());
     }
     
-    print('Web assets extracted to ${webDir.path}');
+    _log.info('Web assets extracted to ${webDir.path}');
   } catch (e) {
-    print('Error extracting web assets: $e');
+    _log.severe('Error extracting web assets: $e');
   }
 
   return webDir.path;

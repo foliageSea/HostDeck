@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:logging/logging.dart';
 import 'server/server_service.dart';
 import 'utils/app_settings.dart';
 
@@ -40,6 +42,9 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with WindowListener {
   final ServerService _serverService = ServerService();
+  final _log = Logger('MyApp');
+  StreamSubscription<LogRecord>? _logSubscription;
+
   bool _isRunning = false;
   bool _showLogs = false;
   bool _isMaximized = false; // 记录窗口最大化状态
@@ -55,9 +60,29 @@ class _MyAppState extends State<MyApp> with WindowListener {
   @override
   void initState() {
     super.initState();
+    _initLogging();
     windowManager.addListener(this);
     _initWindowManager();
     _initServer();
+  }
+
+  void _initLogging() {
+    Logger.root.level = Level.ALL;
+    _logSubscription = Logger.root.onRecord.listen((record) {
+      final msg =
+          '[${record.level.name}] [${record.loggerName}]: ${record.message}';
+      final errorMsg = record.error != null ? '\nError: ${record.error}' : '';
+      final stackTraceMsg = record.stackTrace != null
+          ? '\n${record.stackTrace}'
+          : '';
+
+      final fullMsg = '$msg$errorMsg$stackTraceMsg';
+
+      // 输出到控制台
+      debugPrint(fullMsg);
+      // 输出到 UI
+      _addLog(fullMsg);
+    });
   }
 
   Future<void> _initServer() async {
@@ -75,6 +100,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
 
   @override
   void dispose() {
+    _logSubscription?.cancel();
     windowManager.removeListener(this);
     _serverService.stop();
     _scrollController.dispose();
@@ -121,20 +147,18 @@ class _MyAppState extends State<MyApp> with WindowListener {
   Future<void> _startServer() async {
     if (_isRunning) return;
     try {
-      await _serverService.start(onLog: _addLog);
+      await _serverService.start();
       setState(() {
         _isRunning = true;
       });
-      _addLog(
-        'System: Server started successfully on port ${_serverService.port}.',
-      );
+      _log.info('Server started successfully on port ${_serverService.port}.');
       if (webViewController != null && !kDebugMode) {
         webViewController?.loadUrl(
           urlRequest: URLRequest(url: WebUri(_targetUrl)),
         );
       }
     } catch (e) {
-      _addLog('Error starting server: $e');
+      _log.severe('Error starting server: $e');
     }
   }
 
@@ -145,9 +169,9 @@ class _MyAppState extends State<MyApp> with WindowListener {
       setState(() {
         _isRunning = false;
       });
-      _addLog('System: Server stopped.');
+      _log.info('Server stopped.');
     } catch (e) {
-      _addLog('Error stopping server: $e');
+      _log.severe('Error stopping server: $e');
     }
   }
 
@@ -278,10 +302,10 @@ class _MyAppState extends State<MyApp> with WindowListener {
                           webViewController = controller;
                         },
                         onReceivedError: (controller, request, error) {
-                          _addLog('WebView Error: ${error.description}');
+                          _log.severe('WebView Error: ${error.description}');
                         },
                         onConsoleMessage: (controller, consoleMessage) {
-                          _addLog('WebView: ${consoleMessage.message}');
+                          _log.info('WebView: ${consoleMessage.message}');
                         },
                       ),
                     // Logs Overlay

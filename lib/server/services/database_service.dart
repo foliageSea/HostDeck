@@ -1,9 +1,10 @@
-import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
+import 'package:logging/logging.dart';
 
 class DatabaseService {
+  final _log = Logger('DatabaseService');
   late final Database _db;
 
   Database get db => _db;
@@ -15,7 +16,7 @@ class DatabaseService {
     // Ensure directory exists
     await dir.create(recursive: true);
 
-    print('Database path: $dbPath');
+    _log.info('Database path: $dbPath');
     
     _db = sqlite3.open(dbPath);
     
@@ -39,6 +40,6 @@ class DatabaseService {
   }
 
   void close() {
-    _db.dispose();
+    _db.close();
   }
 }

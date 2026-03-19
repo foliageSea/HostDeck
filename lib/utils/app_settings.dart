@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:logging/logging.dart';
 
 class AppSettings {
+  static final _log = Logger('AppSettings');
   static const String _fileName = 'app_settings.json';
 
   static Future<File> get _settingsFile async {
@@ -14,7 +16,7 @@ class AppSettings {
   static Future<int> getPort() async {
     try {
       final file = await _settingsFile;
-      print('Settings file path: ${file.path}');
+      _log.info('Settings file path: ${file.path}');
       if (await file.exists()) {
         final content = await file.readAsString();
         final data = jsonDecode(content);

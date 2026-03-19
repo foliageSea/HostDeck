@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
+import 'package:logging/logging.dart';
 import '../services/ssh_service.dart';
 import '../models/result.dart';
 
 class AuthController {
+  final _log = Logger('AuthController');
   final SshService _sshService;
 
   AuthController(this._sshService);
@@ -26,7 +28,7 @@ class AuthController {
         'connectionId': session.connectionId,
       });
     } catch (e) {
-      print('Connect Error: $e');
+      _log.severe('Connect Error: $e');
       return Result.fail(500, e.toString());
     }
   }
