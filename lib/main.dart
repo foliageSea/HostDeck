@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:window_manager/window_manager.dart';
 import 'server/server_service.dart';
+import 'utils/app_settings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +45,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
   bool _isMaximized = false; // 记录窗口最大化状态
   final List<String> _logs = [];
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _portController = TextEditingController();
   InAppWebViewController? webViewController;
 
   String get _targetUrl => kDebugMode
@@ -55,7 +57,14 @@ class _MyAppState extends State<MyApp> with WindowListener {
     super.initState();
     windowManager.addListener(this);
     _initWindowManager();
-    _startServer();
+    _initServer();
+  }
+
+  Future<void> _initServer() async {
+    final port = await AppSettings.getPort();
+    _serverService.port = port;
+    _portController.text = port.toString();
+    await _startServer();
   }
 
   /// 初始化 window_manager 并获取初始最大化状态
@@ -69,6 +78,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
     windowManager.removeListener(this);
     _serverService.stop();
     _scrollController.dispose();
+    _portController.dispose();
     super.dispose();
   }
 
@@ -115,7 +125,14 @@ class _MyAppState extends State<MyApp> with WindowListener {
       setState(() {
         _isRunning = true;
       });
-      _addLog('System: Server started successfully.');
+      _addLog(
+        'System: Server started successfully on port ${_serverService.port}.',
+      );
+      if (webViewController != null && !kDebugMode) {
+        webViewController?.loadUrl(
+          urlRequest: URLRequest(url: WebUri(_targetUrl)),
+        );
+      }
     } catch (e) {
       _addLog('Error starting server: $e');
     }
@@ -339,22 +356,70 @@ class _MyAppState extends State<MyApp> with WindowListener {
                               ),
                               Padding(
                                 padding: const EdgeInsets.all(8.0),
-                                child: Row(
+                                child: Column(
                                   children: [
-                                    Expanded(
-                                      child: ElevatedButton(
-                                        onPressed: _isRunning
-                                            ? _stopServer
-                                            : _startServer,
-                                        child: Text(
-                                          _isRunning ? '停止服务' : '启动服务',
+                                    Row(
+                                      children: [
+                                        const Text(
+                                          '端口: ',
+                                          style: TextStyle(color: Colors.white),
                                         ),
-                                      ),
+                                        SizedBox(
+                                          width: 80,
+                                          child: TextField(
+                                            controller: _portController,
+                                            enabled: !_isRunning,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                            ),
+                                            decoration: const InputDecoration(
+                                              isDense: true,
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 8,
+                                                  ),
+                                              border: OutlineInputBorder(),
+                                              enabledBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            ),
+                                            keyboardType: TextInputType.number,
+                                            onChanged: (value) {
+                                              final port = int.tryParse(value);
+                                              if (port != null &&
+                                                  port > 0 &&
+                                                  port < 65536) {
+                                                _serverService.port = port;
+                                                AppSettings.savePort(port);
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        OutlinedButton(
+                                          onPressed: _clearLogs,
+                                          child: const Text('清空'),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 8),
-                                    OutlinedButton(
-                                      onPressed: _clearLogs,
-                                      child: const Text('清空'),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: ElevatedButton(
+                                            onPressed: _isRunning
+                                                ? _stopServer
+                                                : _startServer,
+                                            child: Text(
+                                              _isRunning ? '停止服务' : '启动服务',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

@@ -20,7 +20,7 @@ import '../utils/asset_extractor.dart';
 
 class ServerService {
   HttpServer? _server;
-  final int port;
+  int port;
   DatabaseService? _dbService;
 
   bool get isRunning => _server != null;
