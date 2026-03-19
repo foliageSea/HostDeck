@@ -1,9 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:window_manager/window_manager.dart';
 import 'server/server_service.dart';
-import 'dart:io';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化 window_manager 插件
+  await windowManager.ensureInitialized();
+
+  // 配置窗口属性 (调整为标准的 16:9 分辨率)
+  WindowOptions windowOptions = const WindowOptions(
+    size: Size(1280, 720),
+    minimumSize: Size(1280, 720),
+    center: true,
+    backgroundColor: Colors.transparent,
+    skipTaskbar: false,
+    titleBarStyle: TitleBarStyle.hidden, // 隐藏原生标题栏
+  );
+
+  // 等待窗口准备就绪后显示，避免白屏闪烁
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.setAspectRatio(16 / 9); // 锁定窗口比例为 16:9
+    await windowManager.show();
+    await windowManager.focus();
+  });
+
   runApp(const MyApp());
 }
 
@@ -14,25 +37,56 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WindowListener {
   final ServerService _serverService = ServerService();
   bool _isRunning = false;
+  bool _showLogs = false;
+  bool _isMaximized = false; // 记录窗口最大化状态
   final List<String> _logs = [];
   final ScrollController _scrollController = ScrollController();
+  InAppWebViewController? webViewController;
+
+  String get _targetUrl => kDebugMode
+      ? 'http://localhost:5173'
+      : 'http://localhost:${_serverService.port}';
 
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
+    _initWindowManager();
     _startServer();
+  }
+
+  /// 初始化 window_manager 并获取初始最大化状态
+  void _initWindowManager() async {
+    _isMaximized = await windowManager.isMaximized();
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    windowManager.removeListener(this);
     _serverService.stop();
     _scrollController.dispose();
     super.dispose();
   }
 
+  @override
+  void onWindowMaximize() {
+    setState(() {
+      _isMaximized = true;
+    });
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    setState(() {
+      _isMaximized = false;
+    });
+  }
+
+  /// 格式化时间，用于日志输出
   String _formatTime(DateTime time) {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:${time.second.toString().padLeft(2, '0')}';
   }
@@ -86,34 +140,93 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  /// Launch the GitHub repository URL in the default browser
-  Future<void> _launchUrl() async {
-    const url = 'https://github.com/foliageSea/ssh_tool';
-    final uri = Uri.parse(url);
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        // Fallback for desktop platforms if canLaunchUrl fails
-        if (Platform.isWindows) {
-          await Process.run('start', [url], runInShell: true);
-        } else if (Platform.isMacOS) {
-          await Process.run('open', [url]);
-        } else if (Platform.isLinux) {
-          await Process.run('xdg-open', [url]);
-        } else {
-          _addLog('Could not launch $url');
-        }
-      }
-    } catch (e) {
-      _addLog('Error launching URL: $e');
-    }
+  /// 构建自定义窗口控制按钮
+  Widget _buildWindowButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isDark,
+    bool isClose = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: isClose
+            ? Colors.red
+            : (isDark ? Colors.white12 : Colors.black12),
+        child: Container(
+          width: 46,
+          height: 40,
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 16,
+            color: isDark ? Colors.white : Colors.black,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建自绘窗口标题栏
+  Widget _buildTitleBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return DragToMoveArea(
+      child: Container(
+        height: 40,
+        color: theme.scaffoldBackgroundColor, // 跟随系统主题背景色
+        child: Row(
+          children: [
+            const SizedBox(width: 16),
+            Icon(Icons.terminal, size: 18, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(
+              'SSH Tool',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: theme.textTheme.bodyLarge?.color,
+              ),
+            ),
+            const Spacer(),
+            // 最小化按钮
+            _buildWindowButton(
+              icon: Icons.remove,
+              onTap: () => windowManager.minimize(),
+              isDark: isDark,
+            ),
+            // 最大化/还原按钮
+            _buildWindowButton(
+              icon: _isMaximized ? Icons.filter_none : Icons.crop_square,
+              onTap: () async {
+                if (await windowManager.isMaximized()) {
+                  windowManager.unmaximize();
+                } else {
+                  windowManager.maximize();
+                }
+              },
+              isDark: isDark,
+            ),
+            // 关闭按钮
+            _buildWindowButton(
+              icon: Icons.close,
+              onTap: () => windowManager.close(),
+              isDark: isDark,
+              isClose: true,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SSH Tool Host',
+      title: 'SSH Tool',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -126,143 +239,148 @@ class _MyAppState extends State<MyApp> {
       ),
       themeMode: ThemeMode.system,
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('SSH Tool Host'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.code),
-              tooltip: 'GitHub Repository',
-              onPressed: _launchUrl,
-            ),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildTitleBar(context),
+              Expanded(
+                child: Stack(
                   children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _isRunning ? Colors.green : Colors.red,
+                    if (!_isRunning)
+                      const Center(child: CircularProgressIndicator())
+                    else
+                      InAppWebView(
+                        initialUrlRequest: URLRequest(url: WebUri(_targetUrl)),
+                        initialSettings: InAppWebViewSettings(
+                          javaScriptEnabled: true,
+                          transparentBackground: true,
+                          disableContextMenu: true,
+                          isInspectable: kDebugMode,
+                        ),
+                        onWebViewCreated: (controller) {
+                          webViewController = controller;
+                        },
+                        onReceivedError: (controller, request, error) {
+                          _addLog('WebView Error: ${error.description}');
+                        },
+                        onConsoleMessage: (controller, consoleMessage) {
+                          _addLog('WebView: ${consoleMessage.message}');
+                        },
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _isRunning ? '运行中' : '已停止',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                    // Logs Overlay
+                    if (_showLogs)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: MediaQuery.of(context).size.width > 400
+                            ? 400
+                            : MediaQuery.of(context).size.width,
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.9),
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Host Logs',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _showLogs = false;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Divider(color: Colors.grey),
+                              Expanded(
+                                child: _logs.isEmpty
+                                    ? const Center(
+                                        child: Text(
+                                          '暂无日志...',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                      )
+                                    : ListView.builder(
+                                        controller: _scrollController,
+                                        itemCount: _logs.length,
+                                        itemBuilder: (context, index) {
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8.0,
+                                              vertical: 2.0,
+                                            ),
+                                            child: SelectableText(
+                                              _logs[index],
+                                              style: const TextStyle(
+                                                color: Colors.greenAccent,
+                                                fontFamily: 'consolas',
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: _isRunning
+                                            ? _stopServer
+                                            : _startServer,
+                                        child: Text(
+                                          _isRunning ? '停止服务' : '启动服务',
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    OutlinedButton(
+                                      onPressed: _clearLogs,
+                                      child: const Text('清空'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // 移动端适配：如果宽度小于 600，使用垂直布局
-                  if (constraints.maxWidth < 600) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _isRunning ? null : _startServer,
-                                icon: const Icon(Icons.play_arrow),
-                                label: const Text('启动服务'),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: !_isRunning ? null : _stopServer,
-                                icon: const Icon(Icons.stop),
-                                label: const Text('停止服务'),
-                                style: ElevatedButton.styleFrom(
-                                  foregroundColor: Colors.red,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        OutlinedButton.icon(
-                          onPressed: _clearLogs,
-                          icon: const Icon(Icons.clear_all),
-                          label: const Text('清空日志'),
-                        ),
-                      ],
-                    );
-                  } else {
-                    // 桌面端布局：保持原有的横向排列
-                    return Row(
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: _isRunning ? null : _startServer,
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('启动服务'),
-                        ),
-                        const SizedBox(width: 16),
-                        ElevatedButton.icon(
-                          onPressed: !_isRunning ? null : _stopServer,
-                          icon: const Icon(Icons.stop),
-                          label: const Text('停止服务'),
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                          ),
-                        ),
-                        const Spacer(),
-                        OutlinedButton.icon(
-                          onPressed: _clearLogs,
-                          icon: const Icon(Icons.clear_all),
-                          label: const Text('清空日志'),
-                        ),
-                      ],
-                    );
-                  }
+        floatingActionButton: _showLogs
+            ? null
+            : FloatingActionButton(
+                mini: true,
+                backgroundColor: Colors.black54,
+                child: const Icon(Icons.terminal, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    _showLogs = true;
+                  });
                 },
               ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                color: Colors.black87,
-                padding: const EdgeInsets.all(16.0),
-                child: _logs.isEmpty
-                    ? const Center(
-                        child: Text(
-                          '暂无日志输出...',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        itemCount: _logs.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2.0),
-                            child: SelectableText(
-                              _logs[index],
-                              style: const TextStyle(
-                                color: Colors.greenAccent,
-                                fontFamily: 'consolas',
-                                fontSize: 13,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

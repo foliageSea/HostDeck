@@ -48,6 +48,8 @@ dependencies:
   shelf_static: ^1.1.2
   path_provider: ^2.1.2
   url_launcher: ^6.2.5
+  flutter_inappwebview: ^6.1.5
+  window_manager: ^0.5.1
 
 dev_dependencies:
   flutter_test:
