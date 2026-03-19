@@ -1,7 +1,7 @@
 <template>
   <div class="absolute flex flex-col bg-background dark:bg-card overflow-hidden select-none" :class="[
     window.isMaximized ? 'rounded-none border-0' : 'rounded-lg border',
-    isActive ? 'border-primary shadow-2xl' : 'border-border shadow-lg',
+    isActive ? 'border-primary shadow-2xl border-2' : 'border-border shadow-lg',
     (isDragging || isResizing) ? '' : 'transition-all duration-200 ease-in-out'
   ]" :style="window.isMaximized ? {
     left: '0px',

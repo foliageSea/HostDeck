@@ -34,7 +34,8 @@ class ApiRoutes {
 
     // System
     router.get('/api/status', systemController.status);
-    router.get('/api/monitor', systemController.monitor);
+    router.get('/api/ws/monitor', systemController.wsMonitor);
+    router.get('/api/ws/session', systemController.wsSessionStatus);
 
     // Files
     router.get('/api/files/list', fileController.listFiles);

@@ -48,8 +48,6 @@ import { useSshStore } from '../stores/ssh';
 import { Cpu, MemoryStick, HardDrive } from 'lucide-vue-next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { useQuery } from '@tanstack/vue-query';
-import { systemApi } from '@/api/system';
 
 const props = defineProps<{
   windowId?: string
@@ -57,12 +55,7 @@ const props = defineProps<{
 
 const sshStore = useSshStore();
 
-const { data: monitorData } = useQuery({
-  queryKey: computed(() => ['monitor', sshStore.sessionId]),
-  queryFn: () => systemApi.getMonitorStatus(sshStore.sessionId!),
-  enabled: computed(() => !!sshStore.sessionId && sshStore.isConnected),
-  refetchInterval: 3000
-});
+const monitorData = computed(() => sshStore.monitorData);
 
 const cpuLoad = computed(() => monitorData.value?.cpu || '0.0');
 

@@ -23,17 +23,10 @@
 import { computed } from 'vue';
 import { useSshStore } from '../../stores/ssh';
 import { Cpu, MemoryStick, ArrowUp, ArrowDown } from 'lucide-vue-next';
-import { useQuery } from '@tanstack/vue-query';
-import { systemApi } from '@/api/system';
 
 const sshStore = useSshStore();
 
-const { data: monitorData } = useQuery({
-  queryKey: computed(() => ['monitor', sshStore.sessionId]),
-  queryFn: () => systemApi.getMonitorStatus(sshStore.sessionId!),
-  enabled: computed(() => !!sshStore.sessionId && sshStore.isConnected),
-  refetchInterval: 3000
-});
+const monitorData = computed(() => sshStore.monitorData);
 
 const cpuDisplay = computed(() => {
   const data = monitorData.value;
