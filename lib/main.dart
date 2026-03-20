@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:logging/logging.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'server/server_service.dart';
 import 'utils/app_settings.dart';
 
@@ -41,6 +42,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WindowListener {
+  static const double _logsPanelWidth = 800.0;
+
   final ServerService _serverService = ServerService();
   final _log = Logger('MyApp');
   StreamSubscription<LogRecord>? _logSubscription;
@@ -211,27 +214,47 @@ class _MyAppState extends State<MyApp> with WindowListener {
 
   /// 构建自绘窗口标题栏
   Widget _buildTitleBar(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    // MaterialApp.themeMode 控制的是 MaterialApp 内部子组件的 Theme，
+    // 但如果在 _MyAppState 的 build 根层级直接获取 Theme.of(context)，
+    // 它获取到的是系统默认的 Theme（通常是浅色），因为这时的 context 还在 MaterialApp 外部。
+    // 为了正确获取 MaterialApp 内部的主题，我们需要使用一个 Builder，或者直接判断我们设置的 ThemeMode。
+    // 由于我们强制设置了 ThemeMode.dark，这里我们可以直接使用暗黑模式样式，
+    // 或者通过判断系统的 brightness (如果是 ThemeMode.system 的话)。
+    // 这里因为我们写死了 ThemeMode.dark，所以我们直接使用暗黑主题的颜色。
+
+    final isDark = true; // 强制暗黑模式
+    final backgroundColor = const Color(0xFF1E1E1E); // 暗黑模式背景色
+    final textColor = Colors.white;
+    final primaryColor = Colors.deepPurple.shade200;
 
     return DragToMoveArea(
       child: Container(
         height: 40,
-        color: theme.scaffoldBackgroundColor, // 跟随系统主题背景色
+        color: backgroundColor,
         child: Row(
           children: [
             const SizedBox(width: 16),
-            Icon(Icons.terminal, size: 18, color: theme.colorScheme.primary),
+            Icon(Icons.terminal, size: 18, color: primaryColor),
             const SizedBox(width: 8),
             Text(
               'SSH Tool',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: theme.textTheme.bodyLarge?.color,
+                color: textColor,
               ),
             ),
             const Spacer(),
+            // 显示/隐藏日志按钮
+            _buildWindowButton(
+              icon: Icons.terminal,
+              onTap: () {
+                setState(() {
+                  _showLogs = !_showLogs;
+                });
+              },
+              isDark: isDark,
+            ),
             // 最小化按钮
             _buildWindowButton(
               icon: Icons.remove,
@@ -278,7 +301,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
           brightness: Brightness.dark,
         ),
       ),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.dark, // 默认使用暗黑模式
       home: Scaffold(
         body: SafeArea(
           child: Column(
@@ -297,10 +320,35 @@ class _MyAppState extends State<MyApp> with WindowListener {
                           transparentBackground: true,
                           disableContextMenu: true,
                           isInspectable: kDebugMode,
+                          useShouldOverrideUrlLoading: true, // 启用 URL 拦截
                         ),
                         onWebViewCreated: (controller) {
                           webViewController = controller;
                         },
+                        shouldOverrideUrlLoading:
+                            (controller, navigationAction) async {
+                              final uri = navigationAction.request.url;
+                              if (uri != null) {
+                                // 判断是否为外部链接 (不是我们的 localhost 本地服务)
+                                if (uri.scheme == 'http' ||
+                                    uri.scheme == 'https') {
+                                  if (uri.host != 'localhost' &&
+                                      uri.host != '127.0.0.1') {
+                                    // 使用系统默认浏览器打开
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(
+                                        uri,
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                    }
+                                    // 阻止 WebView 在内部打开该链接
+                                    return NavigationActionPolicy.CANCEL;
+                                  }
+                                }
+                              }
+                              // 允许在 WebView 内部跳转（比如 localhost 路由）
+                              return NavigationActionPolicy.ALLOW;
+                            },
                         onReceivedError: (controller, request, error) {
                           _log.severe('WebView Error: ${error.description}');
                         },
@@ -309,167 +357,264 @@ class _MyAppState extends State<MyApp> with WindowListener {
                         },
                       ),
                     // Logs Overlay
-                    if (_showLogs)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        bottom: 0,
-                        width: MediaQuery.of(context).size.width > 400
-                            ? 400
-                            : MediaQuery.of(context).size.width,
-                        child: Container(
-                          color: Colors.black.withValues(alpha: 0.9),
-                          child: Column(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Host Logs',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.close,
-                                        color: Colors.white,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _showLogs = false;
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Divider(color: Colors.grey),
-                              Expanded(
-                                child: _logs.isEmpty
-                                    ? const Center(
-                                        child: Text(
-                                          '暂无日志...',
-                                          style: TextStyle(color: Colors.grey),
-                                        ),
-                                      )
-                                    : ListView.builder(
-                                        controller: _scrollController,
-                                        itemCount: _logs.length,
-                                        itemBuilder: (context, index) {
-                                          return Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8.0,
-                                              vertical: 2.0,
-                                            ),
-                                            child: SelectableText(
-                                              _logs[index],
-                                              style: const TextStyle(
-                                                color: Colors.greenAccent,
-                                                fontFamily: 'consolas',
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Text(
-                                          '端口: ',
-                                          style: TextStyle(color: Colors.white),
-                                        ),
-                                        SizedBox(
-                                          width: 80,
-                                          child: TextField(
-                                            controller: _portController,
-                                            enabled: !_isRunning,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 14,
-                                            ),
-                                            decoration: const InputDecoration(
-                                              isDense: true,
-                                              contentPadding:
-                                                  EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 8,
-                                                  ),
-                                              border: OutlineInputBorder(),
-                                              enabledBorder: OutlineInputBorder(
-                                                borderSide: BorderSide(
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            ),
-                                            keyboardType: TextInputType.number,
-                                            onChanged: (value) {
-                                              final port = int.tryParse(value);
-                                              if (port != null &&
-                                                  port > 0 &&
-                                                  port < 65536) {
-                                                _serverService.port = port;
-                                                AppSettings.savePort(port);
-                                              }
-                                            },
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        OutlinedButton(
-                                          onPressed: _clearLogs,
-                                          child: const Text('清空'),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: ElevatedButton(
-                                            onPressed: _isRunning
-                                                ? _stopServer
-                                                : _startServer,
-                                            child: Text(
-                                              _isRunning ? '停止服务' : '启动服务',
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      top: 0,
+                      bottom: 0,
+                      right: _showLogs
+                          ? 0
+                          : -(MediaQuery.of(context).size.width >
+                                    _logsPanelWidth
+                                ? _logsPanelWidth
+                                : MediaQuery.of(context).size.width),
+                      width: MediaQuery.of(context).size.width > _logsPanelWidth
+                          ? _logsPanelWidth
+                          : MediaQuery.of(context).size.width,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFF1E1E1E,
+                          ).withValues(alpha: 0.98),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              blurRadius: 16,
+                              offset: const Offset(-4, 0),
+                            ),
+                          ],
+                          border: Border(
+                            left: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
                           ),
                         ),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                                vertical: 12.0,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.terminal,
+                                        color: Colors.white70,
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Host Logs',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Colors.white70,
+                                      size: 20,
+                                    ),
+                                    splashRadius: 20,
+                                    onPressed: () {
+                                      setState(() {
+                                        _showLogs = false;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Divider(height: 1, color: Colors.white12),
+                            Expanded(
+                              child: _logs.isEmpty
+                                  ? const Center(
+                                      child: Text(
+                                        '暂无日志...',
+                                        style: TextStyle(color: Colors.white38),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      controller: _scrollController,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8.0,
+                                      ),
+                                      itemCount: _logs.length,
+                                      itemBuilder: (context, index) {
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16.0,
+                                            vertical: 2.0,
+                                          ),
+                                          child: SelectableText(
+                                            _logs[index],
+                                            style: const TextStyle(
+                                              color: Color(0xFF4AF626),
+                                              fontFamily: 'Consolas',
+                                              fontFamilyFallback: [
+                                                'Courier New',
+                                                'monospace',
+                                              ],
+                                              fontSize: 13,
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
+                            const Divider(height: 1, color: Colors.white12),
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Text(
+                                        '端口: ',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        width: 80,
+                                        child: TextField(
+                                          controller: _portController,
+                                          enabled: !_isRunning,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                          decoration: InputDecoration(
+                                            isDense: true,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 10,
+                                                ),
+                                            filled: true,
+                                            fillColor: Colors.white.withValues(
+                                              alpha: 0.05,
+                                            ),
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              borderSide: BorderSide.none,
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              borderSide: const BorderSide(
+                                                color: Colors.white24,
+                                              ),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              borderSide: const BorderSide(
+                                                color: Colors.blueAccent,
+                                              ),
+                                            ),
+                                          ),
+                                          keyboardType: TextInputType.number,
+                                          onChanged: (value) {
+                                            final port = int.tryParse(value);
+                                            if (port != null &&
+                                                port > 0 &&
+                                                port < 65536) {
+                                              _serverService.port = port;
+                                              AppSettings.savePort(port);
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      OutlinedButton.icon(
+                                        onPressed: _clearLogs,
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          size: 16,
+                                        ),
+                                        label: const Text('清空'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.white70,
+                                          side: const BorderSide(
+                                            color: Colors.white24,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _isRunning
+                                          ? _stopServer
+                                          : _startServer,
+                                      icon: Icon(
+                                        _isRunning
+                                            ? Icons.stop
+                                            : Icons.play_arrow,
+                                      ),
+                                      label: Text(
+                                        _isRunning ? '停止服务' : '启动服务',
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: _isRunning
+                                            ? Colors.redAccent.shade400
+                                            : Colors.green.shade600,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        elevation: 0,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        floatingActionButton: _showLogs
-            ? null
-            : FloatingActionButton(
-                mini: true,
-                backgroundColor: Colors.black54,
-                child: const Icon(Icons.terminal, color: Colors.white),
-                onPressed: () {
-                  setState(() {
-                    _showLogs = true;
-                  });
-                },
-              ),
       ),
     );
   }
