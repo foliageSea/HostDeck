@@ -184,45 +184,9 @@ class _MyAppState extends State<MyApp> with WindowListener {
     });
   }
 
-  /// 构建自定义窗口控制按钮
-  Widget _buildWindowButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    required bool isDark,
-    bool isClose = false,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        hoverColor: isClose
-            ? Colors.red
-            : (isDark ? Colors.white12 : Colors.black12),
-        child: Container(
-          width: 46,
-          height: 40,
-          alignment: Alignment.center,
-          child: Icon(
-            icon,
-            size: 16,
-            color: isDark ? Colors.white : Colors.black,
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建自绘窗口标题栏
+  /// 构建自绘窗口标题栏 (MacOS 风格)
   Widget _buildTitleBar(BuildContext context) {
-    // MaterialApp.themeMode 控制的是 MaterialApp 内部子组件的 Theme，
-    // 但如果在 _MyAppState 的 build 根层级直接获取 Theme.of(context)，
-    // 它获取到的是系统默认的 Theme（通常是浅色），因为这时的 context 还在 MaterialApp 外部。
-    // 为了正确获取 MaterialApp 内部的主题，我们需要使用一个 Builder，或者直接判断我们设置的 ThemeMode。
-    // 由于我们强制设置了 ThemeMode.dark，这里我们可以直接使用暗黑模式样式，
-    // 或者通过判断系统的 brightness (如果是 ThemeMode.system 的话)。
-    // 这里因为我们写死了 ThemeMode.dark，所以我们直接使用暗黑主题的颜色。
-
-    final isDark = true; // 强制暗黑模式
+    // 强制暗黑模式背景色和主题颜色
     final backgroundColor = const Color(0xFF1E1E1E); // 暗黑模式背景色
     final textColor = Colors.white;
     final primaryColor = Colors.deepPurple.shade200;
@@ -231,54 +195,67 @@ class _MyAppState extends State<MyApp> with WindowListener {
       child: Container(
         height: 40,
         color: backgroundColor,
-        child: Row(
+        child: Stack(
           children: [
-            const SizedBox(width: 16),
-            Icon(Icons.terminal, size: 18, color: primaryColor),
-            const SizedBox(width: 8),
-            Text(
-              'SSH Tool',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: textColor,
+            // 左侧：MacOS 风格交通灯窗口控制按钮
+            Positioned(
+              left: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: _MacWindowButtonRow(
+                  onClose: () => windowManager.close(),
+                  onMinimize: () => windowManager.minimize(),
+                  onMaximize: () async {
+                    if (await windowManager.isMaximized()) {
+                      windowManager.unmaximize();
+                    } else {
+                      windowManager.maximize();
+                    }
+                  },
+                ),
               ),
             ),
-            const Spacer(),
-            // 显示/隐藏日志按钮
-            _buildWindowButton(
-              icon: Icons.terminal,
-              onTap: () {
-                setState(() {
-                  _showLogs = !_showLogs;
-                });
-              },
-              isDark: isDark,
+            // 中间：应用图标和居中标题
+            Align(
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.terminal, size: 18, color: primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    'SSH Tool',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: textColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            // 最小化按钮
-            _buildWindowButton(
-              icon: Icons.remove,
-              onTap: () => windowManager.minimize(),
-              isDark: isDark,
-            ),
-            // 最大化/还原按钮
-            _buildWindowButton(
-              icon: _isMaximized ? Icons.filter_none : Icons.crop_square,
-              onTap: () async {
-                if (await windowManager.isMaximized()) {
-                  windowManager.unmaximize();
-                } else {
-                  windowManager.maximize();
-                }
-              },
-              isDark: isDark,
-            ),
-            // 关闭按钮
-            _buildWindowButton(
-              icon: Icons.close,
-              onTap: () => windowManager.close(),
-              isDark: isDark,
-              isClose: true,
+            // 右侧：Host Logs 操作按钮
+            Positioned(
+              right: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton(
+                  icon: const Icon(Icons.receipt_long, size: 18),
+                  color: Colors.white70,
+                  hoverColor: Colors.white12,
+                  splashRadius: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  tooltip: 'Host Logs',
+                  onPressed: () {
+                    setState(() {
+                      _showLogs = !_showLogs;
+                    });
+                  },
+                ),
+              ),
             ),
           ],
         ),
@@ -615,6 +592,76 @@ class _MyAppState extends State<MyApp> with WindowListener {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// MacOS 风格的交通灯控制按钮组组件
+class _MacWindowButtonRow extends StatefulWidget {
+  final VoidCallback onClose;
+  final VoidCallback onMinimize;
+  final VoidCallback onMaximize;
+
+  const _MacWindowButtonRow({
+    required this.onClose,
+    required this.onMinimize,
+    required this.onMaximize,
+  });
+
+  @override
+  State<_MacWindowButtonRow> createState() => _MacWindowButtonRowState();
+}
+
+class _MacWindowButtonRowState extends State<_MacWindowButtonRow> {
+  bool _isHovering = false;
+
+  /// 构建单个交通灯按钮
+  Widget _buildButton(Color color, IconData icon, VoidCallback onTap) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.black.withValues(alpha: 0.2),
+              width: 0.5,
+            ),
+          ),
+          child: _isHovering
+              ? Icon(
+                  icon,
+                  size: 8,
+                  color: Colors.black.withValues(alpha: 0.6),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 红色关闭按钮
+          _buildButton(const Color(0xFFFF5F56), Icons.close, widget.onClose),
+          const SizedBox(width: 8),
+          // 黄色最小化按钮
+          _buildButton(const Color(0xFFFFBD2E), Icons.remove, widget.onMinimize),
+          const SizedBox(width: 8),
+          // 绿色最大化/还原按钮
+          _buildButton(const Color(0xFF27C93F), Icons.open_in_full, widget.onMaximize),
+        ],
       ),
     );
   }
