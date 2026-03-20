@@ -2,49 +2,32 @@
   <div class="h-screen w-screen overflow-hidden relative font-sans text-gray-900 dark:text-gray-100">
     <!-- Background Layer -->
     <div class="absolute inset-0 overflow-hidden">
-      <video
-        v-if="settingsStore.backgroundType === 'video' && videoUrl"
-        :src="videoUrl"
-        class="absolute inset-0 w-full h-full object-cover"
-        autoplay
-        loop
-        muted
-        playsinline
-      ></video>
-      <div 
-        v-else
-        class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-300"
-        :style="{ backgroundImage: `url(${currentBgImage})` }"
-      ></div>
-      
+      <video v-if="settingsStore.backgroundType === 'video' && videoUrl" :src="videoUrl"
+        class="absolute inset-0 w-full h-full object-cover" autoplay loop muted playsinline></video>
+      <div v-else class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-300"
+        :style="{ backgroundImage: `url(${currentBgImage})` }"></div>
+
       <!-- Dark mode overlay -->
-      <div class="absolute inset-0 bg-black/0 dark:bg-black/40 transition-colors duration-300 pointer-events-none"></div>
-    </div>
-    
-    <!-- Top Bar -->
-    <TopBar />
-    
-    <!-- Window Area -->
-    <div class="absolute inset-0 top-8 bottom-20 pointer-events-none">
-      <div class="relative w-full h-full pointer-events-auto">
-        <Window 
-          v-for="window in windows" 
-          :key="window.id" 
-          :window="window" 
-        />
+      <div class="absolute inset-0 bg-black/0 dark:bg-black/40 transition-colors duration-300 pointer-events-none">
       </div>
     </div>
-    
+
+    <!-- Top Bar -->
+    <TopBar />
+
+    <!-- Window Area -->
+    <div class="absolute inset-0 top-8 bottom-20 pointer-events-none">
+      <div class="relative w-full h-[calc(100%-15px)] pointer-events-auto">
+        <Window v-for="window in windows" :key="window.id" :window="window" />
+      </div>
+    </div>
+
     <!-- Dock -->
     <Dock />
-    
+
     <!-- Window Switcher -->
-    <WindowSwitcher
-      v-if="switcherVisible"
-      :windows="switcherWindows"
-      :selected-index="switcherIndex"
-      @select="selectWindow"
-    />
+    <WindowSwitcher v-if="switcherVisible" :windows="switcherWindows" :selected-index="switcherIndex"
+      @select="selectWindow" />
   </div>
 </template>
 

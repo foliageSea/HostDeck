@@ -1,7 +1,7 @@
 <template>
   <div class="absolute flex flex-col bg-background dark:bg-card overflow-hidden select-none" :class="[
     window.isMaximized ? 'rounded-none border-0' : 'rounded-lg border',
-    isActive ? 'border-primary shadow-2xl border-2' : 'border-border shadow-lg',
+    isActive ? 'border-border shadow-lg' : 'border-border shadow-lg',
     (isDragging || isResizing) ? '' : 'transition-all duration-200 ease-in-out'
   ]" :style="window.isMaximized ? {
     left: '0px',
@@ -28,12 +28,10 @@
           class="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center group">
           <span class="text-[8px] text-red-900 opacity-0 group-hover:opacity-100">x</span>
         </button>
-        <!-- <button 
-          @click.stop="minimizeWindow"
-          class="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors flex items-center justify-center group"
-        >
+        <button @click.stop="minimizeWindow"
+          class="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors flex items-center justify-center group">
           <span class="text-[8px] text-yellow-900 opacity-0 group-hover:opacity-100">-</span>
-        </button> -->
+        </button>
         <button @click.stop="maximizeWindow"
           class="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center group">
           <span class="text-[8px] text-green-900 opacity-0 group-hover:opacity-100">+</span>
@@ -88,9 +86,9 @@ const closeWindow = () => {
   desktopStore.closeWindow(props.window.id);
 };
 
-// const minimizeWindow = () => {
-//   desktopStore.minimizeWindow(props.id)
-// };
+const minimizeWindow = () => {
+  desktopStore.minimizeWindow(props.window.id)
+};
 
 const maximizeWindow = () => {
   desktopStore.maximizeWindow(props.window.id);
