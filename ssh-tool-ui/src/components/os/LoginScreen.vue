@@ -23,10 +23,11 @@
 
     <!-- Login Container -->
     <Card
-      class="relative z-10 w-full max-w-md bg-background/60 backdrop-blur-xl border-white/20 shadow-2xl animate-fade-in">
-      <CardHeader class="flex flex-col items-center pb-6">
+      class="relative z-10 w-full max-w-md bg-background/60 backdrop-blur-xl border-white/20 shadow-2xl animate-fade-in transition-all duration-300"
+      :class="{ 'animate-shake': isShaking }">
+      <CardHeader class="flex flex-col items-center pb-6 transition-all duration-300">
         <div
-          class="w-24 h-24 rounded-full bg-muted/80 backdrop-blur-xl flex items-center justify-center text-4xl mb-2 shadow-2xl border border-white/20">
+          class="w-24 h-24 rounded-full bg-muted/80 backdrop-blur-xl flex items-center justify-center text-4xl mb-2 shadow-2xl border border-white/20 transition-transform duration-500 hover:scale-105">
           <Monitor class="w-12 h-12 text-foreground" />
         </div>
 
@@ -34,17 +35,18 @@
           <CardTitle class="text-xl">选择服务器</CardTitle>
         </div>
         <div v-else class="flex items-center w-full relative">
-          <Button variant="ghost" size="sm" @click="resetSelection" class="absolute left-0 -ml-2">
+          <Button variant="ghost" size="sm" @click="resetSelection" class="absolute left-0 -ml-2 transition-transform hover:-translate-x-1">
             <ArrowLeft class="w-4 h-4 mr-1" /> 返回
           </Button>
           <CardTitle class="mx-auto">{{ isNewConnection ? '新建连接' : selectedServer?.name }}</CardTitle>
         </div>
       </CardHeader>
 
-      <CardContent>
-        <!-- Server Selection -->
-        <div v-if="!selectedServer && !isNewConnection" class="space-y-4">
-          <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar px-1">
+      <CardContent class="overflow-hidden">
+        <Transition name="fade-slide" mode="out-in">
+          <!-- Server Selection -->
+          <div v-if="!selectedServer && !isNewConnection" class="space-y-4">
+            <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar px-1">
             <div v-for="server in sshStore.savedServers" :key="server.id" @click="selectServer(server)"
               class="flex items-center p-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl cursor-pointer transition-all border border-white/10 group">
               <div
@@ -104,6 +106,7 @@
             {{ loading ? '连接中...' : '登录' }}
           </Button>
         </form>
+        </Transition>
       </CardContent>
     </Card>
 
@@ -156,6 +159,7 @@ const { toast } = useToast();
 
 const currentBgImage = computed(() => settingsStore.customBackground || bgImage);
 const videoUrl = ref<string>('');
+const isShaking = ref(false);
 
 const loadVideo = async () => {
   if (settingsStore.backgroundType === 'video') {
@@ -326,8 +330,16 @@ const { mutate: connectMutate, isPending: loading } = useMutation({
     sshStore.setSession(data.sessionId, data.connectionId, form.host, form.username);
   },
   onError: (error: any) => {
+    isShaking.value = true;
+    setTimeout(() => {
+      isShaking.value = false;
+    }, 500);
     const msg = error.response?.data || error.message || 'Unknown error';
-    alert('Connection failed: ' + msg);
+    toast({
+      title: "连接失败",
+      description: msg,
+      variant: "destructive"
+    });
   }
 })
 
@@ -351,19 +363,44 @@ const connect = () => {
   border-radius: 2px;
 }
 
-@keyframes fade-in {
+@keyframes fade-in-up {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px) scale(0.95);
   }
-
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .animate-fade-in {
-  animation: fade-in 0.5s ease-out;
+  animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+  20%, 40%, 60%, 80% { transform: translateX(6px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Transition for form switching */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s ease-out;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
 }
 </style>

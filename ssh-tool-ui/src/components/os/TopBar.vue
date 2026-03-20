@@ -1,6 +1,6 @@
 <template>
   <div
-    class="fixed top-0 left-0 right-0 h-9 bg-background/40 backdrop-blur-xl border-b border-border/50 z-50 flex items-center justify-between px-4 select-none">
+    class="fixed top-0 left-0 right-0 h-9 bg-background/40 backdrop-blur-xl border-b border-border/50 z-50 flex items-center justify-between px-4 select-none animate-in slide-in-from-top-full duration-500 ease-out fill-mode-both">
     <div class="flex items-center space-x-1">
       <span class="font-bold text-sm flex items-center mr-4 text-foreground">
         <Terminal class="w-4 h-4 mr-2" /> SSH Tool

@@ -1,40 +1,39 @@
 <template>
   <div class="absolute flex flex-col bg-background dark:bg-card overflow-hidden select-none" :class="[
     window.isMaximized ? 'rounded-none border-0' : 'rounded-lg border',
-    isActive ? 'border-border shadow-lg' : 'border-border shadow-lg',
-    (isDragging || isResizing) ? '' : 'transition-all duration-200 ease-in-out'
+    isActive ? 'border-border shadow-2xl' : 'border-border shadow-lg',
+    (isDragging || isResizing) ? '' : 'transition-all duration-300 ease-out',
+    window.isMinimized ? 'opacity-0 scale-90 translate-y-10 pointer-events-none' : 'opacity-100 scale-100'
   ]" :style="window.isMaximized ? {
     left: '0px',
     top: '0px',
     width: '100%',
     height: '100%',
-    zIndex: window.zIndex,
-    display: window.isMinimized ? 'none' : 'flex'
+    zIndex: window.zIndex
   } : {
     left: `${window.x}px`,
     top: `${window.y}px`,
     width: `${window.width}px`,
     height: `${window.height}px`,
-    zIndex: window.zIndex,
-    display: window.isMinimized ? 'none' : 'flex'
+    zIndex: window.zIndex
   }" @mousedown="focusWindow">
     <!-- Title Bar -->
     <div
       :class="['h-8 bg-muted/50 border-b border-border flex items-center justify-between px-3', window.isMaximized ? 'cursor-default' : 'cursor-move']"
       @mousedown.prevent="startDrag" @dblclick="maximizeWindow">
-      <div class="flex items-center space-x-2">
+      <div class="flex items-center space-x-2 group/controls">
         <!-- Controls -->
         <button @click.stop="closeWindow"
-          class="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center group">
-          <span class="text-[8px] text-red-900 opacity-0 group-hover:opacity-100">x</span>
+          class="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center">
+          <span class="text-[8px] text-red-900 opacity-0 group-hover/controls:opacity-100 transition-opacity duration-200">x</span>
         </button>
         <button @click.stop="minimizeWindow"
-          class="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors flex items-center justify-center group">
-          <span class="text-[8px] text-yellow-900 opacity-0 group-hover:opacity-100">-</span>
+          class="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors flex items-center justify-center">
+          <span class="text-[8px] text-yellow-900 opacity-0 group-hover/controls:opacity-100 transition-opacity duration-200">-</span>
         </button>
         <button @click.stop="maximizeWindow"
-          class="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center group">
-          <span class="text-[8px] text-green-900 opacity-0 group-hover:opacity-100">+</span>
+          class="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center">
+          <span class="text-[8px] text-green-900 opacity-0 group-hover/controls:opacity-100 transition-opacity duration-200">+</span>
         </button>
       </div>
 

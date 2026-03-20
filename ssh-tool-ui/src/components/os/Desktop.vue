@@ -17,17 +17,23 @@
 
     <!-- Window Area -->
     <div class="absolute inset-0 top-8 bottom-20 pointer-events-none z-10">
-      <div class="relative w-full h-[calc(100%-15px)] pointer-events-auto">
+      <TransitionGroup 
+        name="window-anim" 
+        tag="div" 
+        class="relative w-full h-[calc(100%-15px)] pointer-events-auto"
+      >
         <Window v-for="window in windows" :key="window.id" :window="window" />
-      </div>
+      </TransitionGroup>
     </div>
 
     <!-- Dock -->
-    <Dock />
+    <Dock class="animate-in slide-in-from-bottom-12 duration-700 ease-out fill-mode-both" />
 
     <!-- Window Switcher -->
-    <WindowSwitcher v-if="switcherVisible" :windows="switcherWindows" :selected-index="switcherIndex"
-      @select="selectWindow" />
+    <Transition name="fade">
+      <WindowSwitcher v-if="switcherVisible" :windows="switcherWindows" :selected-index="switcherIndex"
+        @select="selectWindow" />
+    </Transition>
   </div>
 </template>
 
@@ -139,3 +145,26 @@ onUnmounted(() => {
 const windows = computed(() => desktopStore.windows);
 const currentBgImage = computed(() => settingsStore.customBackground || bgImage);
 </script>
+
+<style scoped>
+.window-anim-enter-active,
+.window-anim-leave-active {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.window-anim-enter-from,
+.window-anim-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(10px);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

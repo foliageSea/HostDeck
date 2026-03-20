@@ -10,10 +10,11 @@
             <Tooltip>
               <TooltipTrigger as-child>
                 <div
-                  class="relative flex flex-col items-center cursor-pointer transition-all duration-300 hover:scale-110"
+                  class="relative flex flex-col items-center cursor-pointer transition-all duration-300 ease-out hover:scale-[1.2] hover:-translate-y-2 group/dock-item"
                   @click="handleAppClick(app.id)">
                   <div
-                    class="w-12 h-12 rounded-xl flex items-center justify-center text-3xl shadow-lg bg-card text-card-foreground relative overflow-hidden border border-border">
+                    class="w-12 h-12 rounded-xl flex items-center justify-center text-3xl shadow-lg bg-card text-card-foreground relative overflow-hidden border border-border transition-all duration-300"
+                    :class="[bouncingAppId === app.id ? 'animate-bounce' : '']">
                     <!-- Icon Placeholder -->
                     <component v-if="iconMap[app.icon]" :is="iconMap[app.icon]" class="w-6 h-6 " />
                     <img v-else-if="app.icon.startsWith('http')" :src="app.icon" class="w-full h-full object-cover" />
@@ -21,7 +22,7 @@
                   </div>
 
                   <!-- Indicator for open apps -->
-                  <div v-if="isAppOpen(app.id)" class="w-1 h-1 bg-primary rounded-full mt-1"></div>
+                  <div v-if="isAppOpen(app.id)" class="w-1 h-1 bg-primary rounded-full mt-1.5 animate-in zoom-in-0 duration-300"></div>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -44,7 +45,7 @@
         <!-- Window Selector Popover -->
         <div v-if="showSelector === app.id" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-48 z-[60]">
           <div
-            class="relative z-50 flex flex-col bg-popover text-popover-foreground rounded-md border shadow-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            class="relative z-50 flex flex-col bg-popover text-popover-foreground rounded-md border shadow-md overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out">
             <div class="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-b bg-muted/50">
               选择窗口
             </div>
@@ -91,6 +92,7 @@ const desktopStore = useDesktopStore();
 const apps = computed(() => Object.values(desktopStore.apps));
 const showSelector = ref<string | null>(null);
 const dockRef = ref<HTMLElement | null>(null);
+const bouncingAppId = ref<string | null>(null);
 
 onClickOutside(dockRef, () => {
   showSelector.value = null;
@@ -113,6 +115,14 @@ const getAppWindows = (appId: string) => {
 };
 
 const handleAppClick = (appId: string) => {
+  // Trigger bounce animation
+  bouncingAppId.value = appId;
+  setTimeout(() => {
+    if (bouncingAppId.value === appId) {
+      bouncingAppId.value = null;
+    }
+  }, 1000);
+
   // If selector is already open for this app, close it
   if (showSelector.value === appId) {
     showSelector.value = null;
