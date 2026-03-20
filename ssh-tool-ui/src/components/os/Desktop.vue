@@ -16,7 +16,7 @@
     <TopBar />
 
     <!-- Window Area -->
-    <div class="absolute inset-0 top-8 bottom-20 pointer-events-none">
+    <div class="absolute inset-0 top-8 bottom-20 pointer-events-none z-10">
       <div class="relative w-full h-[calc(100%-15px)] pointer-events-auto">
         <Window v-for="window in windows" :key="window.id" :window="window" />
       </div>

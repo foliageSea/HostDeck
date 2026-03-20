@@ -1,6 +1,6 @@
 <template>
   <TooltipProvider>
-    <div
+    <div ref="dockRef"
       class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-background/40 backdrop-blur-2xl border border-border/50 rounded-2xl px-4 py-2 flex items-end space-x-4 shadow-2xl z-50">
 
       <div v-for="app in apps" :key="app.id" class="relative group" v-show="app.hide !== true">
@@ -43,9 +43,6 @@
 
         <!-- Window Selector Popover -->
         <div v-if="showSelector === app.id" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-48 z-[60]">
-          <!-- Backdrop to close on click outside -->
-          <div class="fixed inset-0 z-40" @click.stop="showSelector = null"></div>
-
           <div
             class="relative z-50 flex flex-col bg-popover text-popover-foreground rounded-md border shadow-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div class="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-b bg-muted/50">
@@ -73,6 +70,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { onClickOutside } from '@vueuse/core';
 import { useDesktopStore } from '@/stores/desktop';
 import { Terminal, Folder, Activity, Lock, FileText } from 'lucide-vue-next';
 import {
@@ -92,6 +90,11 @@ const desktopStore = useDesktopStore();
 
 const apps = computed(() => Object.values(desktopStore.apps));
 const showSelector = ref<string | null>(null);
+const dockRef = ref<HTMLElement | null>(null);
+
+onClickOutside(dockRef, () => {
+  showSelector.value = null;
+});
 
 const iconMap: Record<string, any> = {
   'terminal': Terminal,
