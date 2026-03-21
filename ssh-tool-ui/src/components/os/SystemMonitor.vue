@@ -40,10 +40,10 @@ const cpuDisplay = computed(() => {
 
 const ramDisplay = computed(() => {
   const data = monitorData.value;
-  if (!data) return '0%';
+  if (!data || !data.ram) return '0%';
   
-  const total = data.ram.total;
-  const used = data.ram.used;
+  const total = data.ram.total || 0;
+  const used = data.ram.used || 0;
   const percentage = total > 0 ? Math.round((used / total) * 100) : 0;
   return `${percentage}%`;
 });

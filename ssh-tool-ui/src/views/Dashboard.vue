@@ -72,16 +72,16 @@ const cpuUsageDisplay = computed(() => {
 
 const ramUsage = computed(() => {
   const data = monitorData.value;
-  if (!data) return 0;
-  const total = data.ram.total;
-  const used = data.ram.used;
+  if (!data || !data.ram) return 0;
+  const total = data.ram.total || 0;
+  const used = data.ram.used || 0;
   return total > 0 ? Math.round((used / total) * 100) : 0;
 });
 
 const ramDetails = computed(() => {
   const data = monitorData.value;
-  if (!data) return '0 / 0 MB';
-  return `${data.ram.used} / ${data.ram.total} MB`;
+  if (!data || !data.ram) return '0 / 0 MB';
+  return `${data.ram.used || 0} / ${data.ram.total || 0} MB`;
 });
 
 const diskUsage = computed(() => monitorData.value?.disk || '0%');
