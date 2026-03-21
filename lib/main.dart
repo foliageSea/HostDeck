@@ -27,6 +27,7 @@ void main() async {
   // 等待窗口准备就绪后显示，避免白屏闪烁
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.setAspectRatio(16 / 9); // 锁定窗口比例为 16:9
+    await windowManager.maximize();
     await windowManager.show();
     await windowManager.focus();
   });
@@ -247,7 +248,10 @@ class _MyAppState extends State<MyApp> with WindowListener {
                   hoverColor: Colors.white12,
                   splashRadius: 20,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   tooltip: 'Host Logs',
                   onPressed: () {
                     setState(() {
@@ -634,11 +638,7 @@ class _MacWindowButtonRowState extends State<_MacWindowButtonRow> {
             ),
           ),
           child: _isHovering
-              ? Icon(
-                  icon,
-                  size: 8,
-                  color: Colors.black.withValues(alpha: 0.6),
-                )
+              ? Icon(icon, size: 8, color: Colors.black.withValues(alpha: 0.6))
               : null,
         ),
       ),
@@ -657,10 +657,18 @@ class _MacWindowButtonRowState extends State<_MacWindowButtonRow> {
           _buildButton(const Color(0xFFFF5F56), Icons.close, widget.onClose),
           const SizedBox(width: 8),
           // 黄色最小化按钮
-          _buildButton(const Color(0xFFFFBD2E), Icons.remove, widget.onMinimize),
+          _buildButton(
+            const Color(0xFFFFBD2E),
+            Icons.remove,
+            widget.onMinimize,
+          ),
           const SizedBox(width: 8),
           // 绿色最大化/还原按钮
-          _buildButton(const Color(0xFF27C93F), Icons.open_in_full, widget.onMaximize),
+          _buildButton(
+            const Color(0xFF27C93F),
+            Icons.open_in_full,
+            widget.onMaximize,
+          ),
         ],
       ),
     );
