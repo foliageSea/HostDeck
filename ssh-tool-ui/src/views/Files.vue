@@ -56,7 +56,7 @@ import { ref, computed, onMounted, nextTick, provide, reactive } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import { createFileStore, FileStoreKey, type FileItem } from '../stores/file'
 import { useSshStore } from '../stores/ssh'
-import { useToastStore } from '../stores/toast'
+import { toast } from 'vue-sonner'
 import { useDesktopStore } from '../stores/desktop'
 import { resolve } from '../utils/path'
 import FileToolbar from '../components/file/FileToolbar.vue'
@@ -78,7 +78,6 @@ import { fileApi } from '@/api/files'
 const fileStore = createFileStore()
 provide(FileStoreKey, fileStore)
 const sshStore = useSshStore()
-const toast = useToastStore()
 const desktopStore = useDesktopStore()
 
 // Selection State

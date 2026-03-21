@@ -30,6 +30,7 @@
     "tailwindcss-animate": "^1.0.7",
     "vue": "^3.5.25",
     "vue-router": "^5.0.3",
+    "vue-sonner": "^2.0.9",
     "xgplayer": "^3.0.23"
   },
   "devDependencies": {

@@ -27,7 +27,7 @@ import FileEditor from '@/components/file/FileEditor.vue'
 import LanguageMapDialog from '@/components/settings/LanguageMapDialog.vue'
 import { Button } from '@/components/ui/button'
 import { useDesktopStore } from '@/stores/desktop'
-import { useToastStore } from '@/stores/toast'
+import { toast } from 'vue-sonner'
 import { useSettingsStore } from '@/stores/settings'
 import { dirname } from '@/utils/path'
 import { fileApi } from '@/api/files'
@@ -39,7 +39,6 @@ const props = defineProps<{
 }>()
 
 const desktopStore = useDesktopStore()
-const toast = useToastStore()
 const settingsStore = useSettingsStore()
 
 const loading = ref(true)

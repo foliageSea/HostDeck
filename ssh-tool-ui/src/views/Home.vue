@@ -133,6 +133,7 @@ import { useSshStore, type SavedServer } from '../stores/ssh'
 import { Monitor, Trash2, Eye, EyeOff, Loader2, Save } from 'lucide-vue-next'
 import { authApi } from '@/api/auth';
 import { useMutation } from '@tanstack/vue-query';
+import { toast } from 'vue-sonner';
 
 const router = useRouter()
 const sshStore = useSshStore()
@@ -180,7 +181,7 @@ function deleteServer(id: number | undefined) {
 
 function saveServer() {
   if (!form.host || !form.username) {
-    alert('Host and Username are required to save.')
+    toast.warning('Host and Username are required to save.')
     return
   }
 
@@ -208,7 +209,7 @@ const { mutate: connectMutate, isPending: loading } = useMutation({
     router.push('/dashboard')
   },
   onError: (error: any) => {
-    alert('Connection failed: ' + (error.response?.data || error.message))
+    toast.error('Connection failed: ' + (error.response?.data || error.message))
   }
 })
 

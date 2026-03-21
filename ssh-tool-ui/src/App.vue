@@ -5,6 +5,7 @@
       <LoginScreen v-else />
     </Transition>
     <Toaster />
+    <SonnerToaster position="top-right" richColors />
   </div>
 </template>
 
@@ -14,6 +15,7 @@ import { useSettingsStore } from './stores/settings';
 import Desktop from './components/os/Desktop.vue';
 import LoginScreen from './components/os/LoginScreen.vue';
 import Toaster from '@/components/ui/toast/Toaster.vue';
+import { Toaster as SonnerToaster } from 'vue-sonner';
 
 const sshStore = useSshStore();
 useSettingsStore(); // Initialize settings store to apply theme

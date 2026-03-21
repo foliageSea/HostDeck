@@ -69,7 +69,7 @@ import '@xterm/xterm/css/xterm.css';
 import { useSshStore } from '../stores/ssh';
 import { useSettingsStore } from '../stores/settings';
 import { useDesktopStore } from '../stores/desktop';
-import { useToastStore } from '../stores/toast';
+import { toast } from 'vue-sonner';
 import { Settings, Copy } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
@@ -93,7 +93,6 @@ const terminalContainer = ref<HTMLElement | null>(null);
 const sshStore = useSshStore();
 const settingsStore = useSettingsStore();
 const desktopStore = useDesktopStore();
-const toast = useToastStore();
 const showCopyBtn = ref(false);
 const copyBtnStyle = ref({ top: '0px', left: '0px' });
 const selectedText = ref('');
