@@ -45,16 +45,18 @@
     </div>
 
     <!-- Copy Button -->
-    <div v-if="showCopyBtn" :style="copyBtnStyle" @mousedown.stop
-      class="fixed z-50 transform -translate-x-1/2 -translate-y-full pb-2 pointer-events-none">
-      <div class="pointer-events-auto">
-        <Button size="sm" @click.stop="copySelection"
-          class="shadow-lg h-8 px-3 bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700">
-          <Copy class="w-3.5 h-3.5 mr-2" />
-          复制
-        </Button>
+    <Teleport to="body">
+      <div v-if="showCopyBtn" :style="copyBtnStyle" @mousedown.stop
+        class="fixed z-[9999] transform -translate-x-1/2 -translate-y-full pb-2 pointer-events-none">
+        <div class="pointer-events-auto">
+          <Button size="sm" @click.stop="copySelection"
+            class="shadow-lg h-8 px-3 bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700">
+            <Copy class="w-3.5 h-3.5 mr-2" />
+            复制
+          </Button>
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -102,9 +104,18 @@ const handleMouseUp = (e: MouseEvent) => {
     const selection = term.getSelection();
     if (selection) {
       selectedText.value = selection;
+      
+      let top = e.clientY;
+      let left = e.clientX;
+      
+      // 防止按钮超出屏幕顶部或两侧
+      if (top < 40) top = 40;
+      if (left < 50) left = 50;
+      if (left > window.innerWidth - 50) left = window.innerWidth - 50;
+
       copyBtnStyle.value = {
-        top: `${e.clientY}px`,
-        left: `${e.clientX}px`
+        top: `${top}px`,
+        left: `${left}px`
       };
       showCopyBtn.value = true;
     }
