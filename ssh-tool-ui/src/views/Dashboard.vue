@@ -13,7 +13,7 @@
           <Progress :model-value="cpuUsagePercent" class="h-2" />
         </CardContent>
       </Card>
-      
+
       <!-- RAM Card -->
       <Card>
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -26,7 +26,7 @@
           <Progress :model-value="ramUsage" class="h-2" />
         </CardContent>
       </Card>
-      
+
       <!-- Disk Card -->
       <Card>
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -67,7 +67,7 @@ const cpuUsagePercent = computed(() => {
 });
 
 const cpuUsageDisplay = computed(() => {
-  return `${cpuUsagePercent.value.toFixed(1)}%`;
+  return `${cpuUsagePercent.value?.toFixed(1)}%`;
 });
 
 const ramUsage = computed(() => {

@@ -168,7 +168,7 @@ class MonitorService {
 
     return SystemStatus(
       cpu: loadAvg,
-      cpuUsage: cpuUsage,
+      cpuUsage: cpuUsage ?? 0.0,
       ram: RamStatus(total: totalRam, used: usedRam),
       disk: diskUsage,
       network: networkStatus,
