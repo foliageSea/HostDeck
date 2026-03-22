@@ -49,11 +49,14 @@
                     server.name || server.host }}</div>
                   <div class="text-muted-foreground text-xs truncate">{{ server.username }}@{{ server.host }}</div>
                 </div>
-                <Button variant="ghost" size="icon" @click.stop="deleteServer(server.id)"
-                  class="absolute right-2 opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/20 transition-all"
-                  title="删除服务器">
-                  <Trash2 class="w-4 h-4" />
-                </Button>
+                <ConfirmDialog title="确认删除服务器？" :description="`您确定要删除此服务器 (${server.name || server.host}) 吗？此操作无法撤销。`"
+                  @confirm="deleteServer(server.id)">
+                  <Button variant="ghost" size="icon" @click.stop
+                    class="absolute right-2 opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/20 transition-all"
+                    title="删除服务器">
+                    <Trash2 class="w-4 h-4" />
+                  </Button>
+                </ConfirmDialog>
               </div>
             </div>
 
@@ -142,6 +145,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useToast } from '@/components/ui/toast/use-toast';
 import { processBackgroundImage } from '@/utils/image';
 import { db } from '@/utils/db';
@@ -312,11 +316,9 @@ const resetSelection = () => {
 
 const deleteServer = (id?: number) => {
   if (id === undefined) return;
-  if (confirm('确定要删除此服务器吗？')) {
-    sshStore.removeServer(id);
-    if (selectedServer.value?.id === id) {
-      resetSelection();
-    }
+  sshStore.removeServer(id);
+  if (selectedServer.value?.id === id) {
+    resetSelection();
   }
 };
 
