@@ -2,20 +2,10 @@
   <div class="h-screen w-screen bg-cover bg-center flex items-center justify-center relative overflow-hidden">
     <!-- Background Layer -->
     <div class="absolute inset-0 overflow-hidden">
-      <video
-        v-if="settingsStore.backgroundType === 'video' && videoUrl"
-        :src="videoUrl"
-        class="absolute inset-0 w-full h-full object-cover"
-        autoplay
-        loop
-        muted
-        playsinline
-      ></video>
-      <div 
-        v-else
-        class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-300"
-        :style="{ backgroundImage: `url(${currentBgImage})` }"
-      ></div>
+      <video v-if="settingsStore.backgroundType === 'video' && videoUrl" :src="videoUrl"
+        class="absolute inset-0 w-full h-full object-cover" autoplay loop muted playsinline></video>
+      <div v-else class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-300"
+        :style="{ backgroundImage: `url(${currentBgImage})` }"></div>
     </div>
 
     <!-- Blur Overlay -->
@@ -35,7 +25,8 @@
           <CardTitle class="text-xl">选择服务器</CardTitle>
         </div>
         <div v-else class="flex items-center w-full relative">
-          <Button variant="ghost" size="sm" @click="resetSelection" class="absolute left-0 -ml-2 transition-transform hover:-translate-x-1">
+          <Button variant="ghost" size="sm" @click="resetSelection"
+            class="absolute left-0 -ml-2 transition-transform hover:-translate-x-1">
             <ArrowLeft class="w-4 h-4 mr-1" /> 返回
           </Button>
           <CardTitle class="mx-auto">{{ isNewConnection ? '新建连接' : selectedServer?.name }}</CardTitle>
@@ -47,65 +38,70 @@
           <!-- Server Selection -->
           <div v-if="!selectedServer && !isNewConnection" class="space-y-4">
             <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar px-1">
-            <div v-for="server in sshStore.savedServers" :key="server.id" @click="selectServer(server)"
-              class="flex items-center p-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl cursor-pointer transition-all border border-white/10 group">
-              <div
-                class="w-10 h-10 rounded-full bg-primary/80 flex items-center justify-center text-primary-foreground mr-3 shadow-sm">
-                {{ server.name?.[0]?.toUpperCase() || 'S' }}
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="text-foreground font-medium truncate group-hover:text-primary transition-colors">{{
-                  server.name || server.host }}</div>
-                <div class="text-muted-foreground text-xs truncate">{{ server.username }}@{{ server.host }}</div>
+              <div v-for="server in sshStore.savedServers" :key="server.id" @click="selectServer(server)"
+                class="flex items-center p-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl cursor-pointer transition-all border border-white/10 group relative">
+                <div
+                  class="w-10 h-10 rounded-full bg-primary/80 flex items-center justify-center text-primary-foreground mr-3 shadow-sm">
+                  {{ server.name?.[0]?.toUpperCase() || 'S' }}
+                </div>
+                <div class="flex-1 min-w-0 pr-8">
+                  <div class="text-foreground font-medium truncate group-hover:text-primary transition-colors">{{
+                    server.name || server.host }}</div>
+                  <div class="text-muted-foreground text-xs truncate">{{ server.username }}@{{ server.host }}</div>
+                </div>
+                <Button variant="ghost" size="icon" @click.stop="deleteServer(server.id)"
+                  class="absolute right-2 opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/20 transition-all"
+                  title="删除服务器">
+                  <Trash2 class="w-4 h-4" />
+                </Button>
               </div>
             </div>
+
+            <Button @click="isNewConnection = true" class="w-full" variant="secondary">
+              <span class="mr-2">+</span> 新建连接
+            </Button>
           </div>
 
-          <Button @click="isNewConnection = true" class="w-full" variant="secondary">
-            <span class="mr-2">+</span> 新建连接
-          </Button>
-        </div>
-
-        <!-- Login Form -->
-        <form v-else @submit.prevent="connect" class="space-y-4">
-          <template v-if="isNewConnection">
-            <div class="space-y-2">
-              <Label>名称</Label>
-              <Input v-model="form.name" placeholder="显示名称（可选）" autofocus />
-            </div>
-            <div class="grid grid-cols-3 gap-2">
-              <div class="col-span-2 space-y-2">
-                <Label>主机</Label>
-                <Input v-model="form.host" placeholder="主机 IP" required />
+          <!-- Login Form -->
+          <form v-else @submit.prevent="connect" class="space-y-4">
+            <template v-if="isNewConnection">
+              <div class="space-y-2">
+                <Label>名称</Label>
+                <Input v-model="form.name" placeholder="显示名称（可选）" autofocus />
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <div class="col-span-2 space-y-2">
+                  <Label>主机</Label>
+                  <Input v-model="form.host" placeholder="主机 IP" required />
+                </div>
+                <div class="space-y-2">
+                  <Label>端口</Label>
+                  <Input v-model.number="form.port" type="number" placeholder="22" required />
+                </div>
               </div>
               <div class="space-y-2">
-                <Label>端口</Label>
-                <Input v-model.number="form.port" type="number" placeholder="22" required />
+                <Label>用户名</Label>
+                <Input v-model="form.username" placeholder="root" required />
               </div>
-            </div>
+            </template>
+
             <div class="space-y-2">
-              <Label>用户名</Label>
-              <Input v-model="form.username" placeholder="root" required />
+              <Label>密码</Label>
+              <Input ref="passwordInputRef" v-model="form.password" type="password" placeholder="请输入密码"
+                :required="!form.privateKey" />
             </div>
-          </template>
 
-          <div class="space-y-2">
-            <Label>密码</Label>
-            <Input ref="passwordInputRef" v-model="form.password" type="password" placeholder="请输入密码"
-              :required="!form.privateKey" />
-          </div>
+            <div v-if="isNewConnection" class="space-y-2">
+              <Label>私钥 (可选)</Label>
+              <textarea v-model="form.privateKey" placeholder="-----BEGIN RSA PRIVATE KEY-----"
+                class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"></textarea>
+            </div>
 
-          <div v-if="isNewConnection" class="space-y-2">
-            <Label>私钥 (可选)</Label>
-            <textarea v-model="form.privateKey" placeholder="-----BEGIN RSA PRIVATE KEY-----"
-              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"></textarea>
-          </div>
-
-          <Button type="submit" class="w-full mt-4" :disabled="loading">
-            <Loader2 v-if="loading" class="animate-spin mr-2 w-4 h-4" />
-            {{ loading ? '连接中...' : '登录' }}
-          </Button>
-        </form>
+            <Button type="submit" class="w-full mt-4" :disabled="loading">
+              <Loader2 v-if="loading" class="animate-spin mr-2 w-4 h-4" />
+              {{ loading ? '连接中...' : '登录' }}
+            </Button>
+          </form>
         </Transition>
       </CardContent>
     </Card>
@@ -135,7 +131,7 @@
 import { ref, reactive, nextTick, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useSshStore, type SavedServer } from '@/stores/ssh';
 import { useSettingsStore } from '@/stores/settings';
-import { Monitor, ArrowLeft, Loader2, Image as ImageIcon } from 'lucide-vue-next';
+import { Monitor, ArrowLeft, Loader2, Image as ImageIcon, Trash2 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -314,6 +310,16 @@ const resetSelection = () => {
   form.privateKey = '';
 };
 
+const deleteServer = (id?: number) => {
+  if (id === undefined) return;
+  if (confirm('确定要删除此服务器吗？')) {
+    sshStore.removeServer(id);
+    if (selectedServer.value?.id === id) {
+      resetSelection();
+    }
+  }
+};
+
 const { mutate: connectMutate, isPending: loading } = useMutation({
   mutationFn: authApi.connect,
   onSuccess: (data) => {
@@ -368,6 +374,7 @@ const connect = () => {
     opacity: 0;
     transform: translateY(30px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -379,13 +386,30 @@ const connect = () => {
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
-  20%, 40%, 60%, 80% { transform: translateX(6px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-6px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(6px);
+  }
 }
 
 .animate-shake {
-  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
 }
 
 /* Transition for form switching */
