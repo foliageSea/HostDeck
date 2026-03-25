@@ -54,8 +54,7 @@ http.interceptors.response.use(
       // Code 404: Session not found (from our new backend logic)
       // Code 500: Connection lost (SSHChannelOpenError/SocketException)
       const isSessionError =
-          (errorCode === 404) ||
-          (errorCode === 500 && (errorMessage.includes('SSHChannelOpenError') || errorMessage.includes('SocketException')))
+        (errorCode === 500 && (errorMessage.includes('SSHChannelOpenError') || errorMessage.includes('SocketException')))
 
       if (isSessionError) {
         handleSessionError()
@@ -63,15 +62,15 @@ http.interceptors.response.use(
 
       // Create AxiosError to propagate to catch blocks
       const error = new AxiosError(
-          errorMessage,
-          String(errorCode),
-          response.config,
-          response.request,
-          response
+        errorMessage,
+        String(errorCode),
+        response.config,
+        response.request,
+        response
       )
       return Promise.reject(error)
     }
-    
+
     // For non-unified results (e.g. blobs, streams, or legacy responses), return as is
     return response
   },
@@ -102,7 +101,6 @@ http.interceptors.response.use(
 
         // Check for session errors (Legacy/Stream logic)
         const isSessionError =
-          (status === 404 && (errorCode === 'SESSION_NOT_FOUND' || errorMessage.includes('Session not found'))) ||
           (status === 500 && (errorMessage.includes('SSHChannelOpenError') || errorMessage.includes('SocketException')))
 
         if (isSessionError) {

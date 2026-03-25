@@ -27,9 +27,9 @@ void main() async {
   // 等待窗口准备就绪后显示，避免白屏闪烁
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.setAspectRatio(16 / 9); // 锁定窗口比例为 16:9
-    await windowManager.maximize();
     await windowManager.show();
     await windowManager.focus();
+    // await windowManager.maximize();
   });
 
   runApp(const MyApp());
