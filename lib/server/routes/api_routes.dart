@@ -4,6 +4,7 @@ import '../controllers/system_controller.dart';
 import '../controllers/file_controller.dart';
 import '../controllers/terminal_controller.dart';
 import '../controllers/server_controller.dart';
+import '../controllers/docker_controller.dart';
 
 class ApiRoutes {
   final AuthController authController;
@@ -11,6 +12,7 @@ class ApiRoutes {
   final FileController fileController;
   final TerminalController terminalController;
   final ServerController serverController;
+  final DockerController dockerController;
 
   ApiRoutes({
     required this.authController,
@@ -18,6 +20,7 @@ class ApiRoutes {
     required this.fileController,
     required this.terminalController,
     required this.serverController,
+    required this.dockerController,
   });
 
   Router get router {
@@ -53,6 +56,17 @@ class ApiRoutes {
     router.get('/socket.io', terminalController.handler);
     router.post('/api/terminal/session', terminalController.createSession);
     router.delete('/api/terminal/session', terminalController.closeSession);
+
+    // Docker
+    router.get('/api/docker/check', dockerController.checkDocker);
+    router.get('/api/docker/containers', dockerController.listContainers);
+    router.get('/api/docker/images', dockerController.listImages);
+    router.post('/api/docker/containers/<id>/start', dockerController.startContainer);
+    router.post('/api/docker/containers/<id>/stop', dockerController.stopContainer);
+    router.post('/api/docker/containers/<id>/restart', dockerController.restartContainer);
+    router.delete('/api/docker/containers/<id>', dockerController.removeContainer);
+    router.get('/api/docker/containers/logs', dockerController.getContainerLogs);
+    router.delete('/api/docker/images/<id>', dockerController.removeImage);
 
     return router;
   }

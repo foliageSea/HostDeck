@@ -5,6 +5,7 @@ import Files from '../views/Files.vue';
 import Dashboard from '../views/Dashboard.vue';
 import TextEditor from '../views/TextEditor.vue';
 import MediaViewer from '../views/MediaViewer.vue';
+import Docker from '../views/Docker.vue';
 import { useSshStore } from './ssh';
 
 export interface AppConfig {
@@ -80,6 +81,14 @@ export const useDesktopStore = defineStore('desktop', {
         component: markRaw(Dashboard),
         width: 400,
         height: 600
+      },
+      'docker': {
+        id: 'docker',
+        title: 'Docker 管理',
+        icon: 'container',
+        component: markRaw(Docker),
+        width: 1000,
+        height: 700
       },
       'logout': {
         id: 'logout',

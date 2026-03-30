@@ -73,7 +73,7 @@
 import { computed, ref } from 'vue';
 import { onClickOutside } from '@vueuse/core';
 import { useDesktopStore } from '@/stores/desktop';
-import { Terminal, Folder, Activity, Lock, FileText } from 'lucide-vue-next';
+import { Terminal, Folder, Activity, Lock, FileText, Container } from 'lucide-vue-next';
 import {
   Tooltip,
   TooltipContent,
@@ -103,7 +103,8 @@ const iconMap: Record<string, any> = {
   'folder': Folder,
   'activity': Activity,
   'lock': Lock,
-  'file-text': FileText
+  'file-text': FileText,
+  'container': Container
 };
 
 const isAppOpen = (appId: string) => {
