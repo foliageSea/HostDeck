@@ -16,7 +16,7 @@ void main() async {
 
   // 配置窗口属性 (调整为标准的 16:9 分辨率)
   WindowOptions windowOptions = const WindowOptions(
-    size: Size(1280, 720),
+    size: Size(1920, 1080),
     minimumSize: Size(1280, 720),
     center: true,
     backgroundColor: Colors.transparent,
