@@ -18,6 +18,10 @@ export interface DockerImage {
   createdAt?: string;
 }
 
+export interface DockerShellSessionResponse {
+  sessionId: string;
+}
+
 export const dockerApi = {
   checkDocker: async (sessionId: string) => {
     const response = await http.get<{ available: boolean }>('/api/docker/check', {
@@ -73,6 +77,17 @@ export const dockerApi = {
       params: { sessionId, containerId, tail }
     });
     return response.data;
+  },
+
+  createContainerShellSession: async (sessionId: string, containerId: string) => {
+    const response = await http.post<DockerShellSessionResponse>(
+      `/api/docker/containers/${containerId}/shell`,
+      null,
+      {
+        params: { sessionId },
+      }
+    )
+    return response.data
   },
 
   removeImage: async (sessionId: string, id: string, force = false) => {

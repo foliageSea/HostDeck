@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useSshStore } from '@/stores/ssh';
+import { useDesktopStore } from '@/stores/desktop';
 import { dockerApi, type DockerContainer, type DockerImage } from '@/api/docker';
 import { toast } from 'vue-sonner';
 import {
@@ -9,6 +10,7 @@ import {
   RotateCw,
   Trash2,
   FileText,
+  Terminal,
   Container,
   HardDrive,
   RefreshCw,
@@ -49,6 +51,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 
 const sshStore = useSshStore();
+const desktopStore = useDesktopStore();
 const activeTab = ref<'containers' | 'images'>('containers');
 const containers = ref<DockerContainer[]>([]);
 const images = ref<DockerImage[]>([]);
@@ -68,7 +71,7 @@ const confirmAction = ref<'removeContainer' | 'removeImage' | null>(null);
 const confirmItem = ref<DockerContainer | DockerImage | null>(null);
 const confirmForce = ref(false);
 
-let refreshInterval: NodeJS.Timeout | null = null;
+let refreshInterval: number | null = null;
 
 const isConnected = computed(() => sshStore.isConnected && sshStore.sessionId);
 
@@ -206,6 +209,24 @@ const viewLogs = async (container: DockerContainer) => {
     logsContent.value = '';
   } finally {
     logsLoading.value = false;
+  }
+};
+
+const enterShell = async (container: DockerContainer) => {
+  if (!sshStore.sessionId) return;
+  if (container.state !== 'running') {
+    toast.error('容器未运行，无法进入 Shell');
+    return;
+  }
+
+  try {
+    const res = await dockerApi.createContainerShellSession(sshStore.sessionId, container.id);
+    desktopStore.openWindow('terminal', {
+      title: `Shell: ${container.name}`,
+      sessionId: res.sessionId,
+    });
+  } catch (e) {
+    toast.error('进入容器 Shell 失败');
   }
 };
 
@@ -498,6 +519,15 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
                       @click="viewLogs(container)"
                     >
                       <FileText class="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                      :disabled="container.state !== 'running'"
+                      @click="enterShell(container)"
+                    >
+                      <Terminal class="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"

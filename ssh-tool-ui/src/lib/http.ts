@@ -82,20 +82,17 @@ http.interceptors.response.use(
       const url = config?.url
 
       if (url && url.includes('/api/')) {
-        let errorCode: string | number = ''
         let errorMessage = ''
 
         if (typeof data === 'string') {
           errorMessage = data
           try {
             const parsed = JSON.parse(data)
-            if (parsed.code) errorCode = parsed.code
             if (parsed.message) errorMessage = parsed.message
           } catch {
             // Ignore parse error
           }
         } else if (typeof data === 'object' && data !== null) {
-          errorCode = (data as ApiError).code || ''
           errorMessage = (data as ApiError).message || JSON.stringify(data)
         }
 

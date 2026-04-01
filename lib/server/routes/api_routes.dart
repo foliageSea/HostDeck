@@ -60,12 +60,31 @@ class ApiRoutes {
     // Docker
     router.get('/api/docker/check', dockerController.checkDocker);
     router.get('/api/docker/containers', dockerController.listContainers);
+    router.post(
+      '/api/docker/containers/<id>/shell',
+      dockerController.createContainerShellSession,
+    );
     router.get('/api/docker/images', dockerController.listImages);
-    router.post('/api/docker/containers/<id>/start', dockerController.startContainer);
-    router.post('/api/docker/containers/<id>/stop', dockerController.stopContainer);
-    router.post('/api/docker/containers/<id>/restart', dockerController.restartContainer);
-    router.delete('/api/docker/containers/<id>', dockerController.removeContainer);
-    router.get('/api/docker/containers/logs', dockerController.getContainerLogs);
+    router.post(
+      '/api/docker/containers/<id>/start',
+      dockerController.startContainer,
+    );
+    router.post(
+      '/api/docker/containers/<id>/stop',
+      dockerController.stopContainer,
+    );
+    router.post(
+      '/api/docker/containers/<id>/restart',
+      dockerController.restartContainer,
+    );
+    router.delete(
+      '/api/docker/containers/<id>',
+      dockerController.removeContainer,
+    );
+    router.get(
+      '/api/docker/containers/logs',
+      dockerController.getContainerLogs,
+    );
     router.delete('/api/docker/images/<id>', dockerController.removeImage);
 
     return router;

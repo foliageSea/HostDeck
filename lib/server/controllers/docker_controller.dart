@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import '../services/ssh_service.dart';
 import '../services/docker_service.dart';
@@ -9,6 +11,46 @@ class DockerController {
   final DockerService _dockerService;
 
   DockerController(this._sshService, this._dockerService);
+
+  String _shellQuote(String value) {
+    // Safe for POSIX sh: wrap in single quotes and escape embedded single quotes.
+    return "'${value.replaceAll("'", "'\\''")}'";
+  }
+
+  /// 创建一个新的终端会话并进入容器 Shell
+  ///
+  /// 返回: { sessionId }
+  Future<Response> createContainerShellSession(
+    Request request,
+    String id,
+  ) async {
+    final sessionId = request.url.queryParameters['sessionId'];
+    if (sessionId == null) {
+      return Result.fail(400, 'Missing sessionId');
+    }
+
+    final session = _sshService.getSession(sessionId);
+    if (session == null) {
+      return Result.fail(404, 'Session not found');
+    }
+
+    try {
+      final shellSession = await _sshService.createShell(session.connectionId);
+      final shell = shellSession.shell;
+      if (shell == null) {
+        return Result.fail(500, 'Shell not available');
+      }
+
+      // Prefer bash if present, fallback to sh.
+      final safeId = _shellQuote(id);
+      final cmd = 'docker exec -it $safeId bash || docker exec -it $safeId sh';
+      shell.write(Uint8List.fromList(utf8.encode('$cmd\n')));
+
+      return Result.ok({'sessionId': shellSession.id});
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
 
   /// 检查 Docker 可用性
   Future<Response> checkDocker(Request request) async {
@@ -111,7 +153,8 @@ class DockerController {
   Future<Response> getContainerLogs(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
     final containerId = request.url.queryParameters['containerId'];
-    final tail = int.tryParse(request.url.queryParameters['tail'] ?? '100') ?? 100;
+    final tail =
+        int.tryParse(request.url.queryParameters['tail'] ?? '100') ?? 100;
 
     if (sessionId == null || containerId == null) {
       return Result.fail(400, 'Missing sessionId or containerId');
@@ -123,7 +166,11 @@ class DockerController {
     }
 
     try {
-      final logs = await _dockerService.getContainerLogs(session, containerId, tail: tail);
+      final logs = await _dockerService.getContainerLogs(
+        session,
+        containerId,
+        tail: tail,
+      );
       return Result.ok({'logs': logs});
     } catch (e) {
       return Result.fail(500, e.toString());

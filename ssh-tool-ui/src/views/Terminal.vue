@@ -87,6 +87,7 @@ import { terminalApi } from '@/api/terminal';
 
 const props = defineProps<{
   windowId?: string
+  sessionId?: string
 }>();
 
 const terminalContainer = ref<HTMLElement | null>(null);
@@ -225,7 +226,9 @@ onMounted(async () => {
 
   // Create new session
   try {
-    if (sshStore.connectionId) {
+    if (props.sessionId) {
+      mySessionId.value = props.sessionId;
+    } else if (sshStore.connectionId) {
       const data = await terminalApi.createSession({
         connectionId: sshStore.connectionId,
         cols: term?.cols || 80,
@@ -287,8 +290,9 @@ onBeforeUnmount(async () => {
   fitAddon?.dispose();
   term?.dispose();
 
-  // Close session if it's a dedicated one
-  if (mySessionId.value && mySessionId.value !== sshStore.sessionId) {
+  // Close session if it's a dedicated one created by this view.
+  // If sessionId is passed in, lifecycle is owned by the creator.
+  if (!props.sessionId && mySessionId.value && mySessionId.value !== sshStore.sessionId) {
     try {
       await terminalApi.deleteSession(mySessionId.value);
     } catch (e) {
