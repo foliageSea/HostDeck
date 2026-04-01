@@ -5,7 +5,7 @@
     <div class="flex-1 flex flex-col min-w-0 bg-background">
       <FileToolbar :currentPath="fileStore.currentPath" :viewMode="fileStore.viewMode" @navigate="fileStore.navigate"
         @navigateUp="fileStore.navigateUp" @refresh="fileStore.refresh" @upload-files="uploadFiles"
-        @mkdir="openMkdirModal" @toggleView="v => fileStore.viewMode = v" />
+        @mkdir="openMkdirModal" @toggleView="v => fileStore.viewMode = v" @open-terminal="operations.openTerminalHere" />
 
       <div class="flex-1 overflow-hidden relative select-none" @dragover.prevent @drop.prevent="handleDrop"
         @contextmenu.prevent="handleContainerContextMenu" @mousedown="handleMouseDown"

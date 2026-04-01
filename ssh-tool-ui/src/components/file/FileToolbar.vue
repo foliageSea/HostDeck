@@ -47,6 +47,10 @@
         <RotateCwIcon class="w-4 h-4" />
       </Button>
 
+      <Button variant="ghost" size="icon" @click="$emit('open-terminal')" title="在终端中打开" class="h-8 w-8">
+        <TerminalIcon class="w-4 h-4" />
+      </Button>
+
 
       <div class="ml-2 relative w-64 flex items-center gap-1">
         <DropdownMenu>
@@ -102,7 +106,7 @@ import { ref, watch, computed } from 'vue'
 import {
   ChevronLeftIcon, ChevronRightIcon, RotateCwIcon,
   ListIcon, LayoutGridIcon, MoreHorizontalIcon,
-  FileUpIcon, StarIcon, BookmarkIcon
+  FileUpIcon, StarIcon, BookmarkIcon, Terminal as TerminalIcon
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -123,7 +127,7 @@ const props = defineProps<{
   viewMode: 'list' | 'grid'
 }>()
 
-const emit = defineEmits(['navigate', 'navigateUp', 'refresh', 'upload', 'upload-folder', 'upload-files', 'mkdir', 'toggleView'])
+const emit = defineEmits(['navigate', 'navigateUp', 'refresh', 'upload', 'upload-folder', 'upload-files', 'mkdir', 'toggleView', 'open-terminal'])
 
 const fileInput = ref<HTMLInputElement>()
 const folderInput = ref<HTMLInputElement>()

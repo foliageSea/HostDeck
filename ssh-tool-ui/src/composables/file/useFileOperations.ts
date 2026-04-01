@@ -318,6 +318,16 @@ export function useFileOperations(fileStore: any, desktopStore: any) {
     fileStore.selectAll()
   }
 
+  /**
+   * 在终端中打开当前目录（新开终端窗口，并自动 cd 过去）
+   */
+  const openTerminalHere = () => {
+    desktopStore.openWindow('terminal', {
+      title: `终端: ${fileStore.currentPath}`,
+      cwd: fileStore.currentPath,
+    })
+  }
+
   return {
     showMkdirModal,
     showRenameModal,
@@ -336,6 +346,7 @@ export function useFileOperations(fileStore: any, desktopStore: any) {
     uploadFiles,
     handleDrop,
     handleOpen,
-    handleSelectAll
+    handleSelectAll,
+    openTerminalHere
   }
 }

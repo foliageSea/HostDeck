@@ -6,7 +6,7 @@ import {
   FolderIcon, FolderPlusIcon, DownloadIcon,
   CopyIcon, ScissorsIcon, ClipboardPasteIcon,
   EditIcon, Trash2Icon, TypeIcon, RefreshCwIcon,
-  ClipboardIcon, StarIcon
+  ClipboardIcon, StarIcon, Terminal as TerminalIcon
 } from 'lucide-vue-next'
 
 /**
@@ -113,6 +113,15 @@ export function useFileContextMenu(fileStore: any, operations: any) {
         icon: ScissorsIcon as any,
         action: () => fileStore.cutSelection()
       })
+    }
+
+    if (!hasSelection) {
+      items.push({
+        label: '在终端中打开',
+        icon: TerminalIcon as any,
+        action: operations.openTerminalHere
+      })
+      items.push({ separator: true, label: '' })
     }
 
     if (fileStore.clipboard) {

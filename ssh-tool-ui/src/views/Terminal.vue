@@ -88,6 +88,7 @@ import { terminalApi } from '@/api/terminal';
 const props = defineProps<{
   windowId?: string
   sessionId?: string
+  cwd?: string
 }>();
 
 const terminalContainer = ref<HTMLElement | null>(null);
@@ -148,6 +149,15 @@ let webLinksAddon: WebLinksAddon | null = null;
 let socket: WebSocket | null = null;
 let resizeObserver: ResizeObserver | null = null;
 const mySessionId = ref<string | null>(null);
+
+let didInitCwd = false;
+
+const shellQuotePosix = (value: string) => {
+  // Wrap in single quotes; escape existing single quotes in a POSIX-safe way.
+  // Example: abc'def -> 'abc'\''def'
+  const escaped = value.replace(/'/g, "'\\''");
+  return `'${escaped}'`;
+};
 
 const resetSettings = () => {
   settingsStore.resetTerminalSettings();
@@ -256,6 +266,13 @@ onMounted(async () => {
     fitAddon?.fit();
     if (term) {
       sendResize(term.cols, term.rows);
+    }
+
+    // If a cwd is provided (e.g. opened from file manager), auto-cd once.
+    if (!didInitCwd && props.cwd) {
+      didInitCwd = true;
+      const cmd = `cd ${shellQuotePosix(props.cwd)}\r`;
+      socket?.send(cmd);
     }
   };
 
