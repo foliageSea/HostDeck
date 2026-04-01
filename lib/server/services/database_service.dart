@@ -12,14 +12,14 @@ class DatabaseService {
   Future<void> init() async {
     final dir = await getApplicationSupportDirectory();
     final dbPath = p.join(dir.path, 'ssh_tool.db');
-    
+
     // Ensure directory exists
     await dir.create(recursive: true);
 
     _log.info('Database path: $dbPath');
-    
+
     _db = sqlite3.open(dbPath);
-    
+
     _migrate();
   }
 
@@ -40,6 +40,6 @@ class DatabaseService {
   }
 
   void close() {
-    _db.close();
+    _db.dispose();
   }
 }
