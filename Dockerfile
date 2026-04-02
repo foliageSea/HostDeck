@@ -24,8 +24,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=server-builder /src/build/server/bundle/bin ./bin
-COPY --from=server-builder /src/build/server/bundle/lib ./lib
+COPY --from=server-builder /src/build/server/bundle/ ./
 COPY --from=web-builder /src/ssh-tool-ui/dist ./web
 
 EXPOSE 8080
