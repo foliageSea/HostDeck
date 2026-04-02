@@ -7,14 +7,14 @@ RUN npm install -g pnpm && pnpm install
 COPY ssh-tool-ui/ ./
 RUN pnpm build
 
-FROM dart:stable AS server-builder
+FROM ghcr.io/cirruslabs/flutter:stable AS server-builder
 WORKDIR /src
 
 COPY pubspec.yaml pubspec.lock ./
 COPY bin ./bin
 COPY lib ./lib
 
-RUN dart pub get
+RUN flutter pub get
 RUN dart build cli --target bin/server.dart -o build/server
 
 FROM debian:bookworm-slim AS runtime
