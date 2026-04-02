@@ -84,30 +84,30 @@ jobs:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # build-dart-macos:
-    needs: build-web
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: web-build
-          path: ssh-tool-ui/dist
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-      - run: flutter pub get
-      - run: dart build cli --target bin/server.dart -o build/server
-      - run: |
-          mkdir -p build/server/bundle/web
-          cp -R ssh-tool-ui/dist/. build/server/bundle/web/
-      - name: Package Dart MacOS Bundle
-        run: tar -czf ssh-tool-dart-macos-${{ github.ref_name }}.tar.gz -C build/server/bundle .
-      - name: Upload Dart MacOS Bundle
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ssh-tool-dart-macos-${{ github.ref_name }}.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #   needs: build-web
+  #   runs-on: macos-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: web-build
+  #         path: ssh-tool-ui/dist
+  #     - uses: subosito/flutter-action@v2
+  #       with:
+  #         channel: 'stable'
+  #     - run: flutter pub get
+  #     - run: dart build cli --target bin/server.dart -o build/server
+  #     - run: |
+  #         mkdir -p build/server/bundle/web
+  #         cp -R ssh-tool-ui/dist/. build/server/bundle/web/
+  #     - name: Package Dart MacOS Bundle
+  #       run: tar -czf ssh-tool-dart-macos-${{ github.ref_name }}.tar.gz -C build/server/bundle .
+  #     - name: Upload Dart MacOS Bundle
+  #       uses: softprops/action-gh-release@v1
+  #       with:
+  #         files: ssh-tool-dart-macos-${{ github.ref_name }}.tar.gz
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-docker:
     needs: build-web
@@ -213,24 +213,24 @@ jobs:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # build-macos:
-    needs: build-web
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: web-build
-          path: assets/web
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-      - run: flutter pub get
-      - run: flutter build macos --release
-      - name: Archive MacOS Build
-        run: ditto -c -k --keepParent build/macos/Build/Products/Release/ssh_tool.app ssh-tool-macos-${{ github.ref_name }}.zip
-      - name: Upload MacOS
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ssh-tool-macos-${{ github.ref_name }}.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #   needs: build-web
+  #   runs-on: macos-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: web-build
+  #         path: assets/web
+  #     - uses: subosito/flutter-action@v2
+  #       with:
+  #         channel: 'stable'
+  #     - run: flutter pub get
+  #     - run: flutter build macos --release
+  #     - name: Archive MacOS Build
+  #       run: ditto -c -k --keepParent build/macos/Build/Products/Release/ssh_tool.app ssh-tool-macos-${{ github.ref_name }}.zip
+  #     - name: Upload MacOS
+  #       uses: softprops/action-gh-release@v1
+  #       with:
+  #         files: ssh-tool-macos-${{ github.ref_name }}.zip
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
