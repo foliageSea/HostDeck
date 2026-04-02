@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, watch, computed } from 'vue';
 import { useStorage, usePreferredDark } from '@vueuse/core';
 import { db } from '@/utils/db';
+import { applyThemePreset, DEFAULT_THEME_PRESET, type ThemePreset, resolveThemePreset } from '@/lib/theme';
 
 export const useSettingsStore = defineStore('settings', () => {
     // Default values
@@ -26,6 +27,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
     // Theme settings
     const themeMode = useStorage<'auto' | 'light' | 'dark'>('theme-mode', 'auto');
+    const themePreset = useStorage<ThemePreset>('theme-preset', DEFAULT_THEME_PRESET);
     const preferredDark = usePreferredDark();
 
     const isDark = computed(() => {
@@ -36,8 +38,15 @@ export const useSettingsStore = defineStore('settings', () => {
     });
 
     // Watch for theme changes and apply to document
-    watch(isDark, (val) => {
-        if (val) {
+    watch([isDark, themePreset], ([darkMode, preset]) => {
+        const normalizedPreset = resolveThemePreset(preset);
+        if (themePreset.value !== normalizedPreset) {
+            themePreset.value = normalizedPreset;
+        }
+
+        applyThemePreset(normalizedPreset, darkMode);
+
+        if (darkMode) {
             document.documentElement.classList.add('dark');
         } else {
             document.documentElement.classList.remove('dark');
@@ -70,6 +79,10 @@ export const useSettingsStore = defineStore('settings', () => {
 
     function setThemeMode(mode: 'auto' | 'light' | 'dark') {
         themeMode.value = mode;
+    }
+
+    function setThemePreset(preset: ThemePreset) {
+        themePreset.value = resolveThemePreset(preset);
     }
 
     function setCustomBackground(dataUrl: string) {
@@ -116,6 +129,7 @@ export const useSettingsStore = defineStore('settings', () => {
         terminalFontSize,
         terminalFontFamily,
         themeMode,
+        themePreset,
         isDark,
         customBackground,
         backgroundQuality,
@@ -125,6 +139,7 @@ export const useSettingsStore = defineStore('settings', () => {
         setTerminalFontSize,
         setTerminalFontFamily,
         setThemeMode,
+        setThemePreset,
         setCustomBackground,
         setVideoBackground,
         setBackgroundQuality,

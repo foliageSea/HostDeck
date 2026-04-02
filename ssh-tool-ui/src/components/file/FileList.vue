@@ -24,9 +24,9 @@
           </TableCell>
           <TableCell class="py-1">
             <div class="flex items-center gap-2">
-              <FolderIcon v-if="file.isDirectory" class="w-4 h-4 text-blue-500 fill-current" />
-              <ImageIcon v-else-if="isImage(file.filename)" class="w-4 h-4 text-green-500" />
-              <FilmIcon v-else-if="isVideo(file.filename)" class="w-4 h-4 text-purple-500" />
+              <FolderIcon v-if="file.isDirectory" class="w-4 h-4 text-primary fill-current" />
+              <ImageIcon v-else-if="isImage(file.filename)" class="w-4 h-4 text-primary/75" />
+              <FilmIcon v-else-if="isVideo(file.filename)" class="w-4 h-4 text-primary/60" />
               <FileIcon v-else class="w-4 h-4 text-muted-foreground" />
               <span class="truncate font-medium">{{ file.filename }}</span>
             </div>

@@ -35,6 +35,23 @@
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <span class="mr-2 h-2.5 w-2.5 rounded-full bg-primary"></span>
+              <span>主题色</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup v-model="settingsStore.themePreset">
+                <DropdownMenuRadioItem
+                  v-for="theme in themePresetOptions"
+                  :key="theme.value"
+                  :value="theme.value"
+                >
+                  <span>{{ theme.label }}</span>
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem @click="triggerBackgroundUpload">设置桌面背景</DropdownMenuItem>
           <DropdownMenuItem @click="triggerVideoUpload">设置视频背景</DropdownMenuItem>
@@ -102,7 +119,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Terminal, Sun, Moon, Monitor, Github } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button'
-import SystemMonitor from './SystemMonitor.vue';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,6 +142,7 @@ import {
 import { useSettingsStore } from '@/stores/settings';
 import { useToast } from '@/components/ui/toast/use-toast';
 import { processBackgroundImage } from '@/utils/image';
+import { themePresetOptions } from '@/lib/theme';
 
 const currentTime = ref('');
 const settingsStore = useSettingsStore();

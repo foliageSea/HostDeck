@@ -10,9 +10,9 @@
           : 'hover:bg-accent/30']">
 
       <div class="flex-1 flex items-center justify-center w-full">
-        <FolderIcon v-if="file.isDirectory" class="w-16 h-16 text-blue-500 fill-current drop-shadow-sm" />
-        <ImageIcon v-else-if="isImage(file.filename)" class="w-14 h-14 text-green-500 drop-shadow-sm" />
-        <FilmIcon v-else-if="isVideo(file.filename)" class="w-14 h-14 text-purple-500 drop-shadow-sm" />
+        <FolderIcon v-if="file.isDirectory" class="w-16 h-16 text-primary fill-current drop-shadow-sm" />
+        <ImageIcon v-else-if="isImage(file.filename)" class="w-14 h-14 text-primary/75 drop-shadow-sm" />
+        <FilmIcon v-else-if="isVideo(file.filename)" class="w-14 h-14 text-primary/60 drop-shadow-sm" />
         <FileIcon v-else class="w-14 h-14 text-muted-foreground drop-shadow-sm" />
       </div>
 
