@@ -1,6 +1,10 @@
 # SSH Tool
 
-这是一个基于 Flutter (后端/Host) 和 Vue 3 (前端 UI) 构建的跨平台 SSH 工具。它提供了一个现代化的 Web 界面，用于管理 SSH 连接、文件传输和系统监控。
+这是一个基于 Dart/Flutter（后端）和 Vue 3（前端 UI）构建的跨平台 SSH 工具。它提供了一个现代化的 Web 界面，用于管理 SSH 连接、文件传输和系统监控。
+
+项目现在支持两种运行方式：
+- Flutter 桌面壳模式（原有模式）
+- 纯 Dart B/S 模式（可打包为二进制并运行在 Docker 中）
 
 ## ✨ 功能特性
 
@@ -53,7 +57,7 @@
 - [Flutter SDK](https://flutter.dev/docs/get-started/install)
 - [Node.js](https://nodejs.org/) (推荐使用 pnpm)
 
-### 1. 启动后端 (Flutter)
+### 1. 启动后端 (Flutter 壳模式)
 
 后端服务负责建立 SSH 连接并提供 API 接口。
 
@@ -66,7 +70,21 @@ flutter run -d windows
 ```
 服务默认运行在 `http://localhost:8080`。
 
-### 2. 启动前端 (Vue)
+### 2. 启动后端 (纯 Dart B/S 模式)
+
+```bash
+# 获取依赖
+flutter pub get
+
+# 启动服务（显式指定前端 dist 目录）
+dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir ssh-tool-ui/dist
+```
+
+可选参数：
+- `--data-dir <path>`：指定 sqlite 与配置文件存储目录
+- `--web-dir <path>`：指定静态前端资源目录，不传时会尝试从可执行文件旁 `../web` 自动发现
+
+### 3. 启动前端 (Vue)
 
 前端界面通过 API 与后端交互。
 
@@ -80,6 +98,43 @@ pnpm install
 pnpm dev
 ```
 访问控制台输出的地址 (通常是 `http://localhost:5173`) 即可使用。
+
+## 📦 打包纯 Dart 服务
+
+### 本机构建（当前平台）
+
+Linux/macOS:
+```bash
+scripts/build_server.sh
+```
+
+Windows PowerShell:
+```powershell
+./scripts/build_server.ps1
+```
+
+构建结果位于 `build/server/bundle/`：
+- 可执行文件：`build/server/bundle/bin/server(.exe)`
+- 动态库：`build/server/bundle/lib/`
+- 前端静态资源：`build/server/bundle/web/`
+
+运行示例：
+```bash
+./build/server/bundle/bin/server --host 0.0.0.0 --port 8080 --web-dir ./build/server/bundle/web
+```
+
+## 🐳 Docker 构建与运行
+
+```bash
+docker build -t ssh-tool:local .
+docker run --rm -p 8080:8080 -v ssh-tool-data:/data ssh-tool:local
+```
+
+容器默认启动参数：
+- `--host 0.0.0.0`
+- `--port 8080`
+- `--web-dir /app/web`
+- `--data-dir /data`
 
 ## 📂 项目结构
 

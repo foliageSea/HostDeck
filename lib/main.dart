@@ -5,7 +5,9 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:logging/logging.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import 'server/server_service.dart';
+import 'utils/asset_extractor.dart';
 import 'utils/app_settings.dart';
 
 void main() async {
@@ -93,6 +95,12 @@ class _MyAppState extends State<MyApp> with WindowListener {
     final port = await AppSettings.getPort();
     _serverService.port = port;
     _portController.text = port.toString();
+
+    if (!kDebugMode) {
+      final staticPath = await extractWebAssets();
+      _serverService.webDir = staticPath;
+    }
+
     await _startServer();
   }
 

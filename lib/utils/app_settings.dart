@@ -1,15 +1,23 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:logging/logging.dart';
+
+import 'runtime_paths.dart';
 
 class AppSettings {
   static final _log = Logger('AppSettings');
   static const String _fileName = 'app_settings.json';
+  static String? _dataDirOverride;
+
+  static void configure({String? dataDir}) {
+    _dataDirOverride = dataDir;
+  }
 
   static Future<File> get _settingsFile async {
-    final dir = await getApplicationSupportDirectory();
+    final dir = await RuntimePaths.resolveDataDirectory(
+      overridePath: _dataDirOverride,
+    );
     return File(p.join(dir.path, _fileName));
   }
 

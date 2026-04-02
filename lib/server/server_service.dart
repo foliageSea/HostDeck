@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
@@ -19,33 +20,40 @@ import 'controllers/terminal_controller.dart';
 import 'controllers/server_controller.dart';
 import 'controllers/docker_controller.dart';
 import 'routes/api_routes.dart';
-import '../utils/asset_extractor.dart';
 
 class ServerService {
   final _log = Logger('ServerService');
   HttpServer? _server;
   int port;
+  String host;
+  String? webDir;
+  String? dataDir;
   DatabaseService? _dbService;
 
   bool get isRunning => _server != null;
 
-  ServerService({this.port = 8080});
+  ServerService({
+    this.port = 8080,
+    this.host = '0.0.0.0',
+    this.webDir,
+    this.dataDir,
+  });
 
   Future<void> start() async {
     if (isRunning) return;
 
-    // 0. Extract Web Assets
-    String staticPath;
-    try {
-      staticPath = await extractWebAssets();
-      _log.info('Web assets extracted to: $staticPath');
-    } catch (e) {
-      staticPath = '';
-      _log.severe('Failed to extract web assets: $e');
+    final staticPath = webDir?.trim() ?? '';
+    if (staticPath.isNotEmpty) {
+      final staticDir = Directory(staticPath);
+      if (!staticDir.existsSync()) {
+        _log.warning('Static web directory does not exist: $staticPath');
+      } else {
+        _log.info('Serving static web assets from: $staticPath');
+      }
     }
 
     // 1. Initialize dependencies
-    _dbService = DatabaseService();
+    _dbService = DatabaseService(dataDir: dataDir);
     try {
       await _dbService!.init();
       _log.info('Database initialized.');
@@ -95,7 +103,10 @@ class ServerService {
       if (staticPath.isNotEmpty) {
         final indexFile = File('$staticPath/index.html');
         if (indexFile.existsSync()) {
-          return Response.ok(indexFile.readAsBytesSync(), headers: {'content-type': 'text/html'});
+          return Response.ok(
+            indexFile.readAsBytesSync(),
+            headers: {'content-type': 'text/html'},
+          );
         }
       }
       return Response.notFound('Not found');
@@ -103,25 +114,30 @@ class ServerService {
 
     // 5. Setup Cascade
     var cascade = Cascade().add(apiRoutes.router.call);
-    
+
     if (staticHandler != null) {
       cascade = cascade.add(staticHandler);
     }
-    
+
     cascade = cascade.add(spaFallback);
 
     final handler = Pipeline()
-        .addMiddleware(logRequests(logger: (message, isError) {
-          if (isError) {
-            _log.severe(message);
-          } else {
-            _log.info(message);
-          }
-        }))
+        .addMiddleware(
+          logRequests(
+            logger: (message, isError) {
+              if (isError) {
+                _log.severe(message);
+              } else {
+                _log.info(message);
+              }
+            },
+          ),
+        )
         .addHandler(cascade.handler);
 
-    _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
-    
+    final bindAddress = _parseBindAddress(host);
+    _server = await shelf_io.serve(handler, bindAddress, port);
+
     final startMsg = 'Server running on port ${_server?.port}';
     _log.info(startMsg);
   }
@@ -132,5 +148,17 @@ class ServerService {
       _server = null;
     }
     _dbService?.close();
+  }
+
+  Object _parseBindAddress(String value) {
+    final normalized = value.trim();
+    if (normalized.isEmpty || normalized == '0.0.0.0') {
+      return InternetAddress.anyIPv4;
+    }
+    if (normalized == '::' || normalized == '[::]') {
+      return InternetAddress.anyIPv6;
+    }
+
+    return InternetAddress.tryParse(normalized) ?? normalized;
   }
 }

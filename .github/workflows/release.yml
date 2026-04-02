@@ -31,6 +31,107 @@ jobs:
           name: web-build
           path: ssh-tool-ui/dist
 
+  build-dart-windows:
+    needs: build-web
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: ssh-tool-ui/dist
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      - run: flutter pub get
+      - run: dart build cli --target bin/server.dart -o build/server
+      - run: |
+          New-Item -ItemType Directory -Path build\server\bundle\web -Force
+          Copy-Item -Path ssh-tool-ui\dist\* -Destination build\server\bundle\web -Recurse
+      - name: Package Dart Windows Bundle
+        run: Compress-Archive -Path build\server\bundle\* -DestinationPath ssh-tool-dart-windows-${{ github.ref_name }}.zip
+      - name: Upload Dart Windows Bundle
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ssh-tool-dart-windows-${{ github.ref_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-dart-linux:
+    needs: build-web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: ssh-tool-ui/dist
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      - run: flutter pub get
+      - run: dart build cli --target bin/server.dart -o build/server
+      - run: |
+          mkdir -p build/server/bundle/web
+          cp -R ssh-tool-ui/dist/. build/server/bundle/web/
+      - name: Package Dart Linux Bundle
+        run: tar -czf ssh-tool-dart-linux-${{ github.ref_name }}.tar.gz -C build/server/bundle .
+      - name: Upload Dart Linux Bundle
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ssh-tool-dart-linux-${{ github.ref_name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-dart-macos:
+    needs: build-web
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: ssh-tool-ui/dist
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      - run: flutter pub get
+      - run: dart build cli --target bin/server.dart -o build/server
+      - run: |
+          mkdir -p build/server/bundle/web
+          cp -R ssh-tool-ui/dist/. build/server/bundle/web/
+      - name: Package Dart MacOS Bundle
+        run: tar -czf ssh-tool-dart-macos-${{ github.ref_name }}.tar.gz -C build/server/bundle .
+      - name: Upload Dart MacOS Bundle
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ssh-tool-dart-macos-${{ github.ref_name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-docker:
+    needs: build-web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/ssh-tool:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/ssh-tool:latest
+
   build-android:
     needs: build-web
     runs-on: ubuntu-latest
