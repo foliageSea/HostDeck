@@ -88,7 +88,7 @@
       </Dialog>
     </div>
     <div class="flex items-center space-x-4">
-      <SystemMonitor />
+      <!-- <SystemMonitor /> -->
       <span class="text-sm font-medium text-foreground">{{ currentTime }}</span>
     </div>
 

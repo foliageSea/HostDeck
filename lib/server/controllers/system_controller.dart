@@ -32,12 +32,16 @@ class SystemController {
         }
 
         // Monitor the actual SSH client connection
-        session.client.done.then((_) {
-          channel.sink.add(jsonEncode({'type': 'status', 'status': 'disconnected'}));
-          channel.sink.close(1011, 'SSH Connection Lost');
-        }).catchError((e) {
-          channel.sink.close(1011, 'SSH Connection Error');
-        });
+        session.client.done
+            .then((_) {
+              channel.sink.add(
+                jsonEncode({'type': 'status', 'status': 'disconnected'}),
+              );
+              channel.sink.close(1011, 'SSH Connection Lost');
+            })
+            .catchError((e) {
+              channel.sink.close(1011, 'SSH Connection Error');
+            });
 
         channel.stream.listen(
           (message) {
@@ -46,7 +50,7 @@ class SystemController {
             }
           },
           onDone: () {},
-          onError: (e) {}
+          onError: (e) {},
         );
       })(request);
     };
@@ -74,42 +78,46 @@ class SystemController {
             try {
               final status = await _monitorService.getSystemStatus(session);
               if (isMonitoring) {
-                 channel.sink.add(jsonEncode({
-                   'code': 200,
-                   'data': status.toJson(),
-                   'message': 'success'
-                 }));
+                channel.sink.add(
+                  jsonEncode({
+                    'code': 200,
+                    'data': status.toJson(),
+                    'message': 'success',
+                  }),
+                );
               }
             } catch (e) {
-               if (isMonitoring) {
-                  channel.sink.add(jsonEncode({
+              if (isMonitoring) {
+                channel.sink.add(
+                  jsonEncode({
                     'code': 500,
                     'message': e.toString(),
-                    'data': null
-                  }));
-                  
-                  final errorStr = e.toString();
-                  if (errorStr.contains('SocketException') || 
-                      errorStr.contains('SSHChannelOpenError') ||
-                      session.client.isClosed) {
-                    channel.sink.close(1011, 'SSH Connection Lost');
-                    isMonitoring = false;
-                    break;
-                  }
-               }
+                    'data': null,
+                  }),
+                );
+
+                final errorStr = e.toString();
+                if (errorStr.contains('SocketException') ||
+                    errorStr.contains('SSHChannelOpenError') ||
+                    session.client.isClosed) {
+                  channel.sink.close(1011, 'SSH Connection Lost');
+                  isMonitoring = false;
+                  break;
+                }
+              }
             }
-            
+
             if (isMonitoring) {
-               await Future.delayed(const Duration(seconds: 3));
+              await Future.delayed(const Duration(seconds: 3));
             }
           }
-          
+
           if (isMonitoring && session.client.isClosed) {
-             channel.sink.close(1011, 'SSH Connection Lost');
+            channel.sink.close(1011, 'SSH Connection Lost');
           }
         }
 
-        startMonitoring();
+        // startMonitoring();
 
         channel.stream.listen(
           (message) {}, // Ignore incoming messages
@@ -118,7 +126,7 @@ class SystemController {
           },
           onError: (e) {
             isMonitoring = false;
-          }
+          },
         );
       })(request);
     };

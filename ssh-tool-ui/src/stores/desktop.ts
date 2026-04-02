@@ -53,8 +53,8 @@ export const useDesktopStore = defineStore('desktop', {
         title: '文件管理',
         icon: 'folder',
         component: markRaw(Files),
-        width: 800,
-        height: 500
+        width: 1000,
+        height: 700
       },
       'editor': {
         id: 'editor',
@@ -70,8 +70,8 @@ export const useDesktopStore = defineStore('desktop', {
         title: '媒体预览',
         icon: 'image',
         component: markRaw(MediaViewer),
-        width: 800,
-        height: 600,
+        width: 1000,
+        height: 700,
         hide: true
       },
       'dashboard': {
@@ -80,7 +80,8 @@ export const useDesktopStore = defineStore('desktop', {
         icon: 'activity',
         component: markRaw(Dashboard),
         width: 400,
-        height: 600
+        height: 600,
+        hide: true
       },
       'docker': {
         id: 'docker',

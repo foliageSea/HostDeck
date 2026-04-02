@@ -265,6 +265,7 @@ const parsePort = (portStr: string) => {
 };
 
 const getPortDisplay = (portStr: string) => {
+  if (!portStr) return '-';
   const parsed = parsePort(portStr);
   if (parsed.hostPort && parsed.containerPort) {
     return `${parsed.hostPort}:${parsed.containerPort}`;
@@ -325,40 +326,33 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
       <div class="flex items-center gap-4">
         <h2 class="text-lg font-semibold">Docker 管理</h2>
         <div class="flex bg-muted rounded-lg p-1">
-          <button
-            class="px-3 py-1 text-sm rounded-md transition-colors"
+          <button class="px-3 py-1 text-sm rounded-md transition-colors"
             :class="activeTab === 'containers' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-            @click="activeTab = 'containers'"
-          >
+            @click="activeTab = 'containers'">
             <div class="flex items-center gap-2">
               <Container class="w-4 h-4" />
               容器
-              <span v-if="containers.length > 0" class="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+              <span v-if="containers.length > 0"
+                class="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
                 {{ containers.length }}
               </span>
             </div>
           </button>
-          <button
-            class="px-3 py-1 text-sm rounded-md transition-colors"
+          <button class="px-3 py-1 text-sm rounded-md transition-colors"
             :class="activeTab === 'images' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-            @click="activeTab = 'images'"
-          >
+            @click="activeTab = 'images'">
             <div class="flex items-center gap-2">
               <HardDrive class="w-4 h-4" />
               镜像
-              <span v-if="images.length > 0" class="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+              <span v-if="images.length > 0"
+                class="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
                 {{ images.length }}
               </span>
             </div>
           </button>
         </div>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        :disabled="refreshing || !dockerAvailable"
-        @click="refresh"
-      >
+      <Button variant="outline" size="sm" :disabled="refreshing || !dockerAvailable" @click="refresh">
         <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': refreshing }" />
         刷新
       </Button>
@@ -373,7 +367,8 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
       </div>
 
       <!-- Docker not available -->
-      <div v-else-if="dockerAvailable === false" class="h-full flex flex-col items-center justify-center text-muted-foreground">
+      <div v-else-if="dockerAvailable === false"
+        class="h-full flex flex-col items-center justify-center text-muted-foreground">
         <AlertCircle class="w-12 h-12 mb-4 opacity-50" />
         <p>该服务器未安装 Docker 或无法访问</p>
       </div>
@@ -417,131 +412,92 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-              <TableRow v-if="containers.length === 0">
-                <TableCell colspan="7" class="text-center text-muted-foreground py-8">
-                  暂无容器
-                </TableCell>
-              </TableRow>
-              <TableRow v-for="container in containers" :key="container.id">
-                <TableCell class="font-mono text-xs">{{ shortId(container.id) }}</TableCell>
-                <TableCell class="font-medium">{{ container.name }}</TableCell>
-                <TableCell class="text-muted-foreground">{{ container.image }}</TableCell>
-                <TableCell>
-                  <span
-                    class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                    :class="{
+                <TableRow v-if="containers.length === 0">
+                  <TableCell colspan="7" class="text-center text-muted-foreground py-8">
+                    暂无容器
+                  </TableCell>
+                </TableRow>
+                <TableRow v-for="container in containers" :key="container.id">
+                  <TableCell class="font-mono text-xs">{{ shortId(container.id) }}</TableCell>
+                  <TableCell class="font-medium">{{ container.name }}</TableCell>
+                  <TableCell class="text-muted-foreground">{{ container.image }}</TableCell>
+                  <TableCell>
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="{
                       'bg-green-100 text-green-800': container.state === 'running',
                       'bg-gray-100 text-gray-800': container.state === 'exited',
                       'bg-yellow-100 text-yellow-800': container.state === 'paused',
                       'bg-red-100 text-red-800': !['running', 'exited', 'paused'].includes(container.state)
-                    }"
-                  >
-                    {{ container.state }}
-                  </span>
-                </TableCell>
-                <TableCell class="text-xs">
-                  <TooltipProvider v-if="container.ports.length">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <div class="flex flex-wrap gap-1 cursor-pointer">
-                          <span
-                            v-for="port in container.ports.slice(0, 3)"
-                            :key="port"
-                            class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
-                          >
-                            {{ getPortDisplay(port) }}
-                          </span>
-                          <span
-                            v-if="container.ports.length > 3"
-                            class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                          >
-                            +{{ container.ports.length - 3 }}
-                          </span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent class="max-w-xs">
-                        <div class="space-y-2">
-                          <div class="text-xs font-semibold">端口映射</div>
-                          <div class="space-y-1">
-                            <div
-                              v-for="port in container.ports"
-                              :key="port"
-                              class="flex items-center justify-between gap-3 text-xs group cursor-pointer hover:bg-primary-foreground/10 rounded px-1 -mx-1 py-0.5 transition-colors"
-                              @click="copyToClipboard(port)"
-                            >
-                              <code class="bg-primary-foreground/20 px-1.5 py-0.5 rounded font-mono">{{ port }}</code>
-                              <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">点击复制</span>
+                    }">
+                      {{ container.state }}
+                    </span>
+                  </TableCell>
+                  <TableCell class="text-xs">
+                    <TooltipProvider v-if="container.ports.length">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <div class="flex flex-wrap gap-1 cursor-pointer">
+                            <span v-for="port in container.ports.slice(0, 3)" :key="port"
+                              class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                              {{ getPortDisplay(port) }}
+                            </span>
+                            <span v-if="container.ports.length > 3"
+                              class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                              +{{ container.ports.length - 3 }}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent class="max-w-xs">
+                          <div class="space-y-2">
+                            <div class="text-xs font-semibold">端口映射</div>
+                            <div class="space-y-1">
+                              <div v-for="port in container.ports" :key="port"
+                                class="flex items-center justify-between gap-3 text-xs group cursor-pointer hover:bg-primary-foreground/10 rounded px-1 -mx-1 py-0.5 transition-colors"
+                                @click="copyToClipboard(port)">
+                                <code class="bg-primary-foreground/20 px-1.5 py-0.5 rounded font-mono">{{ port }}</code>
+                                <span
+                                  class="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">点击复制</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <div v-else class="flex items-center justify-center w-8 h-6 rounded bg-gray-100 dark:bg-gray-800">
-                    <span class="text-xs text-gray-400">-</span>
-                  </div>
-                </TableCell>
-                <TableCell class="text-xs text-muted-foreground">
-                  {{ formatDate(container.createdAt) }}
-                </TableCell>
-                <TableCell class="text-right">
-                  <div class="flex items-center justify-end gap-1">
-                    <Button
-                      v-if="container.state !== 'running'"
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      @click="startContainer(container)"
-                    >
-                      <Play class="w-4 h-4 text-green-600" />
-                    </Button>
-                    <Button
-                      v-if="container.state === 'running'"
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      @click="stopContainer(container)"
-                    >
-                      <Square class="w-4 h-4 text-amber-600" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      @click="restartContainer(container)"
-                    >
-                      <RotateCw class="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      @click="viewLogs(container)"
-                    >
-                      <FileText class="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      :disabled="container.state !== 'running'"
-                      @click="enterShell(container)"
-                    >
-                      <Terminal class="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      @click="showRemoveContainerConfirm(container)"
-                    >
-                      <Trash2 class="w-4 h-4 text-red-600" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <div v-else class="flex items-center justify-center w-8 h-6 rounded bg-gray-100 dark:bg-gray-800">
+                      <span class="text-xs text-gray-400">-</span>
+                    </div>
+                  </TableCell>
+                  <TableCell class="text-xs text-muted-foreground">
+                    {{ formatDate(container.createdAt) }}
+                  </TableCell>
+                  <TableCell class="text-right">
+                    <div class="flex items-center justify-end gap-1">
+                      <Button v-if="container.state !== 'running'" variant="ghost" size="icon" class="h-8 w-8"
+                        @click="startContainer(container)">
+                        <Play class="w-4 h-4 text-green-600" />
+                      </Button>
+                      <Button v-if="container.state === 'running'" variant="ghost" size="icon" class="h-8 w-8"
+                        @click="stopContainer(container)">
+                        <Square class="w-4 h-4 text-amber-600" />
+                      </Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="restartContainer(container)">
+                        <RotateCw class="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="viewLogs(container)">
+                        <FileText class="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8" :disabled="container.state !== 'running'"
+                        @click="enterShell(container)">
+                        <Terminal class="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8"
+                        @click="showRemoveContainerConfirm(container)">
+                        <Trash2 class="w-4 h-4 text-red-600" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
         </div>
       </div>
@@ -563,36 +519,31 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-              <TableRow v-if="images.length === 0">
-                <TableCell colspan="6" class="text-center text-muted-foreground py-8">
-                  暂无镜像
-                </TableCell>
-              </TableRow>
-              <TableRow v-for="image in images" :key="image.id">
-                <TableCell class="font-mono text-xs">{{ shortId(image.id) }}</TableCell>
-                <TableCell class="font-medium">{{ image.repository }}</TableCell>
-                <TableCell>
-                  <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
-                    {{ image.tag }}
-                  </span>
-                </TableCell>
-                <TableCell class="text-muted-foreground">{{ image.size }}</TableCell>
-                <TableCell class="text-xs text-muted-foreground">
-                  {{ formatDate(image.createdAt) }}
-                </TableCell>
-                <TableCell class="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8"
-                    @click="showRemoveImageConfirm(image)"
-                  >
-                    <Trash2 class="w-4 h-4 text-red-600" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+                <TableRow v-if="images.length === 0">
+                  <TableCell colspan="6" class="text-center text-muted-foreground py-8">
+                    暂无镜像
+                  </TableCell>
+                </TableRow>
+                <TableRow v-for="image in images" :key="image.id">
+                  <TableCell class="font-mono text-xs">{{ shortId(image.id) }}</TableCell>
+                  <TableCell class="font-medium">{{ image.repository }}</TableCell>
+                  <TableCell>
+                    <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
+                      {{ image.tag }}
+                    </span>
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">{{ image.size }}</TableCell>
+                  <TableCell class="text-xs text-muted-foreground">
+                    {{ formatDate(image.createdAt) }}
+                  </TableCell>
+                  <TableCell class="text-right">
+                    <Button variant="ghost" size="icon" class="h-8 w-8" @click="showRemoveImageConfirm(image)">
+                      <Trash2 class="w-4 h-4 text-red-600" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
         </div>
       </div>
@@ -614,7 +565,8 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
           <div v-if="logsLoading" class="space-y-2">
             <Skeleton v-for="i in 10" :key="i" class="h-4 w-full" />
           </div>
-          <pre v-else class="text-sm text-gray-300 font-mono whitespace-pre-wrap break-all">{{ logsContent || '暂无日志' }}</pre>
+          <pre v-else
+            class="text-sm text-gray-300 font-mono whitespace-pre-wrap break-all">{{ logsContent || '暂无日志' }}</pre>
         </div>
       </DialogContent>
     </Dialog>
@@ -632,7 +584,8 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
               </span>
             </span>
             <span v-else>
-              确定要删除镜像 <strong>{{ (confirmItem as DockerImage)?.repository }}:{{ (confirmItem as DockerImage)?.tag }}</strong> 吗？
+              确定要删除镜像 <strong>{{ (confirmItem as DockerImage)?.repository }}:{{ (confirmItem as DockerImage)?.tag
+              }}</strong> 吗？
             </span>
           </AlertDialogDescription>
         </AlertDialogHeader>

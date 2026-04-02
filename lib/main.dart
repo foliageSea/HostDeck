@@ -330,12 +330,12 @@ class _MyAppState extends State<MyApp> with WindowListener {
                               // 允许在 WebView 内部跳转（比如 localhost 路由）
                               return NavigationActionPolicy.ALLOW;
                             },
-                        onReceivedError: (controller, request, error) {
-                          _log.severe('WebView Error: ${error.description}');
-                        },
-                        onConsoleMessage: (controller, consoleMessage) {
-                          _log.info('WebView: ${consoleMessage.message}');
-                        },
+                        // onReceivedError: (controller, request, error) {
+                        //   _log.severe('WebView Error: ${error.description}');
+                        // },
+                        // onConsoleMessage: (controller, consoleMessage) {
+                        //   _log.info('WebView: ${consoleMessage.message}');
+                        // },
                       ),
                     // Logs Overlay
                     AnimatedPositioned(
