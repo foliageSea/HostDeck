@@ -21,7 +21,10 @@ FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libsqlite3-0 \
+        libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=server-builder /src/build/server/bundle/ ./
