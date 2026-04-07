@@ -79,7 +79,13 @@
                 </div>
                 <div class="space-y-2">
                   <Label>端口</Label>
-                  <Input v-model.number="form.port" type="number" placeholder="22" required />
+                  <NumberField v-model="form.port" :min="1" :max="65535" class="w-full">
+                    <NumberFieldContent>
+                      <NumberFieldDecrement />
+                      <NumberFieldInput placeholder="22" />
+                      <NumberFieldIncrement />
+                    </NumberFieldContent>
+                  </NumberField>
                 </div>
               </div>
               <div class="space-y-2">
@@ -137,6 +143,13 @@ import { useSettingsStore } from '@/stores/settings';
 import { Monitor, ArrowLeft, Loader2, Image as ImageIcon, Trash2 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  NumberField,
+  NumberFieldContent,
+  NumberFieldDecrement,
+  NumberFieldIncrement,
+  NumberFieldInput,
+} from '@/components/ui/number-field'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import {
