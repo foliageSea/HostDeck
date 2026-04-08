@@ -209,6 +209,91 @@ class DockerService {
     }
   }
 
+  /// 获取容器 inspect 详情
+  Future<Map<String, dynamic>> inspectContainer(
+    SshSession session,
+    String containerId,
+  ) async {
+    final safeContainerId = _shellQuote(containerId);
+    final output = await _repository.exec(
+      session,
+      'docker inspect $safeContainerId',
+    );
+
+    final parsed = jsonDecode(output);
+    if (parsed is List &&
+        parsed.isNotEmpty &&
+        parsed.first is Map<String, dynamic>) {
+      return parsed.first as Map<String, dynamic>;
+    }
+    throw Exception('Invalid docker inspect output');
+  }
+
+  /// 获取容器资源信息（docker stats --no-stream）
+  Future<Map<String, dynamic>> getContainerStats(
+    SshSession session,
+    String containerId,
+  ) async {
+    final safeContainerId = _shellQuote(containerId);
+    final output = await _repository.exec(
+      session,
+      'docker stats --no-stream --format "{{json .}}" $safeContainerId',
+    );
+
+    final line = output
+        .split('\n')
+        .map((value) => value.trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (line.isEmpty) {
+      throw Exception('Container stats is empty');
+    }
+
+    final json = _parseDockerJson(line);
+    return {
+      'id': (json['ID'] ?? '').toString(),
+      'name': (json['Name'] ?? '').toString(),
+      'cpuPercent': (json['CPUPerc'] ?? '').toString(),
+      'memPercent': (json['MemPerc'] ?? '').toString(),
+      'memUsage': (json['MemUsage'] ?? '').toString(),
+      'netIO': (json['NetIO'] ?? '').toString(),
+      'blockIO': (json['BlockIO'] ?? '').toString(),
+      'pids': (json['PIDs'] ?? '').toString(),
+    };
+  }
+
+  /// 获取容器诊断信息（重启次数、健康状态、退出码）
+  Future<List<Map<String, dynamic>>> getContainerDiagnostics(
+    SshSession session,
+    List<String> containerIds,
+  ) async {
+    final ids = _normalizeIds(containerIds);
+    final results = <Map<String, dynamic>>[];
+
+    for (final id in ids) {
+      try {
+        final inspect = await inspectContainer(session, id);
+        final state =
+            inspect['State'] as Map<String, dynamic>? ?? <String, dynamic>{};
+        final health = state['Health'] as Map<String, dynamic>?;
+        results.add({
+          'containerId': id,
+          'restartCount': _toInt(state['RestartCount']),
+          'healthStatus': health?['Status']?.toString() ?? '',
+          'exitCode': _toInt(state['ExitCode']),
+        });
+      } catch (_) {
+        results.add({
+          'containerId': id,
+          'restartCount': 0,
+          'healthStatus': '',
+          'exitCode': 0,
+        });
+      }
+    }
+
+    return results;
+  }
+
   // Helper methods
   Map<String, dynamic> _parseDockerJson(String line) {
     return jsonDecode(line) as Map<String, dynamic>;
@@ -286,5 +371,10 @@ class DockerService {
     );
     parsed = DateTime.tryParse(normalizedOffset);
     return parsed;
+  }
+
+  int _toInt(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 }

@@ -60,6 +60,14 @@ class ApiRoutes {
     // Docker
     router.get('/api/docker/check', dockerController.checkDocker);
     router.get('/api/docker/containers', dockerController.listContainers);
+    router.get(
+      '/api/docker/containers/<id>/inspect',
+      dockerController.inspectContainer,
+    );
+    router.get(
+      '/api/docker/containers/<id>/stats',
+      dockerController.getContainerStats,
+    );
     router.post(
       '/api/docker/containers/<id>/shell',
       dockerController.createContainerShellSession,
@@ -84,6 +92,10 @@ class ApiRoutes {
     router.get(
       '/api/docker/containers/logs',
       dockerController.getContainerLogs,
+    );
+    router.post(
+      '/api/docker/containers/diagnostics',
+      dockerController.getContainerDiagnostics,
     );
     router.post(
       '/api/docker/containers/batch-start',

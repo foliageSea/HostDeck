@@ -178,6 +178,74 @@ class DockerController {
     }
   }
 
+  /// 获取容器 inspect 详情
+  Future<Response> inspectContainer(Request request, String id) async {
+    final sessionId = request.url.queryParameters['sessionId'];
+    if (sessionId == null) {
+      return Result.fail(400, 'Missing sessionId');
+    }
+
+    final session = _sshService.getSession(sessionId);
+    if (session == null) {
+      return Result.fail(404, 'Session not found');
+    }
+
+    try {
+      final detail = await _dockerService.inspectContainer(session, id);
+      return Result.ok(detail);
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
+  /// 获取容器资源信息
+  Future<Response> getContainerStats(Request request, String id) async {
+    final sessionId = request.url.queryParameters['sessionId'];
+    if (sessionId == null) {
+      return Result.fail(400, 'Missing sessionId');
+    }
+
+    final session = _sshService.getSession(sessionId);
+    if (session == null) {
+      return Result.fail(404, 'Session not found');
+    }
+
+    try {
+      final stats = await _dockerService.getContainerStats(session, id);
+      return Result.ok(stats);
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
+  /// 批量获取容器诊断信息
+  Future<Response> getContainerDiagnostics(Request request) async {
+    final sessionId = request.url.queryParameters['sessionId'];
+    if (sessionId == null) {
+      return Result.fail(400, 'Missing sessionId');
+    }
+
+    final session = _sshService.getSession(sessionId);
+    if (session == null) {
+      return Result.fail(404, 'Session not found');
+    }
+
+    final ids = await _parseIds(request);
+    if (ids == null) {
+      return Result.fail(400, 'Missing or invalid containerIds');
+    }
+
+    try {
+      final diagnostics = await _dockerService.getContainerDiagnostics(
+        session,
+        ids,
+      );
+      return Result.ok(diagnostics);
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
   /// 删除镜像
   Future<Response> removeImage(Request request, String id) async {
     final sessionId = request.url.queryParameters['sessionId'];
