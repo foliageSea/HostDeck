@@ -42,6 +42,35 @@ export interface DockerContainerDiagnostic {
   exitCode: number;
 }
 
+export interface DockerImageHistoryItem {
+  id: string;
+  createdSince: string;
+  createdAt: string;
+  createdBy: string;
+  size: string;
+  comment: string;
+}
+
+export interface DockerImageContainerRef {
+  id: string;
+  name: string;
+  image: string;
+  state: string;
+  status: string;
+}
+
+export interface DockerCreateContainerPayload {
+  image: string;
+  name?: string;
+  ports?: string[];
+  env?: string[];
+  volumes?: string[];
+  restartPolicy?: string;
+  cmd?: string[];
+  entrypoint?: string[];
+  start?: boolean;
+}
+
 export interface DockerContainerInspect {
   Id?: string;
   Name?: string;
@@ -120,6 +149,41 @@ export const dockerApi = {
     return response.data;
   },
 
+  pauseContainer: async (sessionId: string, id: string) => {
+    const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/pause`, null, {
+      params: { sessionId }
+    });
+    return response.data;
+  },
+
+  unpauseContainer: async (sessionId: string, id: string) => {
+    const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/unpause`, null, {
+      params: { sessionId }
+    });
+    return response.data;
+  },
+
+  renameContainer: async (sessionId: string, id: string, newName: string) => {
+    const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/rename`, {
+      newName
+    }, {
+      params: { sessionId }
+    });
+    return response.data;
+  },
+
+  recreateContainer: async (sessionId: string, id: string) => {
+    const response = await http.post<{
+      oldContainerId: string;
+      newContainerId: string;
+      name: string;
+      started: boolean;
+    }>(`/api/docker/containers/${id}/recreate`, null, {
+      params: { sessionId }
+    });
+    return response.data;
+  },
+
   removeContainer: async (sessionId: string, id: string, force = false) => {
     const response = await http.delete<{ success: boolean }>(`/api/docker/containers/${id}`, {
       params: { sessionId, force }
@@ -165,6 +229,49 @@ export const dockerApi = {
     const response = await http.delete<{ success: boolean }>(`/api/docker/images/${id}`, {
       params: { sessionId, force }
     });
+    return response.data;
+  },
+
+  pullImage: async (sessionId: string, image: string) => {
+    const response = await http.post<{ success: boolean; output: string }>(
+      '/api/docker/images/pull',
+      { image },
+      { params: { sessionId } }
+    );
+    return response.data;
+  },
+
+  tagImage: async (sessionId: string, sourceImage: string, targetImage: string) => {
+    const response = await http.post<{ success: boolean }>(
+      '/api/docker/images/tag',
+      { sourceImage, targetImage },
+      { params: { sessionId } }
+    );
+    return response.data;
+  },
+
+  getImageHistory: async (sessionId: string, imageId: string) => {
+    const response = await http.get<DockerImageHistoryItem[]>(
+      `/api/docker/images/${imageId}/history`,
+      { params: { sessionId } }
+    );
+    return response.data;
+  },
+
+  getImageContainers: async (sessionId: string, imageId: string) => {
+    const response = await http.get<DockerImageContainerRef[]>(
+      `/api/docker/images/${imageId}/containers`,
+      { params: { sessionId } }
+    );
+    return response.data;
+  },
+
+  createContainer: async (sessionId: string, payload: DockerCreateContainerPayload) => {
+    const response = await http.post<{ containerId: string; started: boolean }>(
+      '/api/docker/containers',
+      payload,
+      { params: { sessionId } }
+    );
     return response.data;
   },
 
