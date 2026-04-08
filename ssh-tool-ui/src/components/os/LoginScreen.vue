@@ -79,7 +79,7 @@
                 </div>
                 <div class="space-y-2">
                   <Label>端口</Label>
-                  <NumberField v-model="form.port" :min="1" :max="65535" class="w-full">
+                  <NumberField v-model="form.port" :min="1" :max="65535" :format-options="{ useGrouping: false }" class="w-full">
                     <NumberFieldContent>
                       <NumberFieldDecrement />
                       <NumberFieldInput placeholder="22" />
