@@ -6,6 +6,9 @@ import {
   dockerApi,
   type DockerContainer,
   type DockerImage,
+  type DockerImageHistoryItem,
+  type DockerImageContainerRef,
+  type DockerCreateContainerPayload,
   type DockerContainerInspect,
   type DockerContainerStats,
   type DockerContainerDiagnostic,
@@ -25,6 +28,10 @@ import {
   Copy,
   Download,
   Info,
+  Pause,
+  Tag,
+  Plus,
+  Pencil,
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -114,6 +121,48 @@ const detailDialogOpen = ref(false);
 const detailContainer = ref<DockerContainer | null>(null);
 const detailLoading = ref(false);
 const detailInspect = ref<DockerContainerInspect | null>(null);
+
+const rawInspectDialogOpen = ref(false);
+const createDialogOpen = ref(false);
+const creatingContainer = ref(false);
+const recreateLoadingId = ref<string | null>(null);
+const renameDialogOpen = ref(false);
+const renamingContainer = ref(false);
+const renamingContainerId = ref('');
+const renamingContainerName = ref('');
+
+const imagePullDialogOpen = ref(false);
+const imagePullInput = ref('');
+const imagePulling = ref(false);
+const imageTagDialogOpen = ref(false);
+const imageTagSource = ref('');
+const imageTagTarget = ref('');
+const imageTagging = ref(false);
+const imageHistoryDialogOpen = ref(false);
+const imageHistoryLoading = ref(false);
+const imageHistoryTitle = ref('');
+const imageHistoryItems = ref<DockerImageHistoryItem[]>([]);
+const imageRefsDialogOpen = ref(false);
+const imageRefsLoading = ref(false);
+const imageRefsTitle = ref('');
+const imageRefsItems = ref<DockerImageContainerRef[]>([]);
+
+const createContainerForm = ref<DockerCreateContainerPayload>({
+  image: '',
+  name: '',
+  ports: [],
+  env: [],
+  volumes: [],
+  restartPolicy: 'no',
+  cmd: [],
+  entrypoint: [],
+  start: true,
+});
+const createContainerPortsText = ref('');
+const createContainerEnvText = ref('');
+const createContainerVolumesText = ref('');
+const createContainerCmdText = ref('');
+const createContainerEntrypointText = ref('');
 
 const containerStatsMap = ref<Record<string, DockerContainerStats>>({});
 const diagnosticMap = ref<Record<string, DockerContainerDiagnostic>>({});
@@ -440,6 +489,250 @@ const restartContainer = async (container: DockerContainer) => {
   } catch {
     toast.error('重启容器失败');
   }
+};
+
+const pauseContainer = async (container: DockerContainer) => {
+  if (!sshStore.sessionId) return;
+  try {
+    await dockerApi.pauseContainer(sshStore.sessionId, container.id);
+    toast.success(`容器 ${container.name} 已暂停`);
+    await fetchContainers();
+  } catch {
+    toast.error('暂停容器失败');
+  }
+};
+
+const unpauseContainer = async (container: DockerContainer) => {
+  if (!sshStore.sessionId) return;
+  try {
+    await dockerApi.unpauseContainer(sshStore.sessionId, container.id);
+    toast.success(`容器 ${container.name} 已恢复`);
+    await fetchContainers();
+  } catch {
+    toast.error('恢复容器失败');
+  }
+};
+
+const openRenameDialog = (container: DockerContainer) => {
+  renamingContainerId.value = container.id;
+  renamingContainerName.value = container.name;
+  renameDialogOpen.value = true;
+};
+
+const submitRenameContainer = async () => {
+  if (!sshStore.sessionId || !renamingContainerId.value) return;
+  const newName = renamingContainerName.value.trim();
+  if (!newName) {
+    toast.error('请输入新容器名称');
+    return;
+  }
+
+  renamingContainer.value = true;
+  try {
+    await dockerApi.renameContainer(
+      sshStore.sessionId,
+      renamingContainerId.value,
+      newName,
+    );
+    toast.success('容器重命名成功');
+    renameDialogOpen.value = false;
+    await fetchContainers();
+  } catch {
+    toast.error('容器重命名失败');
+  } finally {
+    renamingContainer.value = false;
+  }
+};
+
+const recreateContainer = async (container: DockerContainer) => {
+  if (!sshStore.sessionId) return;
+  recreateLoadingId.value = container.id;
+  try {
+    const result = await dockerApi.recreateContainer(sshStore.sessionId, container.id);
+    toast.success(`容器 ${result.name} 重建完成`);
+    await fetchContainers();
+  } catch {
+    toast.error('容器重建失败');
+  } finally {
+    recreateLoadingId.value = null;
+  }
+};
+
+const toLineList = (value: string) => {
+  return value
+    .split('\n')
+    .map(item => item.trim())
+    .filter(item => item.length > 0);
+};
+
+const openCreateContainerDialog = () => {
+  createContainerForm.value = {
+    image: '',
+    name: '',
+    ports: [],
+    env: [],
+    volumes: [],
+    restartPolicy: 'no',
+    cmd: [],
+    entrypoint: [],
+    start: true,
+  };
+  createContainerPortsText.value = '';
+  createContainerEnvText.value = '';
+  createContainerVolumesText.value = '';
+  createContainerCmdText.value = '';
+  createContainerEntrypointText.value = '';
+  createDialogOpen.value = true;
+};
+
+const submitCreateContainer = async () => {
+  if (!sshStore.sessionId) return;
+  const image = createContainerForm.value.image?.trim() ?? '';
+  if (!image) {
+    toast.error('镜像名称不能为空');
+    return;
+  }
+
+  creatingContainer.value = true;
+  try {
+    const payload: DockerCreateContainerPayload = {
+      image,
+      name: createContainerForm.value.name?.trim() || undefined,
+      ports: toLineList(createContainerPortsText.value),
+      env: toLineList(createContainerEnvText.value),
+      volumes: toLineList(createContainerVolumesText.value),
+      restartPolicy: createContainerForm.value.restartPolicy || 'no',
+      cmd: toLineList(createContainerCmdText.value),
+      entrypoint: toLineList(createContainerEntrypointText.value),
+      start: createContainerForm.value.start === true,
+    };
+    const result = await dockerApi.createContainer(sshStore.sessionId, payload);
+    toast.success(`容器创建成功：${shortId(result.containerId)}`);
+    createDialogOpen.value = false;
+    await fetchContainers();
+  } catch {
+    toast.error('创建容器失败');
+  } finally {
+    creatingContainer.value = false;
+  }
+};
+
+const openImagePullDialog = () => {
+  imagePullInput.value = '';
+  imagePullDialogOpen.value = true;
+};
+
+const submitPullImage = async () => {
+  if (!sshStore.sessionId) return;
+  const image = imagePullInput.value.trim();
+  if (!image) {
+    toast.error('请输入镜像名称');
+    return;
+  }
+
+  imagePulling.value = true;
+  try {
+    await dockerApi.pullImage(sshStore.sessionId, image);
+    toast.success('镜像拉取成功');
+    imagePullDialogOpen.value = false;
+    await fetchImages();
+  } catch {
+    toast.error('镜像拉取失败');
+  } finally {
+    imagePulling.value = false;
+  }
+};
+
+const openImageTagDialog = (image: DockerImage) => {
+  imageTagSource.value = `${image.repository}:${image.tag}`;
+  imageTagTarget.value = '';
+  imageTagDialogOpen.value = true;
+};
+
+const submitTagImage = async () => {
+  if (!sshStore.sessionId) return;
+  const sourceImage = imageTagSource.value.trim();
+  const targetImage = imageTagTarget.value.trim();
+  if (!sourceImage || !targetImage) {
+    toast.error('源镜像和目标标签都不能为空');
+    return;
+  }
+
+  imageTagging.value = true;
+  try {
+    await dockerApi.tagImage(sshStore.sessionId, sourceImage, targetImage);
+    toast.success('镜像重新打标签成功');
+    imageTagDialogOpen.value = false;
+    await fetchImages();
+  } catch {
+    toast.error('镜像重新打标签失败');
+  } finally {
+    imageTagging.value = false;
+  }
+};
+
+const viewImageHistory = async (image: DockerImage) => {
+  if (!sshStore.sessionId) return;
+  imageHistoryDialogOpen.value = true;
+  imageHistoryLoading.value = true;
+  imageHistoryTitle.value = `${image.repository}:${image.tag}`;
+  imageHistoryItems.value = [];
+
+  try {
+    imageHistoryItems.value = await dockerApi.getImageHistory(sshStore.sessionId, image.id);
+  } catch {
+    toast.error('获取镜像历史失败');
+  } finally {
+    imageHistoryLoading.value = false;
+  }
+};
+
+const viewImageRefs = async (image: DockerImage) => {
+  if (!sshStore.sessionId) return;
+  imageRefsDialogOpen.value = true;
+  imageRefsLoading.value = true;
+  imageRefsTitle.value = `${image.repository}:${image.tag}`;
+  imageRefsItems.value = [];
+
+  try {
+    imageRefsItems.value = await dockerApi.getImageContainers(sshStore.sessionId, image.id);
+  } catch {
+    toast.error('获取镜像引用容器失败');
+  } finally {
+    imageRefsLoading.value = false;
+  }
+};
+
+const openRawInspect = () => {
+  if (!detailInspect.value) {
+    toast.error('暂无 inspect 数据');
+    return;
+  }
+  rawInspectDialogOpen.value = true;
+};
+
+const rawInspectText = computed(() => {
+  if (!detailInspect.value) return '';
+  return JSON.stringify(detailInspect.value, null, 2);
+});
+
+const downloadInspectConfig = () => {
+  if (!detailInspect.value || !detailContainer.value) {
+    toast.error('暂无可导出的容器配置');
+    return;
+  }
+
+  const text = JSON.stringify(detailInspect.value, null, 2);
+  const filename = `${detailContainer.value.name || 'container'}-inspect.json`;
+  const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 };
 
 const toggleContainerSelection = (id: string) => {
@@ -869,10 +1162,32 @@ watch(detailDialogOpen, (open) => {
           </button>
         </div>
       </div>
-      <Button variant="outline" size="sm" :disabled="refreshing || !dockerAvailable" @click="refresh">
-        <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': refreshing }"/>
-        刷新
-      </Button>
+      <div class="flex items-center gap-2">
+        <Button
+          v-if="activeTab === 'containers'"
+          variant="outline"
+          size="sm"
+          :disabled="!dockerAvailable"
+          @click="openCreateContainerDialog"
+        >
+          <Plus class="w-4 h-4 mr-2"/>
+          新建容器
+        </Button>
+        <Button
+          v-if="activeTab === 'images'"
+          variant="outline"
+          size="sm"
+          :disabled="!dockerAvailable"
+          @click="openImagePullDialog"
+        >
+          <Download class="w-4 h-4 mr-2"/>
+          拉取镜像
+        </Button>
+        <Button variant="outline" size="sm" :disabled="refreshing || !dockerAvailable" @click="refresh">
+          <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': refreshing }"/>
+          刷新
+        </Button>
+      </div>
     </div>
 
     <div class="flex-1 overflow-auto custom-scrollbar p-4">
@@ -1099,8 +1414,38 @@ watch(detailDialogOpen, (open) => {
                       <Button variant="ghost" size="icon" class="h-8 w-8" @click="restartContainer(container)">
                         <RotateCw class="w-4 h-4"/>
                       </Button>
+                      <Button
+                        v-if="container.state === 'running'"
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8"
+                        @click="pauseContainer(container)"
+                      >
+                        <Pause class="w-4 h-4 text-yellow-600"/>
+                      </Button>
+                      <Button
+                        v-if="container.state === 'paused'"
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8"
+                        @click="unpauseContainer(container)"
+                      >
+                        <Play class="w-4 h-4 text-green-600"/>
+                      </Button>
                       <Button variant="ghost" size="icon" class="h-8 w-8" @click="viewLogs(container)">
                         <FileText class="w-4 h-4"/>
+                      </Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="openRenameDialog(container)">
+                        <Pencil class="w-4 h-4 text-sky-600"/>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8"
+                        :disabled="recreateLoadingId === container.id"
+                        @click="recreateContainer(container)"
+                      >
+                        <RefreshCw class="w-4 h-4 text-indigo-600" :class="{ 'animate-spin': recreateLoadingId === container.id }"/>
                       </Button>
                       <Button variant="ghost" size="icon" class="h-8 w-8" :disabled="container.state !== 'running'"
                         @click="enterShell(container)">
@@ -1164,7 +1509,7 @@ watch(detailDialogOpen, (open) => {
                   <TableHead>大小</TableHead>
                   <TableHead class="w-40">识别</TableHead>
                   <TableHead class="w-32">创建时间</TableHead>
-                  <TableHead class="w-20 text-right">操作</TableHead>
+                  <TableHead class="w-52 text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1199,9 +1544,20 @@ watch(detailDialogOpen, (open) => {
                     {{ formatDate(image.createdAt) }}
                   </TableCell>
                   <TableCell class="text-right">
-                    <Button variant="ghost" size="icon" class="h-8 w-8" @click="showRemoveImageConfirm(image)">
-                      <Trash2 class="w-4 h-4 text-red-600"/>
-                    </Button>
+                    <div class="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="viewImageHistory(image)">
+                        <Info class="w-4 h-4 text-blue-600"/>
+                      </Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="viewImageRefs(image)">
+                        <Container class="w-4 h-4 text-teal-600"/>
+                      </Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="openImageTagDialog(image)">
+                        <Tag class="w-4 h-4 text-indigo-600"/>
+                      </Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="showRemoveImageConfirm(image)">
+                        <Trash2 class="w-4 h-4 text-red-600"/>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -1381,7 +1737,15 @@ watch(detailDialogOpen, (open) => {
               <div v-else class="text-sm text-muted-foreground">-</div>
             </div>
 
-            <div class="flex justify-end">
+            <div class="flex flex-wrap justify-end gap-2">
+              <Button size="sm" variant="outline" @click="openRawInspect">
+                <Info class="w-4 h-4"/>
+                查看原始 inspect JSON
+              </Button>
+              <Button size="sm" variant="outline" @click="downloadInspectConfig">
+                <Download class="w-4 h-4"/>
+                导出容器配置
+              </Button>
               <Button size="sm" variant="outline" @click="detailContainer && viewLogs(detailContainer)">
                 <FileText class="w-4 h-4"/>
                 快速查看最近日志
@@ -1390,6 +1754,235 @@ watch(detailDialogOpen, (open) => {
           </div>
 
           <div v-else class="text-sm text-muted-foreground">暂无详情数据</div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="rawInspectDialogOpen">
+      <DialogContent class="max-w-5xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>原始 inspect JSON</DialogTitle>
+          <DialogDescription>
+            可复制或用于排障比对
+          </DialogDescription>
+        </DialogHeader>
+        <div class="flex-1 overflow-auto bg-black rounded-md p-3">
+          <pre class="text-xs text-gray-300 font-mono whitespace-pre-wrap break-all">{{ rawInspectText || '{}' }}</pre>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="renameDialogOpen">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>重命名容器</DialogTitle>
+          <DialogDescription>
+            输入新的容器名称
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-3">
+          <Input v-model="renamingContainerName" placeholder="例如: nginx-prod"/>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+          <Button variant="outline" @click="renameDialogOpen = false">取消</Button>
+          <Button :disabled="renamingContainer" @click="submitRenameContainer">
+            {{ renamingContainer ? '提交中...' : '确认' }}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="createDialogOpen">
+      <DialogContent class="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>新建容器</DialogTitle>
+          <DialogDescription>
+            基础创建参数（按行填写映射项）
+          </DialogDescription>
+        </DialogHeader>
+        <div class="flex-1 overflow-auto custom-scrollbar pr-1 space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <div class="text-sm text-muted-foreground">镜像</div>
+              <Input v-model="createContainerForm.image" placeholder="nginx:latest"/>
+            </div>
+            <div class="space-y-1">
+              <div class="text-sm text-muted-foreground">容器名称（可选）</div>
+              <Input v-model="createContainerForm.name" placeholder="my-nginx"/>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <div class="text-sm text-muted-foreground">端口映射（每行一条，如 8080:80）</div>
+              <textarea v-model="createContainerPortsText" class="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm"></textarea>
+            </div>
+            <div class="space-y-1">
+              <div class="text-sm text-muted-foreground">环境变量（每行一条，如 KEY=VALUE）</div>
+              <textarea v-model="createContainerEnvText" class="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm"></textarea>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <div class="text-sm text-muted-foreground">卷挂载（每行一条，如 /data:/app/data）</div>
+              <textarea v-model="createContainerVolumesText" class="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm"></textarea>
+            </div>
+            <div class="space-y-1">
+              <div class="text-sm text-muted-foreground">Restart Policy</div>
+              <select
+                v-model="createContainerForm.restartPolicy"
+                class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="no">no</option>
+                <option value="always">always</option>
+                <option value="unless-stopped">unless-stopped</option>
+                <option value="on-failure">on-failure</option>
+              </select>
+              <label class="inline-flex items-center gap-2 text-sm mt-2">
+                <input v-model="createContainerForm.start" type="checkbox">
+                创建后自动启动
+              </label>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <div class="text-sm text-muted-foreground">Entrypoint（每行一个参数）</div>
+              <textarea v-model="createContainerEntrypointText" class="w-full min-h-20 rounded-md border bg-background px-3 py-2 text-sm"></textarea>
+            </div>
+            <div class="space-y-1">
+              <div class="text-sm text-muted-foreground">命令 CMD（每行一个参数）</div>
+              <textarea v-model="createContainerCmdText" class="w-full min-h-20 rounded-md border bg-background px-3 py-2 text-sm"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+          <Button variant="outline" @click="createDialogOpen = false">取消</Button>
+          <Button :disabled="creatingContainer" @click="submitCreateContainer">
+            {{ creatingContainer ? '创建中...' : '创建容器' }}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="imagePullDialogOpen">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>拉取镜像</DialogTitle>
+          <DialogDescription>
+            输入镜像名称，例如 redis:7
+          </DialogDescription>
+        </DialogHeader>
+        <Input v-model="imagePullInput" placeholder="repository:tag"/>
+        <div class="flex justify-end gap-2 mt-4">
+          <Button variant="outline" @click="imagePullDialogOpen = false">取消</Button>
+          <Button :disabled="imagePulling" @click="submitPullImage">
+            {{ imagePulling ? '拉取中...' : '开始拉取' }}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="imageTagDialogOpen">
+      <DialogContent class="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>镜像重新打标签</DialogTitle>
+          <DialogDescription>
+            将源镜像标记为新标签
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-3">
+          <div>
+            <div class="text-sm text-muted-foreground mb-1">源镜像</div>
+            <Input v-model="imageTagSource" placeholder="old-repo:old-tag"/>
+          </div>
+          <div>
+            <div class="text-sm text-muted-foreground mb-1">目标镜像</div>
+            <Input v-model="imageTagTarget" placeholder="new-repo:new-tag"/>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+          <Button variant="outline" @click="imageTagDialogOpen = false">取消</Button>
+          <Button :disabled="imageTagging" @click="submitTagImage">
+            {{ imageTagging ? '提交中...' : '确认打标签' }}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="imageHistoryDialogOpen">
+      <DialogContent class="max-w-4xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>镜像历史</DialogTitle>
+          <DialogDescription>
+            {{ imageHistoryTitle }}
+          </DialogDescription>
+        </DialogHeader>
+        <div class="flex-1 overflow-auto custom-scrollbar border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow class="bg-muted/50">
+                <TableHead>ID</TableHead>
+                <TableHead>创建时间</TableHead>
+                <TableHead>命令</TableHead>
+                <TableHead>大小</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-if="imageHistoryLoading">
+                <TableCell colspan="4" class="py-8 text-center text-muted-foreground">加载中...</TableCell>
+              </TableRow>
+              <TableRow v-else-if="imageHistoryItems.length === 0">
+                <TableCell colspan="4" class="py-8 text-center text-muted-foreground">暂无历史数据</TableCell>
+              </TableRow>
+              <TableRow v-for="item in imageHistoryItems" :key="`${item.id}-${item.createdAt}-${item.size}`">
+                <TableCell class="font-mono text-xs">{{ shortId(item.id) }}</TableCell>
+                <TableCell class="text-xs">{{ item.createdSince || item.createdAt || '-' }}</TableCell>
+                <TableCell class="text-xs break-all">{{ item.createdBy || '-' }}</TableCell>
+                <TableCell class="text-xs">{{ item.size || '-' }}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="imageRefsDialogOpen">
+      <DialogContent class="max-w-3xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>镜像引用容器</DialogTitle>
+          <DialogDescription>
+            {{ imageRefsTitle }}
+          </DialogDescription>
+        </DialogHeader>
+        <div class="flex-1 overflow-auto custom-scrollbar border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow class="bg-muted/50">
+                <TableHead>ID</TableHead>
+                <TableHead>名称</TableHead>
+                <TableHead>状态</TableHead>
+                <TableHead>详情</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-if="imageRefsLoading">
+                <TableCell colspan="4" class="py-8 text-center text-muted-foreground">加载中...</TableCell>
+              </TableRow>
+              <TableRow v-else-if="imageRefsItems.length === 0">
+                <TableCell colspan="4" class="py-8 text-center text-muted-foreground">暂无引用容器</TableCell>
+              </TableRow>
+              <TableRow v-for="item in imageRefsItems" :key="item.id">
+                <TableCell class="font-mono text-xs">{{ shortId(item.id) }}</TableCell>
+                <TableCell class="text-sm">{{ item.name }}</TableCell>
+                <TableCell>
+                  <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-muted">{{ item.state || '-' }}</span>
+                </TableCell>
+                <TableCell class="text-xs text-muted-foreground">{{ item.status || '-' }}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </div>
       </DialogContent>
     </Dialog>
