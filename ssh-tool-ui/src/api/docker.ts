@@ -16,6 +16,8 @@ export interface DockerImage {
   tag: string;
   size: string;
   createdAt?: string;
+  dangling?: boolean;
+  inUse?: boolean;
 }
 
 export interface DockerShellSessionResponse {
@@ -79,6 +81,22 @@ export const dockerApi = {
     return response.data;
   },
 
+  getContainerLogsAdvanced: async (
+    sessionId: string,
+    containerId: string,
+    options: { tail?: number; timestamps?: boolean } = {}
+  ) => {
+    const response = await http.get<{ logs: string }>('/api/docker/containers/logs', {
+      params: {
+        sessionId,
+        containerId,
+        tail: options.tail ?? 200,
+        timestamps: options.timestamps ?? false,
+      }
+    });
+    return response.data;
+  },
+
   createContainerShellSession: async (sessionId: string, containerId: string) => {
     const response = await http.post<DockerShellSessionResponse>(
       `/api/docker/containers/${containerId}/shell`,
@@ -94,6 +112,41 @@ export const dockerApi = {
     const response = await http.delete<{ success: boolean }>(`/api/docker/images/${id}`, {
       params: { sessionId, force }
     });
+    return response.data;
+  },
+
+  batchStartContainers: async (sessionId: string, containerIds: string[]) => {
+    const response = await http.post<{ success: boolean; processed: number }>(
+      '/api/docker/containers/batch-start',
+      { containerIds },
+      { params: { sessionId } }
+    );
+    return response.data;
+  },
+
+  batchStopContainers: async (sessionId: string, containerIds: string[]) => {
+    const response = await http.post<{ success: boolean; processed: number }>(
+      '/api/docker/containers/batch-stop',
+      { containerIds },
+      { params: { sessionId } }
+    );
+    return response.data;
+  },
+
+  removeStoppedContainers: async (sessionId: string) => {
+    const response = await http.delete<{ success: boolean; removedCount: number }>(
+      '/api/docker/containers/stopped',
+      { params: { sessionId } }
+    );
+    return response.data;
+  },
+
+  pruneImages: async (sessionId: string, includeUnused = false) => {
+    const response = await http.post<{ success: boolean; output: string }>(
+      '/api/docker/images/prune',
+      { includeUnused },
+      { params: { sessionId } }
+    );
     return response.data;
   },
 };

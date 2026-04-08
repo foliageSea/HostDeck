@@ -85,6 +85,19 @@ class ApiRoutes {
       '/api/docker/containers/logs',
       dockerController.getContainerLogs,
     );
+    router.post(
+      '/api/docker/containers/batch-start',
+      dockerController.batchStartContainers,
+    );
+    router.post(
+      '/api/docker/containers/batch-stop',
+      dockerController.batchStopContainers,
+    );
+    router.delete(
+      '/api/docker/containers/stopped',
+      dockerController.removeStoppedContainers,
+    );
+    router.post('/api/docker/images/prune', dockerController.pruneImages);
     router.delete('/api/docker/images/<id>', dockerController.removeImage);
 
     return router;

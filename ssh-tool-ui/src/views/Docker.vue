@@ -14,9 +14,12 @@ import {
   Container,
   HardDrive,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Copy,
+  Download,
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -50,45 +53,193 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 
+type ConfirmAction =
+  | 'removeContainer'
+  | 'removeImage'
+  | 'pruneDangling'
+  | 'pruneUnused'
+  | 'removeStoppedContainers';
+
+const LOG_TAIL_OPTIONS = [100, 200, 500, 1000] as const;
+type LogTailOption = (typeof LOG_TAIL_OPTIONS)[number];
+
 const sshStore = useSshStore();
 const desktopStore = useDesktopStore();
+
 const activeTab = ref<'containers' | 'images'>('containers');
 const containers = ref<DockerContainer[]>([]);
 const images = ref<DockerImage[]>([]);
 const loading = ref(false);
 const dockerAvailable = ref<boolean | null>(null);
 const refreshing = ref(false);
+const batchProcessing = ref(false);
 
-// Logs dialog
+const containerNameQuery = ref('');
+const containerImageQuery = ref('');
+const containerStateFilter = ref<'all' | 'running' | 'exited' | 'paused'>('all');
+const containerSortBy = ref<'createdAt' | 'name' | 'image'>('createdAt');
+const containerSortOrder = ref<'asc' | 'desc'>('desc');
+const selectedContainerIds = ref<string[]>([]);
+
+const imageQuery = ref('');
+const imageUsageFilter = ref<'all' | 'dangling' | 'unused'>('all');
+const imageSortBy = ref<'createdAt' | 'repository' | 'tag' | 'size'>('createdAt');
+const imageSortOrder = ref<'asc' | 'desc'>('desc');
+
 const logsDialogOpen = ref(false);
 const logsContainer = ref<DockerContainer | null>(null);
 const logsContent = ref('');
 const logsLoading = ref(false);
+const logsRefreshing = ref(false);
+const logsTail = ref<LogTailOption>(200);
+const logsKeyword = ref('');
+const logsAutoRefresh = ref(false);
+const showLogTimestamps = ref(true);
+const logsLastUpdatedAt = ref<Date | null>(null);
 
-// Confirm dialog
 const confirmDialogOpen = ref(false);
-const confirmAction = ref<'removeContainer' | 'removeImage' | null>(null);
+const confirmAction = ref<ConfirmAction | null>(null);
 const confirmItem = ref<DockerContainer | DockerImage | null>(null);
 const confirmForce = ref(false);
 
 let refreshInterval: number | null = null;
+let logsRefreshInterval: number | null = null;
 
 const isConnected = computed(() => sshStore.isConnected && sshStore.sessionId);
+const logTailOptions = LOG_TAIL_OPTIONS;
 
-const runningContainers = computed(() =>
-  containers.value.filter(c => c.state === 'running')
+const runningContainers = computed(() => containers.value.filter(c => c.state === 'running'));
+const exitedContainers = computed(() => containers.value.filter(c => c.state === 'exited'));
+const pausedContainers = computed(() => containers.value.filter(c => c.state === 'paused'));
+
+const selectedContainerSet = computed(() => new Set(selectedContainerIds.value));
+const selectedContainers = computed(() =>
+  containers.value.filter(container => selectedContainerSet.value.has(container.id))
+);
+const selectedRunningContainers = computed(() =>
+  selectedContainers.value.filter(container => container.state === 'running')
+);
+const selectedStoppedContainers = computed(() =>
+  selectedContainers.value.filter(container => container.state !== 'running')
 );
 
-const stoppedContainers = computed(() =>
-  containers.value.filter(c => c.state !== 'running')
-);
+const filteredContainers = computed(() => {
+  const nameKeyword = containerNameQuery.value.trim().toLowerCase();
+  const imageKeyword = containerImageQuery.value.trim().toLowerCase();
+
+  const list = containers.value.filter((container) => {
+    const matchName = !nameKeyword || container.name.toLowerCase().includes(nameKeyword);
+    const matchImage = !imageKeyword || container.image.toLowerCase().includes(imageKeyword);
+    const matchState =
+      containerStateFilter.value === 'all' || container.state === containerStateFilter.value;
+    return matchName && matchImage && matchState;
+  });
+
+  list.sort((a, b) => {
+    let result = 0;
+    if (containerSortBy.value === 'createdAt') {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      result = aTime - bTime;
+    }
+    if (containerSortBy.value === 'name') {
+      result = a.name.localeCompare(b.name, 'zh-CN');
+    }
+    if (containerSortBy.value === 'image') {
+      result = a.image.localeCompare(b.image, 'zh-CN');
+    }
+    return containerSortOrder.value === 'asc' ? result : -result;
+  });
+
+  return list;
+});
+
+const allVisibleContainersSelected = computed(() => {
+  if (filteredContainers.value.length === 0) return false;
+  return filteredContainers.value.every(container => selectedContainerSet.value.has(container.id));
+});
+
+const filteredImages = computed(() => {
+  const keyword = imageQuery.value.trim().toLowerCase();
+
+  const list = images.value.filter((image) => {
+    const target = `${image.repository}:${image.tag}`.toLowerCase();
+    const matchKeyword = !keyword || target.includes(keyword);
+    const matchUsage =
+      imageUsageFilter.value === 'all'
+      || (imageUsageFilter.value === 'dangling' && !!image.dangling)
+      || (imageUsageFilter.value === 'unused' && !image.inUse);
+    return matchKeyword && matchUsage;
+  });
+
+  list.sort((a, b) => {
+    let result = 0;
+    if (imageSortBy.value === 'createdAt') {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      result = aTime - bTime;
+    }
+    if (imageSortBy.value === 'repository') {
+      result = a.repository.localeCompare(b.repository, 'zh-CN');
+    }
+    if (imageSortBy.value === 'tag') {
+      result = a.tag.localeCompare(b.tag, 'zh-CN');
+    }
+    if (imageSortBy.value === 'size') {
+      result = parseImageSizeToBytes(a.size) - parseImageSizeToBytes(b.size);
+    }
+    return imageSortOrder.value === 'asc' ? result : -result;
+  });
+
+  return list;
+});
+
+const displayedLogs = computed(() => {
+  let value = logsContent.value;
+
+  if (!showLogTimestamps.value) {
+    value = value
+      .split('\n')
+      .map((line) => line.replace(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})\s*/,
+        '',
+      ))
+      .join('\n');
+  }
+
+  const keyword = logsKeyword.value.trim().toLowerCase();
+  if (!keyword) {
+    return value;
+  }
+
+  return value
+    .split('\n')
+    .filter(line => line.toLowerCase().includes(keyword))
+    .join('\n');
+});
+
+const confirmTitle = computed(() => {
+  if (confirmAction.value === 'removeContainer') return '确认删除容器';
+  if (confirmAction.value === 'removeImage') return '确认删除镜像';
+  if (confirmAction.value === 'pruneDangling') return '确认清理 dangling 镜像';
+  if (confirmAction.value === 'pruneUnused') return '确认清理无引用镜像';
+  if (confirmAction.value === 'removeStoppedContainers') return '确认删除已停止容器';
+  return '确认操作';
+});
+
+const confirmButtonText = computed(() => {
+  if (confirmAction.value === 'removeContainer' || confirmAction.value === 'removeImage') {
+    return '删除';
+  }
+  return '确认清理';
+});
 
 const checkDocker = async () => {
   if (!sshStore.sessionId) return;
   try {
     const result = await dockerApi.checkDocker(sshStore.sessionId);
     dockerAvailable.value = result.available;
-  } catch (e) {
+  } catch {
     dockerAvailable.value = false;
   }
 };
@@ -97,7 +248,9 @@ const fetchContainers = async () => {
   if (!sshStore.sessionId) return;
   try {
     containers.value = await dockerApi.listContainers(sshStore.sessionId);
-  } catch (e) {
+    const visibleIds = new Set(containers.value.map(c => c.id));
+    selectedContainerIds.value = selectedContainerIds.value.filter(id => visibleIds.has(id));
+  } catch {
     toast.error('获取容器列表失败');
   }
 };
@@ -106,7 +259,7 @@ const fetchImages = async () => {
   if (!sshStore.sessionId) return;
   try {
     images.value = await dockerApi.listImages(sshStore.sessionId);
-  } catch (e) {
+  } catch {
     toast.error('获取镜像列表失败');
   }
 };
@@ -133,7 +286,7 @@ const startContainer = async (container: DockerContainer) => {
     await dockerApi.startContainer(sshStore.sessionId, container.id);
     toast.success(`容器 ${container.name} 已启动`);
     await fetchContainers();
-  } catch (e) {
+  } catch {
     toast.error('启动容器失败');
   }
 };
@@ -144,7 +297,7 @@ const stopContainer = async (container: DockerContainer) => {
     await dockerApi.stopContainer(sshStore.sessionId, container.id);
     toast.success(`容器 ${container.name} 已停止`);
     await fetchContainers();
-  } catch (e) {
+  } catch {
     toast.error('停止容器失败');
   }
 };
@@ -155,8 +308,75 @@ const restartContainer = async (container: DockerContainer) => {
     await dockerApi.restartContainer(sshStore.sessionId, container.id);
     toast.success(`容器 ${container.name} 已重启`);
     await fetchContainers();
-  } catch (e) {
+  } catch {
     toast.error('重启容器失败');
+  }
+};
+
+const toggleContainerSelection = (id: string) => {
+  if (selectedContainerSet.value.has(id)) {
+    selectedContainerIds.value = selectedContainerIds.value.filter(item => item !== id);
+    return;
+  }
+  selectedContainerIds.value = [...selectedContainerIds.value, id];
+};
+
+const toggleSelectAllVisibleContainers = (event: Event) => {
+  const checked = (event.target as HTMLInputElement).checked;
+  if (!checked) {
+    const visibleIdSet = new Set(filteredContainers.value.map(item => item.id));
+    selectedContainerIds.value = selectedContainerIds.value.filter(id => !visibleIdSet.has(id));
+    return;
+  }
+
+  const merged = new Set(selectedContainerIds.value);
+  for (const container of filteredContainers.value) {
+    merged.add(container.id);
+  }
+  selectedContainerIds.value = Array.from(merged);
+};
+
+const clearSelectedContainers = () => {
+  selectedContainerIds.value = [];
+};
+
+const batchStartSelected = async () => {
+  if (!sshStore.sessionId) return;
+  const ids = selectedStoppedContainers.value.map(container => container.id);
+  if (ids.length === 0) {
+    toast.info('请选择未运行容器');
+    return;
+  }
+
+  batchProcessing.value = true;
+  try {
+    const result = await dockerApi.batchStartContainers(sshStore.sessionId, ids);
+    toast.success(`批量启动完成，共处理 ${result.processed} 个容器`);
+    await fetchContainers();
+  } catch {
+    toast.error('批量启动失败');
+  } finally {
+    batchProcessing.value = false;
+  }
+};
+
+const batchStopSelected = async () => {
+  if (!sshStore.sessionId) return;
+  const ids = selectedRunningContainers.value.map(container => container.id);
+  if (ids.length === 0) {
+    toast.info('请选择运行中容器');
+    return;
+  }
+
+  batchProcessing.value = true;
+  try {
+    const result = await dockerApi.batchStopContainers(sshStore.sessionId, ids);
+    toast.success(`批量停止完成，共处理 ${result.processed} 个容器`);
+    await fetchContainers();
+  } catch {
+    toast.error('批量停止失败');
+  } finally {
+    batchProcessing.value = false;
   }
 };
 
@@ -174,42 +394,141 @@ const showRemoveImageConfirm = (image: DockerImage) => {
   confirmDialogOpen.value = true;
 };
 
+const showRemoveStoppedContainersConfirm = () => {
+  confirmAction.value = 'removeStoppedContainers';
+  confirmItem.value = null;
+  confirmForce.value = false;
+  confirmDialogOpen.value = true;
+};
+
+const showPruneDanglingConfirm = () => {
+  confirmAction.value = 'pruneDangling';
+  confirmItem.value = null;
+  confirmForce.value = false;
+  confirmDialogOpen.value = true;
+};
+
+const showPruneUnusedConfirm = () => {
+  confirmAction.value = 'pruneUnused';
+  confirmItem.value = null;
+  confirmForce.value = false;
+  confirmDialogOpen.value = true;
+};
+
 const confirmRemove = async () => {
-  if (!sshStore.sessionId || !confirmItem.value) return;
+  if (!sshStore.sessionId || !confirmAction.value) return;
 
   try {
-    if (confirmAction.value === 'removeContainer') {
+    if (confirmAction.value === 'removeContainer' && confirmItem.value) {
       await dockerApi.removeContainer(sshStore.sessionId, confirmItem.value.id, confirmForce.value);
       toast.success('容器已删除');
       await fetchContainers();
-    } else if (confirmAction.value === 'removeImage') {
+    }
+
+    if (confirmAction.value === 'removeImage' && confirmItem.value) {
       await dockerApi.removeImage(sshStore.sessionId, confirmItem.value.id, confirmForce.value);
       toast.success('镜像已删除');
       await fetchImages();
     }
-  } catch (e) {
-    toast.error('删除失败');
+
+    if (confirmAction.value === 'removeStoppedContainers') {
+      const result = await dockerApi.removeStoppedContainers(sshStore.sessionId);
+      toast.success(`已删除 ${result.removedCount} 个已停止容器`);
+      await fetchContainers();
+    }
+
+    if (confirmAction.value === 'pruneDangling') {
+      await dockerApi.pruneImages(sshStore.sessionId, false);
+      toast.success('dangling 镜像清理完成');
+      await fetchImages();
+    }
+
+    if (confirmAction.value === 'pruneUnused') {
+      await dockerApi.pruneImages(sshStore.sessionId, true);
+      toast.success('无引用镜像清理完成');
+      await fetchImages();
+    }
+  } catch {
+    toast.error('操作失败');
   }
 
   confirmDialogOpen.value = false;
   confirmItem.value = null;
+  confirmAction.value = null;
+};
+
+const refreshLogs = async (silent = false) => {
+  if (!sshStore.sessionId || !logsContainer.value) return;
+
+  if (silent) {
+    logsRefreshing.value = true;
+  } else {
+    logsLoading.value = true;
+  }
+
+  try {
+    const result = await dockerApi.getContainerLogsAdvanced(
+      sshStore.sessionId,
+      logsContainer.value.id,
+      {
+        tail: logsTail.value,
+        timestamps: true,
+      },
+    );
+    logsContent.value = result.logs;
+    logsLastUpdatedAt.value = new Date();
+  } catch {
+    toast.error('获取日志失败');
+    if (!silent) {
+      logsContent.value = '';
+    }
+  } finally {
+    logsLoading.value = false;
+    logsRefreshing.value = false;
+  }
+};
+
+const syncLogsAutoRefresh = () => {
+  if (logsRefreshInterval) {
+    clearInterval(logsRefreshInterval);
+    logsRefreshInterval = null;
+  }
+
+  if (logsDialogOpen.value && logsAutoRefresh.value) {
+    logsRefreshInterval = window.setInterval(() => {
+      void refreshLogs(true);
+    }, 4000);
+  }
 };
 
 const viewLogs = async (container: DockerContainer) => {
   if (!sshStore.sessionId) return;
   logsContainer.value = container;
   logsDialogOpen.value = true;
-  logsLoading.value = true;
+  await refreshLogs();
+};
 
+const copyLogs = async () => {
   try {
-    const result = await dockerApi.getContainerLogs(sshStore.sessionId, container.id, 200);
-    logsContent.value = result.logs;
-  } catch (e) {
-    toast.error('获取日志失败');
-    logsContent.value = '';
-  } finally {
-    logsLoading.value = false;
+    await navigator.clipboard.writeText(displayedLogs.value);
+    toast.success('日志已复制到剪贴板');
+  } catch {
+    toast.error('复制日志失败');
   }
+};
+
+const downloadLogs = () => {
+  const text = displayedLogs.value;
+  const filename = `${logsContainer.value?.name ?? 'container'}-${Date.now()}.log`;
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 };
 
 const enterShell = async (container: DockerContainer) => {
@@ -225,7 +544,7 @@ const enterShell = async (container: DockerContainer) => {
       title: `Shell: ${container.name}`,
       sessionId: res.sessionId,
     });
-  } catch (e) {
+  } catch {
     toast.error('进入容器 Shell 失败');
   }
 };
@@ -233,24 +552,22 @@ const enterShell = async (container: DockerContainer) => {
 const formatDate = (dateStr?: string) => {
   if (!dateStr) return '-';
   const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleString('zh-CN');
 };
 
-const shortId = (id: string) => {
-  return id.substring(0, 12);
-};
+const shortId = (id: string) => id.substring(0, 12);
 
 const copyToClipboard = async (text: string) => {
   try {
     await navigator.clipboard.writeText(text);
     toast.success('已复制到剪贴板');
-  } catch (e) {
+  } catch {
     toast.error('复制失败');
   }
 };
 
 const parsePort = (portStr: string) => {
-  // 匹配格式: 0.0.0.0:8080->80/tcp 或 :::8080->80/tcp
   const match = portStr.match(/^(.*):(\d+)->(\d+)\/(tcp|udp)$/);
   if (match) {
     return {
@@ -258,7 +575,7 @@ const parsePort = (portStr: string) => {
       hostPort: match[2],
       containerPort: match[3],
       protocol: match[4],
-      raw: portStr
+      raw: portStr,
     };
   }
   return { raw: portStr };
@@ -273,6 +590,28 @@ const getPortDisplay = (portStr: string) => {
   return portStr;
 };
 
+const parseImageSizeToBytes = (size: string) => {
+  const match = size.trim().match(/^(\d+(?:\.\d+)?)\s*([KMGTP]?B)$/i);
+  if (!match) return 0;
+
+  const valueRaw = match[1];
+  const unitRaw = match[2];
+  if (!valueRaw || !unitRaw) return 0;
+
+  const value = Number(valueRaw);
+  const unit = unitRaw.toUpperCase();
+  const units: Record<string, number> = {
+    B: 1,
+    KB: 1024,
+    MB: 1024 ** 2,
+    GB: 1024 ** 3,
+    TB: 1024 ** 4,
+    PB: 1024 ** 5,
+  };
+
+  return value * (units[unit] ?? 1);
+};
+
 onMounted(async () => {
   if (isConnected.value) {
     loading.value = true;
@@ -282,10 +621,9 @@ onMounted(async () => {
     }
     loading.value = false;
 
-    // Auto refresh every 10 seconds
-    refreshInterval = setInterval(() => {
-      if (activeTab.value === 'containers' && !logsDialogOpen.value && !confirmDialogOpen.value) {
-        fetchContainers();
+    refreshInterval = window.setInterval(() => {
+      if (activeTab.value === 'containers' && !confirmDialogOpen.value) {
+        void fetchContainers();
       }
     }, 10000);
   }
@@ -294,6 +632,11 @@ onMounted(async () => {
 onUnmounted(() => {
   if (refreshInterval) {
     clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
+  if (logsRefreshInterval) {
+    clearInterval(logsRefreshInterval);
+    logsRefreshInterval = null;
   }
 });
 
@@ -314,14 +657,33 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
   } else {
     containers.value = [];
     images.value = [];
+    selectedContainerIds.value = [];
     dockerAvailable.value = null;
+  }
+});
+
+watch([logsDialogOpen, logsAutoRefresh], () => {
+  syncLogsAutoRefresh();
+});
+
+watch(logsTail, async (newValue, oldValue) => {
+  if (newValue !== oldValue && logsDialogOpen.value) {
+    await refreshLogs();
+  }
+});
+
+watch(logsDialogOpen, (open) => {
+  if (!open) {
+    logsAutoRefresh.value = false;
+    logsKeyword.value = '';
+    showLogTimestamps.value = true;
+    logsLastUpdatedAt.value = null;
   }
 });
 </script>
 
 <template>
   <div class="h-full flex flex-col bg-background">
-    <!-- Header -->
     <div class="flex items-center justify-between px-4 py-3 border-b">
       <div class="flex items-center gap-4">
         <h2 class="text-lg font-semibold">Docker 管理</h2>
@@ -353,55 +715,115 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
         </div>
       </div>
       <Button variant="outline" size="sm" :disabled="refreshing || !dockerAvailable" @click="refresh">
-        <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': refreshing }" />
+        <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': refreshing }"/>
         刷新
       </Button>
     </div>
 
-    <!-- Content -->
     <div class="flex-1 overflow-auto custom-scrollbar p-4">
-      <!-- Not connected -->
       <div v-if="!isConnected" class="h-full flex flex-col items-center justify-center text-muted-foreground">
-        <AlertCircle class="w-12 h-12 mb-4 opacity-50" />
+        <AlertCircle class="w-12 h-12 mb-4 opacity-50"/>
         <p>请先连接 SSH 服务器</p>
       </div>
 
-      <!-- Docker not available -->
-      <div v-else-if="dockerAvailable === false"
-        class="h-full flex flex-col items-center justify-center text-muted-foreground">
-        <AlertCircle class="w-12 h-12 mb-4 opacity-50" />
+      <div v-else-if="dockerAvailable === false" class="h-full flex flex-col items-center justify-center text-muted-foreground">
+        <AlertCircle class="w-12 h-12 mb-4 opacity-50"/>
         <p>该服务器未安装 Docker 或无法访问</p>
       </div>
 
-      <!-- Loading -->
       <div v-else-if="loading" class="space-y-4">
-        <Skeleton v-for="i in 5" :key="i" class="h-12 w-full" />
+        <Skeleton v-for="i in 5" :key="i" class="h-12 w-full"/>
       </div>
 
-      <!-- Containers Tab -->
       <div v-else-if="activeTab === 'containers'" class="space-y-4">
-        <!-- Stats -->
-        <div class="grid grid-cols-3 gap-4">
-          <div class="bg-muted/50 rounded-lg p-4">
+        <div class="grid grid-cols-4 gap-4">
+          <button class="bg-muted/50 rounded-lg p-4 text-left transition-colors hover:bg-muted"
+            :class="containerStateFilter === 'all' ? 'ring-1 ring-primary' : ''"
+            @click="containerStateFilter = 'all'">
             <div class="text-sm text-muted-foreground">总容器数</div>
             <div class="text-2xl font-bold">{{ containers.length }}</div>
-          </div>
-          <div class="bg-muted/50 rounded-lg p-4">
+          </button>
+          <button class="bg-muted/50 rounded-lg p-4 text-left transition-colors hover:bg-muted"
+            :class="containerStateFilter === 'running' ? 'ring-1 ring-primary' : ''"
+            @click="containerStateFilter = 'running'">
             <div class="text-sm text-muted-foreground">运行中</div>
             <div class="text-2xl font-bold text-green-600">{{ runningContainers.length }}</div>
-          </div>
-          <div class="bg-muted/50 rounded-lg p-4">
+          </button>
+          <button class="bg-muted/50 rounded-lg p-4 text-left transition-colors hover:bg-muted"
+            :class="containerStateFilter === 'exited' ? 'ring-1 ring-primary' : ''"
+            @click="containerStateFilter = 'exited'">
             <div class="text-sm text-muted-foreground">已停止</div>
-            <div class="text-2xl font-bold text-gray-500">{{ stoppedContainers.length }}</div>
+            <div class="text-2xl font-bold text-gray-500">{{ exitedContainers.length }}</div>
+          </button>
+          <button class="bg-muted/50 rounded-lg p-4 text-left transition-colors hover:bg-muted"
+            :class="containerStateFilter === 'paused' ? 'ring-1 ring-primary' : ''"
+            @click="containerStateFilter = 'paused'">
+            <div class="text-sm text-muted-foreground">已暂停</div>
+            <div class="text-2xl font-bold text-yellow-600">{{ pausedContainers.length }}</div>
+          </button>
+        </div>
+
+        <div class="border rounded-lg p-3 bg-muted/20 space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+            <Input v-model="containerNameQuery" placeholder="搜索容器名称"/>
+            <Input v-model="containerImageQuery" placeholder="搜索镜像名称"/>
+
+            <select v-model="containerStateFilter"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <option value="all">状态：全部</option>
+              <option value="running">状态：running</option>
+              <option value="exited">状态：exited</option>
+              <option value="paused">状态：paused</option>
+            </select>
+
+            <select v-model="containerSortBy"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <option value="createdAt">排序：创建时间</option>
+              <option value="name">排序：名称</option>
+              <option value="image">排序：镜像</option>
+            </select>
+
+            <select v-model="containerSortOrder"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <option value="desc">顺序：降序</option>
+              <option value="asc">顺序：升序</option>
+            </select>
+
+            <Button variant="outline" :disabled="!selectedContainerIds.length" @click="clearSelectedContainers">
+              清空选择（{{ selectedContainerIds.length }}）
+            </Button>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" :disabled="batchProcessing || !selectedStoppedContainers.length"
+              @click="batchStartSelected">
+              <Play class="w-4 h-4"/>
+              批量启动（{{ selectedStoppedContainers.length }}）
+            </Button>
+            <Button size="sm" variant="outline" :disabled="batchProcessing || !selectedRunningContainers.length"
+              @click="batchStopSelected">
+              <Square class="w-4 h-4"/>
+              批量停止（{{ selectedRunningContainers.length }}）
+            </Button>
+            <Button size="sm" variant="outline" :disabled="batchProcessing" @click="showRemoveStoppedContainersConfirm">
+              <Trash2 class="w-4 h-4 text-red-600"/>
+              删除全部已停止容器
+            </Button>
           </div>
         </div>
 
-        <!-- Containers Table -->
         <div class="border rounded-lg overflow-hidden">
           <div class="max-h-[calc(100vh-280px)] overflow-auto custom-scrollbar">
             <Table>
               <TableHeader class="sticky top-0 bg-background z-10">
                 <TableRow class="bg-muted/50">
+                  <TableHead class="w-10 text-center">
+                    <input
+                      type="checkbox"
+                      :checked="allVisibleContainersSelected"
+                      @change="toggleSelectAllVisibleContainers"
+                    >
+                  </TableHead>
                   <TableHead class="w-24">ID</TableHead>
                   <TableHead>名称</TableHead>
                   <TableHead>镜像</TableHead>
@@ -412,12 +834,23 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-if="containers.length === 0">
-                  <TableCell colspan="7" class="text-center text-muted-foreground py-8">
+                <TableRow v-if="filteredContainers.length === 0">
+                  <TableCell colspan="8" class="text-center text-muted-foreground py-8">
                     暂无容器
                   </TableCell>
                 </TableRow>
-                <TableRow v-for="container in containers" :key="container.id">
+                <TableRow
+                  v-for="container in filteredContainers"
+                  :key="container.id"
+                  :class="selectedContainerSet.has(container.id) ? 'bg-muted/30' : ''"
+                >
+                  <TableCell class="text-center">
+                    <input
+                      type="checkbox"
+                      :checked="selectedContainerSet.has(container.id)"
+                      @change="toggleContainerSelection(container.id)"
+                    >
+                  </TableCell>
                   <TableCell class="font-mono text-xs">{{ shortId(container.id) }}</TableCell>
                   <TableCell class="font-medium">{{ container.name }}</TableCell>
                   <TableCell class="text-muted-foreground">{{ container.image }}</TableCell>
@@ -425,9 +858,9 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="{
                       'bg-green-100 text-green-800': container.state === 'running',
                       'bg-gray-100 text-gray-800': container.state === 'exited',
-                      'bg-yellow-100 text-yellow-800': container.state === 'paused',
-                      'bg-red-100 text-red-800': !['running', 'exited', 'paused'].includes(container.state)
-                    }">
+                        'bg-yellow-100 text-yellow-800': container.state === 'paused',
+                        'bg-red-100 text-red-800': !['running', 'exited', 'paused'].includes(container.state)
+                      }">
                       {{ container.state }}
                     </span>
                   </TableCell>
@@ -454,8 +887,7 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
                                 class="flex items-center justify-between gap-3 text-xs group cursor-pointer hover:bg-primary-foreground/10 rounded px-1 -mx-1 py-0.5 transition-colors"
                                 @click="copyToClipboard(port)">
                                 <code class="bg-primary-foreground/20 px-1.5 py-0.5 rounded font-mono">{{ port }}</code>
-                                <span
-                                  class="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">点击复制</span>
+                                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">点击复制</span>
                               </div>
                             </div>
                           </div>
@@ -473,25 +905,24 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
                     <div class="flex items-center justify-end gap-1">
                       <Button v-if="container.state !== 'running'" variant="ghost" size="icon" class="h-8 w-8"
                         @click="startContainer(container)">
-                        <Play class="w-4 h-4 text-green-600" />
+                        <Play class="w-4 h-4 text-green-600"/>
                       </Button>
                       <Button v-if="container.state === 'running'" variant="ghost" size="icon" class="h-8 w-8"
                         @click="stopContainer(container)">
-                        <Square class="w-4 h-4 text-amber-600" />
+                        <Square class="w-4 h-4 text-amber-600"/>
                       </Button>
                       <Button variant="ghost" size="icon" class="h-8 w-8" @click="restartContainer(container)">
-                        <RotateCw class="w-4 h-4" />
+                        <RotateCw class="w-4 h-4"/>
                       </Button>
                       <Button variant="ghost" size="icon" class="h-8 w-8" @click="viewLogs(container)">
-                        <FileText class="w-4 h-4" />
+                        <FileText class="w-4 h-4"/>
                       </Button>
                       <Button variant="ghost" size="icon" class="h-8 w-8" :disabled="container.state !== 'running'"
                         @click="enterShell(container)">
-                        <Terminal class="w-4 h-4" />
+                        <Terminal class="w-4 h-4"/>
                       </Button>
-                      <Button variant="ghost" size="icon" class="h-8 w-8"
-                        @click="showRemoveContainerConfirm(container)">
-                        <Trash2 class="w-4 h-4 text-red-600" />
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="showRemoveContainerConfirm(container)">
+                        <Trash2 class="w-4 h-4 text-red-600"/>
                       </Button>
                     </div>
                   </TableCell>
@@ -502,9 +933,41 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
         </div>
       </div>
 
-      <!-- Images Tab -->
       <div v-else-if="activeTab === 'images'" class="space-y-4">
-        <!-- Images Table -->
+        <div class="border rounded-lg p-3 bg-muted/20 space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+            <Input v-model="imageQuery" placeholder="搜索仓库或标签"/>
+
+            <select v-model="imageUsageFilter"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <option value="all">镜像类型：全部</option>
+              <option value="dangling">仅 dangling 镜像</option>
+              <option value="unused">仅无引用镜像</option>
+            </select>
+
+            <select v-model="imageSortBy"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <option value="createdAt">排序：创建时间</option>
+              <option value="repository">排序：仓库</option>
+              <option value="tag">排序：标签</option>
+              <option value="size">排序：大小</option>
+            </select>
+
+            <select v-model="imageSortOrder"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <option value="desc">顺序：降序</option>
+              <option value="asc">顺序：升序</option>
+            </select>
+
+            <Button size="sm" variant="outline" @click="showPruneDanglingConfirm">
+              清理 dangling 镜像
+            </Button>
+            <Button size="sm" variant="outline" @click="showPruneUnusedConfirm">
+              清理无引用镜像
+            </Button>
+          </div>
+        </div>
+
         <div class="border rounded-lg overflow-hidden">
           <div class="max-h-[calc(100vh-240px)] overflow-auto custom-scrollbar">
             <Table>
@@ -514,17 +977,18 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
                   <TableHead>仓库</TableHead>
                   <TableHead>标签</TableHead>
                   <TableHead>大小</TableHead>
+                  <TableHead class="w-40">识别</TableHead>
                   <TableHead class="w-32">创建时间</TableHead>
                   <TableHead class="w-20 text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-if="images.length === 0">
-                  <TableCell colspan="6" class="text-center text-muted-foreground py-8">
+                <TableRow v-if="filteredImages.length === 0">
+                  <TableCell colspan="7" class="text-center text-muted-foreground py-8">
                     暂无镜像
                   </TableCell>
                 </TableRow>
-                <TableRow v-for="image in images" :key="image.id">
+                <TableRow v-for="image in filteredImages" :key="image.id">
                   <TableCell class="font-mono text-xs">{{ shortId(image.id) }}</TableCell>
                   <TableCell class="font-medium">{{ image.repository }}</TableCell>
                   <TableCell>
@@ -533,12 +997,25 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
                     </span>
                   </TableCell>
                   <TableCell class="text-muted-foreground">{{ image.size }}</TableCell>
+                  <TableCell>
+                    <div class="flex items-center gap-2">
+                      <span v-if="image.dangling" class="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-700">
+                        dangling
+                      </span>
+                      <span v-if="!image.inUse" class="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-gray-100 text-gray-700">
+                        unused
+                      </span>
+                      <span v-if="!image.dangling && image.inUse" class="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-green-100 text-green-700">
+                        in-use
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell class="text-xs text-muted-foreground">
                     {{ formatDate(image.createdAt) }}
                   </TableCell>
                   <TableCell class="text-right">
                     <Button variant="ghost" size="icon" class="h-8 w-8" @click="showRemoveImageConfirm(image)">
-                      <Trash2 class="w-4 h-4 text-red-600" />
+                      <Trash2 class="w-4 h-4 text-red-600"/>
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -549,33 +1026,70 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
       </div>
     </div>
 
-    <!-- Logs Dialog -->
     <Dialog v-model:open="logsDialogOpen">
       <DialogContent class="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle class="flex items-center gap-2">
-            <FileText class="w-5 h-5" />
+            <FileText class="w-5 h-5"/>
             容器日志: {{ logsContainer?.name }}
           </DialogTitle>
           <DialogDescription>
-            显示最近 200 行日志
+            显示最近 {{ logsTail }} 行日志
           </DialogDescription>
         </DialogHeader>
+
+        <div class="border rounded-md p-3 space-y-3 bg-muted/20">
+          <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            <select v-model="logsTail"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <option v-for="option in logTailOptions" :key="option" :value="option">{{ option }} 行</option>
+            </select>
+
+            <Input v-model="logsKeyword" class="md:col-span-2" placeholder="关键字筛选"/>
+
+            <label class="h-9 px-3 border rounded-md bg-background inline-flex items-center gap-2 text-sm">
+              <input v-model="logsAutoRefresh" type="checkbox">
+              自动刷新
+            </label>
+            <label class="h-9 px-3 border rounded-md bg-background inline-flex items-center gap-2 text-sm">
+              <input v-model="showLogTimestamps" type="checkbox">
+              显示时间戳
+            </label>
+
+            <Button size="sm" variant="outline" :disabled="logsLoading || logsRefreshing" @click="refreshLogs(true)">
+              <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': logsRefreshing }"/>
+              刷新日志
+            </Button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" @click="copyLogs">
+              <Copy class="w-4 h-4"/>
+              复制
+            </Button>
+            <Button size="sm" variant="outline" @click="downloadLogs">
+              <Download class="w-4 h-4"/>
+              下载
+            </Button>
+            <span class="text-xs text-muted-foreground ml-auto" v-if="logsLastUpdatedAt">
+              最近更新：{{ logsLastUpdatedAt.toLocaleTimeString('zh-CN') }}
+            </span>
+          </div>
+        </div>
+
         <div class="flex-1 bg-black rounded-md p-4 min-h-[400px] overflow-auto custom-scrollbar">
           <div v-if="logsLoading" class="space-y-2">
-            <Skeleton v-for="i in 10" :key="i" class="h-4 w-full" />
+            <Skeleton v-for="i in 10" :key="i" class="h-4 w-full"/>
           </div>
-          <pre v-else
-            class="text-sm text-gray-300 font-mono whitespace-pre-wrap break-all">{{ logsContent || '暂无日志' }}</pre>
+          <pre v-else class="text-sm text-gray-300 font-mono whitespace-pre-wrap break-all">{{ displayedLogs || '暂无日志' }}</pre>
         </div>
       </DialogContent>
     </Dialog>
 
-    <!-- Confirm Dialog -->
     <AlertDialog v-model:open="confirmDialogOpen">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>确认删除</AlertDialogTitle>
+          <AlertDialogTitle>{{ confirmTitle }}</AlertDialogTitle>
           <AlertDialogDescription>
             <span v-if="confirmAction === 'removeContainer'">
               确定要删除容器 <strong>{{ (confirmItem as DockerContainer)?.name }}</strong> 吗？
@@ -583,16 +1097,25 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
                 警告：该容器正在运行，强制删除可能导致数据丢失。
               </span>
             </span>
-            <span v-else>
+            <span v-else-if="confirmAction === 'removeImage'">
               确定要删除镜像 <strong>{{ (confirmItem as DockerImage)?.repository }}:{{ (confirmItem as DockerImage)?.tag
               }}</strong> 吗？
+            </span>
+            <span v-else-if="confirmAction === 'pruneDangling'">
+              确定要清理所有 dangling 镜像吗？
+            </span>
+            <span v-else-if="confirmAction === 'pruneUnused'">
+              确定要清理所有无引用镜像吗？该操作会删除未被容器使用的镜像。
+            </span>
+            <span v-else-if="confirmAction === 'removeStoppedContainers'">
+              确定要删除所有已停止容器吗？
             </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>取消</AlertDialogCancel>
           <AlertDialogAction class="bg-red-600 hover:bg-red-700" @click="confirmRemove">
-            删除
+            {{ confirmButtonText }}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

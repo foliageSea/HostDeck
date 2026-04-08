@@ -153,8 +153,8 @@ class DockerController {
   Future<Response> getContainerLogs(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
     final containerId = request.url.queryParameters['containerId'];
-    final tail =
-        int.tryParse(request.url.queryParameters['tail'] ?? '100') ?? 100;
+    final tail = _parseTail(request.url.queryParameters['tail']);
+    final timestamps = request.url.queryParameters['timestamps'] == 'true';
 
     if (sessionId == null || containerId == null) {
       return Result.fail(400, 'Missing sessionId or containerId');
@@ -170,6 +170,7 @@ class DockerController {
         session,
         containerId,
         tail: tail,
+        timestamps: timestamps,
       );
       return Result.ok({'logs': logs});
     } catch (e) {
@@ -199,6 +200,80 @@ class DockerController {
     }
   }
 
+  /// 批量启动容器
+  Future<Response> batchStartContainers(Request request) async {
+    return _handleBatchContainerAction(
+      request,
+      _dockerService.batchStartContainers,
+      successMessage: 'Containers started',
+    );
+  }
+
+  /// 批量停止容器
+  Future<Response> batchStopContainers(Request request) async {
+    return _handleBatchContainerAction(
+      request,
+      _dockerService.batchStopContainers,
+      successMessage: 'Containers stopped',
+    );
+  }
+
+  /// 批量删除已停止容器
+  Future<Response> removeStoppedContainers(Request request) async {
+    final sessionId = request.url.queryParameters['sessionId'];
+    if (sessionId == null) {
+      return Result.fail(400, 'Missing sessionId');
+    }
+
+    final session = _sshService.getSession(sessionId);
+    if (session == null) {
+      return Result.fail(404, 'Session not found');
+    }
+
+    try {
+      final removedCount = await _dockerService.removeStoppedContainers(
+        session,
+      );
+      return Result.ok({'success': true, 'removedCount': removedCount});
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
+  /// 清理镜像
+  Future<Response> pruneImages(Request request) async {
+    final sessionId = request.url.queryParameters['sessionId'];
+    if (sessionId == null) {
+      return Result.fail(400, 'Missing sessionId');
+    }
+
+    final session = _sshService.getSession(sessionId);
+    if (session == null) {
+      return Result.fail(404, 'Session not found');
+    }
+
+    bool includeUnused = false;
+    try {
+      final body = await request.readAsString();
+      if (body.trim().isNotEmpty) {
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        includeUnused = data['includeUnused'] == true;
+      }
+    } catch (_) {
+      includeUnused = false;
+    }
+
+    try {
+      final output = await _dockerService.pruneImages(
+        session,
+        includeUnused: includeUnused,
+      );
+      return Result.ok({'success': true, 'output': output});
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
   // Helper method
   Future<Response> _handleContainerAction(
     Request request,
@@ -221,5 +296,65 @@ class DockerController {
     } catch (e) {
       return Result.fail(500, e.toString());
     }
+  }
+
+  Future<Response> _handleBatchContainerAction(
+    Request request,
+    Future<int> Function(SshSession, List<String>) action, {
+    required String successMessage,
+  }) async {
+    final sessionId = request.url.queryParameters['sessionId'];
+    if (sessionId == null) {
+      return Result.fail(400, 'Missing sessionId');
+    }
+
+    final session = _sshService.getSession(sessionId);
+    if (session == null) {
+      return Result.fail(404, 'Session not found');
+    }
+
+    final ids = await _parseIds(request);
+    if (ids == null) {
+      return Result.fail(400, 'Missing or invalid containerIds');
+    }
+    if (ids.isEmpty) {
+      return Result.fail(400, 'containerIds cannot be empty');
+    }
+
+    try {
+      final processed = await action(session, ids);
+      return Result.ok({
+        'success': true,
+        'processed': processed,
+        'message': successMessage,
+      });
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
+  Future<List<String>?> _parseIds(Request request) async {
+    try {
+      final body = await request.readAsString();
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final ids = data['containerIds'];
+      if (ids is! List) {
+        return null;
+      }
+
+      return ids
+          .map((id) => id.toString().trim())
+          .where((id) => id.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int _parseTail(String? value) {
+    final parsed = int.tryParse(value ?? '200') ?? 200;
+    if (parsed < 1) return 100;
+    if (parsed > 5000) return 5000;
+    return parsed;
   }
 }
