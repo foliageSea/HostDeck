@@ -2,7 +2,14 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useSshStore } from '@/stores/ssh';
 import { useDesktopStore } from '@/stores/desktop';
-import { dockerApi, type DockerContainer, type DockerImage } from '@/api/docker';
+import {
+  dockerApi,
+  type DockerContainer,
+  type DockerImage,
+  type DockerContainerInspect,
+  type DockerContainerStats,
+  type DockerContainerDiagnostic,
+} from '@/api/docker';
 import { toast } from 'vue-sonner';
 import {
   Play,
@@ -17,6 +24,7 @@ import {
   AlertCircle,
   Copy,
   Download,
+  Info,
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,8 +110,17 @@ const confirmAction = ref<ConfirmAction | null>(null);
 const confirmItem = ref<DockerContainer | DockerImage | null>(null);
 const confirmForce = ref(false);
 
+const detailDialogOpen = ref(false);
+const detailContainer = ref<DockerContainer | null>(null);
+const detailLoading = ref(false);
+const detailInspect = ref<DockerContainerInspect | null>(null);
+
+const containerStatsMap = ref<Record<string, DockerContainerStats>>({});
+const diagnosticMap = ref<Record<string, DockerContainerDiagnostic>>({});
+
 let refreshInterval: number | null = null;
 let logsRefreshInterval: number | null = null;
+let statsRefreshInterval: number | null = null;
 
 const isConnected = computed(() => sshStore.isConnected && sshStore.sessionId);
 const logTailOptions = LOG_TAIL_OPTIONS;
@@ -157,6 +174,40 @@ const filteredContainers = computed(() => {
 const allVisibleContainersSelected = computed(() => {
   if (filteredContainers.value.length === 0) return false;
   return filteredContainers.value.every(container => selectedContainerSet.value.has(container.id));
+});
+
+const detailPorts = computed(() => {
+  const ports = detailInspect.value?.NetworkSettings?.Ports;
+  if (!ports) return [];
+
+  const items: string[] = [];
+  for (const [containerPort, mappings] of Object.entries(ports)) {
+    if (!mappings || mappings.length === 0) {
+      items.push(`${containerPort} -> 未映射`);
+      continue;
+    }
+    for (const mapping of mappings) {
+      const hostIp = mapping.HostIp ?? '0.0.0.0';
+      const hostPort = mapping.HostPort ?? '-';
+      items.push(`${hostIp}:${hostPort} -> ${containerPort}`);
+    }
+  }
+  return items;
+});
+
+const detailNetworks = computed(() => {
+  const networks = detailInspect.value?.NetworkSettings?.Networks;
+  if (!networks) return [];
+  return Object.entries(networks).map(([name, info]) => ({
+    name,
+    ip: info?.IPAddress ?? '-',
+  }));
+});
+
+const detailStats = computed(() => {
+  const containerId = detailContainer.value?.id;
+  if (!containerId) return null;
+  return getContainerStats(containerId) ?? null;
 });
 
 const filteredImages = computed(() => {
@@ -250,8 +301,86 @@ const fetchContainers = async () => {
     containers.value = await dockerApi.listContainers(sshStore.sessionId);
     const visibleIds = new Set(containers.value.map(c => c.id));
     selectedContainerIds.value = selectedContainerIds.value.filter(id => visibleIds.has(id));
+    await Promise.all([
+      refreshContainerDiagnostics(),
+      refreshContainerStats(),
+    ]);
   } catch {
     toast.error('获取容器列表失败');
+  }
+};
+
+const refreshContainerDiagnostics = async () => {
+  if (!sshStore.sessionId || containers.value.length === 0) {
+    diagnosticMap.value = {};
+    return;
+  }
+
+  try {
+    const diagnostics = await dockerApi.getContainerDiagnostics(
+      sshStore.sessionId,
+      containers.value.map(container => container.id),
+    );
+    diagnosticMap.value = diagnostics.reduce<Record<string, DockerContainerDiagnostic>>((acc, item) => {
+      acc[item.containerId] = item;
+      return acc;
+    }, {});
+  } catch {
+    diagnosticMap.value = {};
+  }
+};
+
+const refreshContainerStats = async () => {
+  if (!sshStore.sessionId || containers.value.length === 0) {
+    containerStatsMap.value = {};
+    return;
+  }
+
+  const next: Record<string, DockerContainerStats> = {};
+  await Promise.all(
+    containers.value.map(async (container) => {
+      try {
+        const stats = await dockerApi.getContainerStats(sshStore.sessionId!, container.id);
+        next[container.id] = stats;
+      } catch {
+        // ignore single container stats errors
+      }
+    })
+  );
+  containerStatsMap.value = next;
+};
+
+const getContainerStats = (containerId: string) => containerStatsMap.value[containerId];
+const getContainerDiagnostic = (containerId: string) => diagnosticMap.value[containerId];
+
+const isFrequentRestart = (containerId: string) => {
+  const restartCount = getContainerDiagnostic(containerId)?.restartCount ?? 0;
+  return restartCount >= 3;
+};
+
+const isUnhealthyContainer = (containerId: string) => {
+  return getContainerDiagnostic(containerId)?.healthStatus === 'unhealthy';
+};
+
+const isExitedAbnormally = (container: DockerContainer) => {
+  if (container.state !== 'exited') return false;
+  const exitCode = getContainerDiagnostic(container.id)?.exitCode ?? 0;
+  return exitCode !== 0;
+};
+
+const openContainerDetail = async (container: DockerContainer) => {
+  if (!sshStore.sessionId) return;
+  detailContainer.value = container;
+  detailDialogOpen.value = true;
+  detailLoading.value = true;
+
+  try {
+    detailInspect.value = await dockerApi.inspectContainer(sshStore.sessionId, container.id);
+  } catch {
+    detailInspect.value = null;
+    toast.error('获取容器详情失败');
+  } finally {
+    detailLoading.value = false;
   }
 };
 
@@ -622,10 +751,19 @@ onMounted(async () => {
     loading.value = false;
 
     refreshInterval = window.setInterval(() => {
-      if (activeTab.value === 'containers' && !confirmDialogOpen.value) {
+      if (activeTab.value === 'containers' && !confirmDialogOpen.value && !detailDialogOpen.value) {
         void fetchContainers();
       }
     }, 10000);
+
+    statsRefreshInterval = window.setInterval(() => {
+      if (activeTab.value === 'containers' && !detailDialogOpen.value) {
+        void Promise.all([
+          refreshContainerDiagnostics(),
+          refreshContainerStats(),
+        ]);
+      }
+    }, 12000);
   }
 });
 
@@ -637,6 +775,10 @@ onUnmounted(() => {
   if (logsRefreshInterval) {
     clearInterval(logsRefreshInterval);
     logsRefreshInterval = null;
+  }
+  if (statsRefreshInterval) {
+    clearInterval(statsRefreshInterval);
+    statsRefreshInterval = null;
   }
 });
 
@@ -658,6 +800,11 @@ watch(() => sshStore.sessionId, async (newSessionId) => {
     containers.value = [];
     images.value = [];
     selectedContainerIds.value = [];
+    containerStatsMap.value = {};
+    diagnosticMap.value = {};
+    detailInspect.value = null;
+    detailContainer.value = null;
+    detailDialogOpen.value = false;
     dockerAvailable.value = null;
   }
 });
@@ -678,6 +825,14 @@ watch(logsDialogOpen, (open) => {
     logsKeyword.value = '';
     showLogTimestamps.value = true;
     logsLastUpdatedAt.value = null;
+  }
+});
+
+watch(detailDialogOpen, (open) => {
+  if (!open) {
+    detailInspect.value = null;
+    detailContainer.value = null;
+    detailLoading.value = false;
   }
 });
 </script>
@@ -829,13 +984,14 @@ watch(logsDialogOpen, (open) => {
                   <TableHead>镜像</TableHead>
                   <TableHead>状态</TableHead>
                   <TableHead class="w-32">端口</TableHead>
+                  <TableHead class="w-44">资源</TableHead>
                   <TableHead class="w-32">创建时间</TableHead>
-                  <TableHead class="w-40 text-right">操作</TableHead>
+                  <TableHead class="w-48 text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow v-if="filteredContainers.length === 0">
-                  <TableCell colspan="8" class="text-center text-muted-foreground py-8">
+                  <TableCell colspan="9" class="text-center text-muted-foreground py-8">
                     暂无容器
                   </TableCell>
                 </TableRow>
@@ -855,14 +1011,28 @@ watch(logsDialogOpen, (open) => {
                   <TableCell class="font-medium">{{ container.name }}</TableCell>
                   <TableCell class="text-muted-foreground">{{ container.image }}</TableCell>
                   <TableCell>
-                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="{
-                      'bg-green-100 text-green-800': container.state === 'running',
-                      'bg-gray-100 text-gray-800': container.state === 'exited',
-                        'bg-yellow-100 text-yellow-800': container.state === 'paused',
-                        'bg-red-100 text-red-800': !['running', 'exited', 'paused'].includes(container.state)
-                      }">
-                      {{ container.state }}
-                    </span>
+                    <div class="flex flex-wrap items-center gap-1">
+                      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="{
+                        'bg-green-100 text-green-800': container.state === 'running',
+                        'bg-gray-100 text-gray-800': container.state === 'exited',
+                          'bg-yellow-100 text-yellow-800': container.state === 'paused',
+                          'bg-red-100 text-red-800': !['running', 'exited', 'paused'].includes(container.state)
+                        }">
+                        {{ container.state }}
+                      </span>
+                      <span
+                        v-if="isUnhealthyContainer(container.id)"
+                        class="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-red-100 text-red-700"
+                      >unhealthy</span>
+                      <span
+                        v-if="isFrequentRestart(container.id)"
+                        class="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-700"
+                      >频繁重启</span>
+                      <span
+                        v-if="isExitedAbnormally(container)"
+                        class="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-rose-100 text-rose-700"
+                      >异常退出</span>
+                    </div>
                   </TableCell>
                   <TableCell class="text-xs">
                     <TooltipProvider v-if="container.ports.length">
@@ -898,11 +1068,26 @@ watch(logsDialogOpen, (open) => {
                       <span class="text-xs text-gray-400">-</span>
                     </div>
                   </TableCell>
+                  <TableCell class="text-xs">
+                    <div class="space-y-1">
+                      <div>
+                        CPU:
+                        <span class="font-medium">{{ getContainerStats(container.id)?.cpuPercent || '-' }}</span>
+                      </div>
+                      <div>
+                        内存:
+                        <span class="font-medium">{{ getContainerStats(container.id)?.memPercent || '-' }}</span>
+                      </div>
+                    </div>
+                  </TableCell>
                   <TableCell class="text-xs text-muted-foreground">
                     {{ formatDate(container.createdAt) }}
                   </TableCell>
                   <TableCell class="text-right">
                     <div class="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="openContainerDetail(container)">
+                        <Info class="w-4 h-4 text-blue-600"/>
+                      </Button>
                       <Button v-if="container.state !== 'running'" variant="ghost" size="icon" class="h-8 w-8"
                         @click="startContainer(container)">
                         <Play class="w-4 h-4 text-green-600"/>
@@ -1082,6 +1267,129 @@ watch(logsDialogOpen, (open) => {
             <Skeleton v-for="i in 10" :key="i" class="h-4 w-full"/>
           </div>
           <pre v-else class="text-sm text-gray-300 font-mono whitespace-pre-wrap break-all">{{ displayedLogs || '暂无日志' }}</pre>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="detailDialogOpen">
+      <DialogContent class="max-w-5xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2">
+            <Info class="w-5 h-5"/>
+            容器详情: {{ detailContainer?.name }}
+          </DialogTitle>
+          <DialogDescription>
+            容器诊断信息与 inspect 数据
+          </DialogDescription>
+        </DialogHeader>
+
+        <div class="flex-1 overflow-auto custom-scrollbar space-y-3 pr-1">
+          <div v-if="detailLoading" class="space-y-2">
+            <Skeleton v-for="i in 8" :key="i" class="h-6 w-full"/>
+          </div>
+
+          <div v-else-if="detailInspect" class="space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="border rounded-md p-3 space-y-2">
+                <div class="text-xs text-muted-foreground">容器 ID</div>
+                <code class="text-xs break-all">{{ detailInspect.Id || detailContainer?.id || '-' }}</code>
+              </div>
+              <div class="border rounded-md p-3 space-y-2">
+                <div class="text-xs text-muted-foreground">镜像</div>
+                <div class="text-sm break-all">{{ detailInspect.Config?.Image || detailContainer?.image || '-' }}</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="border rounded-md p-3 space-y-2">
+                <div class="text-xs text-muted-foreground">状态</div>
+                <div class="flex flex-wrap gap-2 text-sm">
+                  <span class="inline-flex rounded-full px-2 py-0.5 bg-muted">{{ detailInspect.State?.Status || '-' }}</span>
+                  <span class="inline-flex rounded-full px-2 py-0.5 bg-muted">重启: {{ detailInspect.State?.RestartCount ?? 0 }}</span>
+                  <span class="inline-flex rounded-full px-2 py-0.5 bg-muted">退出码: {{ detailInspect.State?.ExitCode ?? 0 }}</span>
+                  <span class="inline-flex rounded-full px-2 py-0.5 bg-muted">健康: {{ detailInspect.State?.Health?.Status || '-' }}</span>
+                </div>
+              </div>
+              <div class="border rounded-md p-3 space-y-2">
+                <div class="text-xs text-muted-foreground">Restart Policy</div>
+                <div class="text-sm">{{ detailInspect.HostConfig?.RestartPolicy?.Name || '-' }}</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="border rounded-md p-3 space-y-2">
+                <div class="text-xs text-muted-foreground">资源监控</div>
+                <div class="text-sm space-y-1">
+                  <div>CPU: {{ detailStats?.cpuPercent || '-' }}</div>
+                  <div>内存: {{ detailStats?.memPercent || '-' }} ({{ detailStats?.memUsage || '-' }})</div>
+                  <div>网络 IO: {{ detailStats?.netIO || '-' }}</div>
+                  <div>磁盘 IO: {{ detailStats?.blockIO || '-' }}</div>
+                  <div>PIDs: {{ detailStats?.pids || '-' }}</div>
+                </div>
+              </div>
+              <div class="border rounded-md p-3 space-y-2">
+                <div class="text-xs text-muted-foreground">启动命令</div>
+                <code class="text-xs break-all">{{ (detailInspect.Config?.Cmd || []).join(' ') || '-' }}</code>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="border rounded-md p-3 space-y-2">
+                <div class="text-xs text-muted-foreground">端口映射</div>
+                <div v-if="detailPorts.length" class="space-y-1 text-xs">
+                  <div v-for="port in detailPorts" :key="port">{{ port }}</div>
+                </div>
+                <div v-else class="text-sm text-muted-foreground">-</div>
+              </div>
+              <div class="border rounded-md p-3 space-y-2">
+                <div class="text-xs text-muted-foreground">网络信息</div>
+                <div v-if="detailNetworks.length" class="space-y-1 text-xs">
+                  <div v-for="network in detailNetworks" :key="network.name">
+                    {{ network.name }} ({{ network.ip }})
+                  </div>
+                </div>
+                <div v-else class="text-sm text-muted-foreground">-</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="border rounded-md p-3 space-y-2">
+                <div class="text-xs text-muted-foreground">挂载卷</div>
+                <div v-if="detailInspect.Mounts?.length" class="space-y-1 text-xs">
+                  <div v-for="mount in detailInspect.Mounts" :key="`${mount.Source}-${mount.Destination}`">
+                    {{ mount.Source || '-' }} -> {{ mount.Destination || '-' }}
+                  </div>
+                </div>
+                <div v-else class="text-sm text-muted-foreground">-</div>
+              </div>
+              <div class="border rounded-md p-3 space-y-2">
+                <div class="text-xs text-muted-foreground">环境变量</div>
+                <div v-if="detailInspect.Config?.Env?.length" class="max-h-40 overflow-auto custom-scrollbar text-xs space-y-1">
+                  <div v-for="env in detailInspect.Config?.Env" :key="env">{{ env }}</div>
+                </div>
+                <div v-else class="text-sm text-muted-foreground">-</div>
+              </div>
+            </div>
+
+            <div class="border rounded-md p-3 space-y-2">
+              <div class="text-xs text-muted-foreground">Labels</div>
+              <div v-if="detailInspect.Config?.Labels && Object.keys(detailInspect.Config.Labels).length" class="text-xs space-y-1">
+                <div v-for="(value, key) in detailInspect.Config.Labels" :key="key">
+                  {{ key }}={{ value }}
+                </div>
+              </div>
+              <div v-else class="text-sm text-muted-foreground">-</div>
+            </div>
+
+            <div class="flex justify-end">
+              <Button size="sm" variant="outline" @click="detailContainer && viewLogs(detailContainer)">
+                <FileText class="w-4 h-4"/>
+                快速查看最近日志
+              </Button>
+            </div>
+          </div>
+
+          <div v-else class="text-sm text-muted-foreground">暂无详情数据</div>
         </div>
       </DialogContent>
     </Dialog>

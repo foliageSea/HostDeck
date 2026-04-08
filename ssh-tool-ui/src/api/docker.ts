@@ -24,6 +24,59 @@ export interface DockerShellSessionResponse {
   sessionId: string;
 }
 
+export interface DockerContainerStats {
+  id: string;
+  name: string;
+  cpuPercent: string;
+  memPercent: string;
+  memUsage: string;
+  netIO: string;
+  blockIO: string;
+  pids: string;
+}
+
+export interface DockerContainerDiagnostic {
+  containerId: string;
+  restartCount: number;
+  healthStatus: string;
+  exitCode: number;
+}
+
+export interface DockerContainerInspect {
+  Id?: string;
+  Name?: string;
+  Config?: {
+    Image?: string;
+    Cmd?: string[];
+    Env?: string[];
+    Labels?: Record<string, string>;
+  };
+  State?: {
+    Status?: string;
+    Running?: boolean;
+    ExitCode?: number;
+    RestartCount?: number;
+    Health?: {
+      Status?: string;
+    };
+  };
+  HostConfig?: {
+    RestartPolicy?: {
+      Name?: string;
+    };
+  };
+  NetworkSettings?: {
+    Ports?: Record<string, Array<{ HostIp?: string; HostPort?: string }> | null>;
+    Networks?: Record<string, { IPAddress?: string }>;
+  };
+  Mounts?: Array<{
+    Type?: string;
+    Source?: string;
+    Destination?: string;
+    RW?: boolean;
+  }>;
+}
+
 export const dockerApi = {
   checkDocker: async (sessionId: string) => {
     const response = await http.get<{ available: boolean }>('/api/docker/check', {
@@ -145,6 +198,31 @@ export const dockerApi = {
     const response = await http.post<{ success: boolean; output: string }>(
       '/api/docker/images/prune',
       { includeUnused },
+      { params: { sessionId } }
+    );
+    return response.data;
+  },
+
+  inspectContainer: async (sessionId: string, containerId: string) => {
+    const response = await http.get<DockerContainerInspect>(
+      `/api/docker/containers/${containerId}/inspect`,
+      { params: { sessionId } }
+    );
+    return response.data;
+  },
+
+  getContainerStats: async (sessionId: string, containerId: string) => {
+    const response = await http.get<DockerContainerStats>(
+      `/api/docker/containers/${containerId}/stats`,
+      { params: { sessionId } }
+    );
+    return response.data;
+  },
+
+  getContainerDiagnostics: async (sessionId: string, containerIds: string[]) => {
+    const response = await http.post<DockerContainerDiagnostic[]>(
+      '/api/docker/containers/diagnostics',
+      { containerIds },
       { params: { sessionId } }
     );
     return response.data;
