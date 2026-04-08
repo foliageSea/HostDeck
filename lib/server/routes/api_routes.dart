@@ -85,10 +85,27 @@ class ApiRoutes {
       '/api/docker/containers/<id>/restart',
       dockerController.restartContainer,
     );
+    router.post(
+      '/api/docker/containers/<id>/pause',
+      dockerController.pauseContainer,
+    );
+    router.post(
+      '/api/docker/containers/<id>/unpause',
+      dockerController.unpauseContainer,
+    );
+    router.post(
+      '/api/docker/containers/<id>/rename',
+      dockerController.renameContainer,
+    );
+    router.post(
+      '/api/docker/containers/<id>/recreate',
+      dockerController.recreateContainer,
+    );
     router.delete(
       '/api/docker/containers/<id>',
       dockerController.removeContainer,
     );
+    router.post('/api/docker/containers', dockerController.createContainer);
     router.get(
       '/api/docker/containers/logs',
       dockerController.getContainerLogs,
@@ -111,6 +128,16 @@ class ApiRoutes {
     );
     router.post('/api/docker/images/prune', dockerController.pruneImages);
     router.delete('/api/docker/images/<id>', dockerController.removeImage);
+    router.post('/api/docker/images/pull', dockerController.pullImage);
+    router.post('/api/docker/images/tag', dockerController.tagImage);
+    router.get(
+      '/api/docker/images/<id>/history',
+      dockerController.getImageHistory,
+    );
+    router.get(
+      '/api/docker/images/<id>/containers',
+      dockerController.getImageContainers,
+    );
 
     return router;
   }

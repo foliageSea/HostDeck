@@ -110,6 +110,32 @@ class DockerService {
     await _repository.exec(session, 'docker restart $safeContainerId');
   }
 
+  /// 暂停容器
+  Future<void> pauseContainer(SshSession session, String containerId) async {
+    final safeContainerId = _shellQuote(containerId);
+    await _repository.exec(session, 'docker pause $safeContainerId');
+  }
+
+  /// 取消暂停容器
+  Future<void> unpauseContainer(SshSession session, String containerId) async {
+    final safeContainerId = _shellQuote(containerId);
+    await _repository.exec(session, 'docker unpause $safeContainerId');
+  }
+
+  /// 重命名容器
+  Future<void> renameContainer(
+    SshSession session,
+    String containerId,
+    String newName,
+  ) async {
+    final safeContainerId = _shellQuote(containerId);
+    final safeNewName = _shellQuote(newName);
+    await _repository.exec(
+      session,
+      'docker rename $safeContainerId $safeNewName',
+    );
+  }
+
   /// 删除容器
   Future<void> removeContainer(
     SshSession session,
@@ -145,6 +171,155 @@ class DockerService {
     final forceFlag = force ? '-f' : '';
     final safeImageId = _shellQuote(imageId);
     await _repository.exec(session, 'docker rmi $forceFlag $safeImageId');
+  }
+
+  /// 拉取镜像
+  Future<String> pullImage(SshSession session, String imageRef) async {
+    final safeImageRef = _shellQuote(imageRef);
+    return await _repository.exec(session, 'docker pull $safeImageRef');
+  }
+
+  /// 镜像重新打标签
+  Future<void> tagImage(
+    SshSession session,
+    String sourceImage,
+    String targetImage,
+  ) async {
+    final safeSourceImage = _shellQuote(sourceImage);
+    final safeTargetImage = _shellQuote(targetImage);
+    await _repository.exec(
+      session,
+      'docker tag $safeSourceImage $safeTargetImage',
+    );
+  }
+
+  /// 获取镜像历史
+  Future<List<Map<String, dynamic>>> getImageHistory(
+    SshSession session,
+    String imageId,
+  ) async {
+    final safeImageId = _shellQuote(imageId);
+    final output = await _repository.exec(
+      session,
+      'docker image history --no-trunc --format "{{json .}}" $safeImageId',
+    );
+
+    final lines = output.split('\n').map((line) => line.trim());
+    final items = <Map<String, dynamic>>[];
+    for (final line in lines) {
+      if (line.isEmpty) continue;
+      try {
+        final json = _parseDockerJson(line);
+        items.add({
+          'id': (json['ID'] ?? '').toString(),
+          'createdSince': (json['CreatedSince'] ?? '').toString(),
+          'createdAt': (json['CreatedAt'] ?? '').toString(),
+          'createdBy': (json['CreatedBy'] ?? '').toString(),
+          'size': (json['Size'] ?? '').toString(),
+          'comment': (json['Comment'] ?? '').toString(),
+        });
+      } catch (_) {
+        // ignore invalid row
+      }
+    }
+
+    return items;
+  }
+
+  /// 获取引用镜像的容器
+  Future<List<Map<String, dynamic>>> getImageContainers(
+    SshSession session,
+    String imageId,
+  ) async {
+    final safeImageId = _shellQuote(imageId);
+    final output = await _repository.exec(
+      session,
+      'docker ps -a --filter ancestor=$safeImageId --format "{{json .}}"',
+    );
+
+    final lines = output.split('\n').map((line) => line.trim());
+    final containers = <Map<String, dynamic>>[];
+    for (final line in lines) {
+      if (line.isEmpty) continue;
+      try {
+        final json = _parseDockerJson(line);
+        containers.add({
+          'id': (json['ID'] ?? '').toString(),
+          'name': (json['Names'] ?? '').toString(),
+          'image': (json['Image'] ?? '').toString(),
+          'state': (json['State'] ?? '').toString(),
+          'status': (json['Status'] ?? '').toString(),
+        });
+      } catch (_) {
+        // ignore invalid row
+      }
+    }
+    return containers;
+  }
+
+  /// 创建容器
+  Future<Map<String, dynamic>> createContainer(
+    SshSession session,
+    Map<String, dynamic> payload,
+  ) async {
+    final image = payload['image']?.toString().trim() ?? '';
+    if (image.isEmpty) {
+      throw Exception('image is required');
+    }
+
+    final command = _buildDockerCreateCommand(payload);
+    final output = await _repository.exec(session, command);
+    final containerId = output
+        .split('\n')
+        .map((line) => line.trim())
+        .firstWhere((line) => line.isNotEmpty, orElse: () => '');
+
+    final startAfterCreate = payload['start'] == true;
+    if (startAfterCreate) {
+      final safeContainerId = _shellQuote(containerId);
+      await _repository.exec(session, 'docker start $safeContainerId');
+    }
+
+    return {'containerId': containerId, 'started': startAfterCreate};
+  }
+
+  /// 快速重建容器（基础版）
+  Future<Map<String, dynamic>> recreateContainer(
+    SshSession session,
+    String containerId,
+  ) async {
+    final inspect = await inspectContainer(session, containerId);
+    final nameRaw = inspect['Name']?.toString() ?? '';
+    final name = nameRaw.startsWith('/') ? nameRaw.substring(1) : nameRaw;
+    final state =
+        inspect['State'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final wasRunning = state['Running'] == true;
+
+    final payload = _buildCreatePayloadFromInspect(inspect);
+    final createCommand = _buildDockerCreateCommand(payload);
+
+    final safeContainerId = _shellQuote(containerId);
+    await _repository.exec(session, 'docker rm -f $safeContainerId');
+    final createOutput = await _repository.exec(session, createCommand);
+
+    final newContainerId = createOutput
+        .split('\n')
+        .map((line) => line.trim())
+        .firstWhere((line) => line.isNotEmpty, orElse: () => '');
+
+    if (wasRunning) {
+      if (newContainerId.isNotEmpty) {
+        final safeNewContainerId = _shellQuote(newContainerId);
+        await _repository.exec(session, 'docker start $safeNewContainerId');
+      }
+    }
+
+    return {
+      'oldContainerId': containerId,
+      'newContainerId': newContainerId,
+      'name': name,
+      'started': wasRunning,
+    };
   }
 
   /// 批量启动容器
@@ -376,5 +551,152 @@ class DockerService {
   int _toInt(dynamic value) {
     if (value is int) return value;
     return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  String _buildDockerCreateCommand(Map<String, dynamic> payload) {
+    final args = <String>['docker create'];
+
+    final image = payload['image']?.toString().trim() ?? '';
+    if (image.isEmpty) {
+      throw Exception('image is required');
+    }
+
+    final name = payload['name']?.toString().trim() ?? '';
+    if (name.isNotEmpty) {
+      args.add('--name ${_shellQuote(name)}');
+    }
+
+    final restartPolicy = payload['restartPolicy']?.toString().trim() ?? '';
+    if (restartPolicy.isNotEmpty && restartPolicy != 'no') {
+      args.add('--restart ${_shellQuote(restartPolicy)}');
+    }
+
+    final ports = payload['ports'];
+    if (ports is List) {
+      for (final item in ports) {
+        final port = item.toString().trim();
+        if (port.isNotEmpty) {
+          args.add('-p ${_shellQuote(port)}');
+        }
+      }
+    }
+
+    final env = payload['env'];
+    if (env is List) {
+      for (final item in env) {
+        final value = item.toString().trim();
+        if (value.isNotEmpty) {
+          args.add('-e ${_shellQuote(value)}');
+        }
+      }
+    }
+
+    final volumes = payload['volumes'];
+    if (volumes is List) {
+      for (final item in volumes) {
+        final value = item.toString().trim();
+        if (value.isNotEmpty) {
+          args.add('-v ${_shellQuote(value)}');
+        }
+      }
+    }
+
+    final entrypoint = payload['entrypoint'];
+    if (entrypoint is List) {
+      final values = entrypoint
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty)
+          .toList();
+      if (values.isNotEmpty) {
+        final encoded = jsonEncode(values);
+        args.add('--entrypoint ${_shellQuote(encoded)}');
+      }
+    }
+
+    args.add(_shellQuote(image));
+
+    final cmd = payload['cmd'];
+    if (cmd is List) {
+      final values = cmd
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty);
+      for (final value in values) {
+        args.add(_shellQuote(value));
+      }
+    }
+
+    return args.join(' ');
+  }
+
+  Map<String, dynamic> _buildCreatePayloadFromInspect(
+    Map<String, dynamic> inspect,
+  ) {
+    final config =
+        inspect['Config'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final hostConfig =
+        inspect['HostConfig'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final nameRaw = inspect['Name']?.toString() ?? '';
+    final name = nameRaw.startsWith('/') ? nameRaw.substring(1) : nameRaw;
+
+    final restartName =
+        (hostConfig['RestartPolicy'] as Map<String, dynamic>? ??
+                <String, dynamic>{})['Name']
+            ?.toString()
+            .trim();
+
+    final ports = <String>[];
+    final portBindings =
+        hostConfig['PortBindings'] as Map<String, dynamic>? ??
+        <String, dynamic>{};
+    portBindings.forEach((containerPort, bindings) {
+      if (bindings is List && bindings.isNotEmpty) {
+        for (final binding in bindings) {
+          if (binding is Map<String, dynamic>) {
+            final hostIp = (binding['HostIp'] ?? '').toString();
+            final hostPort = (binding['HostPort'] ?? '').toString();
+            if (hostPort.isEmpty) continue;
+            if (hostIp.isNotEmpty && hostIp != '0.0.0.0') {
+              ports.add('$hostIp:$hostPort:$containerPort');
+            } else {
+              ports.add('$hostPort:$containerPort');
+            }
+          }
+        }
+      }
+    });
+
+    final volumes = <String>[];
+    final mounts = inspect['Mounts'];
+    if (mounts is List) {
+      for (final mount in mounts) {
+        if (mount is Map<String, dynamic>) {
+          final source = (mount['Source'] ?? '').toString();
+          final destination = (mount['Destination'] ?? '').toString();
+          if (source.isEmpty || destination.isEmpty) continue;
+          final rw = mount['RW'] != false;
+          final suffix = rw ? '' : ':ro';
+          volumes.add('$source:$destination$suffix');
+        }
+      }
+    }
+
+    return {
+      'image': config['Image']?.toString() ?? '',
+      'name': name,
+      'ports': ports,
+      'env':
+          (config['Env'] as List?)?.map((e) => e.toString()).toList() ??
+          <String>[],
+      'volumes': volumes,
+      'restartPolicy': (restartName == null || restartName.isEmpty)
+          ? 'no'
+          : restartName,
+      'entrypoint':
+          (config['Entrypoint'] as List?)?.map((e) => e.toString()).toList() ??
+          <String>[],
+      'cmd':
+          (config['Cmd'] as List?)?.map((e) => e.toString()).toList() ??
+          <String>[],
+    };
   }
 }
