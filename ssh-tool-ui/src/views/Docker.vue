@@ -13,6 +13,7 @@ import {
   Download,
   Info,
   Plus,
+  Trash2,
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
@@ -100,9 +101,9 @@ const {
   imageRefsTitle,
   imageRefsItems,
   createContainerForm,
-  createContainerPortsText,
-  createContainerEnvText,
-  createContainerVolumesText,
+  createContainerPorts,
+  createContainerEnvs,
+  createContainerVolumes,
   createContainerCmdText,
   createContainerEntrypointText,
   isConnected,
@@ -138,6 +139,12 @@ const {
   recreateContainer,
   openCreateContainerDialog,
   submitCreateContainer,
+  addCreatePort,
+  removeCreatePort,
+  addCreateEnv,
+  removeCreateEnv,
+  addCreateVolume,
+  removeCreateVolume,
   openImagePullDialog,
   submitPullImage,
   openImageTagDialog,
@@ -584,14 +591,29 @@ const setImageSortOrder = (value: 'asc' | 'desc') => {
         <DialogHeader>
           <DialogTitle>新建容器</DialogTitle>
           <DialogDescription>
-            基础创建参数（按行填写映射项）
+            请选择镜像并配置容器参数
           </DialogDescription>
         </DialogHeader>
         <div class="flex-1 overflow-auto custom-scrollbar pr-1 space-y-3">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="space-y-1">
               <div class="text-sm text-muted-foreground">镜像</div>
-              <Input v-model="createContainerForm.image" placeholder="nginx:latest"/>
+              <select
+                v-model="createContainerForm.image"
+                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="" disabled>请选择镜像</option>
+                <option
+                  v-for="image in images"
+                  :key="`${image.id}-${image.repository}-${image.tag}`"
+                  :value="`${image.repository}:${image.tag}`"
+                >
+                  {{ image.repository }}:{{ image.tag }}
+                </option>
+              </select>
+              <p v-if="images.length === 0" class="text-xs text-muted-foreground">
+                暂无可选镜像，请先在镜像页拉取镜像
+              </p>
             </div>
             <div class="space-y-1">
               <div class="text-sm text-muted-foreground">容器名称（可选）</div>
@@ -601,33 +623,76 @@ const setImageSortOrder = (value: 'asc' | 'desc') => {
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="space-y-1">
-              <div class="text-sm text-muted-foreground">端口映射（每行一条，如 8080:80）</div>
-              <textarea v-model="createContainerPortsText" class="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm"></textarea>
+              <div class="text-sm text-muted-foreground">端口映射（如 8080:80）</div>
+              <div class="space-y-2">
+                <div v-for="(_, index) in createContainerPorts" :key="`port-${index}`" class="flex gap-2">
+                  <Input v-model="createContainerPorts[index]" placeholder="8080:80"/>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    :disabled="createContainerPorts.length === 1"
+                    @click="removeCreatePort(index)"
+                  >
+                    <Trash2 class="w-4 h-4"/>
+                  </Button>
+                </div>
+                <Button variant="outline" size="sm" @click="addCreatePort">添加端口映射</Button>
+              </div>
             </div>
             <div class="space-y-1">
-              <div class="text-sm text-muted-foreground">环境变量（每行一条，如 KEY=VALUE）</div>
-              <textarea v-model="createContainerEnvText" class="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm"></textarea>
+              <div class="text-sm text-muted-foreground">环境变量（如 KEY=VALUE）</div>
+              <div class="space-y-2">
+                <div v-for="(_, index) in createContainerEnvs" :key="`env-${index}`" class="flex gap-2">
+                  <Input v-model="createContainerEnvs[index]" placeholder="KEY=VALUE"/>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    :disabled="createContainerEnvs.length === 1"
+                    @click="removeCreateEnv(index)"
+                  >
+                    <Trash2 class="w-4 h-4"/>
+                  </Button>
+                </div>
+                <Button variant="outline" size="sm" @click="addCreateEnv">添加环境变量</Button>
+              </div>
             </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="space-y-1">
-              <div class="text-sm text-muted-foreground">卷挂载（每行一条，如 /data:/app/data）</div>
-              <textarea v-model="createContainerVolumesText" class="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm"></textarea>
+              <div class="text-sm text-muted-foreground">卷挂载（如 /data:/app/data）</div>
+              <div class="space-y-2">
+                <div v-for="(_, index) in createContainerVolumes" :key="`volume-${index}`" class="flex gap-2">
+                  <Input v-model="createContainerVolumes[index]" placeholder="/data:/app/data"/>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    :disabled="createContainerVolumes.length === 1"
+                    @click="removeCreateVolume(index)"
+                  >
+                    <Trash2 class="w-4 h-4"/>
+                  </Button>
+                </div>
+                <Button variant="outline" size="sm" @click="addCreateVolume">添加卷挂载</Button>
+              </div>
             </div>
             <div class="space-y-1">
               <div class="text-sm text-muted-foreground">Restart Policy</div>
               <select
                 v-model="createContainerForm.restartPolicy"
-                class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="no">no</option>
                 <option value="always">always</option>
                 <option value="unless-stopped">unless-stopped</option>
                 <option value="on-failure">on-failure</option>
               </select>
-              <label class="inline-flex items-center gap-2 text-sm mt-2">
-                <input v-model="createContainerForm.start" type="checkbox">
+              <label class="inline-flex items-center gap-2 text-sm mt-2 text-foreground">
+                <input
+                  v-model="createContainerForm.start"
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-input bg-background text-primary accent-primary"
+                >
                 创建后自动启动
               </label>
             </div>
@@ -636,11 +701,17 @@ const setImageSortOrder = (value: 'asc' | 'desc') => {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="space-y-1">
               <div class="text-sm text-muted-foreground">Entrypoint（每行一个参数）</div>
-              <textarea v-model="createContainerEntrypointText" class="w-full min-h-20 rounded-md border bg-background px-3 py-2 text-sm"></textarea>
+              <textarea
+                v-model="createContainerEntrypointText"
+                class="w-full min-h-20 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              ></textarea>
             </div>
             <div class="space-y-1">
               <div class="text-sm text-muted-foreground">命令 CMD（每行一个参数）</div>
-              <textarea v-model="createContainerCmdText" class="w-full min-h-20 rounded-md border bg-background px-3 py-2 text-sm"></textarea>
+              <textarea
+                v-model="createContainerCmdText"
+                class="w-full min-h-20 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              ></textarea>
             </div>
           </div>
         </div>

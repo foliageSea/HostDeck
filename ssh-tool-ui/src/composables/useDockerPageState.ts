@@ -105,9 +105,9 @@ export const useDockerPageState = () => {
     entrypoint: [],
     start: true,
   });
-  const createContainerPortsText = ref('');
-  const createContainerEnvText = ref('');
-  const createContainerVolumesText = ref('');
+  const createContainerPorts = ref<string[]>(['']);
+  const createContainerEnvs = ref<string[]>(['']);
+  const createContainerVolumes = ref<string[]>(['']);
   const createContainerCmdText = ref('');
   const createContainerEntrypointText = ref('');
 
@@ -512,7 +512,52 @@ export const useDockerPageState = () => {
       .filter((item) => item.length > 0);
   };
 
-  const openCreateContainerDialog = () => {
+  const toDynamicList = (items: string[]) => {
+    return items
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  };
+
+  const addCreatePort = () => {
+    createContainerPorts.value = [...createContainerPorts.value, ''];
+  };
+
+  const removeCreatePort = (index: number) => {
+    if (createContainerPorts.value.length <= 1) {
+      createContainerPorts.value = [''];
+      return;
+    }
+    createContainerPorts.value = createContainerPorts.value.filter((_, i) => i !== index);
+  };
+
+  const addCreateEnv = () => {
+    createContainerEnvs.value = [...createContainerEnvs.value, ''];
+  };
+
+  const removeCreateEnv = (index: number) => {
+    if (createContainerEnvs.value.length <= 1) {
+      createContainerEnvs.value = [''];
+      return;
+    }
+    createContainerEnvs.value = createContainerEnvs.value.filter((_, i) => i !== index);
+  };
+
+  const addCreateVolume = () => {
+    createContainerVolumes.value = [...createContainerVolumes.value, ''];
+  };
+
+  const removeCreateVolume = (index: number) => {
+    if (createContainerVolumes.value.length <= 1) {
+      createContainerVolumes.value = [''];
+      return;
+    }
+    createContainerVolumes.value = createContainerVolumes.value.filter((_, i) => i !== index);
+  };
+
+  const openCreateContainerDialog = async () => {
+    if (sshStore.sessionId && images.value.length === 0) {
+      await fetchImages();
+    }
     createContainerForm.value = {
       image: '',
       name: '',
@@ -524,9 +569,9 @@ export const useDockerPageState = () => {
       entrypoint: [],
       start: true,
     };
-    createContainerPortsText.value = '';
-    createContainerEnvText.value = '';
-    createContainerVolumesText.value = '';
+    createContainerPorts.value = [''];
+    createContainerEnvs.value = [''];
+    createContainerVolumes.value = [''];
     createContainerCmdText.value = '';
     createContainerEntrypointText.value = '';
     createDialogOpen.value = true;
@@ -545,9 +590,9 @@ export const useDockerPageState = () => {
       const payload: DockerCreateContainerPayload = {
         image,
         name: createContainerForm.value.name?.trim() || undefined,
-        ports: toLineList(createContainerPortsText.value),
-        env: toLineList(createContainerEnvText.value),
-        volumes: toLineList(createContainerVolumesText.value),
+        ports: toDynamicList(createContainerPorts.value),
+        env: toDynamicList(createContainerEnvs.value),
+        volumes: toDynamicList(createContainerVolumes.value),
         restartPolicy: createContainerForm.value.restartPolicy || 'no',
         cmd: toLineList(createContainerCmdText.value),
         entrypoint: toLineList(createContainerEntrypointText.value),
@@ -1134,9 +1179,9 @@ export const useDockerPageState = () => {
     imageRefsTitle,
     imageRefsItems,
     createContainerForm,
-    createContainerPortsText,
-    createContainerEnvText,
-    createContainerVolumesText,
+    createContainerPorts,
+    createContainerEnvs,
+    createContainerVolumes,
     createContainerCmdText,
     createContainerEntrypointText,
     isConnected,
@@ -1172,6 +1217,12 @@ export const useDockerPageState = () => {
     recreateContainer,
     openCreateContainerDialog,
     submitCreateContainer,
+    addCreatePort,
+    removeCreatePort,
+    addCreateEnv,
+    removeCreateEnv,
+    addCreateVolume,
+    removeCreateVolume,
     openImagePullDialog,
     submitPullImage,
     openImageTagDialog,

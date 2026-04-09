@@ -88,7 +88,7 @@ export const useDesktopStore = defineStore('desktop', {
         title: 'Docker 管理',
         icon: 'container',
         component: markRaw(Docker),
-        width: 1000,
+        width: 1600,
         height: 700
       },
       'logout': {
