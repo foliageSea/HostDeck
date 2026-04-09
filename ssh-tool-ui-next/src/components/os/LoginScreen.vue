@@ -152,10 +152,8 @@ onMounted(() => {
           </NIcon>
           <span>ssh-tool-ui-next</span>
         </div>
-        <h1>Phase 1 基座已就绪</h1>
-        <p>
-          当前阶段先完成工程底座、全局状态和桌面式外壳占位。登录、桌面、窗口和请求层已接通基础结构，后续阶段继续补完整业务界面。
-        </p>
+        <h1>桌面式 SSH 工作台</h1>
+        <p>集中管理连接、监控、终端与文件操作，在统一桌面界面中完成常用远程运维流程。</p>
         <div class="hero-meta">
           <span>Naive UI</span>
           <span>Pinia</span>
@@ -168,7 +166,7 @@ onMounted(() => {
         <div class="panel-header">
           <div>
             <h2>连接服务器</h2>
-            <p>Phase 2 已接入真实连接、服务器保存与编辑流程。</p>
+            <p>支持保存、编辑和快速复用服务器连接配置。</p>
           </div>
           <NSpace>
             <NButton text @click="createServer">新建</NButton>

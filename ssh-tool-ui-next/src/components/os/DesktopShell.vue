@@ -105,7 +105,7 @@ onUnmounted(() => {
     <div class="desktop-status-card">
       <div class="desktop-status-title">当前连接</div>
       <div class="desktop-status-value">{{ sshStore.username }}@{{ sshStore.host }}</div>
-      <div class="desktop-status-meta">Phase 1 占位桌面壳，多窗口系统已接通基础状态流。</div>
+      <div class="desktop-status-meta">当前会话已接入桌面环境，可继续打开监控、终端和文件等工作窗口。</div>
     </div>
   </div>
 </template>

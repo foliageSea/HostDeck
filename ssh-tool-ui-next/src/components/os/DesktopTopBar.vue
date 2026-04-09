@@ -34,7 +34,6 @@ function disconnect() {
   <header class="desktop-topbar">
     <div class="desktop-topbar-section">
       <span class="topbar-brand">SSH Tool</span>
-      <NTag size="small" round type="info">Phase 1</NTag>
     </div>
 
     <div class="desktop-topbar-section desktop-topbar-center">

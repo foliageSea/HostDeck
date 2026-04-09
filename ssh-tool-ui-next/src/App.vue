@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch, watchEffect } from 'vue'
 import { darkTheme, dateZhCN, NConfigProvider, NDialogProvider, NGlobalStyle, NLoadingBarProvider, NMessageProvider, NNotificationProvider, zhCN } from 'naive-ui'
 import DesktopShell from '@/components/os/DesktopShell.vue'
 import LoginScreen from '@/components/os/LoginScreen.vue'
@@ -12,6 +12,10 @@ const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 
 const theme = computed(() => (settingsStore.isDark ? darkTheme : null))
+
+watchEffect(() => {
+  document.documentElement.dataset.theme = settingsStore.isDark ? 'dark' : 'light'
+})
 
 watch(
   () => sshStore.isConnected,

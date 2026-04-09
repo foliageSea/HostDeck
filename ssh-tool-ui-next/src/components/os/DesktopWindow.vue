@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Close, FitToScreen, Maximize, Minimize } from '@vicons/carbon'
 import AppIcon from '@/components/common/AppIcon.vue'
 import { useDesktopStore, type WindowState } from '@/stores/desktop'
 
@@ -115,11 +116,33 @@ function startResize() {
       </div>
 
       <div class="window-actions">
-        <NButton text @click="minimizeWindow">最小化</NButton>
-        <NButton text @click="maximizeWindow">
-          {{ window.isMaximized ? '还原' : '最大化' }}
+        <NButton quaternary circle size="small" title="最小化" @click="minimizeWindow">
+          <template #icon>
+            <NIcon :size="14">
+              <Minimize />
+            </NIcon>
+          </template>
         </NButton>
-        <NButton text type="error" @click="closeWindow">关闭</NButton>
+        <NButton
+          quaternary
+          circle
+          size="small"
+          :title="window.isMaximized ? '还原' : '最大化'"
+          @click="maximizeWindow"
+        >
+          <template #icon>
+            <NIcon :size="14">
+              <component :is="window.isMaximized ? FitToScreen : Maximize" />
+            </NIcon>
+          </template>
+        </NButton>
+        <NButton quaternary circle size="small" type="error" title="关闭" @click="closeWindow">
+          <template #icon>
+            <NIcon :size="14">
+              <Close />
+            </NIcon>
+          </template>
+        </NButton>
       </div>
     </header>
 

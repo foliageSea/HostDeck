@@ -3,9 +3,12 @@ import { defineStore } from 'pinia'
 import { useSshStore } from '@/stores/ssh'
 import type { AppIconKey, DesktopAppId } from '@/types/desktop'
 import DashboardView from '@/views/DashboardView.vue'
+import DockerView from '@/views/DockerView.vue'
 import FilesView from '@/views/FilesView.vue'
+import MediaViewerView from '@/views/MediaViewerView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 import TerminalView from '@/views/TerminalView.vue'
+import TextEditorView from '@/views/TextEditorView.vue'
 
 export interface AppConfig {
   id: DesktopAppId
@@ -45,6 +48,14 @@ export const useDesktopStore = defineStore('desktop', {
         title: '系统监控',
         width: 420,
       },
+      docker: {
+        component: markRaw(DockerView),
+        height: 760,
+        icon: 'docker',
+        id: 'docker',
+        title: 'Docker 管理',
+        width: 1180,
+      },
       files: {
         component: markRaw(FilesView),
         height: 720,
@@ -53,6 +64,15 @@ export const useDesktopStore = defineStore('desktop', {
         title: '文件管理',
         width: 1080,
       },
+      editor: {
+        component: markRaw(TextEditorView),
+        height: 720,
+        hide: true,
+        icon: 'editor',
+        id: 'editor',
+        title: '文本编辑器',
+        width: 980,
+      },
       logout: {
         component: markRaw({ render: () => null }),
         height: 0,
@@ -60,6 +80,15 @@ export const useDesktopStore = defineStore('desktop', {
         id: 'logout',
         title: '断开连接',
         width: 0,
+      },
+      'media-viewer': {
+        component: markRaw(MediaViewerView),
+        height: 760,
+        hide: true,
+        icon: 'media',
+        id: 'media-viewer',
+        title: '媒体预览',
+        width: 1080,
       },
       settings: {
         component: markRaw(SettingsView),

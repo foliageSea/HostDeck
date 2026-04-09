@@ -1,14 +1,23 @@
 :root {
-  color-scheme: dark;
   font-family: Inter, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #e5e7eb;
-  background: #020617;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  color: #e5e7eb;
+  background: #020617;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  color: #0f172a;
+  background: #e2e8f0;
 }
 
 * {
@@ -26,6 +35,12 @@ body {
   background:
     radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 32%),
     linear-gradient(180deg, #0f172a 0%, #020617 100%);
+}
+
+:root[data-theme='light'] body {
+  background:
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.14), transparent 32%),
+    linear-gradient(180deg, #eff6ff 0%, #e2e8f0 100%);
 }
 
 button,
