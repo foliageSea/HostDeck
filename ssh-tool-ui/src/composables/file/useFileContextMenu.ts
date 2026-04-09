@@ -6,7 +6,7 @@ import {
   FolderIcon, FolderPlusIcon, DownloadIcon,
   CopyIcon, ScissorsIcon, ClipboardPasteIcon,
   EditIcon, Trash2Icon, TypeIcon, RefreshCwIcon,
-  ClipboardIcon, StarIcon, Terminal as TerminalIcon
+  ClipboardIcon, StarIcon, Terminal as TerminalIcon, FilePlusIcon, InfoIcon
 } from 'lucide-vue-next'
 
 /**
@@ -63,6 +63,11 @@ export function useFileContextMenu(fileStore: any, operations: any) {
 
     if (!hasSelection) {
       items.push({
+        label: '新建文件',
+        icon: FilePlusIcon as any,
+        action: operations.openCreateFileModal
+      })
+      items.push({
         label: '新建文件夹',
         icon: FolderPlusIcon as any,
         action: operations.openMkdirModal
@@ -88,6 +93,12 @@ export function useFileContextMenu(fileStore: any, operations: any) {
             action: () => fileStore.toggleFavorite(fullPath)
           })
         }
+
+        items.push({
+          label: '属性',
+          icon: InfoIcon as any,
+          action: operations.openPropertiesModal
+        })
       }
     }
 

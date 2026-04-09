@@ -11,6 +11,8 @@ export function useFileOperations(fileStore: any, desktopStore: any) {
   const showMkdirModal = ref(false)
   const showRenameModal = ref(false)
   const showDeleteModal = ref(false)
+  const showCreateFileModal = ref(false)
+  const showPropertiesModal = ref(false)
   const newItemName = ref('')
 
   /**
@@ -139,6 +141,11 @@ export function useFileOperations(fileStore: any, desktopStore: any) {
     showMkdirModal.value = true
   }
 
+  const openCreateFileModal = () => {
+    newItemName.value = ''
+    showCreateFileModal.value = true
+  }
+
   /**
    * 执行新建文件夹
    */
@@ -157,6 +164,27 @@ export function useFileOperations(fileStore: any, desktopStore: any) {
     }
   }
 
+  const handleCreateFile = async () => {
+    const filename = newItemName.value.trim()
+    if (!filename) return
+    if (filename.includes('/')) {
+      toast.error('File name cannot include path separators')
+      return
+    }
+
+    const path = getFullPath(filename)
+
+    try {
+      await fileApi.writeFile(fileStore.sessionId!, path, '')
+      fileStore.pendingSelectedFilename = filename
+      toast.success('File created')
+      showCreateFileModal.value = false
+      fileStore.notifyFileSystemChange()
+    } catch (e: any) {
+      toast.error(`Create file failed: ${e.message}`)
+    }
+  }
+
   /**
    * 触发删除弹窗
    */
@@ -164,6 +192,11 @@ export function useFileOperations(fileStore: any, desktopStore: any) {
     if (fileStore.selectedFiles.size > 0) {
       showDeleteModal.value = true
     }
+  }
+
+  const openPropertiesModal = () => {
+    if (fileStore.selectedFiles.size !== 1) return
+    showPropertiesModal.value = true
   }
 
   /**
@@ -332,6 +365,8 @@ export function useFileOperations(fileStore: any, desktopStore: any) {
     showMkdirModal,
     showRenameModal,
     showDeleteModal,
+    showCreateFileModal,
+    showPropertiesModal,
     newItemName,
     getFullPath,
     handleDownload,
@@ -341,7 +376,10 @@ export function useFileOperations(fileStore: any, desktopStore: any) {
     handleRename,
     openMkdirModal,
     handleMkdir,
+    openCreateFileModal,
+    handleCreateFile,
     openDeleteModal,
+    openPropertiesModal,
     handleDelete,
     uploadFiles,
     handleDrop,

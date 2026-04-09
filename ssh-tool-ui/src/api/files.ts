@@ -80,6 +80,16 @@ export const fileApi = {
     return response.data
   },
 
+  writeFile: async (sessionId: string, path: string, content: string) => {
+    const response = await http.post('/api/files/write', content, {
+      params: { sessionId, path },
+      headers: {
+        'Content-Type': 'text/plain'
+      }
+    })
+    return response.data
+  },
+
   download: async (sessionId: string, path: string) => {
     const response = await http.get('/api/files/read', {
       params: { sessionId, path, download: 'true' },

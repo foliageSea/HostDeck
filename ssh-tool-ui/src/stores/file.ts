@@ -15,6 +15,9 @@ export interface FileItem {
 }
 
 export type ViewMode = 'list' | 'grid'
+export type SortBy = 'name' | 'size' | 'modifyTime' | 'type'
+export type SortOrder = 'asc' | 'desc'
+export type FilterType = 'all' | 'directory' | 'file'
 
 export type FileStore = ReturnType<typeof createFileStore>
 
@@ -33,8 +36,17 @@ export function createFileStore() {
   const files = ref<FileItem[]>([])
   const viewMode = ref<ViewMode>('grid')
   const selectedFiles = ref<Set<string>>(new Set())
+  const lastSelectedFilename = ref<string | null>(null)
+  const pendingSelectedFilename = ref<string | null>(null)
   const loading = ref(false)
   const sessionId = ref<string | null>(null)
+  const backHistory = ref<string[]>([])
+  const forwardHistory = ref<string[]>([])
+  const recentPaths = useStorage<string[]>('ssh-tool-file-recent-paths', [])
+  const searchQuery = ref('')
+  const sortBy = ref<SortBy>('name')
+  const sortOrder = ref<SortOrder>('asc')
+  const filterType = ref<FilterType>('all')
 
   // Upload state
   const uploadStatus = ref<{
@@ -103,6 +115,55 @@ export function createFileStore() {
     }
   }
 
+  const updateRecentPaths = (path: string) => {
+    recentPaths.value = [path, ...recentPaths.value.filter(item => item !== path)].slice(0, 10)
+  }
+
+  const compareFiles = (a: FileItem, b: FileItem) => {
+    if (a.isDirectory !== b.isDirectory) {
+      return a.isDirectory ? -1 : 1
+    }
+
+    let result = 0
+    switch (sortBy.value) {
+      case 'size':
+        result = (a.size || 0) - (b.size || 0)
+        break
+      case 'modifyTime':
+        result = new Date(a.modifyTime || 0).getTime() - new Date(b.modifyTime || 0).getTime()
+        break
+      case 'type': {
+        const aType = a.isDirectory ? '' : (a.filename.split('.').pop() || '').toLowerCase()
+        const bType = b.isDirectory ? '' : (b.filename.split('.').pop() || '').toLowerCase()
+        result = aType.localeCompare(bType) || a.filename.localeCompare(b.filename)
+        break
+      }
+      case 'name':
+      default:
+        result = a.filename.localeCompare(b.filename)
+        break
+    }
+
+    return sortOrder.value === 'asc' ? result : -result
+  }
+
+  const displayFiles = computed(() => {
+    const normalizedQuery = searchQuery.value.trim().toLowerCase()
+
+    return [...files.value]
+      .filter((file) => file.filename !== '.' && file.filename !== '..')
+      .filter((file) => {
+        if (filterType.value === 'directory') return file.isDirectory
+        if (filterType.value === 'file') return !file.isDirectory
+        return true
+      })
+      .filter((file) => {
+        if (!normalizedQuery) return true
+        return file.filename.toLowerCase().includes(normalizedQuery)
+      })
+      .sort(compareFiles)
+  })
+
   const fetchFiles = async (path?: string) => {
     if (!sessionId.value) {
       await initSession()
@@ -121,20 +182,22 @@ export function createFileStore() {
     try {
       const data = await fileApi.listFiles(sessionId.value, targetPath)
 
-      // filter out . and .. directories
-      const filteredData = data.filter((f: FileItem) => f.filename !== '.' && f.filename !== '..')
-
-      // sort: folders first, then files
-      files.value = filteredData.sort((a: FileItem, b: FileItem) => {
-        if (a.isDirectory === b.isDirectory) {
-          return a.filename.localeCompare(b.filename)
-        }
-        return a.isDirectory ? -1 : 1
-      })
+      files.value = data
       selectedFiles.value.clear()
+      lastSelectedFilename.value = null
+
+      if (pendingSelectedFilename.value) {
+        const target = data.find((file) => file.filename === pendingSelectedFilename.value)
+        if (target) {
+          selectedFiles.value = new Set([target.filename])
+          lastSelectedFilename.value = target.filename
+        }
+        pendingSelectedFilename.value = null
+      }
 
       // Only update currentPath if request succeeds
       currentPath.value = targetPath
+      updateRecentPaths(targetPath)
     } catch (e: any) {
       toast.error(`Failed to list files: ${e.message}`)
     } finally {
@@ -142,18 +205,67 @@ export function createFileStore() {
     }
   }
 
-  const navigate = (filename: string) => {
-    fetchFiles(filename)
+  const navigateTo = async (path: string, options?: { preserveHistory?: boolean }) => {
+    const targetPath = resolve(currentPath.value, path)
+    const shouldPreserveHistory = options?.preserveHistory !== false
+
+    if (targetPath === currentPath.value) {
+      await fetchFiles(targetPath)
+      return
+    }
+
+    const previousPath = currentPath.value
+    await fetchFiles(targetPath)
+
+    if (currentPath.value === targetPath && shouldPreserveHistory && previousPath !== targetPath) {
+      backHistory.value = [...backHistory.value, previousPath]
+      forwardHistory.value = []
+    }
   }
 
-  const navigateUp = () => {
+  const navigate = (filename: string) => {
+    navigateTo(filename)
+  }
+
+  const navigateUp = async () => {
     const parent = dirname(currentPath.value)
     if (parent !== currentPath.value) {
-      fetchFiles(parent)
+      await navigateTo(parent)
+    }
+  }
+
+  const navigateBack = async () => {
+    const targetPath = backHistory.value[backHistory.value.length - 1]
+    if (!targetPath) return
+
+    const previousPath = currentPath.value
+    await fetchFiles(targetPath)
+
+    if (currentPath.value === targetPath) {
+      backHistory.value = backHistory.value.slice(0, -1)
+      forwardHistory.value = [...forwardHistory.value, previousPath]
+    }
+  }
+
+  const navigateForward = async () => {
+    const targetPath = forwardHistory.value[forwardHistory.value.length - 1]
+    if (!targetPath) return
+
+    const previousPath = currentPath.value
+    await fetchFiles(targetPath)
+
+    if (currentPath.value === targetPath) {
+      forwardHistory.value = forwardHistory.value.slice(0, -1)
+      backHistory.value = [...backHistory.value, previousPath]
     }
   }
 
   const refresh = () => fetchFiles()
+
+  const selectSingle = (filename: string) => {
+    selectedFiles.value = new Set([filename])
+    lastSelectedFilename.value = filename
+  }
 
   const toggleSelection = (filename: string, multi: boolean) => {
     if (multi) {
@@ -162,13 +274,35 @@ export function createFileStore() {
       } else {
         selectedFiles.value.add(filename)
       }
+      lastSelectedFilename.value = filename
     } else {
-      selectedFiles.value.clear()
-      selectedFiles.value.add(filename)
+      selectSingle(filename)
     }
   }
 
-  const clearSelection = () => selectedFiles.value.clear()
+  const selectRange = (filename: string, orderedFiles: FileItem[]) => {
+    const anchor = lastSelectedFilename.value
+    if (!anchor) {
+      selectSingle(filename)
+      return
+    }
+
+    const startIndex = orderedFiles.findIndex(file => file.filename === anchor)
+    const endIndex = orderedFiles.findIndex(file => file.filename === filename)
+
+    if (startIndex === -1 || endIndex === -1) {
+      selectSingle(filename)
+      return
+    }
+
+    const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex]
+    selectedFiles.value = new Set(orderedFiles.slice(from, to + 1).map(file => file.filename))
+  }
+
+  const clearSelection = () => {
+    selectedFiles.value.clear()
+    lastSelectedFilename.value = null
+  }
 
   const selectAll = () => {
     files.value.forEach(f => selectedFiles.value.add(f.filename))
@@ -199,18 +333,33 @@ export function createFileStore() {
     files,
     viewMode,
     selectedFiles,
+    lastSelectedFilename,
+    pendingSelectedFilename,
     loading,
     sessionId,
+    backHistory,
+    forwardHistory,
+    recentPaths,
+    searchQuery,
+    sortBy,
+    sortOrder,
+    filterType,
+    displayFiles,
     uploadStatus,
     clipboard,
     editableExtensions,
     initSession,
     fetchFiles,
+    navigateTo,
     navigate,
     navigateUp,
+    navigateBack,
+    navigateForward,
     refresh,
     notifyFileSystemChange,
+    selectSingle,
     toggleSelection,
+    selectRange,
     clearSelection,
     selectAll,
     copySelection,
