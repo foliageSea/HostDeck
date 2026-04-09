@@ -16,17 +16,37 @@
         </Button>
       </div>
 
-      <div class="hidden lg:flex items-center gap-1 min-w-0 overflow-hidden">
+      <div class="hidden lg:flex items-center gap-1 min-w-0 overflow-hidden flex-nowrap">
         <Button variant="ghost" class="h-8 px-2 shrink-0" @click="$emit('navigate', '/')">
           根目录
         </Button>
         <template v-for="crumb in breadcrumbs" :key="crumb.path">
-          <span class="text-muted-foreground">/</span>
-          <Button variant="ghost" class="h-8 px-2 max-w-[160px] truncate" @click="$emit('navigate', crumb.path)"
+          <span class="text-muted-foreground shrink-0">/</span>
+          <Button variant="ghost" class="h-8 px-2 max-w-[160px] min-w-0" @click="$emit('navigate', crumb.path)"
             :title="crumb.path">
-            {{ crumb.label }}
+            <span class="truncate block">{{ crumb.label }}</span>
           </Button>
         </template>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button variant="ghost" size="icon" class="h-8 w-8 shrink-0" title="快速跳转">
+              <ChevronDownIcon class="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" class="w-64 z-[99999]">
+            <DropdownMenuLabel>面包屑快速跳转</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              v-for="item in breadcrumbJumpItems"
+              :key="item.path"
+              @click="$emit('navigate', item.path)"
+              class="cursor-pointer"
+            >
+              <span class="truncate" :title="item.path">{{ item.path }}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div class="lg:hidden font-semibold text-foreground px-2 truncate max-w-md">
@@ -35,10 +55,7 @@
     </div>
 
     <!-- Actions -->
-    <div class="flex items-center gap-2 min-w-0">
-      <div class="relative w-56 hidden xl:block">
-        <Input v-model="path" @keyup.enter="$emit('navigate', path)" class="h-9" placeholder="输入路径后回车" />
-      </div>
+      <div class="flex items-center gap-2 min-w-0">
 
       <div class="relative w-56 hidden md:block">
         <Input :model-value="searchQuery" @update:model-value="value => $emit('updateSearchQuery', value)" class="h-9"
@@ -79,7 +96,7 @@
       </Button>
 
 
-      <div class="ml-2 relative w-64 flex items-center gap-1">
+      <div class="ml-2 flex items-center gap-1 shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
             <Button variant="ghost" size="icon" class="h-9 w-9 shrink-0" title="收藏夹">
@@ -151,23 +168,21 @@
         </DropdownMenu>
 
 
-        <div class="relative shrink-0">
-          <Button variant="ghost" size="icon" class="absolute right-0 top-0 h-9 w-9 hover:bg-transparent"
-            @click="fileStore.toggleFavorite(currentPath)"
-            :title="fileStore.isFavorite(currentPath) ? '取消收藏' : '收藏当前目录'">
-            <StarIcon class="w-4 h-4 transition-colors"
-              :class="fileStore.isFavorite(currentPath) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'" />
-          </Button>
-        </div>
+        <Button variant="ghost" size="icon" class="h-9 w-9 shrink-0"
+          @click="fileStore.toggleFavorite(currentPath)"
+          :title="fileStore.isFavorite(currentPath) ? '取消收藏' : '收藏当前目录'">
+          <StarIcon class="w-4 h-4 transition-colors"
+            :class="fileStore.isFavorite(currentPath) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'" />
+        </Button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, computed } from 'vue'
 import {
-  ChevronLeftIcon, ChevronRightIcon, RotateCwIcon, ArrowUpIcon,
+  ChevronLeftIcon, ChevronRightIcon, RotateCwIcon, ArrowUpIcon, ChevronDownIcon,
   ListIcon, LayoutGridIcon, MoreHorizontalIcon, ArrowUpDownIcon,
   FileUpIcon, StarIcon, BookmarkIcon, Terminal as TerminalIcon
 } from 'lucide-vue-next'
@@ -223,12 +238,6 @@ const handleFileChange = (e: Event) => {
   }
 }
 
-const path = ref(props.currentPath)
-
-watch(() => props.currentPath, (newPath) => {
-  path.value = newPath
-})
-
 const currentFolderName = computed(() => {
   const parts = props.currentPath.split('/').filter(Boolean)
   return parts.length > 0 ? parts[parts.length - 1] : '根目录'
@@ -245,5 +254,15 @@ const breadcrumbs = computed(() => {
       path: current
     }
   })
+})
+
+const breadcrumbJumpItems = computed(() => {
+  const items = [{ path: '/' }]
+
+  for (const crumb of breadcrumbs.value) {
+    items.push({ path: crumb.path })
+  }
+
+  return items.reverse()
 })
 </script>
