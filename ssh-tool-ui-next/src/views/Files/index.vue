@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Download, DocumentAdd, Folder, FolderAdd, Terminal, Upload } from '@vicons/carbon'
+import { Download, FolderAdd, Terminal, Upload } from '@vicons/carbon'
 import { filesApi, type FileItem } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { createFileStore } from '@/stores/file'
 import { basename, resolve } from '@/utils/path'
+import FileBrowserContent from './components/FileBrowserContent.vue'
+import FileNameDialog from './components/FileNameDialog.vue'
 
 const fileStore = createFileStore()
 const desktopStore = useDesktopStore()
@@ -399,12 +401,7 @@ onMounted(async () => {
         </template>
         新建目录
       </NButton>
-      <NButton @click="openCreate('file')">
-        <template #icon>
-          <NIcon><DocumentAdd /></NIcon>
-        </template>
-        新建文件
-      </NButton>
+      <NButton @click="openCreate('file')">新建文件</NButton>
       <NButton @click="triggerUpload">
         <template #icon>
           <NIcon><Upload /></NIcon>
@@ -425,52 +422,16 @@ onMounted(async () => {
       支持 `Ctrl/Cmd + Click` 多选，`Shift + Click` 范围选择，`Ctrl/Cmd + A` 全选，`Delete` 删除，`F2` 重命名。
     </div>
 
-    <div class="files-content">
-      <NSpin :show="fileStore.loading">
-        <NEmpty v-if="fileStore.displayFiles.length === 0" description="当前目录没有文件" class="files-empty" />
-
-        <div v-else-if="fileStore.viewMode === 'grid'" class="file-grid">
-          <button
-            v-for="file in fileStore.displayFiles"
-            :key="file.filename"
-            type="button"
-            class="file-card"
-            :class="{ 'file-card-active': fileStore.selectedNames.includes(file.filename) }"
-            @click="handleFileClick(file, $event)"
-            @dblclick="openFile(file)"
-          >
-            <NIcon size="28">
-              <Folder v-if="file.isDirectory" />
-              <DocumentAdd v-else />
-            </NIcon>
-            <div class="file-name">{{ file.filename }}</div>
-            <div class="file-meta">{{ file.isDirectory ? '目录' : formatFileSize(file.size) }}</div>
-          </button>
-        </div>
-
-        <div v-else class="file-list">
-          <button
-            v-for="file in fileStore.displayFiles"
-            :key="file.filename"
-            type="button"
-            class="file-row"
-            :class="{ 'file-row-active': fileStore.selectedNames.includes(file.filename) }"
-            @click="handleFileClick(file, $event)"
-            @dblclick="openFile(file)"
-          >
-            <div class="file-row-main">
-              <NIcon size="20">
-                <Folder v-if="file.isDirectory" />
-                <DocumentAdd v-else />
-              </NIcon>
-              <span class="file-name">{{ file.filename }}</span>
-            </div>
-            <span class="file-row-size">{{ file.isDirectory ? '-' : formatFileSize(file.size) }}</span>
-            <span class="file-row-time">{{ formatModifyTime(file.modifyTime) }}</span>
-          </button>
-        </div>
-      </NSpin>
-    </div>
+    <FileBrowserContent
+      :files="fileStore.displayFiles"
+      :loading="fileStore.loading"
+      :selected-names="fileStore.selectedNames"
+      :view-mode="fileStore.viewMode"
+      :format-file-size="formatFileSize"
+      :format-modify-time="formatModifyTime"
+      @click-file="handleFileClick"
+      @open-file="openFile"
+    />
 
     <NCard v-if="selectedFile" size="small" class="details-panel">
       <div class="details-title">当前选择</div>
@@ -479,30 +440,21 @@ onMounted(async () => {
       <div class="details-meta">{{ formatModifyTime(selectedFile.modifyTime) }}</div>
     </NCard>
 
-    <NModal
+    <FileNameDialog
       v-model:show="showCreateDialog"
-      preset="card"
       :title="createDialogMode === 'directory' ? '新建目录' : '新建文件'"
-      class="file-dialog"
-    >
-      <NSpace vertical>
-        <NInput v-model:value="newItemName" placeholder="输入名称" @keyup.enter="confirmCreate" />
-        <NSpace justify="end">
-          <NButton @click="showCreateDialog = false">取消</NButton>
-          <NButton type="primary" @click="confirmCreate">确认</NButton>
-        </NSpace>
-      </NSpace>
-    </NModal>
+      :value="newItemName"
+      @update:value="(value) => (newItemName = value)"
+      @confirm="confirmCreate"
+    />
 
-    <NModal v-model:show="showRenameDialog" preset="card" title="重命名" class="file-dialog">
-      <NSpace vertical>
-        <NInput v-model:value="renameValue" placeholder="输入新名称" @keyup.enter="confirmRename" />
-        <NSpace justify="end">
-          <NButton @click="showRenameDialog = false">取消</NButton>
-          <NButton type="primary" @click="confirmRename">确认</NButton>
-        </NSpace>
-      </NSpace>
-    </NModal>
+    <FileNameDialog
+      v-model:show="showRenameDialog"
+      title="重命名"
+      :value="renameValue"
+      @update:value="(value) => (renameValue = value)"
+      @confirm="confirmRename"
+    />
 
     <NModal
       v-model:show="showDeleteDialog"
@@ -559,87 +511,6 @@ onMounted(async () => {
   font-size: 12px;
 }
 
-.files-content {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 4px;
-}
-
-.files-empty {
-  height: 100%;
-  min-height: 260px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.file-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 12px;
-}
-
-.file-card,
-.file-row {
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(15, 23, 42, 0.62);
-  color: inherit;
-  cursor: pointer;
-  transition: 160ms ease;
-}
-
-.file-card:hover,
-.file-row:hover,
-.file-card-active,
-.file-row-active {
-  border-color: rgba(96, 165, 250, 0.55);
-  background: rgba(30, 41, 59, 0.86);
-}
-
-.file-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  min-height: 130px;
-  padding: 14px;
-  border-radius: 16px;
-  text-align: left;
-}
-
-.file-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.file-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 180px;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  text-align: left;
-}
-
-.file-row-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.file-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-meta,
-.file-row-size,
-.file-row-time,
 .details-meta,
 .details-title {
   color: rgba(148, 163, 184, 0.9);
@@ -649,20 +520,5 @@ onMounted(async () => {
 .details-panel {
   border-radius: 16px;
   background: rgba(15, 23, 42, 0.56);
-}
-
-.file-dialog {
-  width: min(440px, calc(100vw - 24px));
-}
-
-@media (max-width: 860px) {
-  .file-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .file-row-size,
-  .file-row-time {
-    display: none;
-  }
 }
 </style>

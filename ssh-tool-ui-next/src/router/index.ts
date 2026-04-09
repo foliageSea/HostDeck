@@ -1,8 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useSshStore } from '@/stores/ssh'
-import DashboardView from '@/views/DashboardView.vue'
-import FilesView from '@/views/FilesView.vue'
-import TerminalView from '@/views/TerminalView.vue'
+import DashboardView from '@/views/Dashboard/index.vue'
+import FilesView from '@/views/Files/index.vue'
+import TerminalView from '@/views/Terminal/index.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
