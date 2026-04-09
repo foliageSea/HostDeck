@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { createWallpaperStyle } from '@/lib/wallpapers'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
@@ -16,6 +17,9 @@ const switcherIndex = ref(0)
 const switcherWindows = ref<typeof desktopStore.windows>([])
 
 const windows = computed(() => desktopStore.windows.filter((window) => !window.isMinimized))
+const desktopWallpaperStyle = computed(() =>
+  createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
+)
 
 function selectWindow(index: number) {
   const targetWindow = switcherWindows.value[index]
@@ -84,7 +88,7 @@ onUnmounted(() => {
 
 <template>
   <div class="desktop-shell" :class="{ 'desktop-shell-light': !settingsStore.isDark }">
-    <div class="desktop-wallpaper" />
+    <div class="desktop-wallpaper" :style="desktopWallpaperStyle" />
     <div class="desktop-noise" />
 
     <DesktopTopBar />
@@ -120,18 +124,9 @@ onUnmounted(() => {
 .desktop-wallpaper {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at 15% 18%, rgba(14, 165, 233, 0.18), transparent 24%),
-    radial-gradient(circle at 85% 15%, rgba(168, 85, 247, 0.18), transparent 18%),
-    radial-gradient(circle at 50% 85%, rgba(59, 130, 246, 0.12), transparent 24%),
-    linear-gradient(160deg, #0f172a 0%, #111827 50%, #020617 100%);
-}
-
-.desktop-shell-light .desktop-wallpaper {
-  background:
-    radial-gradient(circle at 15% 18%, rgba(59, 130, 246, 0.16), transparent 24%),
-    radial-gradient(circle at 85% 15%, rgba(217, 70, 239, 0.14), transparent 18%),
-    linear-gradient(160deg, #dbeafe 0%, #e2e8f0 50%, #cbd5e1 100%);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .desktop-noise {

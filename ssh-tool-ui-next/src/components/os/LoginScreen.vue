@@ -4,10 +4,13 @@ import { useMutation } from '@tanstack/vue-query'
 import { ServerProxy } from '@vicons/carbon'
 import { authApi, type ConnectParams, type ConnectResponse } from '@/api/auth'
 import type { SavedServer } from '@/api/server'
+import { createWallpaperStyle } from '@/lib/wallpapers'
 import { getUiApi } from '@/lib/ui'
+import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 
 const sshStore = useSshStore()
+const settingsStore = useSettingsStore()
 const isEditing = ref(false)
 const isNewServer = ref(false)
 const isShaking = ref(false)
@@ -24,6 +27,9 @@ const form = reactive({
 
 const selectedServer = computed(() =>
   sshStore.savedServers.find((server) => server.id === selectedServerId.value) ?? null,
+)
+const loginWallpaperStyle = computed(() =>
+  createWallpaperStyle('login', settingsStore.loginWallpaper, settingsStore.isDark),
 )
 
 function applyServer(server: SavedServer) {
@@ -143,7 +149,7 @@ onMounted(() => {
 
 <template>
   <div class="login-screen">
-    <div class="login-overlay" />
+    <div class="login-overlay" :style="loginWallpaperStyle" />
     <div class="login-layout">
       <section class="login-panel hero-panel">
         <div class="hero-badge">
@@ -282,10 +288,9 @@ onMounted(() => {
 .login-overlay {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.2), transparent 24%),
-    radial-gradient(circle at 80% 16%, rgba(168, 85, 247, 0.18), transparent 22%),
-    linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.92));
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .login-layout {
