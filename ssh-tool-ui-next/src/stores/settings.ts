@@ -3,7 +3,13 @@ import { defineStore } from 'pinia'
 import {
   createDefaultWallpaperSettings,
   type WallpaperSettings,
+  type WallpaperTarget,
 } from '@/lib/wallpapers'
+import {
+  deleteStoredWallpaperDataUrl,
+  getStoredWallpaperDataUrl,
+  setStoredWallpaperDataUrl,
+} from '@/lib/wallpaper-storage'
 
 const THEME_STORAGE_KEY = 'ssh-tool-ui-next.theme'
 const TERMINAL_FONT_SIZE_STORAGE_KEY = 'ssh-tool-ui-next.terminalFontSize'
@@ -77,6 +83,17 @@ function resolveStoredWallpaper(storageKey: string): WallpaperSettings {
   }
 }
 
+function serializeWallpaperSettings(value: WallpaperSettings): WallpaperSettings {
+  if (value.mode !== 'custom') {
+    return value
+  }
+
+  return {
+    ...value,
+    customDataUrl: null,
+  }
+}
+
 export const useSettingsStore = defineStore('settings', () => {
   const themeMode = ref<ThemeMode>(resolveStoredMode())
   const prefersDark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -101,6 +118,49 @@ export const useSettingsStore = defineStore('settings', () => {
   if ('addEventListener' in mediaQuery) {
     mediaQuery.addEventListener('change', handleThemeChange)
   }
+
+  async function syncWallpaperStorage(target: WallpaperTarget, value: WallpaperSettings) {
+    window.localStorage.setItem(
+      target === 'desktop' ? DESKTOP_WALLPAPER_STORAGE_KEY : LOGIN_WALLPAPER_STORAGE_KEY,
+      JSON.stringify(serializeWallpaperSettings(value)),
+    )
+
+    if (value.mode === 'custom' && value.customDataUrl) {
+      await setStoredWallpaperDataUrl(target, value.customDataUrl)
+      return
+    }
+
+    if (value.mode === 'custom') {
+      return
+    }
+
+    await deleteStoredWallpaperDataUrl(target)
+  }
+
+  async function hydrateCustomWallpaper(target: WallpaperTarget) {
+    const wallpaper = target === 'desktop' ? desktopWallpaper : loginWallpaper
+    if (wallpaper.value.mode !== 'custom') {
+      return
+    }
+
+    if (wallpaper.value.customDataUrl) {
+      await setStoredWallpaperDataUrl(target, wallpaper.value.customDataUrl)
+      return
+    }
+
+    const storedDataUrl = await getStoredWallpaperDataUrl(target)
+    if (!storedDataUrl) {
+      return
+    }
+
+    wallpaper.value = {
+      ...wallpaper.value,
+      customDataUrl: storedDataUrl,
+    }
+  }
+
+  void hydrateCustomWallpaper('desktop')
+  void hydrateCustomWallpaper('login')
 
   watch(
     themeMode,
@@ -129,7 +189,7 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(
     desktopWallpaper,
     (value) => {
-      window.localStorage.setItem(DESKTOP_WALLPAPER_STORAGE_KEY, JSON.stringify(value))
+      void syncWallpaperStorage('desktop', value)
     },
     { deep: true, immediate: true },
   )
@@ -137,7 +197,7 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(
     loginWallpaper,
     (value) => {
-      window.localStorage.setItem(LOGIN_WALLPAPER_STORAGE_KEY, JSON.stringify(value))
+      void syncWallpaperStorage('login', value)
     },
     { deep: true, immediate: true },
   )

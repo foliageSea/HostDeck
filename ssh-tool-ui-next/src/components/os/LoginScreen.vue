@@ -148,7 +148,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="login-screen">
+  <div class="login-screen" :class="{ 'login-screen-light': !settingsStore.isDark }">
     <div class="login-overlay" :style="loginWallpaperStyle" />
     <div class="login-layout">
       <section class="login-panel hero-panel">
@@ -428,6 +428,41 @@ onMounted(() => {
 
 .full-width {
   width: 100%;
+}
+
+.login-screen-light .login-panel {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 24px 70px rgba(148, 163, 184, 0.2);
+}
+
+.login-screen-light .hero-panel h1,
+.login-screen-light .panel-header h2,
+.login-screen-light .server-name {
+  color: #0f172a;
+}
+
+.login-screen-light .hero-panel p,
+.login-screen-light .panel-header p,
+.login-screen-light .saved-servers-header,
+.login-screen-light .server-desc {
+  color: rgba(51, 65, 85, 0.8);
+}
+
+.login-screen-light .hero-badge {
+  background: rgba(255, 255, 255, 0.7);
+  color: #334155;
+}
+
+.login-screen-light .hero-meta span {
+  background: rgba(219, 234, 254, 0.78);
+  border-color: rgba(96, 165, 250, 0.28);
+  color: #1d4ed8;
+}
+
+.login-screen-light .server-card-active {
+  border-color: rgba(59, 130, 246, 0.38);
+  background: rgba(219, 234, 254, 0.6);
 }
 
 @keyframes panel-shake {

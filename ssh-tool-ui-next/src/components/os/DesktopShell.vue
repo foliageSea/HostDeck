@@ -177,6 +177,23 @@ onUnmounted(() => {
   color: rgba(226, 232, 240, 0.7);
 }
 
+.desktop-shell-light .desktop-status-card {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.desktop-shell-light .desktop-status-title {
+  color: rgba(71, 85, 105, 0.82);
+}
+
+.desktop-shell-light .desktop-status-value {
+  color: #0f172a;
+}
+
+.desktop-shell-light .desktop-status-meta {
+  color: rgba(51, 65, 85, 0.8);
+}
+
 @media (max-width: 768px) {
   .desktop-status-card {
     left: 16px;

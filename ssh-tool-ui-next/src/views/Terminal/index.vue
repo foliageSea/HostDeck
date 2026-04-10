@@ -4,6 +4,7 @@ import '@xterm/xterm/css/xterm.css'
 import TerminalSettingsModal from './components/TerminalSettingsModal.vue'
 import { useTerminalSession } from './hooks/useTerminalSession'
 import { useSshStore } from '@/stores/ssh'
+import { useSettingsStore } from '@/stores/settings'
 import { getUiApi } from '@/lib/ui'
 
 const props = defineProps<{
@@ -13,6 +14,7 @@ const props = defineProps<{
 }>()
 
 const sshStore = useSshStore()
+const settingsStore = useSettingsStore()
 const showSettings = ref(false)
 const showCopyButton = ref(false)
 const selectedText = ref('')
@@ -59,7 +61,7 @@ async function copySelection() {
 </script>
 
 <template>
-  <div class="terminal-view" @mousedown="showCopyButton = false" @mouseup="openCopyButton">
+  <div class="terminal-view" :class="{ 'terminal-view-light': !settingsStore.isDark }" @mousedown="showCopyButton = false" @mouseup="openCopyButton">
     <div class="terminal-toolbar">
       <div class="terminal-meta">
         <span>{{ sshStore.username || 'unknown' }}@{{ sshStore.host || 'localhost' }}</span>
@@ -131,5 +133,19 @@ async function copySelection() {
   position: fixed;
   z-index: 9999;
   transform: translate(-50%, calc(-100% - 8px));
+}
+
+.terminal-view-light {
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.82), #f8fafc 72%);
+}
+
+.terminal-view-light .terminal-toolbar {
+  border-bottom-color: rgba(148, 163, 184, 0.22);
+  color: #334155;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.terminal-view-light .terminal-cwd {
+  color: rgba(71, 85, 105, 0.88);
 }
 </style>

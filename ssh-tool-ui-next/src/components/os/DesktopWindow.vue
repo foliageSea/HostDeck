@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppIcon from '@/components/common/AppIcon.vue'
+import { useSettingsStore } from '@/stores/settings'
 import { useDesktopStore, type WindowState } from '@/stores/desktop'
 
 const props = defineProps<{
@@ -8,6 +9,7 @@ const props = defineProps<{
 }>()
 
 const desktopStore = useDesktopStore()
+const settingsStore = useSettingsStore()
 let isDragging = false
 let isResizing = false
 let dragOffsetX = 0
@@ -107,7 +109,7 @@ function startResize() {
 </script>
 
 <template>
-  <section class="desktop-window" :class="{ 'desktop-window-maximized': window.isMaximized }" :style="windowStyle" @mousedown="focusWindow">
+  <section class="desktop-window" :class="{ 'desktop-window-maximized': window.isMaximized, 'desktop-window-light': !settingsStore.isDark }" :style="windowStyle" @mousedown="focusWindow">
     <header class="window-header" @mousedown.prevent="startDrag" @dblclick="maximizeWindow">
       <div class="window-actions" @mousedown.stop>
         <button class="window-action window-action-close" type="button" title="关闭" @click="closeWindow" />
@@ -253,5 +255,20 @@ function startResize() {
   width: 18px;
   height: 18px;
   cursor: nwse-resize;
+}
+
+.desktop-window-light {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 24px 72px rgba(148, 163, 184, 0.24);
+}
+
+.desktop-window-light .window-header {
+  background: rgba(248, 250, 252, 0.88);
+  border-bottom-color: rgba(148, 163, 184, 0.22);
+}
+
+.desktop-window-light .window-title {
+  color: #0f172a;
 }
 </style>

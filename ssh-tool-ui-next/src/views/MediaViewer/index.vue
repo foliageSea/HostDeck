@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useSettingsStore } from '@/stores/settings'
 
 interface MediaPlaylistItem {
   path: string
@@ -13,6 +14,7 @@ const props = defineProps<{
   playlist?: MediaPlaylistItem[]
 }>()
 
+const settingsStore = useSettingsStore()
 const activePath = ref(props.path)
 const hasError = ref(false)
 
@@ -64,7 +66,7 @@ function openNext() {
 </script>
 
 <template>
-  <div class="media-viewer">
+  <div class="media-viewer" :class="{ 'media-viewer-light': !settingsStore.isDark }">
     <div class="media-toolbar">
       <div>
         <strong>{{ filename }}</strong>
@@ -173,5 +175,29 @@ function openNext() {
 .playlist-item-active {
   border-color: rgba(96, 165, 250, 0.7);
   color: #fff;
+}
+
+.media-viewer-light {
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.media-viewer-light .media-toolbar {
+  border-bottom-color: rgba(148, 163, 184, 0.22);
+  color: #1e293b;
+}
+
+.media-viewer-light .media-playlist {
+  border-top-color: rgba(148, 163, 184, 0.22);
+}
+
+.media-viewer-light .playlist-item {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(255, 255, 255, 0.88);
+  color: #334155;
+}
+
+.media-viewer-light .playlist-item-active {
+  background: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
 }
 </style>

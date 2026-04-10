@@ -3,9 +3,11 @@ import { computed, ref } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import AppIcon from '@/components/common/AppIcon.vue'
 import { useDesktopStore, type AppConfig } from '@/stores/desktop'
+import { useSettingsStore } from '@/stores/settings'
 import type { DesktopAppId } from '@/types/desktop'
 
 const desktopStore = useDesktopStore()
+const settingsStore = useSettingsStore()
 const selectorTarget = ref<HTMLElement | null>(null)
 const selectorAppId = ref<DesktopAppId | null>(null)
 const bouncingAppId = ref<DesktopAppId | null>(null)
@@ -68,7 +70,7 @@ function closeAppWindows(appId: DesktopAppId) {
 </script>
 
 <template>
-  <footer ref="selectorTarget" class="desktop-dock">
+  <footer ref="selectorTarget" class="desktop-dock" :class="{ 'desktop-dock-light': !settingsStore.isDark }">
     <div v-for="app in dockApps" :key="app.id" class="dock-entry">
       <button
         class="dock-item"
@@ -226,5 +228,39 @@ function closeAppWindows(appId: DesktopAppId) {
   .dock-item span {
     display: none;
   }
+}
+
+.desktop-dock-light {
+  background: rgba(255, 255, 255, 0.66);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.desktop-dock-light .dock-item {
+  color: #1e293b;
+  background: rgba(241, 245, 249, 0.88);
+}
+
+.desktop-dock-light .dock-item:hover,
+.desktop-dock-light .dock-item-open {
+  background: rgba(226, 232, 240, 0.96);
+}
+
+.desktop-dock-light .dock-selector {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(148, 163, 184, 0.22);
+  box-shadow: 0 24px 70px rgba(148, 163, 184, 0.22);
+}
+
+.desktop-dock-light .dock-selector-title {
+  color: rgba(71, 85, 105, 0.84);
+}
+
+.desktop-dock-light .dock-selector-item {
+  background: rgba(241, 245, 249, 0.92);
+  color: #1e293b;
+}
+
+.desktop-dock-light .dock-selector-item:hover {
+  background: rgba(226, 232, 240, 0.96);
 }
 </style>

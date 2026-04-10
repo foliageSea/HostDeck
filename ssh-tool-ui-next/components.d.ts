@@ -37,10 +37,8 @@ declare module 'vue' {
     NPopover: typeof import('naive-ui')['NPopover']
     NProgress: typeof import('naive-ui')['NProgress']
     NRadio: typeof import('naive-ui')['NRadio']
-    NRadioButton: typeof import('naive-ui')['NRadioButton']
     NRadioGroup: typeof import('naive-ui')['NRadioGroup']
     NResult: typeof import('naive-ui')['NResult']
-    NSegmented: typeof import('naive-ui')['NSegmented']
     NSelect: typeof import('naive-ui')['NSelect']
     NSlider: typeof import('naive-ui')['NSlider']
     NSpace: typeof import('naive-ui')['NSpace']
@@ -52,5 +50,6 @@ declare module 'vue' {
     NTooltip: typeof import('naive-ui')['NTooltip']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    UiApiBridge: typeof import('./src/components/common/UiApiBridge.vue')['default']
   }
 }

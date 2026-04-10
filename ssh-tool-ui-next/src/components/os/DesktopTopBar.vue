@@ -32,7 +32,7 @@ function disconnect() {
 </script>
 
 <template>
-  <header class="desktop-topbar">
+  <header class="desktop-topbar" :class="{ 'desktop-topbar-light': !settingsStore.isDark }">
     <div class="desktop-topbar-section">
       <span class="topbar-brand">SSH Tool</span>
     </div>
@@ -99,5 +99,18 @@ function disconnect() {
 .topbar-brand {
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+
+.desktop-topbar-light {
+  background: rgba(255, 255, 255, 0.58);
+  border-bottom-color: rgba(148, 163, 184, 0.22);
+}
+
+.desktop-topbar-light .desktop-topbar-section {
+  color: #1e293b;
+}
+
+.desktop-topbar-light .desktop-topbar-center {
+  color: rgba(51, 65, 85, 0.82);
 }
 </style>

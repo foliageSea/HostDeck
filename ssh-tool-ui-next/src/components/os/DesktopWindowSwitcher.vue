@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useSettingsStore } from '@/stores/settings'
 import AppIcon from '@/components/common/AppIcon.vue'
 import type { WindowState } from '@/stores/desktop'
+
+const settingsStore = useSettingsStore()
 
 defineProps<{
   selectedIndex: number
@@ -13,7 +16,7 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="switcher-overlay">
+  <div class="switcher-overlay" :class="{ 'switcher-overlay-light': !settingsStore.isDark }">
     <div class="switcher-panel">
       <div class="switcher-title">切换窗口</div>
       <div class="switcher-grid">
@@ -96,5 +99,30 @@ defineEmits<{
 .switcher-item-title {
   font-size: 0.88rem;
   text-align: center;
+}
+
+.switcher-overlay-light {
+  background: rgba(226, 232, 240, 0.42);
+}
+
+.switcher-overlay-light .switcher-panel {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(148, 163, 184, 0.22);
+  box-shadow: 0 28px 80px rgba(148, 163, 184, 0.24);
+}
+
+.switcher-overlay-light .switcher-title {
+  color: rgba(51, 65, 85, 0.78);
+}
+
+.switcher-overlay-light .switcher-item {
+  background: rgba(241, 245, 249, 0.92);
+  color: #1e293b;
+}
+
+.switcher-overlay-light .switcher-item:hover,
+.switcher-overlay-light .switcher-item-active {
+  background: rgba(219, 234, 254, 0.92);
+  border-color: rgba(59, 130, 246, 0.34);
 }
 </style>

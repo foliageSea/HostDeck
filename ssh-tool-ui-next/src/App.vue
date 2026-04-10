@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, watch, watchEffect } from 'vue'
 import { darkTheme, dateZhCN, NConfigProvider, NDialogProvider, NGlobalStyle, NLoadingBarProvider, NMessageProvider, NNotificationProvider, zhCN } from 'naive-ui'
+import UiApiBridge from '@/components/common/UiApiBridge.vue'
 import DesktopShell from '@/components/os/DesktopShell.vue'
 import LoginScreen from '@/components/os/LoginScreen.vue'
 import { useDesktopStore } from '@/stores/desktop'
@@ -34,6 +35,7 @@ watch(
         <NNotificationProvider>
           <NMessageProvider>
             <NGlobalStyle />
+            <UiApiBridge />
             <div class="app-shell">
               <Transition name="fade" mode="out-in">
                 <DesktopShell v-if="sshStore.isConnected" />
