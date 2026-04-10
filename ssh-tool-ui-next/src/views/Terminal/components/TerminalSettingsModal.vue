@@ -17,7 +17,7 @@ const settingsStore = useSettingsStore()
     :show="show"
     preset="card"
     title="终端设置"
-    class="terminal-settings-modal"
+    style="width: min(380px, calc(100vw - 24px))"
     @update:show="(value: boolean) => emit('update:show', value)"
   >
     <NSpace vertical size="large">
@@ -49,10 +49,6 @@ const settingsStore = useSettingsStore()
 </template>
 
 <style scoped>
-.terminal-settings-modal {
-  width: min(460px, calc(100vw - 24px));
-}
-
 .setting-label {
   margin-bottom: 10px;
   font-size: 13px;
