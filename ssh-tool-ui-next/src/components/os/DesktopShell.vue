@@ -119,6 +119,12 @@ onUnmounted(() => {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
+  --desktop-topbar-height: 48px;
+  --desktop-topbar-offset: 8px;
+  --desktop-window-edge-gap: 16px;
+  --desktop-dock-bottom-gap: 24px;
+  --desktop-dock-height: 64px;
+  --desktop-dock-safe-area: calc(var(--desktop-dock-bottom-gap) + var(--desktop-dock-height) + 16px);
 }
 
 .desktop-wallpaper {
@@ -137,13 +143,13 @@ onUnmounted(() => {
 
 .desktop-main {
   position: absolute;
-  inset: 56px 0 110px;
+  inset: calc(var(--desktop-topbar-height) + var(--desktop-topbar-offset)) 0 var(--desktop-dock-safe-area);
 }
 
 .desktop-status-card {
   position: absolute;
   right: 24px;
-  bottom: 110px;
+  bottom: var(--desktop-dock-safe-area);
   width: 280px;
   padding: 16px;
   border-radius: 18px;
@@ -175,7 +181,7 @@ onUnmounted(() => {
   .desktop-status-card {
     left: 16px;
     right: 16px;
-    bottom: 92px;
+    bottom: calc(var(--desktop-dock-safe-area) - 18px);
     width: auto;
   }
 }

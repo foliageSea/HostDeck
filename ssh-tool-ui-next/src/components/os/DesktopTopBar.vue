@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Logout, Moon, Sun } from '@vicons/carbon'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -41,9 +42,19 @@ function disconnect() {
     </div>
 
     <div class="desktop-topbar-section">
-      <NButton text @click="disconnect">断开</NButton>
-      <NButton text @click="settingsStore.toggleTheme">
-        {{ settingsStore.isDark ? '浅色' : '深色' }}
+      <NButton quaternary circle title="断开连接" @click="disconnect">
+        <template #icon>
+          <NIcon :size="16">
+            <Logout />
+          </NIcon>
+        </template>
+      </NButton>
+      <NButton quaternary circle :title="settingsStore.isDark ? '切换浅色模式' : '切换深色模式'" @click="settingsStore.toggleTheme">
+        <template #icon>
+          <NIcon :size="16">
+            <component :is="settingsStore.isDark ? Sun : Moon" />
+          </NIcon>
+        </template>
       </NButton>
       <span>{{ currentTime }}</span>
     </div>

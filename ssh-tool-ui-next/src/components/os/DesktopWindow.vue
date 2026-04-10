@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Close, FitToScreen, Maximize, Minimize } from '@vicons/carbon'
 import AppIcon from '@/components/common/AppIcon.vue'
 import { useDesktopStore, type WindowState } from '@/stores/desktop'
 
@@ -17,10 +16,10 @@ let dragOffsetY = 0
 const windowStyle = computed(() => {
   if (props.window.isMaximized) {
     return {
-      height: 'calc(100vh - 170px)',
-      left: '16px',
-      top: '56px',
-      width: 'calc(100vw - 32px)',
+      bottom: '0',
+      left: 'var(--desktop-window-edge-gap)',
+      top: '0',
+      width: 'calc(100% - (var(--desktop-window-edge-gap) * 2))',
       zIndex: props.window.zIndex,
     }
   }
@@ -108,41 +107,28 @@ function startResize() {
 </script>
 
 <template>
-  <section class="desktop-window" :style="windowStyle" @mousedown="focusWindow">
+  <section class="desktop-window" :class="{ 'desktop-window-maximized': window.isMaximized }" :style="windowStyle" @mousedown="focusWindow">
     <header class="window-header" @mousedown.prevent="startDrag" @dblclick="maximizeWindow">
+      <div class="window-actions" @mousedown.stop>
+        <button class="window-action window-action-close" type="button" title="关闭" @click="closeWindow" />
+        <button class="window-action window-action-minimize" type="button" title="最小化" @click="minimizeWindow" />
+        <button
+          class="window-action window-action-maximize"
+          type="button"
+          :title="window.isMaximized ? '还原' : '最大化'"
+          @click="maximizeWindow"
+        />
+      </div>
+
       <div class="window-title">
         <AppIcon :name="window.icon" :size="16" />
         <span>{{ window.title }}</span>
       </div>
 
-      <div class="window-actions">
-        <NButton quaternary circle size="small" title="最小化" @click="minimizeWindow">
-          <template #icon>
-            <NIcon :size="14">
-              <Minimize />
-            </NIcon>
-          </template>
-        </NButton>
-        <NButton
-          quaternary
-          circle
-          size="small"
-          :title="window.isMaximized ? '还原' : '最大化'"
-          @click="maximizeWindow"
-        >
-          <template #icon>
-            <NIcon :size="14">
-              <component :is="window.isMaximized ? FitToScreen : Maximize" />
-            </NIcon>
-          </template>
-        </NButton>
-        <NButton quaternary circle size="small" type="error" title="关闭" @click="closeWindow">
-          <template #icon>
-            <NIcon :size="14">
-              <Close />
-            </NIcon>
-          </template>
-        </NButton>
+      <div class="window-header-spacer" aria-hidden="true">
+        <span class="window-action window-action-placeholder" />
+        <span class="window-action window-action-placeholder" />
+        <span class="window-action window-action-placeholder" />
       </div>
     </header>
 
@@ -169,7 +155,12 @@ function startResize() {
   box-shadow: 0 28px 80px rgba(2, 6, 23, 0.35);
 }
 
+.desktop-window-maximized {
+  height: auto;
+}
+
 .window-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -181,17 +172,73 @@ function startResize() {
 }
 
 .window-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 8px;
+  max-width: min(65%, calc(100% - 140px));
+  min-width: 0;
   color: #f8fafc;
   font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.window-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .window-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+}
+
+.window-header-spacer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  visibility: hidden;
+}
+
+.window-action {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: filter 0.18s ease, transform 0.18s ease;
+}
+
+.window-action:hover {
+  transform: scale(1.06);
+  filter: brightness(0.96);
+}
+
+.window-action-close {
+  background: #ff5f57;
+}
+
+.window-action-minimize {
+  background: #febc2e;
+}
+
+.window-action-maximize {
+  background: #28c840;
+}
+
+.window-action-placeholder {
+  cursor: default;
 }
 
 .window-body {
