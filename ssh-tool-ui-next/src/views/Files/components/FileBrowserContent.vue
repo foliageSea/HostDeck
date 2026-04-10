@@ -108,12 +108,13 @@ const emit = defineEmits<{
 .file-card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: 10px;
   min-height: 130px;
   padding: 14px;
   border-radius: 16px;
-  text-align: left;
+  text-align: center;
 }
 
 .file-list {
@@ -143,6 +144,7 @@ const emit = defineEmits<{
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .file-meta,

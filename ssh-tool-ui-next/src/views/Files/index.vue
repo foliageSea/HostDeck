@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Download, FolderAdd, Terminal, Upload } from '@vicons/carbon'
+import {
+  ArrowLeft,
+  ArrowRight,
+  Help,
+  ArrowUp,
+  Download,
+  FolderAdd,
+  Grid,
+  List,
+  Renew,
+  Terminal,
+  Upload,
+} from '@vicons/carbon'
 import { filesApi, type FileItem } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
@@ -16,6 +28,7 @@ const currentPathInput = ref('/')
 const createDialogMode = ref<'directory' | 'file'>('directory')
 const newItemName = ref('')
 const renameValue = ref('')
+const editingPath = ref(false)
 const showCreateDialog = ref(false)
 const showRenameDialog = ref(false)
 const showDeleteDialog = ref(false)
@@ -25,6 +38,21 @@ const selectedFile = computed(() => fileStore.selectedFile)
 const selectedFiles = computed(() =>
   fileStore.files.filter((file) => fileStore.selectedNames.includes(file.filename)),
 )
+const breadcrumbs = computed(() => {
+  const path = fileStore.currentPath
+  if (path === '/') {
+    return [{ label: '/', path: '/' }]
+  }
+
+  const segments = path.split('/').filter(Boolean)
+  return [
+    { label: '/', path: '/' },
+    ...segments.map((segment, index) => ({
+      label: segment,
+      path: `/${segments.slice(0, index + 1).join('/')}`,
+    })),
+  ]
+})
 
 const editableExtensions = new Set([
   'txt',
@@ -65,6 +93,16 @@ const videoExtensions = new Set(['mp4', 'webm', 'ogg', 'mov', 'mkv', 'avi'])
 
 function syncPathInput() {
   currentPathInput.value = fileStore.currentPath
+}
+
+function startPathEditing() {
+  syncPathInput()
+  editingPath.value = true
+}
+
+function stopPathEditing() {
+  editingPath.value = false
+  syncPathInput()
 }
 
 function formatFileSize(size: number) {
@@ -150,6 +188,28 @@ async function openFile(file: FileItem) {
 
 async function submitPath() {
   await fileStore.navigateTo(currentPathInput.value)
+  syncPathInput()
+  editingPath.value = false
+}
+
+async function navigateToPath(path: string) {
+  await fileStore.navigateTo(path)
+  syncPathInput()
+  editingPath.value = false
+}
+
+async function navigateBack() {
+  await fileStore.navigateBack()
+  syncPathInput()
+}
+
+async function navigateForward() {
+  await fileStore.navigateForward()
+  syncPathInput()
+}
+
+async function navigateUp() {
+  await fileStore.navigateUp()
   syncPathInput()
 }
 
@@ -364,34 +424,147 @@ onMounted(async () => {
 
     <div class="files-toolbar">
       <NSpace align="center" wrap>
-        <NButton quaternary :disabled="fileStore.backHistory.length === 0" @click="fileStore.navigateBack()">返回</NButton>
-        <NButton quaternary :disabled="fileStore.forwardHistory.length === 0" @click="fileStore.navigateForward()">前进</NButton>
-        <NButton quaternary @click="fileStore.navigateUp(); syncPathInput()">上级</NButton>
-        <NButton quaternary @click="fileStore.fetchFiles()">刷新</NButton>
+        <NTooltip>
+          <template #trigger>
+            <NButton quaternary circle :disabled="fileStore.backHistory.length === 0" @click="navigateBack">
+              <template #icon>
+                <NIcon><ArrowLeft /></NIcon>
+              </template>
+            </NButton>
+          </template>
+          返回
+        </NTooltip>
+        <NTooltip>
+          <template #trigger>
+            <NButton quaternary circle :disabled="fileStore.forwardHistory.length === 0" @click="navigateForward">
+              <template #icon>
+                <NIcon><ArrowRight /></NIcon>
+              </template>
+            </NButton>
+          </template>
+          前进
+        </NTooltip>
+        <NTooltip>
+          <template #trigger>
+            <NButton quaternary circle @click="navigateUp">
+              <template #icon>
+                <NIcon><ArrowUp /></NIcon>
+              </template>
+            </NButton>
+          </template>
+          上级目录
+        </NTooltip>
+        <NTooltip>
+          <template #trigger>
+            <NButton quaternary circle @click="fileStore.fetchFiles()">
+              <template #icon>
+                <NIcon><Renew /></NIcon>
+              </template>
+            </NButton>
+          </template>
+          刷新
+        </NTooltip>
       </NSpace>
 
       <div class="toolbar-right">
         <NInput v-model:value="fileStore.search" placeholder="搜索当前目录" clearable class="search-input" />
-        <NRadioGroup
-          :value="fileStore.viewMode"
-          size="small"
-          @update:value="(value: 'list' | 'grid') => (fileStore.viewMode = value)"
-        >
-          <NRadioButton value="list">列表</NRadioButton>
-          <NRadioButton value="grid">网格</NRadioButton>
-        </NRadioGroup>
+        <NSpace align="center" size="small">
+          <NPopover trigger="hover" placement="bottom-end">
+            <template #trigger>
+              <NButton quaternary circle>
+                <template #icon>
+                  <NIcon><Help /></NIcon>
+                </template>
+              </NButton>
+            </template>
+            <div class="shortcut-popover">
+              <div>Ctrl/Cmd + Click：多选</div>
+              <div>Shift + Click：范围选择</div>
+              <div>Ctrl/Cmd + A：全选</div>
+              <div>Ctrl/Cmd + U：上传</div>
+              <div>Ctrl/Cmd + D：下载</div>
+              <div>Delete：删除</div>
+              <div>F2：重命名</div>
+              <div>Enter：打开选中项</div>
+            </div>
+          </NPopover>
+          <NTooltip>
+            <template #trigger>
+              <NButton
+                quaternary
+                circle
+                :type="fileStore.viewMode === 'list' ? 'primary' : 'default'"
+                @click="fileStore.viewMode = 'list'"
+              >
+                <template #icon>
+                  <NIcon><List /></NIcon>
+                </template>
+              </NButton>
+            </template>
+            列表视图
+          </NTooltip>
+          <NTooltip>
+            <template #trigger>
+              <NButton
+                quaternary
+                circle
+                :type="fileStore.viewMode === 'grid' ? 'primary' : 'default'"
+                @click="fileStore.viewMode = 'grid'"
+              >
+                <template #icon>
+                  <NIcon><Grid /></NIcon>
+                </template>
+              </NButton>
+            </template>
+            网格视图
+          </NTooltip>
+        </NSpace>
       </div>
     </div>
 
     <div class="path-row">
-      <NInput v-model:value="currentPathInput" placeholder="输入远程路径" @keyup.enter="submitPath" />
-      <NButton type="primary" @click="submitPath">打开</NButton>
-      <NButton @click="openTerminalHere">
-        <template #icon>
-          <NIcon><Terminal /></NIcon>
-        </template>
-        终端
-      </NButton>
+      <div v-if="!editingPath" class="path-breadcrumbs">
+        <NBreadcrumb>
+          <NBreadcrumbItem v-for="item in breadcrumbs" :key="item.path">
+            <button type="button" class="breadcrumb-link" @click="navigateToPath(item.path)">
+              {{ item.label }}
+            </button>
+          </NBreadcrumbItem>
+        </NBreadcrumb>
+      </div>
+      <div v-else class="path-editor">
+        <NInput
+          v-model:value="currentPathInput"
+          placeholder="输入远程路径快速跳转"
+          @keyup.enter="submitPath"
+          @keyup.esc="stopPathEditing"
+          @blur="stopPathEditing"
+        />
+      </div>
+
+      <div class="path-actions">
+        <NButton v-if="editingPath" type="primary" @mousedown.prevent @click="submitPath">跳转</NButton>
+        <NTooltip v-else>
+          <template #trigger>
+            <NButton circle @click="startPathEditing">
+              <template #icon>
+                <NIcon><ArrowRight /></NIcon>
+              </template>
+            </NButton>
+          </template>
+          输入路径跳转
+        </NTooltip>
+        <NTooltip>
+          <template #trigger>
+            <NButton circle @click="openTerminalHere">
+              <template #icon>
+                <NIcon><Terminal /></NIcon>
+              </template>
+            </NButton>
+          </template>
+          在当前目录打开终端
+        </NTooltip>
+      </div>
     </div>
 
     <div class="actions-row">
@@ -416,10 +589,6 @@ onMounted(async () => {
         </template>
         下载
       </NButton>
-    </div>
-
-    <div class="selection-hint">
-      支持 `Ctrl/Cmd + Click` 多选，`Shift + Click` 范围选择，`Ctrl/Cmd + A` 全选，`Delete` 删除，`F2` 重命名。
     </div>
 
     <FileBrowserContent
@@ -486,9 +655,18 @@ onMounted(async () => {
 .actions-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.files-toolbar,
+.path-row {
+  justify-content: space-between;
+}
+
+.actions-row {
+  width: 100%;
+  justify-content: flex-end;
 }
 
 .toolbar-right {
@@ -497,18 +675,52 @@ onMounted(async () => {
   gap: 12px;
 }
 
-.search-input {
-  width: min(280px, 60vw);
+.path-breadcrumbs {
+  flex: 1;
+  min-width: 240px;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
-.path-row :deep(.n-input) {
+.path-editor {
   flex: 1;
   min-width: 240px;
 }
 
-.selection-hint {
-  color: rgba(148, 163, 184, 0.92);
+.path-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  width: min(280px, 60vw);
+}
+
+.path-editor :deep(.n-input) {
+  width: 100%;
+}
+
+.breadcrumb-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.breadcrumb-link:hover {
+  color: rgba(96, 165, 250, 0.95);
+}
+
+.shortcut-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   font-size: 12px;
+  color: rgba(226, 232, 240, 0.96);
 }
 
 .details-meta,
