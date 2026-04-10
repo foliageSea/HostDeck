@@ -1,3 +1,4 @@
+import type { AxiosProgressEvent } from 'axios'
 import { http } from '@/lib/http'
 
 export interface FileItem {
@@ -42,11 +43,17 @@ export const filesApi = {
     return response.data
   },
 
-  upload: async (sessionId: string, path: string, formData: FormData) => {
+  upload: async (
+    sessionId: string,
+    path: string,
+    formData: FormData,
+    onUploadProgress?: (event: AxiosProgressEvent) => void,
+  ) => {
     const response = await http.post('/api/files/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress,
       params: { path, sessionId },
     })
     return response.data

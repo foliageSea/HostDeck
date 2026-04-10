@@ -18,6 +18,7 @@ import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { createFileStore } from '@/stores/file'
 import { useSettingsStore } from '@/stores/settings'
+import { useUploadCenterStore } from '@/stores/upload-center'
 import { basename, resolve } from '@/utils/path'
 import FileBrowserContent from './components/FileBrowserContent.vue'
 import FileNameDialog from './components/FileNameDialog.vue'
@@ -25,6 +26,7 @@ import FileNameDialog from './components/FileNameDialog.vue'
 const fileStore = createFileStore()
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
+const uploadCenterStore = useUploadCenterStore()
 
 const currentPathInput = ref('/')
 const createDialogMode = ref<'directory' | 'file'>('directory')
@@ -40,6 +42,7 @@ const selectedFile = computed(() => fileStore.selectedFile)
 const selectedFiles = computed(() =>
   fileStore.files.filter((file) => fileStore.selectedNames.includes(file.filename)),
 )
+const isUploading = computed(() => uploadCenterStore.activeTaskCount > 0)
 const breadcrumbs = computed(() => {
   const path = fileStore.currentPath
   if (path === '/') {
@@ -330,6 +333,10 @@ async function downloadSelectedFiles() {
 }
 
 function triggerUpload() {
+  if (isUploading.value) {
+    return
+  }
+
   fileInputRef.value?.click()
 }
 
@@ -344,16 +351,58 @@ async function handleUploadChange(event: Event) {
     return
   }
 
+  const selectedUploads = Array.from(files)
+  const batchId = uploadCenterStore.createBatch(fileStore.sessionId, fileStore.currentPath, selectedUploads)
+  uploadCenterStore.clearBatchError(batchId)
+
   try {
-    for (const file of Array.from(files)) {
+    for (const [index, file] of selectedUploads.entries()) {
+      const batch = uploadCenterStore.batches.find((item) => item.id === batchId)
+      const task = batch?.tasks[index]
+      if (!task) {
+        continue
+      }
+
+      uploadCenterStore.updateTask(task.id, {
+        loaded: 0,
+        progress: 0,
+        status: 'uploading',
+        total: file.size,
+      })
+
       const formData = new FormData()
       formData.append('file', file, file.name)
-      await filesApi.upload(fileStore.sessionId, fileStore.currentPath, formData)
+      await filesApi.upload(fileStore.sessionId, fileStore.currentPath, formData, (progressEvent) => {
+        const total = progressEvent.total ?? file.size
+        const loaded = Math.min(progressEvent.loaded, total)
+
+        uploadCenterStore.updateTask(task.id, {
+          loaded,
+          progress: total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0,
+          total,
+        })
+      })
+
+      uploadCenterStore.updateTask(task.id, {
+        loaded: file.size,
+        progress: 100,
+        status: 'success',
+        total: file.size,
+      })
     }
 
     await fileStore.fetchFiles()
     getUiApi().message.success(`已上传 ${files.length} 个文件。`)
   } catch (error) {
+    const batch = uploadCenterStore.batches.find((item) => item.id === batchId)
+    const uploadingTask = batch?.tasks.find((task) => task.status === 'uploading')
+    if (uploadingTask) {
+      uploadCenterStore.updateTask(uploadingTask.id, {
+        status: 'error',
+      })
+    }
+
+    uploadCenterStore.markBatchError(batchId, error instanceof Error ? error.message : '上传失败。')
     console.error('Failed to upload files', error)
     getUiApi().message.error('上传失败。')
   } finally {
@@ -583,7 +632,7 @@ onMounted(async () => {
         新建目录
       </NButton>
       <NButton @click="openCreate('file')">新建文件</NButton>
-      <NButton @click="triggerUpload">
+      <NButton :disabled="isUploading" :loading="isUploading" @click="triggerUpload">
         <template #icon>
           <NIcon><Upload /></NIcon>
         </template>

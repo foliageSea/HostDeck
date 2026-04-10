@@ -18,6 +18,7 @@ declare module 'vue' {
     DesktopWindow: typeof import('./src/components/os/DesktopWindow.vue')['default']
     DesktopWindowSwitcher: typeof import('./src/components/os/DesktopWindowSwitcher.vue')['default']
     LoginScreen: typeof import('./src/components/os/LoginScreen.vue')['default']
+    NBadge: typeof import('naive-ui')['NBadge']
     NBreadcrumb: typeof import('naive-ui')['NBreadcrumb']
     NBreadcrumbItem: typeof import('naive-ui')['NBreadcrumbItem']
     NButton: typeof import('naive-ui')['NButton']
