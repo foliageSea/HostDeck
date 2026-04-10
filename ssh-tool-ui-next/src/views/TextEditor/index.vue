@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import * as monaco from 'monaco-editor'
 import { filesApi } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
@@ -15,8 +16,131 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const content = ref('')
+const editorContainer = ref<HTMLElement | null>(null)
+
+let editor: monaco.editor.IStandaloneCodeEditor | null = null
+let model: monaco.editor.ITextModel | null = null
+let syncDisposable: monaco.IDisposable | null = null
 
 const filename = computed(() => props.path.split('/').pop() || props.path)
+
+const language = computed(() => detectLanguage(props.path))
+
+function detectLanguage(path: string) {
+  const lowerPath = path.toLowerCase()
+
+  if (lowerPath.endsWith('.d.ts') || lowerPath.endsWith('.ts') || lowerPath.endsWith('.mts') || lowerPath.endsWith('.cts')) {
+    return 'typescript'
+  }
+
+  if (lowerPath.endsWith('.js') || lowerPath.endsWith('.mjs') || lowerPath.endsWith('.cjs')) {
+    return 'javascript'
+  }
+
+  if (lowerPath.endsWith('.json')) {
+    return 'json'
+  }
+
+  if (lowerPath.endsWith('.md')) {
+    return 'markdown'
+  }
+
+  if (lowerPath.endsWith('.py')) {
+    return 'python'
+  }
+
+  if (lowerPath.endsWith('.sh') || lowerPath.endsWith('.bash') || lowerPath.endsWith('.zsh')) {
+    return 'shell'
+  }
+
+  if (lowerPath.endsWith('.yml') || lowerPath.endsWith('.yaml')) {
+    return 'yaml'
+  }
+
+  if (lowerPath.endsWith('.xml')) {
+    return 'xml'
+  }
+
+  if (lowerPath.endsWith('.html') || lowerPath.endsWith('.htm') || lowerPath.endsWith('.vue')) {
+    return 'html'
+  }
+
+  if (lowerPath.endsWith('.css')) {
+    return 'css'
+  }
+
+  if (lowerPath.endsWith('.scss')) {
+    return 'scss'
+  }
+
+  if (lowerPath.endsWith('.less')) {
+    return 'less'
+  }
+
+  if (lowerPath.endsWith('.sql')) {
+    return 'sql'
+  }
+
+  if (lowerPath.endsWith('.java')) {
+    return 'java'
+  }
+
+  if (lowerPath.endsWith('.go')) {
+    return 'go'
+  }
+
+  if (lowerPath.endsWith('.rs')) {
+    return 'rust'
+  }
+
+  if (lowerPath.endsWith('.php')) {
+    return 'php'
+  }
+
+  return 'plaintext'
+}
+
+function syncEditorContent(nextContent: string) {
+  if (!model || model.getValue() === nextContent) {
+    return
+  }
+
+  model.setValue(nextContent)
+}
+
+async function initEditor() {
+  await nextTick()
+
+  if (!editorContainer.value || editor) {
+    return
+  }
+
+  model = monaco.editor.createModel(content.value, language.value)
+  editor = monaco.editor.create(editorContainer.value, {
+    model,
+    automaticLayout: true,
+    minimap: { enabled: false },
+    fontSize: 13,
+    fontFamily: "Consolas, 'Cascadia Mono', 'Courier New', monospace",
+    scrollBeyondLastLine: false,
+    wordWrap: 'off',
+    tabSize: 2,
+    theme: 'vs-dark',
+  })
+
+  syncDisposable = editor.onDidChangeModelContent(() => {
+    content.value = editor?.getValue() ?? ''
+  })
+}
+
+function disposeEditor() {
+  syncDisposable?.dispose()
+  syncDisposable = null
+  editor?.dispose()
+  editor = null
+  model?.dispose()
+  model = null
+}
 
 async function loadFile() {
   loading.value = true
@@ -24,6 +148,11 @@ async function loadFile() {
 
   try {
     content.value = await filesApi.readFile(props.sessionId, props.path)
+    syncEditorContent(content.value)
+
+    if (model) {
+      monaco.editor.setModelLanguage(model, language.value)
+    }
   } catch (loadError) {
     console.error('Failed to read file', loadError)
     error.value = '文件读取失败。'
@@ -52,7 +181,12 @@ function closeWindow() {
 }
 
 onMounted(() => {
+  void initEditor()
   void loadFile()
+})
+
+onBeforeUnmount(() => {
+  disposeEditor()
 })
 </script>
 
@@ -78,14 +212,7 @@ onMounted(() => {
         </template>
       </NResult>
 
-      <NInput
-        v-else
-        v-model:value="content"
-        type="textarea"
-        placeholder="文件内容"
-        class="editor-input"
-        :autosize="false"
-      />
+      <div v-else ref="editorContainer" class="editor-input" />
     </NSpin>
   </div>
 </template>
@@ -128,15 +255,15 @@ onMounted(() => {
   padding: 12px;
 }
 
-.editor-input,
-.editor-input :deep(.n-input-wrapper),
-.editor-input :deep(textarea) {
+.editor-body :deep(.n-spin-body),
+.editor-body :deep(.n-spin-content) {
   height: 100%;
+  min-height: 0;
 }
 
-.editor-input :deep(textarea) {
-  font-family: Consolas, 'Cascadia Mono', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
+.editor-input {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 </style>
