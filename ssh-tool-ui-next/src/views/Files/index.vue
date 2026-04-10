@@ -17,12 +17,14 @@ import { filesApi, type FileItem } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { createFileStore } from '@/stores/file'
+import { useSettingsStore } from '@/stores/settings'
 import { basename, resolve } from '@/utils/path'
 import FileBrowserContent from './components/FileBrowserContent.vue'
 import FileNameDialog from './components/FileNameDialog.vue'
 
 const fileStore = createFileStore()
 const desktopStore = useDesktopStore()
+const settingsStore = useSettingsStore()
 
 const currentPathInput = ref('/')
 const createDialogMode = ref<'directory' | 'file'>('directory')
@@ -419,7 +421,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="files-view" tabindex="0" @keydown="handleKeydown" @click.self="fileStore.clearSelection()">
+  <div
+    class="files-view"
+    :class="{ 'files-view-light': !settingsStore.isDark }"
+    tabindex="0"
+    @keydown="handleKeydown"
+    @click.self="fileStore.clearSelection()"
+  >
     <input ref="fileInputRef" type="file" multiple hidden @change="handleUploadChange" />
 
     <div class="files-toolbar">
@@ -732,5 +740,22 @@ onMounted(async () => {
 .details-panel {
   border-radius: 16px;
   background: rgba(15, 23, 42, 0.56);
+}
+
+.files-view-light {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(226, 232, 240, 0.34));
+}
+
+.files-view-light .shortcut-popover {
+  color: rgba(51, 65, 85, 0.96);
+}
+
+.files-view-light .details-meta,
+.files-view-light .details-title {
+  color: rgba(100, 116, 139, 0.92);
+}
+
+.files-view-light .details-panel {
+  background: rgba(255, 255, 255, 0.84);
 }
 </style>

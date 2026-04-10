@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { DocumentAdd, Folder } from '@vicons/carbon'
 import type { FileItem } from '@/api/files'
+import { useSettingsStore } from '@/stores/settings'
+
+const settingsStore = useSettingsStore()
 
 defineProps<{
   files: FileItem[]
@@ -18,7 +21,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="files-content">
+  <div class="files-content" :class="{ 'files-content-light': !settingsStore.isDark }">
     <NSpin :show="loading">
       <NEmpty v-if="files.length === 0" description="当前目录没有文件" class="files-empty" />
 
@@ -152,6 +155,26 @@ const emit = defineEmits<{
 .file-row-time {
   color: rgba(148, 163, 184, 0.9);
   font-size: 12px;
+}
+
+.files-content-light .file-card,
+.files-content-light .file-row {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.files-content-light .file-card:hover,
+.files-content-light .file-row:hover,
+.files-content-light .file-card-active,
+.files-content-light .file-row-active {
+  border-color: rgba(59, 130, 246, 0.34);
+  background: rgba(219, 234, 254, 0.68);
+}
+
+.files-content-light .file-meta,
+.files-content-light .file-row-size,
+.files-content-light .file-row-time {
+  color: rgba(100, 116, 139, 0.92);
 }
 
 @media (max-width: 860px) {
