@@ -52,6 +52,15 @@ const { settingsStore } = controller
   padding: 20px;
   display: grid;
   gap: 20px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settings-view::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .wallpaper-section + .wallpaper-section {
