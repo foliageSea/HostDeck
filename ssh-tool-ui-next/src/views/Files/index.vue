@@ -46,12 +46,12 @@ const isUploading = computed(() => uploadCenterStore.activeTaskCount > 0)
 const breadcrumbs = computed(() => {
   const path = fileStore.currentPath
   if (path === '/') {
-    return [{ label: '/', path: '/' }]
+    return [{ label: '根目录', path: '/' }]
   }
 
   const segments = path.split('/').filter(Boolean)
   return [
-    { label: '/', path: '/' },
+    { label: '根目录', path: '/' },
     ...segments.map((segment, index) => ({
       label: segment,
       path: `/${segments.slice(0, index + 1).join('/')}`,
@@ -463,20 +463,14 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 onMounted(async () => {
-  await fileStore.initSession()
   await fileStore.fetchFiles('/')
   syncPathInput()
 })
 </script>
 
 <template>
-  <div
-    class="files-view"
-    :class="{ 'files-view-light': !settingsStore.isDark }"
-    tabindex="0"
-    @keydown="handleKeydown"
-    @click.self="fileStore.clearSelection()"
-  >
+  <div class="files-view" :class="{ 'files-view-light': !settingsStore.isDark }" tabindex="0" @keydown="handleKeydown"
+    @click.self="fileStore.clearSelection()">
     <input ref="fileInputRef" type="file" multiple hidden @change="handleUploadChange" />
 
     <div class="files-toolbar">
@@ -485,7 +479,9 @@ onMounted(async () => {
           <template #trigger>
             <NButton quaternary circle :disabled="fileStore.backHistory.length === 0" @click="navigateBack">
               <template #icon>
-                <NIcon><ArrowLeft /></NIcon>
+                <NIcon>
+                  <ArrowLeft />
+                </NIcon>
               </template>
             </NButton>
           </template>
@@ -495,7 +491,9 @@ onMounted(async () => {
           <template #trigger>
             <NButton quaternary circle :disabled="fileStore.forwardHistory.length === 0" @click="navigateForward">
               <template #icon>
-                <NIcon><ArrowRight /></NIcon>
+                <NIcon>
+                  <ArrowRight />
+                </NIcon>
               </template>
             </NButton>
           </template>
@@ -505,7 +503,9 @@ onMounted(async () => {
           <template #trigger>
             <NButton quaternary circle @click="navigateUp">
               <template #icon>
-                <NIcon><ArrowUp /></NIcon>
+                <NIcon>
+                  <ArrowUp />
+                </NIcon>
               </template>
             </NButton>
           </template>
@@ -515,7 +515,9 @@ onMounted(async () => {
           <template #trigger>
             <NButton quaternary circle @click="fileStore.fetchFiles()">
               <template #icon>
-                <NIcon><Renew /></NIcon>
+                <NIcon>
+                  <Renew />
+                </NIcon>
               </template>
             </NButton>
           </template>
@@ -530,7 +532,9 @@ onMounted(async () => {
             <template #trigger>
               <NButton quaternary circle>
                 <template #icon>
-                  <NIcon><Help /></NIcon>
+                  <NIcon>
+                    <Help />
+                  </NIcon>
                 </template>
               </NButton>
             </template>
@@ -547,14 +551,12 @@ onMounted(async () => {
           </NPopover>
           <NTooltip>
             <template #trigger>
-              <NButton
-                quaternary
-                circle
-                :type="fileStore.viewMode === 'list' ? 'primary' : 'default'"
-                @click="fileStore.viewMode = 'list'"
-              >
+              <NButton quaternary circle :type="fileStore.viewMode === 'list' ? 'primary' : 'default'"
+                @click="fileStore.viewMode = 'list'">
                 <template #icon>
-                  <NIcon><List /></NIcon>
+                  <NIcon>
+                    <List />
+                  </NIcon>
                 </template>
               </NButton>
             </template>
@@ -562,14 +564,12 @@ onMounted(async () => {
           </NTooltip>
           <NTooltip>
             <template #trigger>
-              <NButton
-                quaternary
-                circle
-                :type="fileStore.viewMode === 'grid' ? 'primary' : 'default'"
-                @click="fileStore.viewMode = 'grid'"
-              >
+              <NButton quaternary circle :type="fileStore.viewMode === 'grid' ? 'primary' : 'default'"
+                @click="fileStore.viewMode = 'grid'">
                 <template #icon>
-                  <NIcon><Grid /></NIcon>
+                  <NIcon>
+                    <Grid />
+                  </NIcon>
                 </template>
               </NButton>
             </template>
@@ -590,13 +590,8 @@ onMounted(async () => {
         </NBreadcrumb>
       </div>
       <div v-else class="path-editor">
-        <NInput
-          v-model:value="currentPathInput"
-          placeholder="输入远程路径快速跳转"
-          @keyup.enter="submitPath"
-          @keyup.esc="stopPathEditing"
-          @blur="stopPathEditing"
-        />
+        <NInput v-model:value="currentPathInput" placeholder="输入远程路径快速跳转" @keyup.enter="submitPath"
+          @keyup.esc="stopPathEditing" @blur="stopPathEditing" />
       </div>
 
       <div class="path-actions">
@@ -605,7 +600,9 @@ onMounted(async () => {
           <template #trigger>
             <NButton circle @click="startPathEditing">
               <template #icon>
-                <NIcon><ArrowRight /></NIcon>
+                <NIcon>
+                  <ArrowRight />
+                </NIcon>
               </template>
             </NButton>
           </template>
@@ -615,7 +612,9 @@ onMounted(async () => {
           <template #trigger>
             <NButton circle @click="openTerminalHere">
               <template #icon>
-                <NIcon><Terminal /></NIcon>
+                <NIcon>
+                  <Terminal />
+                </NIcon>
               </template>
             </NButton>
           </template>
@@ -627,14 +626,18 @@ onMounted(async () => {
     <div class="actions-row">
       <NButton @click="openCreate('directory')">
         <template #icon>
-          <NIcon><FolderAdd /></NIcon>
+          <NIcon>
+            <FolderAdd />
+          </NIcon>
         </template>
         新建目录
       </NButton>
       <NButton @click="openCreate('file')">新建文件</NButton>
       <NButton :disabled="isUploading" :loading="isUploading" @click="triggerUpload">
         <template #icon>
-          <NIcon><Upload /></NIcon>
+          <NIcon>
+            <Upload />
+          </NIcon>
         </template>
         上传
       </NButton>
@@ -642,22 +645,17 @@ onMounted(async () => {
       <NButton :disabled="selectedFiles.length === 0" type="error" ghost @click="showDeleteDialog = true">删除</NButton>
       <NButton :disabled="selectedFiles.length === 0" @click="downloadSelectedFiles">
         <template #icon>
-          <NIcon><Download /></NIcon>
+          <NIcon>
+            <Download />
+          </NIcon>
         </template>
         下载
       </NButton>
     </div>
 
-    <FileBrowserContent
-      :files="fileStore.displayFiles"
-      :loading="fileStore.loading"
-      :selected-names="fileStore.selectedNames"
-      :view-mode="fileStore.viewMode"
-      :format-file-size="formatFileSize"
-      :format-modify-time="formatModifyTime"
-      @click-file="handleFileClick"
-      @open-file="openFile"
-    />
+    <FileBrowserContent :files="fileStore.displayFiles" :loading="fileStore.loading"
+      :selected-names="fileStore.selectedNames" :view-mode="fileStore.viewMode" :format-file-size="formatFileSize"
+      :format-modify-time="formatModifyTime" @click-file="handleFileClick" @open-file="openFile" />
 
     <NCard v-if="selectedFile" size="small" class="details-panel">
       <div class="details-title">当前选择</div>
@@ -666,32 +664,16 @@ onMounted(async () => {
       <div class="details-meta">{{ formatModifyTime(selectedFile.modifyTime) }}</div>
     </NCard>
 
-    <FileNameDialog
-      v-model:show="showCreateDialog"
-      :title="createDialogMode === 'directory' ? '新建目录' : '新建文件'"
-      :value="newItemName"
-      @update:value="(value) => (newItemName = value)"
-      @confirm="confirmCreate"
-    />
+    <FileNameDialog v-model:show="showCreateDialog" :title="createDialogMode === 'directory' ? '新建目录' : '新建文件'"
+      :value="newItemName" @update:value="(value) => (newItemName = value)" @confirm="confirmCreate" />
 
-    <FileNameDialog
-      v-model:show="showRenameDialog"
-      title="重命名"
-      :value="renameValue"
-      @update:value="(value) => (renameValue = value)"
-      @confirm="confirmRename"
-    />
+    <FileNameDialog v-model:show="showRenameDialog" title="重命名" :value="renameValue"
+      @update:value="(value) => (renameValue = value)" @confirm="confirmRename" />
 
-    <NModal
-      v-model:show="showDeleteDialog"
-      preset="dialog"
-      title="确认删除"
-      positive-text="删除"
-      negative-text="取消"
-      @positive-click="confirmDelete"
-      @negative-click="showDeleteDialog = false"
-    >
-      删除 {{ selectedFiles.length > 1 ? `这 ${selectedFiles.length} 个项目` : '`' + (selectedFile?.filename ?? '') + '`' }} 后不可恢复。
+    <NModal v-model:show="showDeleteDialog" preset="dialog" title="确认删除" positive-text="删除" negative-text="取消"
+      @positive-click="confirmDelete" @negative-click="showDeleteDialog = false">
+      删除 {{ selectedFiles.length > 1 ? `这 ${selectedFiles.length} 个项目` : '`' + (selectedFile?.filename ?? '') + '`' }}
+      后不可恢复。
     </NModal>
   </div>
 </template>

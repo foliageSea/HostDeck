@@ -56,15 +56,15 @@ export function createFileStore() {
   }
 
   async function fetchFiles(nextPath?: string) {
-    await initSession()
-    if (!sessionId.value) {
-      return
-    }
-
     loading.value = true
-    const targetPath = nextPath ? resolve(currentPath.value, nextPath) : currentPath.value
 
     try {
+      await initSession()
+      if (!sessionId.value) {
+        return
+      }
+
+      const targetPath = nextPath ? resolve(currentPath.value, nextPath) : currentPath.value
       const response = await filesApi.list(sessionId.value, targetPath)
       files.value = response
       currentPath.value = targetPath

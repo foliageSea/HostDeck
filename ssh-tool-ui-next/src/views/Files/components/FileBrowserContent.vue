@@ -22,7 +22,11 @@ const emit = defineEmits<{
 
 <template>
   <div class="files-content" :class="{ 'files-content-light': !settingsStore.isDark }">
-    <NSpin :show="loading">
+    <div v-if="loading" class="files-loading">
+      <NSpin size="large" />
+    </div>
+
+    <template v-else>
       <NEmpty v-if="files.length === 0" description="当前目录没有文件" class="files-empty" />
 
       <div v-else-if="viewMode === 'grid'" class="file-grid">
@@ -65,7 +69,7 @@ const emit = defineEmits<{
           <span class="file-row-time">{{ formatModifyTime(file.modifyTime) }}</span>
         </button>
       </div>
-    </NSpin>
+    </template>
   </div>
 </template>
 
@@ -78,6 +82,14 @@ const emit = defineEmits<{
 }
 
 .files-empty {
+  height: 100%;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.files-loading {
   height: 100%;
   min-height: 260px;
   display: flex;
