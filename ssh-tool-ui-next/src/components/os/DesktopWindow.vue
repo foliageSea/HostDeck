@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useDesktopStore, type WindowState } from '@/stores/desktop'
@@ -10,8 +10,9 @@ const props = defineProps<{
 
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
-let isDragging = false
-let isResizing = false
+const isActive = computed(() => desktopStore.activeWindowId === props.window.id)
+const isDragging = ref(false)
+const isResizing = ref(false)
 let dragOffsetX = 0
 let dragOffsetY = 0
 
@@ -52,7 +53,7 @@ function closeWindow() {
 }
 
 function handleDrag(event: MouseEvent) {
-  if (!isDragging || props.window.isMaximized) {
+  if (!isDragging.value || props.window.isMaximized) {
     return
   }
 
@@ -62,7 +63,7 @@ function handleDrag(event: MouseEvent) {
 }
 
 function stopDrag() {
-  isDragging = false
+  isDragging.value = false
   window.removeEventListener('mousemove', handleDrag)
   window.removeEventListener('mouseup', stopDrag)
 }
@@ -73,7 +74,7 @@ function startDrag(event: MouseEvent) {
   }
 
   focusWindow()
-  isDragging = true
+  isDragging.value = true
   dragOffsetX = event.clientX - props.window.x
   dragOffsetY = event.clientY - props.window.y
   window.addEventListener('mousemove', handleDrag)
@@ -81,7 +82,7 @@ function startDrag(event: MouseEvent) {
 }
 
 function handleResize(event: MouseEvent) {
-  if (!isResizing || props.window.isMaximized) {
+  if (!isResizing.value || props.window.isMaximized) {
     return
   }
 
@@ -91,7 +92,7 @@ function handleResize(event: MouseEvent) {
 }
 
 function stopResize() {
-  isResizing = false
+  isResizing.value = false
   window.removeEventListener('mousemove', handleResize)
   window.removeEventListener('mouseup', stopResize)
 }
@@ -102,14 +103,32 @@ function startResize() {
   }
 
   focusWindow()
-  isResizing = true
+  isResizing.value = true
   window.addEventListener('mousemove', handleResize)
   window.addEventListener('mouseup', stopResize)
 }
+
+onUnmounted(() => {
+  window.removeEventListener('mousemove', handleDrag)
+  window.removeEventListener('mouseup', stopDrag)
+  window.removeEventListener('mousemove', handleResize)
+  window.removeEventListener('mouseup', stopResize)
+})
 </script>
 
 <template>
-  <section class="desktop-window" :class="{ 'desktop-window-maximized': window.isMaximized, 'desktop-window-light': !settingsStore.isDark }" :style="windowStyle" @mousedown="focusWindow">
+  <section
+    class="desktop-window"
+    :class="{
+      'desktop-window-active': isActive,
+      'desktop-window-dragging': isDragging || isResizing,
+      'desktop-window-light': !settingsStore.isDark,
+      'desktop-window-maximized': window.isMaximized,
+      'desktop-window-minimized': window.isMinimized,
+    }"
+    :style="windowStyle"
+    @mousedown="focusWindow"
+  >
     <header class="window-header" @mousedown.prevent="startDrag" @dblclick="maximizeWindow">
       <div class="window-actions" @mousedown.stop>
         <button class="window-action window-action-close" type="button" title="关闭" @click="closeWindow" />
@@ -155,10 +174,28 @@ function startResize() {
   background: rgba(15, 23, 42, 0.72);
   backdrop-filter: blur(18px);
   box-shadow: 0 28px 80px rgba(2, 6, 23, 0.35);
+   opacity: 1;
+   transform: scale(1) translateY(0);
+   transition: opacity 0.24s ease, transform 0.24s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .desktop-window-maximized {
   height: auto;
+}
+
+.desktop-window-active {
+  border-color: rgba(96, 165, 250, 0.36);
+  box-shadow: 0 34px 96px rgba(2, 6, 23, 0.44);
+}
+
+.desktop-window-dragging {
+  transition: none;
+}
+
+.desktop-window-minimized {
+  opacity: 0;
+  transform: scale(0.92) translateY(14px);
+  pointer-events: none;
 }
 
 .window-header {
@@ -261,6 +298,11 @@ function startResize() {
   border-color: rgba(148, 163, 184, 0.22);
   background: rgba(255, 255, 255, 0.76);
   box-shadow: 0 24px 72px rgba(148, 163, 184, 0.24);
+}
+
+.desktop-window-light.desktop-window-active {
+  border-color: rgba(59, 130, 246, 0.32);
+  box-shadow: 0 28px 84px rgba(59, 130, 246, 0.16);
 }
 
 .desktop-window-light .window-header {

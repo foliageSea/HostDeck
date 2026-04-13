@@ -47,7 +47,7 @@ defineEmits<{
   justify-content: center;
   background: rgba(2, 6, 23, 0.28);
   backdrop-filter: blur(8px);
-  z-index: 40;
+  z-index: 99999;
 }
 
 .switcher-panel {
@@ -80,14 +80,15 @@ defineEmits<{
   background: rgba(30, 41, 59, 0.74);
   color: #e2e8f0;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .switcher-item:hover,
 .switcher-item-active {
-  transform: translateY(-2px) scale(1.02);
+  transform: translateY(-2px) scale(1.06);
   border-color: rgba(96, 165, 250, 0.44);
   background: rgba(51, 65, 85, 0.92);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
 }
 
 .switcher-item-icon {
@@ -99,6 +100,7 @@ defineEmits<{
 .switcher-item-title {
   font-size: 0.88rem;
   text-align: center;
+  word-break: break-word;
 }
 
 .switcher-overlay-light {

@@ -16,7 +16,7 @@ const switcherVisible = ref(false)
 const switcherIndex = ref(0)
 const switcherWindows = ref<typeof desktopStore.windows>([])
 
-const windows = computed(() => desktopStore.windows.filter((window) => !window.isMinimized))
+const windows = computed(() => desktopStore.windows)
 const desktopWallpaperStyle = computed(() =>
   createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
 )
@@ -90,7 +90,9 @@ onUnmounted(() => {
     <DesktopTopBar />
 
     <main class="desktop-main">
-      <DesktopWindow v-for="window in windows" :key="window.id" :window="window" />
+      <TransitionGroup name="desktop-window-anim" tag="div" class="desktop-window-layer">
+        <DesktopWindow v-for="window in windows" :key="window.id" :window="window" />
+      </TransitionGroup>
     </main>
 
     <DesktopDock />
@@ -140,6 +142,23 @@ onUnmounted(() => {
 .desktop-main {
   position: absolute;
   inset: calc(var(--desktop-topbar-height) + var(--desktop-topbar-offset)) 0 var(--desktop-dock-safe-area);
+}
+
+.desktop-window-layer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.desktop-window-anim-enter-active,
+.desktop-window-anim-leave-active {
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.desktop-window-anim-enter-from,
+.desktop-window-anim-leave-to {
+  opacity: 0;
+  transform: scale(0.96) translateY(10px);
 }
 
 .desktop-status-card {
