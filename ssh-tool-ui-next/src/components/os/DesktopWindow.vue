@@ -58,7 +58,7 @@ function handleDrag(event: MouseEvent) {
   }
 
   const nextX = event.clientX - dragOffsetX
-  const nextY = Math.max(48, event.clientY - dragOffsetY)
+  const nextY = Math.max(0, event.clientY - dragOffsetY)
   desktopStore.updateWindowPosition(props.window.id, nextX, nextY)
 }
 

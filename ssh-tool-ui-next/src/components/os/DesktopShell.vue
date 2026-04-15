@@ -118,7 +118,6 @@ onUnmounted(() => {
   min-height: 100vh;
   overflow: hidden;
   --desktop-topbar-height: 48px;
-  --desktop-topbar-offset: 8px;
   --desktop-window-edge-gap: 16px;
   --desktop-dock-bottom-gap: 24px;
   --desktop-dock-height: 64px;
@@ -141,7 +140,7 @@ onUnmounted(() => {
 
 .desktop-main {
   position: absolute;
-  inset: calc(var(--desktop-topbar-height) + var(--desktop-topbar-offset)) 0 var(--desktop-dock-safe-area);
+  inset: var(--desktop-topbar-height) 0 var(--desktop-dock-safe-area);
 }
 
 .desktop-window-layer {
