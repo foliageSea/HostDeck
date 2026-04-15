@@ -120,7 +120,7 @@ onUnmounted(() => {
   --desktop-topbar-height: 48px;
   --desktop-window-edge-gap: 16px;
   --desktop-dock-bottom-gap: 24px;
-  --desktop-dock-height: 64px;
+  --desktop-dock-height: 72px;
   --desktop-dock-safe-area: calc(var(--desktop-dock-bottom-gap) + var(--desktop-dock-height) + 16px);
 }
 

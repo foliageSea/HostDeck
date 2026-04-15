@@ -189,10 +189,9 @@ function handleContextMenuSelect(key: string | number) {
       <button class="dock-item" :class="{
         'dock-item-open': isAppOpen(app.id),
         'dock-item-bounce': bouncingAppId === app.id,
-      }" type="button" @click="handleOpen($event, app.id)" @contextmenu="handleContextMenu($event, app.id)"
-        @keydown="handleTriggerKeydown($event, app.id)">
-        <AppIcon :name="app.icon" :size="20" />
-        <span>{{ app.title }}</span>
+      }" type="button" :title="app.title" :aria-label="app.title" @click="handleOpen($event, app.id)"
+        @contextmenu="handleContextMenu($event, app.id)" @keydown="handleTriggerKeydown($event, app.id)">
+        <AppIcon :name="app.icon" :size="24" />
         <span v-if="isAppOpen(app.id)" class="dock-item-indicator" aria-hidden="true" />
       </button>
 
@@ -230,9 +229,9 @@ function handleContextMenuSelect(key: string | number) {
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 22px;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 24px;
   background: rgba(15, 23, 42, 0.56);
   border: 1px solid rgba(148, 163, 184, 0.16);
   backdrop-filter: blur(16px);
@@ -247,8 +246,10 @@ function handleContextMenuSelect(key: string | number) {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
   border-radius: 16px;
   border: none;
   color: #e2e8f0;
@@ -345,17 +346,18 @@ function handleContextMenuSelect(key: string | number) {
   .desktop-dock {
     width: calc(100% - 20px);
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
+  }
+
+  .dock-entry {
+    display: flex;
+    flex: 1;
+    justify-content: center;
   }
 
   .dock-item {
-    flex: 1;
-    justify-content: center;
-    padding: 10px;
-  }
-
-  .dock-item span {
-    display: none;
+    width: 46px;
+    height: 46px;
   }
 }
 
