@@ -17,7 +17,7 @@ const emit = defineEmits<{
     :show="show"
     preset="card"
     :title="title"
-    class="file-dialog"
+    style="width: min(440px, calc(100vw - 24px))"
     @update:show="(value: boolean) => emit('update:show', value)"
   >
     <NSpace vertical>
@@ -34,9 +34,3 @@ const emit = defineEmits<{
     </NSpace>
   </NModal>
 </template>
-
-<style scoped>
-.file-dialog {
-  width: min(440px, calc(100vw - 24px));
-}
-</style>
