@@ -900,22 +900,6 @@ watch(logsTail, async (value, previous) => {
             </NSpace>
           </div>
 
-          <div class="container-stats-grid">
-            <NCard
-              v-for="container in containers.slice(0, 3)"
-              :key="container.id"
-              size="small"
-              :bordered="false"
-              class="stats-card"
-            >
-              <div class="stats-card-title">{{ container.name }}</div>
-              <div class="stats-card-line">CPU: {{ statsMap[container.id]?.cpuPercent || '-' }}</div>
-              <div class="stats-card-line">内存: {{ statsMap[container.id]?.memUsage || '-' }}</div>
-              <div class="stats-card-line">网络: {{ statsMap[container.id]?.netIO || '-' }}</div>
-              <div class="stats-card-line">健康: {{ diagnosticsMap[container.id]?.healthStatus || '-' }}</div>
-              <div class="stats-card-line">重启: {{ diagnosticsMap[container.id]?.restartCount ?? '-' }}</div>
-            </NCard>
-          </div>
           <NDataTable
             v-model:checked-row-keys="selectedContainerIds"
             :single-line="false"
@@ -1202,29 +1186,6 @@ watch(logsTail, async (value, previous) => {
   font-size: 13px;
 }
 
-.container-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.stats-card {
-  border-radius: 16px;
-  background: rgba(15, 23, 42, 0.72);
-}
-
-.stats-card-title {
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.stats-card-line {
-  color: rgba(226, 232, 240, 0.72);
-  font-size: 12px;
-  line-height: 1.7;
-}
-
 .logs-content {
   max-height: 65vh;
   margin: 0;
@@ -1258,9 +1219,6 @@ watch(logsTail, async (value, previous) => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .container-stats-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 640px) {
