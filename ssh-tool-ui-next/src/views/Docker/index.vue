@@ -115,6 +115,7 @@ const displayedLogs = computed(() => {
 })
 
 const containerColumns: DataTableColumns<DockerContainer> = [
+  { type: 'selection', width: 48 },
   { title: '名称', key: 'name' },
   { title: '镜像', key: 'image' },
   { title: '状态', key: 'status' },
@@ -277,13 +278,8 @@ function formatDateTime(value: Date | null) {
   return value.toLocaleString('zh-CN')
 }
 
-function toggleSelectedContainer(id: string, checked: boolean) {
-  if (checked) {
-    selectedContainerIds.value = Array.from(new Set([...selectedContainerIds.value, id]))
-    return
-  }
-
-  selectedContainerIds.value = selectedContainerIds.value.filter((item) => item !== id)
+function containerRowKey(row: DockerContainer) {
+  return row.id
 }
 
 async function copyLogs() {
@@ -420,6 +416,9 @@ async function loadDockerState() {
 
     containers.value = nextContainers
     images.value = nextImages
+    selectedContainerIds.value = selectedContainerIds.value.filter((id) =>
+      nextContainers.some((container) => container.id === id),
+    )
     await refreshContainerStats()
     await refreshContainerDiagnostics()
   } catch (error) {
@@ -891,17 +890,6 @@ watch(logsTail, async (value, previous) => {
       <NTabs v-else v-model:value="activeTab" type="segment" animated class="docker-tabs">
         <NTabPane name="containers" tab="容器">
           <div class="container-batch-bar">
-            <div class="container-select-list">
-              <NCheckbox
-                v-for="container in containers"
-                :key="container.id"
-                :checked="selectedContainerIds.includes(container.id)"
-                @update:checked="(checked: boolean) => toggleSelectedContainer(container.id, checked)"
-              >
-                {{ container.name }}
-              </NCheckbox>
-            </div>
-
             <NSpace>
               <NButton quaternary :loading="batchProcessing" @click="batchStartSelected">批量启动</NButton>
               <NButton quaternary :loading="batchProcessing" @click="batchStopSelected">批量停止</NButton>
@@ -929,10 +917,12 @@ watch(logsTail, async (value, previous) => {
             </NCard>
           </div>
           <NDataTable
+            v-model:checked-row-keys="selectedContainerIds"
             :single-line="false"
             :columns="containerColumns"
             :data="containers"
             :pagination="{ pageSize: 8 }"
+            :row-key="containerRowKey"
             size="small"
           />
         </NTabPane>
@@ -1204,12 +1194,6 @@ watch(logsTail, async (value, previous) => {
   gap: 12px;
   margin-bottom: 12px;
   flex-wrap: wrap;
-}
-
-.container-select-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
 }
 
 .image-toolbar-note {
