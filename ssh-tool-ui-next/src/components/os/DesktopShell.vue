@@ -72,10 +72,6 @@ function handleKeyUp(event: KeyboardEvent) {
 }
 
 onMounted(() => {
-  if (desktopStore.windows.length === 0) {
-    desktopStore.openWindow('dashboard')
-  }
-
   window.addEventListener('keydown', handleKeyDown, true)
   window.addEventListener('keyup', handleKeyUp, true)
 })
