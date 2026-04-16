@@ -1,9 +1,196 @@
 <script setup lang="ts">
-import { DocumentAdd, Folder } from '@vicons/carbon'
+import {
+  Archive,
+  Certificate,
+  Code,
+  Csv,
+  DataBase,
+  Document,
+  DocumentAudio,
+  DocumentBlank,
+  DocumentPdf,
+  DocumentProtected,
+  DocumentUnknown,
+  DocumentVideo,
+  DocumentWordProcessor,
+  Encryption,
+  FolderOpen,
+  Gif,
+  Html,
+  Image,
+} from '@vicons/carbon'
+import type { Component } from 'vue'
 import type { FileItem } from '@/api/files'
 import { useSettingsStore } from '@/stores/settings'
 
 const settingsStore = useSettingsStore()
+
+type FileIconTone = 'folder' | 'image' | 'video' | 'audio' | 'code' | 'document' | 'archive' | 'data' | 'secure' | 'default'
+
+interface FileIconMeta {
+  icon: Component
+  tone: FileIconTone
+}
+
+const folderIcon: FileIconMeta = { icon: FolderOpen, tone: 'folder' }
+const defaultFileIcon: FileIconMeta = { icon: DocumentUnknown, tone: 'default' }
+
+const filenameIcons: Record<string, FileIconMeta> = {
+  '.bash_history': { icon: DocumentBlank, tone: 'document' },
+  '.bash_profile': { icon: Code, tone: 'code' },
+  '.bashrc': { icon: Code, tone: 'code' },
+  '.dockerignore': { icon: Code, tone: 'code' },
+  '.env': { icon: Encryption, tone: 'secure' },
+  '.gitconfig': { icon: DocumentProtected, tone: 'secure' },
+  '.gitignore': { icon: Code, tone: 'code' },
+  '.npmrc': { icon: DocumentProtected, tone: 'secure' },
+  '.profile': { icon: Code, tone: 'code' },
+  '.ssh': folderIcon,
+  '.vimrc': { icon: Code, tone: 'code' },
+  'dockerfile': { icon: Code, tone: 'code' },
+  'license': { icon: Document, tone: 'document' },
+  'makefile': { icon: Code, tone: 'code' },
+  'readme': { icon: Document, tone: 'document' },
+}
+
+const extensionIcons: Record<string, FileIconMeta> = {
+  '7z': { icon: Archive, tone: 'archive' },
+  'aac': { icon: DocumentAudio, tone: 'audio' },
+  'ape': { icon: DocumentAudio, tone: 'audio' },
+  'apng': { icon: Image, tone: 'image' },
+  'apk': { icon: Archive, tone: 'archive' },
+  'asc': { icon: Encryption, tone: 'secure' },
+  'avi': { icon: DocumentVideo, tone: 'video' },
+  'avif': { icon: Image, tone: 'image' },
+  'bash': { icon: Code, tone: 'code' },
+  'bat': { icon: Code, tone: 'code' },
+  'bmp': { icon: Image, tone: 'image' },
+  'bz2': { icon: Archive, tone: 'archive' },
+  'c': { icon: Code, tone: 'code' },
+  'cer': { icon: Certificate, tone: 'secure' },
+  'cert': { icon: Certificate, tone: 'secure' },
+  'conf': { icon: DocumentProtected, tone: 'secure' },
+  'config': { icon: DocumentProtected, tone: 'secure' },
+  'cpp': { icon: Code, tone: 'code' },
+  'crt': { icon: Certificate, tone: 'secure' },
+  'cs': { icon: Code, tone: 'code' },
+  'csr': { icon: Certificate, tone: 'secure' },
+  'css': { icon: Code, tone: 'code' },
+  'csv': { icon: Csv, tone: 'data' },
+  'cxx': { icon: Code, tone: 'code' },
+  'dart': { icon: Code, tone: 'code' },
+  'db': { icon: DataBase, tone: 'data' },
+  'deb': { icon: Archive, tone: 'archive' },
+  'doc': { icon: DocumentWordProcessor, tone: 'document' },
+  'docx': { icon: DocumentWordProcessor, tone: 'document' },
+  'env': { icon: Encryption, tone: 'secure' },
+  'fish': { icon: Code, tone: 'code' },
+  'flac': { icon: DocumentAudio, tone: 'audio' },
+  'flv': { icon: DocumentVideo, tone: 'video' },
+  'gif': { icon: Gif, tone: 'image' },
+  'go': { icon: Code, tone: 'code' },
+  'gz': { icon: Archive, tone: 'archive' },
+  'h': { icon: Code, tone: 'code' },
+  'heic': { icon: Image, tone: 'image' },
+  'heif': { icon: Image, tone: 'image' },
+  'hpp': { icon: Code, tone: 'code' },
+  'htm': { icon: Html, tone: 'code' },
+  'html': { icon: Html, tone: 'code' },
+  'ico': { icon: Image, tone: 'image' },
+  'ini': { icon: DocumentProtected, tone: 'secure' },
+  'java': { icon: Code, tone: 'code' },
+  'jar': { icon: Archive, tone: 'archive' },
+  'jpeg': { icon: Image, tone: 'image' },
+  'jpg': { icon: Image, tone: 'image' },
+  'js': { icon: Code, tone: 'code' },
+  'json': { icon: Code, tone: 'code' },
+  'jsx': { icon: Code, tone: 'code' },
+  'key': { icon: Encryption, tone: 'secure' },
+  'kt': { icon: Code, tone: 'code' },
+  'kts': { icon: Code, tone: 'code' },
+  'less': { icon: Code, tone: 'code' },
+  'log': { icon: DocumentBlank, tone: 'document' },
+  'lua': { icon: Code, tone: 'code' },
+  'm4a': { icon: DocumentAudio, tone: 'audio' },
+  'm4v': { icon: DocumentVideo, tone: 'video' },
+  'md': { icon: Document, tone: 'document' },
+  'mkv': { icon: DocumentVideo, tone: 'video' },
+  'mov': { icon: DocumentVideo, tone: 'video' },
+  'mp3': { icon: DocumentAudio, tone: 'audio' },
+  'mp4': { icon: DocumentVideo, tone: 'video' },
+  'odp': { icon: DocumentWordProcessor, tone: 'document' },
+  'ods': { icon: Csv, tone: 'data' },
+  'odt': { icon: DocumentWordProcessor, tone: 'document' },
+  'ogg': { icon: DocumentAudio, tone: 'audio' },
+  'ogv': { icon: DocumentVideo, tone: 'video' },
+  'opus': { icon: DocumentAudio, tone: 'audio' },
+  'p12': { icon: Certificate, tone: 'secure' },
+  'pem': { icon: Certificate, tone: 'secure' },
+  'pdf': { icon: DocumentPdf, tone: 'document' },
+  'pfx': { icon: Certificate, tone: 'secure' },
+  'php': { icon: Code, tone: 'code' },
+  'png': { icon: Image, tone: 'image' },
+  'ppt': { icon: DocumentWordProcessor, tone: 'document' },
+  'pptx': { icon: DocumentWordProcessor, tone: 'document' },
+  'ps1': { icon: Code, tone: 'code' },
+  'py': { icon: Code, tone: 'code' },
+  'rar': { icon: Archive, tone: 'archive' },
+  'rb': { icon: Code, tone: 'code' },
+  'rpm': { icon: Archive, tone: 'archive' },
+  'rs': { icon: Code, tone: 'code' },
+  'rtf': { icon: DocumentWordProcessor, tone: 'document' },
+  'sass': { icon: Code, tone: 'code' },
+  'scala': { icon: Code, tone: 'code' },
+  'scss': { icon: Code, tone: 'code' },
+  'sh': { icon: Code, tone: 'code' },
+  'sqlite': { icon: DataBase, tone: 'data' },
+  'sqlite3': { icon: DataBase, tone: 'data' },
+  'sql': { icon: DataBase, tone: 'data' },
+  'svg': { icon: Image, tone: 'image' },
+  'swift': { icon: Code, tone: 'code' },
+  'tar': { icon: Archive, tone: 'archive' },
+  'tgz': { icon: Archive, tone: 'archive' },
+  'tif': { icon: Image, tone: 'image' },
+  'tiff': { icon: Image, tone: 'image' },
+  'toml': { icon: Code, tone: 'code' },
+  'ts': { icon: Code, tone: 'code' },
+  'tsv': { icon: Csv, tone: 'data' },
+  'tsx': { icon: Code, tone: 'code' },
+  'txt': { icon: DocumentBlank, tone: 'document' },
+  'vue': { icon: Code, tone: 'code' },
+  'war': { icon: Archive, tone: 'archive' },
+  'wav': { icon: DocumentAudio, tone: 'audio' },
+  'webm': { icon: DocumentVideo, tone: 'video' },
+  'webp': { icon: Image, tone: 'image' },
+  'wma': { icon: DocumentAudio, tone: 'audio' },
+  'wmv': { icon: DocumentVideo, tone: 'video' },
+  'xls': { icon: Csv, tone: 'data' },
+  'xlsx': { icon: Csv, tone: 'data' },
+  'xml': { icon: Code, tone: 'code' },
+  'xz': { icon: Archive, tone: 'archive' },
+  'yaml': { icon: Code, tone: 'code' },
+  'yml': { icon: Code, tone: 'code' },
+  'zip': { icon: Archive, tone: 'archive' },
+  'zsh': { icon: Code, tone: 'code' },
+}
+
+function getFileExtension(filename: string) {
+  const parts = filename.toLowerCase().split('.')
+  return parts.length > 1 ? parts[parts.length - 1] : ''
+}
+
+function getFileIcon(file: FileItem) {
+  if (file.isDirectory) {
+    return folderIcon
+  }
+
+  const normalizedName = file.filename.toLowerCase()
+  return filenameIcons[normalizedName] ?? extensionIcons[getFileExtension(normalizedName)] ?? defaultFileIcon
+}
+
+function getFileIconClass(file: FileItem) {
+  return `file-icon-${getFileIcon(file).tone}`
+}
 
 defineProps<{
   files: FileItem[]
@@ -39,9 +226,8 @@ const emit = defineEmits<{
           @click="emit('clickFile', file, $event)"
           @dblclick="emit('openFile', file)"
         >
-          <NIcon size="28">
-            <Folder v-if="file.isDirectory" />
-            <DocumentAdd v-else />
+          <NIcon size="28" class="file-icon" :class="getFileIconClass(file)">
+            <component :is="getFileIcon(file).icon" />
           </NIcon>
           <div class="file-name">{{ file.filename }}</div>
           <div class="file-meta">{{ file.isDirectory ? '目录' : formatFileSize(file.size) }}</div>
@@ -59,9 +245,8 @@ const emit = defineEmits<{
           @dblclick="emit('openFile', file)"
         >
           <div class="file-row-main">
-            <NIcon size="20">
-              <Folder v-if="file.isDirectory" />
-              <DocumentAdd v-else />
+            <NIcon size="20" class="file-icon" :class="getFileIconClass(file)">
+              <component :is="getFileIcon(file).icon" />
             </NIcon>
             <span class="file-name">{{ file.filename }}</span>
           </div>
@@ -155,6 +340,50 @@ const emit = defineEmits<{
   min-width: 0;
 }
 
+.file-icon {
+  flex: 0 0 auto;
+}
+
+.file-icon-folder {
+  color: rgba(96, 165, 250, 0.96);
+}
+
+.file-icon-image {
+  color: rgba(192, 132, 252, 0.96);
+}
+
+.file-icon-video {
+  color: rgba(251, 113, 133, 0.96);
+}
+
+.file-icon-audio {
+  color: rgba(52, 211, 153, 0.96);
+}
+
+.file-icon-code {
+  color: rgba(34, 211, 238, 0.96);
+}
+
+.file-icon-document {
+  color: rgba(165, 180, 252, 0.96);
+}
+
+.file-icon-archive {
+  color: rgba(251, 146, 60, 0.96);
+}
+
+.file-icon-data {
+  color: rgba(250, 204, 21, 0.96);
+}
+
+.file-icon-secure {
+  color: rgba(251, 191, 36, 0.96);
+}
+
+.file-icon-default {
+  color: rgba(148, 163, 184, 0.96);
+}
+
 .file-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -187,6 +416,46 @@ const emit = defineEmits<{
 .files-content-light .file-row-size,
 .files-content-light .file-row-time {
   color: rgba(100, 116, 139, 0.92);
+}
+
+.files-content-light .file-icon-folder {
+  color: rgba(37, 99, 235, 0.94);
+}
+
+.files-content-light .file-icon-image {
+  color: rgba(147, 51, 234, 0.94);
+}
+
+.files-content-light .file-icon-video {
+  color: rgba(225, 29, 72, 0.94);
+}
+
+.files-content-light .file-icon-audio {
+  color: rgba(5, 150, 105, 0.94);
+}
+
+.files-content-light .file-icon-code {
+  color: rgba(8, 145, 178, 0.94);
+}
+
+.files-content-light .file-icon-document {
+  color: rgba(79, 70, 229, 0.94);
+}
+
+.files-content-light .file-icon-archive {
+  color: rgba(234, 88, 12, 0.94);
+}
+
+.files-content-light .file-icon-data {
+  color: rgba(202, 138, 4, 0.94);
+}
+
+.files-content-light .file-icon-secure {
+  color: rgba(180, 83, 9, 0.94);
+}
+
+.files-content-light .file-icon-default {
+  color: rgba(100, 116, 139, 0.94);
 }
 
 @media (max-width: 860px) {
