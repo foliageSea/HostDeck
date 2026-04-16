@@ -40,6 +40,14 @@ export const useDesktopStore = defineStore('desktop', {
   state: () => ({
     activeWindowId: null as string | null,
     apps: {
+      terminal: {
+        component: markRaw(TerminalView),
+        height: 560,
+        icon: 'terminal',
+        id: 'terminal',
+        title: '终端',
+        width: 920,
+      },
       dashboard: {
         component: markRaw(DashboardView),
         height: 540,
@@ -47,14 +55,7 @@ export const useDesktopStore = defineStore('desktop', {
         id: 'dashboard',
         title: '系统监控',
         width: 420,
-      },
-      docker: {
-        component: markRaw(DockerView),
-        height: 760,
-        icon: 'docker',
-        id: 'docker',
-        title: 'Docker 管理',
-        width: 1180,
+        hide: true,
       },
       files: {
         component: markRaw(FilesView),
@@ -63,6 +64,14 @@ export const useDesktopStore = defineStore('desktop', {
         id: 'files',
         title: '文件管理',
         width: 1080,
+      },
+      docker: {
+        component: markRaw(DockerView),
+        height: 760,
+        icon: 'docker',
+        id: 'docker',
+        title: 'Docker 管理',
+        width: 1180,
       },
       editor: {
         component: markRaw(TextEditorView),
@@ -80,6 +89,7 @@ export const useDesktopStore = defineStore('desktop', {
         id: 'logout',
         title: '断开连接',
         width: 0,
+        hide: true,
       },
       'media-viewer': {
         component: markRaw(MediaViewerView),
@@ -98,14 +108,7 @@ export const useDesktopStore = defineStore('desktop', {
         title: '设置',
         width: 480,
       },
-      terminal: {
-        component: markRaw(TerminalView),
-        height: 560,
-        icon: 'terminal',
-        id: 'terminal',
-        title: '终端',
-        width: 920,
-      },
+
     } as Record<DesktopAppId, AppConfig>,
     nextZIndex: 100,
     windows: [] as WindowState[],
