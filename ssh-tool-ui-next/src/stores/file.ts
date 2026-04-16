@@ -1,4 +1,5 @@
 import { computed, reactive, ref } from 'vue'
+import { useLocalStorage } from '@vueuse/core'
 import { filesApi, type FileItem } from '@/api/files'
 import { useSshStore } from '@/stores/ssh'
 import { dirname, resolve } from '@/utils/path'
@@ -20,7 +21,7 @@ export function createFileStore() {
   const files = ref<FileItem[]>([])
   const sessionId = ref<string | null>(null)
   const loading = ref(false)
-  const viewMode = ref<FileViewMode>('list')
+  const viewMode = useLocalStorage<FileViewMode>('ssh-tool:files:view-mode', 'list')
   const selectedNames = ref<string[]>([])
   const lastSelectedName = ref<string | null>(null)
   const search = ref('')
