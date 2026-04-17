@@ -72,7 +72,7 @@ const connectMutation = useMutation<ConnectResponse, Error, ConnectParams>({
       void saveServerMutation.mutateAsync()
     }
 
-    sshStore.setSession(data.sessionId, data.connectionId, form.host, form.username)
+    sshStore.setSession(data.sessionId, data.connectionId, form.host, form.port, form.username)
   },
   onError: (error) => {
     isShaking.value = true

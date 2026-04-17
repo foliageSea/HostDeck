@@ -11,6 +11,7 @@ export const useSshStore = defineStore('ssh', () => {
   const connectionId = ref<string | null>(null)
   const isConnected = ref(false)
   const host = ref('')
+  const port = ref<number | null>(null)
   const username = ref('')
   const savedServers = ref<SavedServer[]>([])
   const monitorData = ref<MonitorResponse | null>(null)
@@ -61,6 +62,7 @@ export const useSshStore = defineStore('ssh', () => {
     connectionId.value = null
     isConnected.value = false
     host.value = ''
+    port.value = null
     username.value = ''
   }
 
@@ -184,10 +186,11 @@ export const useSshStore = defineStore('ssh', () => {
     }
   }
 
-  function setSession(nextSessionId: string, nextConnectionId: string, nextHost: string, nextUsername: string) {
+  function setSession(nextSessionId: string, nextConnectionId: string, nextHost: string, nextPort: number, nextUsername: string) {
     sessionId.value = nextSessionId
     connectionId.value = nextConnectionId
     host.value = nextHost
+    port.value = nextPort
     username.value = nextUsername
     isConnected.value = true
     isIntentionalClose = false
@@ -203,6 +206,7 @@ export const useSshStore = defineStore('ssh', () => {
     host,
     isConnected,
     monitorData,
+    port,
     removeServer,
     savedServers,
     sessionId,

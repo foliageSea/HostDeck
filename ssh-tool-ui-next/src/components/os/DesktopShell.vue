@@ -3,7 +3,6 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { createWallpaperStyle } from '@/lib/wallpapers'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
-import { useSshStore } from '@/stores/ssh'
 import DesktopDock from '@/components/os/DesktopDock.vue'
 import DesktopTopBar from '@/components/os/DesktopTopBar.vue'
 import DesktopWindow from '@/components/os/DesktopWindow.vue'
@@ -11,7 +10,6 @@ import DesktopWindowSwitcher from '@/components/os/DesktopWindowSwitcher.vue'
 
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
-const sshStore = useSshStore()
 const switcherVisible = ref(false)
 const switcherIndex = ref(0)
 const switcherWindows = ref<typeof desktopStore.windows>([])

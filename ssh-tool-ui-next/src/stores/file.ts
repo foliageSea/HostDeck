@@ -1,4 +1,4 @@
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 import { filesApi, type FileItem } from '@/api/files'
 import { useSshStore } from '@/stores/ssh'
@@ -50,10 +50,48 @@ export function createFileStore() {
 
   const hasSelection = computed(() => selectedNames.value.length > 0)
 
-  const favoritePaths = computed(() => favoritePathsByConnection.value[getFavoriteConnectionKey()] ?? [])
+  const favoriteConnectionKey = computed(() => getFavoriteConnectionKey())
+  const favoritePaths = computed(() => favoritePathsByConnection.value[favoriteConnectionKey.value] ?? [])
+
+  watch(favoriteConnectionKey, migrateLegacyFavoritePaths, { immediate: true })
 
   function getFavoriteConnectionKey() {
+    return getStableFavoriteConnectionKey() ?? getLegacyFavoriteConnectionKey()
+  }
+
+  function getStableFavoriteConnectionKey() {
+    const host = sshStore.host.trim()
+    const username = sshStore.username.trim()
+    const port = sshStore.port
+
+    if (!host || !username || port === null) {
+      return null
+    }
+
+    return `${username}@${host}:${port}`
+  }
+
+  function getLegacyFavoriteConnectionKey() {
     return sshStore.connectionId ?? 'default'
+  }
+
+  function migrateLegacyFavoritePaths() {
+    const stableKey = getStableFavoriteConnectionKey()
+    const legacyKey = sshStore.connectionId
+
+    if (!stableKey || !legacyKey || stableKey === legacyKey) {
+      return
+    }
+
+    const storedPaths = favoritePathsByConnection.value
+    if (storedPaths[stableKey]?.length || !storedPaths[legacyKey]?.length) {
+      return
+    }
+
+    favoritePathsByConnection.value = {
+      ...storedPaths,
+      [stableKey]: storedPaths[legacyKey],
+    }
   }
 
   function normalizeFavoritePath(path: string) {
