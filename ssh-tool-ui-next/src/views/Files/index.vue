@@ -774,10 +774,12 @@ onMounted(async () => {
       @select="handleContextMenuSelect" />
 
     <NCard v-if="selectedFile" size="small" class="details-panel">
-      <div class="details-title">当前选择</div>
-      <div>{{ selectedFiles.length > 1 ? `已选 ${selectedFiles.length} 项` : selectedFile.filename }}</div>
-      <div class="details-meta">{{ selectedFile.isDirectory ? '目录' : formatFileSize(selectedFile.size) }}</div>
-      <div class="details-meta">{{ formatModifyTime(selectedFile.modifyTime) }}</div>
+      <div class="details-line">
+        <span class="details-title">当前选择</span>
+        <span class="details-name">{{ selectedFiles.length > 1 ? `已选 ${selectedFiles.length} 项` : selectedFile.filename }}</span>
+        <span class="details-meta">{{ selectedFile.isDirectory ? '目录' : formatFileSize(selectedFile.size) }}</span>
+        <span class="details-meta">{{ formatModifyTime(selectedFile.modifyTime) }}</span>
+      </div>
     </NCard>
 
     <FileNameDialog v-model:show="showCreateDialog" :title="createDialogMode === 'directory' ? '新建目录' : '新建文件'"
@@ -884,9 +886,32 @@ onMounted(async () => {
   font-size: 12px;
 }
 
+.details-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.details-title,
+.details-meta {
+  flex: 0 0 auto;
+}
+
+.details-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .details-panel {
   border-radius: 16px;
   background: rgba(15, 23, 42, 0.56);
+}
+
+.details-panel :deep(.n-card__content) {
+  padding: 8px 12px;
 }
 
 .files-view-light {
