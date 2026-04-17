@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
-import { ServerProxy } from '@vicons/carbon'
 import { authApi, type ConnectParams, type ConnectResponse } from '@/api/auth'
 import type { SavedServer } from '@/api/server'
 import { createWallpaperStyle } from '@/lib/wallpapers'
@@ -29,7 +28,7 @@ const selectedServer = computed(() =>
   sshStore.savedServers.find((server) => server.id === selectedServerId.value) ?? null,
 )
 const loginWallpaperStyle = computed(() =>
-  createWallpaperStyle('login', settingsStore.loginWallpaper, settingsStore.isDark),
+  createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
 )
 
 function applyServer(server: SavedServer) {
@@ -150,32 +149,9 @@ onMounted(() => {
 <template>
   <div class="relative min-h-screen overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="loginWallpaperStyle" />
-    <div class="relative z-1 grid min-h-screen grid-cols-[minmax(320px,1.1fr)_minmax(360px,520px)] items-center gap-[24px] p-[40px] lt-lg:grid-cols-1 lt-lg:p-[20px]">
+    <div class="relative z-1 grid min-h-screen place-items-center p-[40px] lt-lg:p-[20px]">
       <section
-        class="rounded-[24px] p-[40px] backdrop-blur-[18px] lt-lg:p-[24px]"
-        :class="settingsStore.isDark ? 'glass-panel-dark' : 'glass-panel-light'"
-      >
-        <div
-          class="inline-flex items-center gap-[10px] rounded-full px-[14px] py-[10px]"
-          :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.48)] text-[#cbd5e1]' : 'bg-[rgba(255,255,255,0.7)] text-[#334155]'"
-        >
-          <NIcon :size="26">
-            <ServerProxy />
-          </NIcon>
-          <span>ssh-tool-ui-next</span>
-        </div>
-        <h1 class="mb-[12px] mt-[20px] text-[clamp(2rem,5vw,3.75rem)] leading-[1.02]" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">桌面式 SSH 工作台</h1>
-        <p class="max-w-[600px] text-[1rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.76)]' : 'text-[rgba(51,65,85,0.8)]'">集中管理连接、监控、终端与文件操作，在统一桌面界面中完成常用远程运维流程。</p>
-        <div class="mt-[28px] flex flex-wrap gap-[10px]">
-          <span class="rounded-full border px-[12px] py-[8px] text-[0.92rem]" :class="settingsStore.isDark ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(59,130,246,0.14)] text-[#bfdbfe]' : 'border-[rgba(96,165,250,0.28)] bg-[rgba(219,234,254,0.78)] text-[#1d4ed8]'">Naive UI</span>
-          <span class="rounded-full border px-[12px] py-[8px] text-[0.92rem]" :class="settingsStore.isDark ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(59,130,246,0.14)] text-[#bfdbfe]' : 'border-[rgba(96,165,250,0.28)] bg-[rgba(219,234,254,0.78)] text-[#1d4ed8]'">Pinia</span>
-          <span class="rounded-full border px-[12px] py-[8px] text-[0.92rem]" :class="settingsStore.isDark ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(59,130,246,0.14)] text-[#bfdbfe]' : 'border-[rgba(96,165,250,0.28)] bg-[rgba(219,234,254,0.78)] text-[#1d4ed8]'">Vue Query</span>
-          <span class="rounded-full border px-[12px] py-[8px] text-[0.92rem]" :class="settingsStore.isDark ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(59,130,246,0.14)] text-[#bfdbfe]' : 'border-[rgba(96,165,250,0.28)] bg-[rgba(219,234,254,0.78)] text-[#1d4ed8]'">Desktop Shell</span>
-        </div>
-      </section>
-
-      <section
-        class="rounded-[24px] p-[24px] backdrop-blur-[18px]"
+        class="w-full max-w-[520px] rounded-[24px] p-[24px] backdrop-blur-[18px]"
         :class="[
           settingsStore.isDark ? 'glass-panel-dark' : 'glass-panel-light',
           { 'form-panel-shake': isShaking },

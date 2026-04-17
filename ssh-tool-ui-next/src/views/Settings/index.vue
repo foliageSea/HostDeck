@@ -27,18 +27,9 @@ const { settingsStore } = controller
         <WallpaperSection
           target="desktop"
           title="桌面壁纸"
-          description="支持预设背景或上传本地图片，上传图片会保存在当前浏览器。"
+          description="登录页与桌面共用同一壁纸，支持预设背景或上传本地图片，上传图片会保存在当前浏览器。"
           default-label="跟随当前主题"
           preset-label="桌面预设"
-          :controller="controller"
-        />
-
-        <WallpaperSection
-          target="login"
-          title="登录页壁纸"
-          description="登录页可独立设置，方便区分欢迎页和桌面工作区。"
-          default-label="登录页原始风格"
-          preset-label="登录页预设"
           :controller="controller"
         />
       </NSpace>
