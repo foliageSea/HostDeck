@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref, watch } from 'vue'
 import type { DataTableColumns } from 'naive-ui'
-import { NButton, NIcon, NSpace } from 'naive-ui'
+import { NButton, NIcon, NPopover, NSpace } from 'naive-ui'
 import {
   Add,
   Catalog,
@@ -41,6 +41,7 @@ const activeTab = ref<'containers' | 'images'>('containers')
 const loading = ref(false)
 const dockerAvailable = ref<boolean | null>(null)
 const containers = ref<DockerContainer[]>([])
+const containerStatusFilter = ref<'all' | 'running' | 'stopped' | 'paused' | 'restarting' | 'exited'>('all')
 const images = ref<DockerImage[]>([])
 const statsMap = ref<Record<string, DockerContainerStats>>({})
 const diagnosticsMap = ref<Record<string, DockerContainerDiagnostic>>({})
@@ -96,6 +97,43 @@ let logsRefreshTimer: number | null = null
 const runningContainers = computed(() => containers.value.filter((item) => item.state === 'running').length)
 const stoppedContainers = computed(() => containers.value.filter((item) => item.state !== 'running').length)
 const danglingImages = computed(() => images.value.filter((item) => item.dangling).length)
+const containerStatusOptions = [
+  { label: '全部状态', value: 'all' },
+  { label: '运行中', value: 'running' },
+  { label: '已停止', value: 'stopped' },
+  { label: '已暂停', value: 'paused' },
+  { label: '重启中', value: 'restarting' },
+  { label: '已退出', value: 'exited' },
+]
+const filteredContainers = computed(() =>
+  containers.value.filter((item) => {
+    const status = item.status.toLowerCase()
+
+    if (containerStatusFilter.value === 'all') {
+      return true
+    }
+
+    if (containerStatusFilter.value === 'running') {
+      return item.state === 'running' && !status.includes('paused')
+    }
+
+    if (containerStatusFilter.value === 'stopped') {
+      return item.state !== 'running'
+    }
+
+    if (containerStatusFilter.value === 'paused') {
+      return status.includes('paused')
+    }
+
+    if (containerStatusFilter.value === 'restarting') {
+      return item.state === 'restarting' || status.includes('restarting')
+    }
+
+    return item.state === 'exited' || status.includes('exited')
+  }),
+)
+const containerPagination = { pageSize: 8 }
+const imagePagination = { pageSize: 8 }
 const selectedStoppedIds = computed(() =>
   containers.value.filter((item) => selectedContainerIds.value.includes(item.id) && item.state !== 'running').map((item) => item.id),
 )
@@ -114,6 +152,115 @@ const displayedLogs = computed(() => {
     .join('\n')
 })
 
+function renderContainerPorts(row: DockerContainer) {
+  const ports = row.ports ?? []
+
+  if (ports.length === 0) {
+    return '-'
+  }
+
+  if (ports.length === 1) {
+    return h('span', { class: 'container-port-summary', title: ports[0] }, ports[0])
+  }
+
+  return h(
+    NSpace,
+    { align: 'center', size: 6, wrap: false },
+    {
+      default: () => [
+        h('span', { class: 'container-port-summary', title: ports.join(', ') }, `${ports[0]} 等 ${ports.length} 项`),
+        h(
+          NPopover,
+          { trigger: 'click', placement: 'bottom-start' },
+          {
+            trigger: () => h(NButton, { size: 'tiny', quaternary: true }, { default: () => '查看详情' }),
+            default: () => h('div', { class: 'container-port-popover' }, ports.map((port) => h('div', { class: 'container-port-item' }, port))),
+          },
+        ),
+      ],
+    },
+  )
+}
+
+function renderContainerActions(row: DockerContainer) {
+  const paused = row.status.toLowerCase().includes('paused')
+
+  return h(
+    NPopover,
+    { trigger: 'click', placement: 'bottom-end' },
+    {
+      trigger: () => h(NButton, { size: 'small', quaternary: true }, { default: () => '查看详情' }),
+      default: () =>
+        h(NSpace, { class: 'container-action-popover', wrap: true, size: 4 }, () => [
+          row.state === 'running'
+            ? h(
+                NButton,
+                { size: 'small', quaternary: true, onClick: () => confirmContainerAction(row, 'stop') },
+                { icon: () => h(NIcon, null, { default: () => h(StopFilledAlt) }), default: () => '停止' },
+              )
+            : h(
+                NButton,
+                { size: 'small', quaternary: true, onClick: () => confirmContainerAction(row, 'start') },
+                { icon: () => h(NIcon, null, { default: () => h(PlayFilledAlt) }), default: () => '启动' },
+              ),
+          h(
+            NButton,
+            { size: 'small', quaternary: true, onClick: () => confirmContainerAction(row, 'restart') },
+            { icon: () => h(NIcon, null, { default: () => h(Restart) }), default: () => '重启' },
+          ),
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              disabled: row.state !== 'running',
+              onClick: () => handleContainerAdvancedAction(row, paused ? 'unpause' : 'pause'),
+            },
+            {
+              icon: () => h(NIcon, null, { default: () => h(Pause) }),
+              default: () => (paused ? '恢复' : '暂停'),
+            },
+          ),
+          h(
+            NButton,
+            { size: 'small', quaternary: true, onClick: () => viewLogs(row) },
+            { icon: () => h(NIcon, null, { default: () => h(Catalog) }), default: () => '日志' },
+          ),
+          h(
+            NButton,
+            { size: 'small', quaternary: true, onClick: () => viewInspect(row) },
+            { icon: () => h(NIcon, null, { default: () => h(Information) }), default: () => 'Inspect' },
+          ),
+          h(
+            NButton,
+            { size: 'small', quaternary: true, onClick: () => openRenameDialog(row) },
+            { icon: () => h(NIcon, null, { default: () => h(Edit) }), default: () => '重命名' },
+          ),
+          h(
+            NButton,
+            { size: 'small', quaternary: true, onClick: () => recreateContainer(row) },
+            { icon: () => h(NIcon, null, { default: () => h(Restart) }), default: () => '重建' },
+          ),
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              disabled: row.state !== 'running',
+              onClick: () => enterShell(row),
+            },
+            { icon: () => h(NIcon, null, { default: () => h(Launch) }), default: () => 'Shell' },
+          ),
+          h(
+            NButton,
+            { size: 'small', quaternary: true, type: 'error', onClick: () => confirmContainerAction(row, 'remove') },
+            { icon: () => h(NIcon, null, { default: () => h(TrashCan) }), default: () => '删除' },
+          ),
+        ]),
+    },
+  )
+}
+
 const containerColumns: DataTableColumns<DockerContainer> = [
   { type: 'selection', width: 48 },
   { title: '名称', key: 'name' },
@@ -130,79 +277,13 @@ const containerColumns: DataTableColumns<DockerContainer> = [
         : '-'
     },
   },
-  { title: '端口', key: 'ports', render: (row) => row.ports?.join(', ') || '-' },
+  { title: '端口', key: 'ports', width: 220, render: renderContainerPorts },
   { title: '创建时间', key: 'createdAt', render: (row) => formatTime(row.createdAt) },
   {
     title: '操作',
     key: 'actions',
-    width: 300,
-    render: (row) =>
-      h(NSpace, { wrap: true, size: 4 }, () => [
-        row.state === 'running'
-          ? h(
-              NButton,
-              { size: 'small', quaternary: true, onClick: () => confirmContainerAction(row, 'stop') },
-              { icon: () => h(NIcon, null, { default: () => h(StopFilledAlt) }), default: () => '停止' },
-            )
-          : h(
-              NButton,
-              { size: 'small', quaternary: true, onClick: () => confirmContainerAction(row, 'start') },
-              { icon: () => h(NIcon, null, { default: () => h(PlayFilledAlt) }), default: () => '启动' },
-            ),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, onClick: () => confirmContainerAction(row, 'restart') },
-          { icon: () => h(NIcon, null, { default: () => h(Restart) }), default: () => '重启' },
-        ),
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            disabled: row.state !== 'running',
-            onClick: () => handleContainerAdvancedAction(row, row.status.toLowerCase().includes('paused') ? 'unpause' : 'pause'),
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(Pause) }),
-            default: () => (row.status.toLowerCase().includes('paused') ? '恢复' : '暂停'),
-          },
-        ),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, onClick: () => viewLogs(row) },
-          { icon: () => h(NIcon, null, { default: () => h(Catalog) }), default: () => '日志' },
-        ),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, onClick: () => viewInspect(row) },
-          { icon: () => h(NIcon, null, { default: () => h(Information) }), default: () => 'Inspect' },
-        ),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, onClick: () => openRenameDialog(row) },
-          { icon: () => h(NIcon, null, { default: () => h(Edit) }), default: () => '重命名' },
-        ),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, onClick: () => recreateContainer(row) },
-          { icon: () => h(NIcon, null, { default: () => h(Restart) }), default: () => '重建' },
-        ),
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            disabled: row.state !== 'running',
-            onClick: () => enterShell(row),
-          },
-          { icon: () => h(NIcon, null, { default: () => h(Launch) }), default: () => 'Shell' },
-        ),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, type: 'error', onClick: () => confirmContainerAction(row, 'remove') },
-          { icon: () => h(NIcon, null, { default: () => h(TrashCan) }), default: () => '删除' },
-        ),
-      ]),
+    width: 108,
+    render: renderContainerActions,
   },
 ]
 
@@ -889,37 +970,54 @@ watch(logsTail, async (value, previous) => {
 
       <NTabs v-else v-model:value="activeTab" type="segment" animated class="docker-tabs">
         <NTabPane name="containers" tab="容器">
-          <div class="container-batch-bar">
-            <NSpace>
-              <NButton quaternary :loading="batchProcessing" @click="batchStartSelected">批量启动</NButton>
-              <NButton quaternary :loading="batchProcessing" @click="batchStopSelected">批量停止</NButton>
-              <NButton quaternary @click="removeStoppedContainers">清理已停止</NButton>
-              <NButton quaternary @click="pruneImages(false)">清理悬空镜像</NButton>
-              <NButton quaternary @click="pruneImages(true)">清理无引用镜像</NButton>
-              <NTag round size="small">已选 {{ selectedContainerIds.length }}</NTag>
-            </NSpace>
-          </div>
+          <div class="container-tab-content">
+            <div class="container-batch-bar">
+              <NSpace>
+                <NSelect
+                  v-model:value="containerStatusFilter"
+                  class="container-status-filter"
+                  :options="containerStatusOptions"
+                  size="small"
+                />
+                <NButton quaternary :loading="batchProcessing" @click="batchStartSelected">批量启动</NButton>
+                <NButton quaternary :loading="batchProcessing" @click="batchStopSelected">批量停止</NButton>
+                <NButton quaternary @click="removeStoppedContainers">清理已停止</NButton>
+                <NButton quaternary @click="pruneImages(false)">清理悬空镜像</NButton>
+                <NButton quaternary @click="pruneImages(true)">清理无引用镜像</NButton>
+                <NTag round size="small">已选 {{ selectedContainerIds.length }}</NTag>
+                <NTag round size="small">显示 {{ filteredContainers.length }} / {{ containers.length }}</NTag>
+              </NSpace>
+            </div>
 
-          <NDataTable
-            v-model:checked-row-keys="selectedContainerIds"
-            :single-line="false"
-            :columns="containerColumns"
-            :data="containers"
-            :pagination="{ pageSize: 8 }"
-            :row-key="containerRowKey"
-            size="small"
-          />
+            <div class="docker-table-shell">
+              <NDataTable
+                v-model:checked-row-keys="selectedContainerIds"
+                class="docker-table"
+                :single-line="false"
+                :columns="containerColumns"
+                :data="filteredContainers"
+                :pagination="containerPagination"
+                :row-key="containerRowKey"
+                size="small"
+              />
+            </div>
+          </div>
         </NTabPane>
 
         <NTabPane name="images" tab="镜像">
-          <div class="image-toolbar-note">支持镜像重新打标签、查看构建历史和引用容器。</div>
-          <NDataTable
-            :single-line="false"
-            :columns="imageColumns"
-            :data="images"
-            :pagination="{ pageSize: 8 }"
-            size="small"
-          />
+          <div class="image-tab-content">
+            <div class="image-toolbar-note">支持镜像重新打标签、查看构建历史和引用容器。</div>
+            <div class="docker-table-shell">
+              <NDataTable
+                class="docker-table"
+                :single-line="false"
+                :columns="imageColumns"
+                :data="images"
+                :pagination="imagePagination"
+                size="small"
+              />
+            </div>
+          </div>
         </NTabPane>
       </NTabs>
     </NSpin>
@@ -1163,12 +1261,36 @@ watch(logsTail, async (value, previous) => {
 }
 
 .docker-body {
-  flex: 1;
-  min-height: 0;
+  flex: none;
+}
+
+.docker-body :deep(.n-spin-container),
+.docker-body :deep(.n-spin-content) {
+  overflow: visible;
+}
+
+.docker-body :deep(.n-spin-content) {
+  display: block;
 }
 
 .docker-tabs {
-  min-height: 0;
+  display: block;
+}
+
+.docker-tabs :deep(.n-tabs-content) {
+  display: block;
+  overflow: visible;
+}
+
+.docker-tabs :deep(.n-tabs-pane-wrapper),
+.docker-tabs :deep(.n-tab-pane) {
+  overflow: visible;
+}
+
+.container-tab-content,
+.image-tab-content {
+  display: flex;
+  flex-direction: column;
 }
 
 .container-batch-bar {
@@ -1178,6 +1300,46 @@ watch(logsTail, async (value, previous) => {
   gap: 12px;
   margin-bottom: 12px;
   flex-wrap: wrap;
+}
+
+.container-status-filter {
+  width: 128px;
+}
+
+.docker-table-shell {
+  flex: none;
+  overflow: visible;
+}
+
+.docker-table {
+  min-width: 100%;
+}
+
+.container-port-summary {
+  display: inline-block;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.container-port-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 360px;
+}
+
+.container-port-item {
+  font-family: Consolas, 'Cascadia Mono', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.container-action-popover {
+  max-width: 260px;
 }
 
 .image-toolbar-note {
