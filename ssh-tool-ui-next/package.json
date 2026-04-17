@@ -28,6 +28,7 @@
     "@vue/tsconfig": "^0.9.1",
     "naive-ui": "^2.44.1",
     "typescript": "~6.0.2",
+    "unocss": "^66.6.8",
     "unplugin-auto-import": "^21.0.0",
     "unplugin-vue-components": "^32.0.0",
     "vfonts": "^0.0.3",

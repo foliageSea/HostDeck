@@ -632,11 +632,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="files-view" :class="{ 'files-view-light': !settingsStore.isDark }" tabindex="0" @keydown="handleKeydown"
+  <div class="flex h-full flex-col gap-[14px] p-[16px] outline-none" :class="settingsStore.isDark ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.14),rgba(15,23,42,0.04))]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.68),rgba(226,232,240,0.34))]'" tabindex="0" @keydown="handleKeydown"
     @click.self="fileStore.clearSelection()">
     <input ref="fileInputRef" type="file" multiple hidden @change="handleUploadChange" />
 
-    <div class="files-toolbar">
+    <div class="flex flex-wrap items-center justify-between gap-[12px]">
       <NSpace align="center" wrap>
         <NTooltip>
           <template #trigger>
@@ -688,8 +688,8 @@ onMounted(async () => {
         </NTooltip>
       </NSpace>
 
-      <div class="toolbar-right">
-        <NInput v-model:value="fileStore.search" placeholder="搜索当前目录" clearable class="search-input" />
+      <div class="flex items-center gap-[12px]">
+        <NInput v-model:value="fileStore.search" placeholder="搜索当前目录" clearable class="w-[min(280px,60vw)]" />
         <NSpace align="center" size="small">
           <NPopover trigger="hover" placement="bottom-end">
             <template #trigger>
@@ -701,7 +701,7 @@ onMounted(async () => {
                 </template>
               </NButton>
             </template>
-            <div class="shortcut-popover">
+            <div class="flex flex-col gap-[6px] text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'">
               <div>Ctrl/Cmd + Click：多选</div>
               <div>Shift + Click：范围选择</div>
               <div>Ctrl/Cmd + A：全选</div>
@@ -742,22 +742,22 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="path-row">
-      <div v-if="!editingPath" class="path-breadcrumbs">
+    <div class="flex flex-wrap items-center justify-between gap-[12px]">
+      <div v-if="!editingPath" class="min-w-[240px] flex-1 overflow-x-auto pb-[2px]">
         <NBreadcrumb>
           <NBreadcrumbItem v-for="item in breadcrumbs" :key="item.path">
-            <button type="button" class="breadcrumb-link" @click="navigateToPath(item.path)">
+            <button type="button" class="btn-reset hover:text-[rgba(96,165,250,0.95)]" @click="navigateToPath(item.path)">
               {{ item.label }}
             </button>
           </NBreadcrumbItem>
         </NBreadcrumb>
       </div>
-      <div v-else class="path-editor">
+      <div v-else class="path-editor min-w-[240px] flex-1">
         <NInput v-model:value="currentPathInput" placeholder="输入远程路径快速跳转" @keyup.enter="submitPath"
           @keyup.esc="stopPathEditing" @blur="stopPathEditing" />
       </div>
 
-      <div class="path-actions">
+      <div class="flex flex-wrap items-center justify-end gap-[12px]">
         <NButton v-if="editingPath" type="primary" @mousedown.prevent @click="submitPath">跳转</NButton>
         <NTooltip v-else>
           <template #trigger>
@@ -793,13 +793,13 @@ onMounted(async () => {
               </template>
             </NButton>
           </template>
-          <div class="favorite-popover">
-            <div class="favorite-title">收藏目录</div>
+          <div class="w-[min(360px,72vw)]">
+            <div class="mb-[10px] text-[13px] font-600" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'">收藏目录</div>
             <NEmpty v-if="fileStore.favoritePaths.length === 0" size="small" description="暂无收藏" />
             <NScrollbar v-else style="max-height: 260px">
-              <div class="favorite-list">
-                <div v-for="path in fileStore.favoritePaths" :key="path" class="favorite-item">
-                  <button type="button" class="favorite-jump" :title="path" @click="navigateToPath(path)">
+              <div class="flex flex-col gap-[6px]">
+                <div v-for="path in fileStore.favoritePaths" :key="path" class="flex min-w-0 items-center gap-[8px] rounded-[10px] py-[6px] pl-[10px] pr-[6px]" :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.5)]' : 'bg-[rgba(241,245,249,0.92)]'">
+                  <button type="button" class="btn-reset truncate-line flex-1 text-left hover:text-[rgba(96,165,250,0.95)]" :title="path" @click="navigateToPath(path)">
                     {{ path }}
                   </button>
                   <NButton quaternary circle size="tiny" @click.stop="removeFavoritePath(path)">
@@ -829,7 +829,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="actions-row">
+    <div class="flex w-full flex-wrap items-center justify-end gap-[12px]">
       <NButton @click="openCreate('directory')">
         <template #icon>
           <NIcon>
@@ -868,12 +868,12 @@ onMounted(async () => {
       :y="contextMenu.y" :options="contextMenuOptions" @clickoutside="closeContextMenu"
       @select="handleContextMenuSelect" />
 
-    <NCard v-if="selectedFile" size="small" class="details-panel">
-      <div class="details-line">
-        <span class="details-title">当前选择</span>
-        <span class="details-name">{{ selectedFiles.length > 1 ? `已选 ${selectedFiles.length} 项` : selectedFile.filename }}</span>
-        <span class="details-meta">{{ selectedFile.isDirectory ? '目录' : formatFileSize(selectedFile.size) }}</span>
-        <span class="details-meta">{{ formatModifyTime(selectedFile.modifyTime) }}</span>
+    <NCard v-if="selectedFile" size="small" class="details-panel rounded-[16px]" :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.56)]' : 'bg-[rgba(255,255,255,0.84)]'">
+      <div class="flex min-w-0 items-center gap-[12px] whitespace-nowrap">
+        <span class="flex-none text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">当前选择</span>
+        <span class="truncate-line">{{ selectedFiles.length > 1 ? `已选 ${selectedFiles.length} 项` : selectedFile.filename }}</span>
+        <span class="flex-none text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ selectedFile.isDirectory ? '目录' : formatFileSize(selectedFile.size) }}</span>
+        <span class="flex-none text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ formatModifyTime(selectedFile.modifyTime) }}</span>
       </div>
     </NCard>
 
@@ -892,190 +892,11 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.files-view {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 14px;
-  padding: 16px;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0.04));
-  outline: none;
-}
-
-.files-toolbar,
-.path-row,
-.actions-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.files-toolbar,
-.path-row {
-  justify-content: space-between;
-}
-
-.actions-row {
-  width: 100%;
-  justify-content: flex-end;
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.path-breadcrumbs {
-  flex: 1;
-  min-width: 240px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-}
-
-.path-editor {
-  flex: 1;
-  min-width: 240px;
-}
-
-.path-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.search-input {
-  width: min(280px, 60vw);
-}
-
 .path-editor :deep(.n-input) {
   width: 100%;
 }
 
-.breadcrumb-link {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.breadcrumb-link:hover {
-  color: rgba(96, 165, 250, 0.95);
-}
-
-.shortcut-popover {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-  color: rgba(226, 232, 240, 0.96);
-}
-
-.favorite-popover {
-  width: min(360px, 72vw);
-}
-
-.favorite-title {
-  margin-bottom: 10px;
-  color: rgba(226, 232, 240, 0.96);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.favorite-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.favorite-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  padding: 6px 6px 6px 10px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.5);
-}
-
-.favorite-jump {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.favorite-jump:hover {
-  color: rgba(96, 165, 250, 0.95);
-}
-
-.details-meta,
-.details-title {
-  color: rgba(148, 163, 184, 0.9);
-  font-size: 12px;
-}
-
-.details-line {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  white-space: nowrap;
-}
-
-.details-title,
-.details-meta {
-  flex: 0 0 auto;
-}
-
-.details-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.details-panel {
-  border-radius: 16px;
-  background: rgba(15, 23, 42, 0.56);
-}
-
 .details-panel :deep(.n-card__content) {
   padding: 8px 12px;
-}
-
-.files-view-light {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(226, 232, 240, 0.34));
-}
-
-.files-view-light .shortcut-popover {
-  color: rgba(51, 65, 85, 0.96);
-}
-
-.files-view-light .favorite-title {
-  color: rgba(51, 65, 85, 0.96);
-}
-
-.files-view-light .favorite-item {
-  background: rgba(241, 245, 249, 0.92);
-}
-
-.files-view-light .details-meta,
-.files-view-light .details-title {
-  color: rgba(100, 116, 139, 0.92);
-}
-
-.files-view-light .details-panel {
-  background: rgba(255, 255, 255, 0.84);
 }
 </style>

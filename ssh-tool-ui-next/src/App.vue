@@ -36,7 +36,7 @@ watch(
           <NMessageProvider>
             <NGlobalStyle />
             <UiApiBridge />
-            <div class="app-shell">
+            <div class="min-h-screen">
               <Transition name="fade" mode="out-in">
                 <DesktopShell v-if="sshStore.isConnected" />
                 <LoginScreen v-else />

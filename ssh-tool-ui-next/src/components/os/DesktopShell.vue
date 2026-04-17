@@ -83,14 +83,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="desktop-shell" :class="{ 'desktop-shell-light': !settingsStore.isDark }">
-    <div class="desktop-wallpaper" :style="desktopWallpaperStyle" />
-    <div class="desktop-noise" />
+  <div
+    class="relative min-h-screen overflow-hidden [--desktop-topbar-height:48px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:24px] [--desktop-dock-height:72px] [--desktop-dock-safe-area:calc(var(--desktop-dock-bottom-gap)_+_var(--desktop-dock-height)_+_16px)]"
+  >
+    <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="desktopWallpaperStyle" />
+    <div class="absolute inset-0 [backdrop-filter:saturate(108%)]" />
 
     <DesktopTopBar />
 
-    <main class="desktop-main">
-      <TransitionGroup name="desktop-window-anim" tag="div" class="desktop-window-layer">
+    <main class="absolute [inset:var(--desktop-topbar-height)_0_var(--desktop-dock-safe-area)]">
+      <TransitionGroup name="desktop-window-anim" tag="div" class="relative h-full w-full">
         <DesktopWindow v-for="window in windows" :key="window.id" :window="window" />
       </TransitionGroup>
     </main>
@@ -104,51 +106,22 @@ onUnmounted(() => {
       @select="selectWindow"
     />
 
-    <div class="desktop-status-card">
-      <div class="desktop-status-title">当前连接</div>
-      <div class="desktop-status-value">{{ sshStore.username }}@{{ sshStore.host }}</div>
-      <div class="desktop-status-meta">当前会话已接入桌面环境，可继续打开监控、终端和文件等工作窗口。</div>
+    <div
+      class="desktop-status-card absolute bottom-[var(--desktop-dock-safe-area)] right-[24px] z-[15] w-[280px] rounded-[18px] p-[16px] backdrop-blur-[16px]"
+      :class="[
+        settingsStore.isDark
+          ? 'border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.5)]'
+          : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.62)]',
+      ]"
+    >
+      <div class="text-[0.82rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.82)]'">当前连接</div>
+      <div class="mt-[6px] text-[1.1rem] font-600" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">{{ sshStore.username }}@{{ sshStore.host }}</div>
+      <div class="mt-[8px] text-[0.86rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.7)]' : 'text-[rgba(51,65,85,0.8)]'">当前会话已接入桌面环境，可继续打开监控、终端和文件等工作窗口。</div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.desktop-shell {
-  position: relative;
-  min-height: 100vh;
-  overflow: hidden;
-  --desktop-topbar-height: 48px;
-  --desktop-window-edge-gap: 16px;
-  --desktop-dock-bottom-gap: 24px;
-  --desktop-dock-height: 72px;
-  --desktop-dock-safe-area: calc(var(--desktop-dock-bottom-gap) + var(--desktop-dock-height) + 16px);
-}
-
-.desktop-wallpaper {
-  position: absolute;
-  inset: 0;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
-}
-
-.desktop-noise {
-  position: absolute;
-  inset: 0;
-  backdrop-filter: saturate(108%);
-}
-
-.desktop-main {
-  position: absolute;
-  inset: var(--desktop-topbar-height) 0 var(--desktop-dock-safe-area);
-}
-
-.desktop-window-layer {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
 .desktop-window-anim-enter-active,
 .desktop-window-anim-leave-active {
   transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -158,54 +131,6 @@ onUnmounted(() => {
 .desktop-window-anim-leave-to {
   opacity: 0;
   transform: scale(0.96) translateY(10px);
-}
-
-.desktop-status-card {
-  position: absolute;
-  right: 24px;
-  bottom: var(--desktop-dock-safe-area);
-  width: 280px;
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  backdrop-filter: blur(16px);
-  z-index: 15;
-}
-
-.desktop-status-title {
-  font-size: 0.82rem;
-  color: rgba(226, 232, 240, 0.68);
-}
-
-.desktop-status-value {
-  margin-top: 6px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #f8fafc;
-}
-
-.desktop-status-meta {
-  margin-top: 8px;
-  font-size: 0.86rem;
-  color: rgba(226, 232, 240, 0.7);
-}
-
-.desktop-shell-light .desktop-status-card {
-  background: rgba(255, 255, 255, 0.62);
-  border-color: rgba(148, 163, 184, 0.22);
-}
-
-.desktop-shell-light .desktop-status-title {
-  color: rgba(71, 85, 105, 0.82);
-}
-
-.desktop-shell-light .desktop-status-value {
-  color: #0f172a;
-}
-
-.desktop-shell-light .desktop-status-meta {
-  color: rgba(51, 65, 85, 0.8);
 }
 
 @media (max-width: 768px) {

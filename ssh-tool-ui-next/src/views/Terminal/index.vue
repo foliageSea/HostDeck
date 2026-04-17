@@ -61,25 +61,31 @@ async function copySelection() {
 </script>
 
 <template>
-  <div class="terminal-view" :class="{ 'terminal-view-light': !settingsStore.isDark }" @mousedown="showCopyButton = false" @mouseup="openCopyButton">
-    <div class="terminal-toolbar">
-      <div class="terminal-meta">
+  <div class="relative flex h-full flex-col" :class="[
+    settingsStore.isDark
+      ? 'bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.55),#020617_72%)]'
+      : 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.82),#f8fafc_72%)]',
+  ]" @mousedown="showCopyButton = false" @mouseup="openCopyButton">
+    <div class="flex items-center justify-between gap-[12px] border-b px-[14px] py-[10px]" :class="[
+      settingsStore.isDark
+        ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(2,6,23,0.72)] text-[#cbd5e1]'
+        : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.74)] text-[#334155]',
+    ]">
+      <div class="flex min-w-0 items-center gap-[10px] text-[13px]">
         <span>{{ sshStore.username || 'unknown' }}@{{ sshStore.host || 'localhost' }}</span>
-        <span v-if="cwd" class="terminal-cwd">{{ cwd }}</span>
+        <span v-if="cwd" class="truncate-line"
+          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(71,85,105,0.88)]'">{{ cwd
+          }}</span>
       </div>
 
       <NButton quaternary size="small" @click="showSettings = true">终端设置</NButton>
     </div>
 
-    <div ref="terminalContainer" class="terminal-container" />
+    <div ref="terminalContainer" class="min-h-0 flex-1 pl-2 pr-2" />
 
     <Teleport to="body">
-      <div
-        v-if="showCopyButton"
-        class="copy-floating"
-        :style="copyButtonStyle"
-        @mousedown.stop
-      >
+      <div v-if="showCopyButton" class="fixed z-[9999] translate-x-[-50%] translate-y-[calc(-100%_-_8px)]"
+        :style="copyButtonStyle" @mousedown.stop>
         <NButton size="small" type="primary" @click.stop="copySelection">复制</NButton>
       </div>
     </Teleport>
@@ -87,65 +93,3 @@ async function copySelection() {
     <TerminalSettingsModal v-model:show="showSettings" />
   </div>
 </template>
-
-<style scoped>
-.terminal-view {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.55), #020617 72%);
-}
-
-.terminal-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-  color: #cbd5e1;
-  background: rgba(2, 6, 23, 0.72);
-}
-
-.terminal-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  font-size: 13px;
-}
-
-.terminal-cwd {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: rgba(148, 163, 184, 0.92);
-}
-
-.terminal-container {
-  flex: 1;
-  min-height: 0;
-  padding: 12px;
-}
-
-.copy-floating {
-  position: fixed;
-  z-index: 9999;
-  transform: translate(-50%, calc(-100% - 8px));
-}
-
-.terminal-view-light {
-  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.82), #f8fafc 72%);
-}
-
-.terminal-view-light .terminal-toolbar {
-  border-bottom-color: rgba(148, 163, 184, 0.22);
-  color: #334155;
-  background: rgba(255, 255, 255, 0.74);
-}
-
-.terminal-view-light .terminal-cwd {
-  color: rgba(71, 85, 105, 0.88);
-}
-</style>

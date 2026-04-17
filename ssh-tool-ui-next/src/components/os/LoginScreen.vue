@@ -148,31 +148,43 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="login-screen" :class="{ 'login-screen-light': !settingsStore.isDark }">
-    <div class="login-overlay" :style="loginWallpaperStyle" />
-    <div class="login-layout">
-      <section class="login-panel hero-panel">
-        <div class="hero-badge">
+  <div class="relative min-h-screen overflow-hidden">
+    <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="loginWallpaperStyle" />
+    <div class="relative z-1 grid min-h-screen grid-cols-[minmax(320px,1.1fr)_minmax(360px,520px)] items-center gap-[24px] p-[40px] lt-lg:grid-cols-1 lt-lg:p-[20px]">
+      <section
+        class="rounded-[24px] p-[40px] backdrop-blur-[18px] lt-lg:p-[24px]"
+        :class="settingsStore.isDark ? 'glass-panel-dark' : 'glass-panel-light'"
+      >
+        <div
+          class="inline-flex items-center gap-[10px] rounded-full px-[14px] py-[10px]"
+          :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.48)] text-[#cbd5e1]' : 'bg-[rgba(255,255,255,0.7)] text-[#334155]'"
+        >
           <NIcon :size="26">
             <ServerProxy />
           </NIcon>
           <span>ssh-tool-ui-next</span>
         </div>
-        <h1>桌面式 SSH 工作台</h1>
-        <p>集中管理连接、监控、终端与文件操作，在统一桌面界面中完成常用远程运维流程。</p>
-        <div class="hero-meta">
-          <span>Naive UI</span>
-          <span>Pinia</span>
-          <span>Vue Query</span>
-          <span>Desktop Shell</span>
+        <h1 class="mb-[12px] mt-[20px] text-[clamp(2rem,5vw,3.75rem)] leading-[1.02]" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">桌面式 SSH 工作台</h1>
+        <p class="max-w-[600px] text-[1rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.76)]' : 'text-[rgba(51,65,85,0.8)]'">集中管理连接、监控、终端与文件操作，在统一桌面界面中完成常用远程运维流程。</p>
+        <div class="mt-[28px] flex flex-wrap gap-[10px]">
+          <span class="rounded-full border px-[12px] py-[8px] text-[0.92rem]" :class="settingsStore.isDark ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(59,130,246,0.14)] text-[#bfdbfe]' : 'border-[rgba(96,165,250,0.28)] bg-[rgba(219,234,254,0.78)] text-[#1d4ed8]'">Naive UI</span>
+          <span class="rounded-full border px-[12px] py-[8px] text-[0.92rem]" :class="settingsStore.isDark ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(59,130,246,0.14)] text-[#bfdbfe]' : 'border-[rgba(96,165,250,0.28)] bg-[rgba(219,234,254,0.78)] text-[#1d4ed8]'">Pinia</span>
+          <span class="rounded-full border px-[12px] py-[8px] text-[0.92rem]" :class="settingsStore.isDark ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(59,130,246,0.14)] text-[#bfdbfe]' : 'border-[rgba(96,165,250,0.28)] bg-[rgba(219,234,254,0.78)] text-[#1d4ed8]'">Vue Query</span>
+          <span class="rounded-full border px-[12px] py-[8px] text-[0.92rem]" :class="settingsStore.isDark ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(59,130,246,0.14)] text-[#bfdbfe]' : 'border-[rgba(96,165,250,0.28)] bg-[rgba(219,234,254,0.78)] text-[#1d4ed8]'">Desktop Shell</span>
         </div>
       </section>
 
-      <section class="login-panel form-panel" :class="{ 'form-panel-shake': isShaking }">
-        <div class="panel-header">
+      <section
+        class="rounded-[24px] p-[24px] backdrop-blur-[18px]"
+        :class="[
+          settingsStore.isDark ? 'glass-panel-dark' : 'glass-panel-light',
+          { 'form-panel-shake': isShaking },
+        ]"
+      >
+        <div class="mb-[18px] flex items-start justify-between gap-[12px]">
           <div>
-            <h2>连接服务器</h2>
-            <p>支持保存、编辑和快速复用服务器连接配置。</p>
+            <h2 class="mb-[4px] mt-0" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">连接服务器</h2>
+            <p class="m-0 text-[0.92rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.65)]' : 'text-[rgba(51,65,85,0.8)]'">支持保存、编辑和快速复用服务器连接配置。</p>
           </div>
           <NSpace>
             <NButton text @click="createServer">新建</NButton>
@@ -180,8 +192,8 @@ onMounted(() => {
           </NSpace>
         </div>
 
-        <div class="saved-servers">
-          <div class="saved-servers-header">
+        <div class="mb-[18px]">
+          <div class="mb-[12px] flex items-center justify-between text-[0.92rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.78)]' : 'text-[rgba(51,65,85,0.8)]'">
             <span>已保存服务器</span>
             <NButton text @click="sshStore.fetchServers">刷新</NButton>
           </div>
@@ -194,14 +206,17 @@ onMounted(() => {
               :key="server.id ?? `${server.host}-${server.port}`"
               size="small"
               embedded
-              class="server-card"
-              :class="{ 'server-card-active': selectedServer?.id === server.id }"
+              class="cursor-pointer transition-[transform,border-color,background-color] duration-[180ms] ease-in-out hover:translate-y-[-1px]"
+              :class="{
+                'border-[rgba(96,165,250,0.52)] bg-[rgba(30,41,59,0.78)]': selectedServer?.id === server.id && settingsStore.isDark,
+                'border-[rgba(59,130,246,0.38)] bg-[rgba(219,234,254,0.6)]': selectedServer?.id === server.id && !settingsStore.isDark,
+              }"
               @click="applyServer(server)"
             >
-              <div class="server-card-content">
+              <div class="flex items-center justify-between gap-[16px]">
                 <div>
-                  <div class="server-name">{{ server.name || server.host }}</div>
-                  <div class="server-desc">{{ server.username }}@{{ server.host }}:{{ server.port }}</div>
+                  <div class="font-600" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">{{ server.name || server.host }}</div>
+                  <div class="text-[0.85rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.68)]' : 'text-[rgba(51,65,85,0.8)]'">{{ server.username }}@{{ server.host }}:{{ server.port }}</div>
                 </div>
                 <NPopconfirm @positive-click="handleDeleteServer(server.id)">
                   <template #trigger>
@@ -226,7 +241,7 @@ onMounted(() => {
               <NInput v-model:value="form.host" placeholder="127.0.0.1" />
             </NFormItemGi>
             <NFormItemGi label="端口" path="port">
-              <NInputNumber v-model:value="form.port" :min="1" :max="65535" class="full-width" />
+              <NInputNumber v-model:value="form.port" :min="1" :max="65535" class="w-full" />
             </NFormItemGi>
           </NGrid>
 
@@ -279,190 +294,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.login-screen {
-  min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-}
-
-.login-overlay {
-  position: absolute;
-  inset: 0;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
-}
-
-.login-layout {
-  position: relative;
-  z-index: 1;
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(320px, 1.1fr) minmax(360px, 520px);
-  gap: 24px;
-  align-items: center;
-  padding: 40px;
-}
-
-.login-panel {
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(15, 23, 42, 0.58);
-  backdrop-filter: blur(18px);
-  border-radius: 24px;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
-}
-
-.hero-panel {
-  padding: 40px;
-}
-
-.hero-panel h1 {
-  margin: 20px 0 12px;
-  font-size: clamp(2rem, 5vw, 3.75rem);
-  line-height: 1.02;
-  color: #f8fafc;
-}
-
-.hero-panel p {
-  max-width: 600px;
-  font-size: 1rem;
-  color: rgba(226, 232, 240, 0.76);
-}
-
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.48);
-  color: #cbd5e1;
-}
-
-.hero-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 28px;
-}
-
-.hero-meta span {
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(59, 130, 246, 0.14);
-  border: 1px solid rgba(96, 165, 250, 0.24);
-  color: #bfdbfe;
-  font-size: 0.92rem;
-}
-
-.form-panel {
-  padding: 24px;
-}
-
 .form-panel-shake {
   animation: panel-shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
-}
-
-.panel-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-
-.panel-header h2 {
-  margin: 0 0 4px;
-  color: #f8fafc;
-}
-
-.panel-header p {
-  margin: 0;
-  color: rgba(226, 232, 240, 0.65);
-  font-size: 0.92rem;
-}
-
-.saved-servers {
-  margin-bottom: 18px;
-}
-
-.saved-servers-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  color: rgba(226, 232, 240, 0.78);
-  font-size: 0.92rem;
-}
-
-.server-card {
-  cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
-}
-
-.server-card:hover {
-  transform: translateY(-1px);
-}
-
-.server-card-active {
-  border-color: rgba(96, 165, 250, 0.52);
-  background: rgba(30, 41, 59, 0.78);
-}
-
-.server-card-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.server-name {
-  color: #f8fafc;
-  font-weight: 600;
-}
-
-.server-desc {
-  color: rgba(203, 213, 225, 0.68);
-  font-size: 0.85rem;
-}
-
-.full-width {
-  width: 100%;
-}
-
-.login-screen-light .login-panel {
-  border-color: rgba(148, 163, 184, 0.22);
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 24px 70px rgba(148, 163, 184, 0.2);
-}
-
-.login-screen-light .hero-panel h1,
-.login-screen-light .panel-header h2,
-.login-screen-light .server-name {
-  color: #0f172a;
-}
-
-.login-screen-light .hero-panel p,
-.login-screen-light .panel-header p,
-.login-screen-light .saved-servers-header,
-.login-screen-light .server-desc {
-  color: rgba(51, 65, 85, 0.8);
-}
-
-.login-screen-light .hero-badge {
-  background: rgba(255, 255, 255, 0.7);
-  color: #334155;
-}
-
-.login-screen-light .hero-meta span {
-  background: rgba(219, 234, 254, 0.78);
-  border-color: rgba(96, 165, 250, 0.28);
-  color: #1d4ed8;
-}
-
-.login-screen-light .server-card-active {
-  border-color: rgba(59, 130, 246, 0.38);
-  background: rgba(219, 234, 254, 0.6);
 }
 
 @keyframes panel-shake {
@@ -482,15 +315,4 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 960px) {
-  .login-layout {
-    grid-template-columns: 1fr;
-    padding: 20px;
-  }
-
-  .hero-panel,
-  .form-panel {
-    padding: 24px;
-  }
-}
 </style>

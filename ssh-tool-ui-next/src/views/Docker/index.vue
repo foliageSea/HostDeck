@@ -902,15 +902,15 @@ watch(logsTail, async (value, previous) => {
 </script>
 
 <template>
-  <div class="docker-view">
-    <div class="docker-header">
-      <div class="docker-header-main">
+  <div class="flex h-full flex-col gap-[16px] overflow-auto bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))] p-[18px]">
+    <div class="flex flex-col gap-[16px]">
+      <div class="flex flex-wrap items-start justify-between gap-[16px]">
         <div>
-          <div class="docker-title-row">
+          <div class="mb-[6px] flex items-center gap-[8px]">
             <NIcon :size="20"><Cube /></NIcon>
-            <h2>Docker 管理</h2>
+            <h2 class="m-0 text-[20px]">Docker 管理</h2>
           </div>
-          <p>查看容器与镜像状态，并执行常见运维操作。</p>
+          <p class="m-0 text-[rgba(226,232,240,0.72)]">查看容器与镜像状态，并执行常见运维操作。</p>
         </div>
 
         <NSpace>
@@ -922,7 +922,7 @@ watch(logsTail, async (value, previous) => {
           </NButton>
           <NInput
             v-model:value="pullImageName"
-            class="pull-input"
+            class="w-[min(320px,60vw)] lt-sm:w-full"
             placeholder="例如 nginx:latest"
             @keydown.enter.prevent="pullImage"
           >
@@ -940,22 +940,22 @@ watch(logsTail, async (value, previous) => {
         </NSpace>
       </div>
 
-      <div class="docker-summary">
-        <NCard size="small" :bordered="false" class="summary-card">
-          <div class="summary-label">运行中容器</div>
-          <div class="summary-value">{{ runningContainers }}</div>
+      <div class="docker-summary grid grid-cols-[repeat(4,minmax(0,1fr))] gap-[12px]">
+        <NCard size="small" :bordered="false" class="rounded-[18px] bg-[rgba(15,23,42,0.72)]">
+          <div class="text-[12px] text-[rgba(226,232,240,0.68)]">运行中容器</div>
+          <div class="mt-[6px] text-[28px] font-700">{{ runningContainers }}</div>
         </NCard>
-        <NCard size="small" :bordered="false" class="summary-card">
-          <div class="summary-label">已停止容器</div>
-          <div class="summary-value">{{ stoppedContainers }}</div>
+        <NCard size="small" :bordered="false" class="rounded-[18px] bg-[rgba(15,23,42,0.72)]">
+          <div class="text-[12px] text-[rgba(226,232,240,0.68)]">已停止容器</div>
+          <div class="mt-[6px] text-[28px] font-700">{{ stoppedContainers }}</div>
         </NCard>
-        <NCard size="small" :bordered="false" class="summary-card">
-          <div class="summary-label">镜像总数</div>
-          <div class="summary-value">{{ images.length }}</div>
+        <NCard size="small" :bordered="false" class="rounded-[18px] bg-[rgba(15,23,42,0.72)]">
+          <div class="text-[12px] text-[rgba(226,232,240,0.68)]">镜像总数</div>
+          <div class="mt-[6px] text-[28px] font-700">{{ images.length }}</div>
         </NCard>
-        <NCard size="small" :bordered="false" class="summary-card">
-          <div class="summary-label">悬空镜像</div>
-          <div class="summary-value">{{ danglingImages }}</div>
+        <NCard size="small" :bordered="false" class="rounded-[18px] bg-[rgba(15,23,42,0.72)]">
+          <div class="text-[12px] text-[rgba(226,232,240,0.68)]">悬空镜像</div>
+          <div class="mt-[6px] text-[28px] font-700">{{ danglingImages }}</div>
         </NCard>
       </div>
     </div>
@@ -971,11 +971,11 @@ watch(logsTail, async (value, previous) => {
       <NTabs v-else v-model:value="activeTab" type="segment" animated class="docker-tabs">
         <NTabPane name="containers" tab="容器">
           <div class="container-tab-content">
-            <div class="container-batch-bar">
+            <div class="mb-[12px] flex flex-wrap items-start justify-between gap-[12px]">
               <NSpace>
                 <NSelect
                   v-model:value="containerStatusFilter"
-                  class="container-status-filter"
+                  class="w-[128px]"
                   :options="containerStatusOptions"
                   size="small"
                 />
@@ -1006,7 +1006,7 @@ watch(logsTail, async (value, previous) => {
 
         <NTabPane name="images" tab="镜像">
           <div class="image-tab-content">
-            <div class="image-toolbar-note">支持镜像重新打标签、查看构建历史和引用容器。</div>
+            <div class="mb-[12px] text-[13px] text-[rgba(226,232,240,0.68)]">支持镜像重新打标签、查看构建历史和引用容器。</div>
             <div class="docker-table-shell">
               <NDataTable
                 class="docker-table"
@@ -1023,12 +1023,12 @@ watch(logsTail, async (value, previous) => {
     </NSpin>
 
     <NModal v-model:show="logsVisible" preset="card" :title="logsTitle" class="logs-modal" style="width: min(960px, 92vw)">
-      <div class="logs-toolbar">
+      <div class="mb-[12px] flex flex-wrap items-center gap-[10px]">
         <NInputNumber v-model:value="logsTail" :min="20" :max="5000" :step="20" placeholder="Tail" />
         <NInput v-model:value="logsKeyword" placeholder="过滤日志关键字" clearable />
         <NSwitch v-model:value="logsAutoRefresh" />
-        <span class="logs-meta">自动刷新</span>
-        <span class="logs-meta">更新于 {{ formatDateTime(logsLastUpdatedAt) }}</span>
+        <span class="text-[12px] text-[rgba(226,232,240,0.68)]">自动刷新</span>
+        <span class="text-[12px] text-[rgba(226,232,240,0.68)]">更新于 {{ formatDateTime(logsLastUpdatedAt) }}</span>
         <NSpace>
           <NButton quaternary :loading="logsRefreshing" @click="refreshLogs()">刷新日志</NButton>
           <NButton quaternary @click="copyLogs">
@@ -1046,7 +1046,7 @@ watch(logsTail, async (value, previous) => {
         </NSpace>
       </div>
       <NSpin :show="logsLoading">
-        <pre class="logs-content">{{ displayedLogs }}</pre>
+        <pre class="mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] bg-[rgba(2,6,23,0.9)] p-[14px] text-[12px] leading-[1.6] text-[#dbeafe]">{{ displayedLogs }}</pre>
       </NSpin>
     </NModal>
 
@@ -1058,7 +1058,7 @@ watch(logsTail, async (value, previous) => {
       style="width: min(960px, 92vw)"
     >
       <NSpin :show="inspectLoading">
-        <pre class="logs-content">{{ inspectContent ? JSON.stringify(inspectContent, null, 2) : '' }}</pre>
+        <pre class="mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] bg-[rgba(2,6,23,0.9)] p-[14px] text-[12px] leading-[1.6] text-[#dbeafe]">{{ inspectContent ? JSON.stringify(inspectContent, null, 2) : '' }}</pre>
       </NSpin>
     </NModal>
 
@@ -1193,73 +1193,6 @@ watch(logsTail, async (value, previous) => {
 </template>
 
 <style scoped>
-.docker-view {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 16px;
-  padding: 18px;
-  overflow: auto;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0.06));
-}
-
-.docker-header {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.docker-header-main {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.docker-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.docker-title-row h2 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.docker-header-main p {
-  margin: 0;
-  color: rgba(226, 232, 240, 0.72);
-}
-
-.pull-input {
-  width: min(320px, 60vw);
-}
-
-.docker-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.summary-card {
-  border-radius: 18px;
-  background: rgba(15, 23, 42, 0.72);
-}
-
-.summary-label {
-  color: rgba(226, 232, 240, 0.68);
-  font-size: 12px;
-}
-
-.summary-value {
-  margin-top: 6px;
-  font-size: 28px;
-  font-weight: 700;
-}
-
 .docker-body {
   flex: none;
 }
@@ -1291,19 +1224,6 @@ watch(logsTail, async (value, previous) => {
 .image-tab-content {
   display: flex;
   flex-direction: column;
-}
-
-.container-batch-bar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.container-status-filter {
-  width: 128px;
 }
 
 .docker-table-shell {
@@ -1342,40 +1262,6 @@ watch(logsTail, async (value, previous) => {
   max-width: 260px;
 }
 
-.image-toolbar-note {
-  margin-bottom: 12px;
-  color: rgba(226, 232, 240, 0.68);
-  font-size: 13px;
-}
-
-.logs-content {
-  max-height: 65vh;
-  margin: 0;
-  padding: 14px;
-  overflow: auto;
-  border-radius: 14px;
-  background: rgba(2, 6, 23, 0.9);
-  color: #dbeafe;
-  font-family: Consolas, 'Cascadia Mono', 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.logs-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.logs-meta {
-  color: rgba(226, 232, 240, 0.68);
-  font-size: 12px;
-}
-
 @media (max-width: 960px) {
   .docker-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1388,8 +1274,5 @@ watch(logsTail, async (value, previous) => {
     grid-template-columns: 1fr;
   }
 
-  .pull-input {
-    width: 100%;
-  }
 }
 </style>

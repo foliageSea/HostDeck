@@ -191,11 +191,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="editor-view">
-    <div class="editor-toolbar">
-      <div class="editor-meta">
+  <div class="flex h-full flex-col bg-[rgba(15,23,42,0.2)]">
+    <div class="flex items-center justify-between gap-[12px] border-b border-[rgba(148,163,184,0.14)] px-[14px] py-[12px]">
+      <div class="flex min-w-0 flex-col gap-[4px]">
         <strong>{{ filename }}</strong>
-        <span>{{ props.path }}</span>
+        <span class="truncate-line text-[12px] text-[rgba(148,163,184,0.9)]">{{ props.path }}</span>
       </div>
 
       <NSpace>
@@ -205,65 +205,22 @@ onBeforeUnmount(() => {
       </NSpace>
     </div>
 
-    <NSpin :show="loading" class="editor-body">
+    <NSpin :show="loading" class="editor-body flex-1 min-h-0 p-[12px]">
       <NResult v-if="error" status="error" title="无法读取文件" :description="error">
         <template #footer>
           <NButton @click="loadFile">重试</NButton>
         </template>
       </NResult>
 
-      <div v-else ref="editorContainer" class="editor-input" />
+      <div v-else ref="editorContainer" class="h-full min-h-0 overflow-hidden" />
     </NSpin>
   </div>
 </template>
 
 <style scoped>
-.editor-view {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: rgba(15, 23, 42, 0.2);
-}
-
-.editor-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-}
-
-.editor-meta {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 4px;
-}
-
-.editor-meta span {
-  color: rgba(148, 163, 184, 0.9);
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.editor-body {
-  flex: 1;
-  min-height: 0;
-  padding: 12px;
-}
-
 .editor-body :deep(.n-spin-body),
 .editor-body :deep(.n-spin-content) {
   height: 100%;
   min-height: 0;
-}
-
-.editor-input {
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
 }
 </style>

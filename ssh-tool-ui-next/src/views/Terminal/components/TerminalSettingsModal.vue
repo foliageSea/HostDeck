@@ -22,7 +22,7 @@ const settingsStore = useSettingsStore()
   >
     <NSpace vertical size="large">
       <div>
-        <div class="setting-label">字体大小</div>
+        <div class="mb-[10px] text-[13px] text-[rgba(148,163,184,0.92)]">字体大小</div>
         <NSlider
           :value="settingsStore.terminalFontSize"
           :min="8"
@@ -32,7 +32,7 @@ const settingsStore = useSettingsStore()
       </div>
 
       <div>
-        <div class="setting-label">字体名称</div>
+        <div class="mb-[10px] text-[13px] text-[rgba(148,163,184,0.92)]">字体名称</div>
         <NInput
           :value="settingsStore.terminalFontFamily"
           placeholder="例如 Consolas, monospace"
@@ -47,11 +47,3 @@ const settingsStore = useSettingsStore()
     </NSpace>
   </NModal>
 </template>
-
-<style scoped>
-.setting-label {
-  margin-bottom: 10px;
-  font-size: 13px;
-  color: rgba(148, 163, 184, 0.92);
-}
-</style>

@@ -19,10 +19,10 @@ const wallpaperSettings = computed(() =>
 
 <template>
   <section class="wallpaper-section">
-    <div class="wallpaper-header">
+    <div class="mb-[16px] flex items-start justify-between gap-[16px] lt-md:flex-col">
       <div>
-        <h3>{{ title }}</h3>
-        <p>{{ description }}</p>
+        <h3 class="m-0 text-[1rem]">{{ title }}</h3>
+        <p class="mb-0 mt-[6px] text-[0.9rem] text-[rgba(100,116,139,0.92)]">{{ description }}</p>
       </div>
       <NSpace>
         <NButton secondary @click="controller.openWallpaperPicker(target)">上传图片</NButton>
@@ -38,23 +38,23 @@ const wallpaperSettings = computed(() =>
           controller.loginWallpaperInput.value = el as HTMLInputElement | null
         }
       }"
-      class="wallpaper-file-input"
+      class="hidden"
       type="file"
       accept="image/*"
       @change="controller.handleWallpaperUpload(target, $event)"
     >
 
-    <div class="wallpaper-grid">
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-[14px]">
       <button
         type="button"
-        class="wallpaper-option"
-        :class="{ 'wallpaper-option-active': controller.isDefaultActive(target) }"
+        class="border border-[rgba(148,163,184,0.22)] rounded-[16px] bg-[rgba(255,255,255,0.72)] p-[10px] text-left text-inherit transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-1px] cursor-pointer"
+        :class="{ 'border-[rgba(59,130,246,0.56)] shadow-[0_0_0_1px_rgba(96,165,250,0.22)]': controller.isDefaultActive(target) }"
         @click="controller.resetWallpaper(target)"
       >
-        <div class="wallpaper-preview wallpaper-preview-default" :class="target === 'desktop' ? 'desktop-default-preview' : 'login-default-preview'" />
-        <div class="wallpaper-option-meta">
-          <strong>默认</strong>
-          <span>{{ defaultLabel }}</span>
+        <div class="wallpaper-preview-default relative h-[92px] overflow-hidden rounded-[12px] bg-[rgba(148,163,184,0.14)] bg-cover bg-center bg-no-repeat" :class="target === 'desktop' ? 'desktop-default-preview' : 'login-default-preview'" />
+        <div class="mt-[10px] grid gap-[4px]">
+          <strong class="text-[0.94rem]">默认</strong>
+          <span class="text-[0.84rem] text-[rgba(100,116,139,0.92)]">{{ defaultLabel }}</span>
         </div>
       </button>
 
@@ -62,29 +62,32 @@ const wallpaperSettings = computed(() =>
         v-for="preset in wallpaperPresets"
         :key="`${target}-${preset.id}`"
         type="button"
-        class="wallpaper-option"
-        :class="{ 'wallpaper-option-active': controller.isPresetActive(target, preset.id) }"
+        class="border border-[rgba(148,163,184,0.22)] rounded-[16px] bg-[rgba(255,255,255,0.72)] p-[10px] text-left text-inherit transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-1px] cursor-pointer"
+        :class="{ 'border-[rgba(59,130,246,0.56)] shadow-[0_0_0_1px_rgba(96,165,250,0.22)]': controller.isPresetActive(target, preset.id) }"
         @click="controller.setPresetWallpaper(target, preset.id)"
       >
-        <div class="wallpaper-preview" :style="{ background: preset.background }" />
-        <div class="wallpaper-option-meta">
-          <strong>{{ preset.label }}</strong>
-          <span>{{ presetLabel }}</span>
+        <div class="relative h-[92px] overflow-hidden rounded-[12px] bg-[rgba(148,163,184,0.14)] bg-cover bg-center bg-no-repeat" :style="{ background: preset.background }" />
+        <div class="mt-[10px] grid gap-[4px]">
+          <strong class="text-[0.94rem]">{{ preset.label }}</strong>
+          <span class="text-[0.84rem] text-[rgba(100,116,139,0.92)]">{{ presetLabel }}</span>
         </div>
       </button>
 
-      <div class="wallpaper-option wallpaper-option-static" :class="{ 'wallpaper-option-active': controller.isCustomActive(target) }">
+      <div
+        class="border border-[rgba(148,163,184,0.22)] rounded-[16px] bg-[rgba(255,255,255,0.72)] p-[10px] text-left text-inherit transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out cursor-default"
+        :class="{ 'border-[rgba(59,130,246,0.56)] shadow-[0_0_0_1px_rgba(96,165,250,0.22)]': controller.isCustomActive(target) }"
+      >
         <div
-          class="wallpaper-preview"
+          class="relative h-[92px] overflow-hidden rounded-[12px] bg-[rgba(148,163,184,0.14)] bg-cover bg-center bg-no-repeat"
           :style="wallpaperSettings.customDataUrl
             ? { backgroundImage: `url(${wallpaperSettings.customDataUrl})`, backgroundPosition: 'center', backgroundSize: 'cover' }
             : undefined"
         >
-          <span v-if="!wallpaperSettings.customDataUrl" class="wallpaper-empty">未上传</span>
+          <span v-if="!wallpaperSettings.customDataUrl" class="absolute inset-0 flex items-center justify-center bg-[rgba(255,255,255,0.46)] text-[0.84rem] text-[rgba(71,85,105,0.9)]">未上传</span>
         </div>
-        <div class="wallpaper-option-meta">
-          <strong>自定义图片</strong>
-          <span>最大 10MB</span>
+        <div class="mt-[10px] grid gap-[4px]">
+          <strong class="text-[0.94rem]">自定义图片</strong>
+          <span class="text-[0.84rem] text-[rgba(100,116,139,0.92)]">最大 10MB</span>
         </div>
       </div>
     </div>
@@ -92,70 +95,6 @@ const wallpaperSettings = computed(() =>
 </template>
 
 <style scoped>
-.wallpaper-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.wallpaper-header h3 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.wallpaper-header p {
-  margin: 6px 0 0;
-  color: rgba(100, 116, 139, 0.92);
-  font-size: 0.9rem;
-}
-
-.wallpaper-file-input {
-  display: none;
-}
-
-.wallpaper-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 14px;
-}
-
-.wallpaper-option {
-  padding: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.72);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-}
-
-.wallpaper-option:hover {
-  transform: translateY(-1px);
-}
-
-.wallpaper-option-active {
-  border-color: rgba(59, 130, 246, 0.56);
-  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.22);
-}
-
-.wallpaper-option-static {
-  cursor: default;
-}
-
-.wallpaper-preview {
-  position: relative;
-  height: 92px;
-  border-radius: 12px;
-  background-color: rgba(148, 163, 184, 0.14);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
-  overflow: hidden;
-}
-
 .wallpaper-preview-default.desktop-default-preview {
   background:
     radial-gradient(circle at 15% 18%, rgba(59, 130, 246, 0.16), transparent 24%),
@@ -168,37 +107,5 @@ const wallpaperSettings = computed(() =>
     radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.2), transparent 24%),
     radial-gradient(circle at 80% 16%, rgba(168, 85, 247, 0.18), transparent 22%),
     linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.92));
-}
-
-.wallpaper-option-meta {
-  display: grid;
-  gap: 4px;
-  margin-top: 10px;
-}
-
-.wallpaper-option-meta strong {
-  font-size: 0.94rem;
-}
-
-.wallpaper-option-meta span {
-  color: rgba(100, 116, 139, 0.92);
-  font-size: 0.84rem;
-}
-
-.wallpaper-empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(71, 85, 105, 0.9);
-  font-size: 0.84rem;
-  background: rgba(255, 255, 255, 0.46);
-}
-
-@media (max-width: 768px) {
-  .wallpaper-header {
-    flex-direction: column;
-  }
 }
 </style>

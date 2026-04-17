@@ -7,7 +7,7 @@ const { settingsStore } = controller
 </script>
 
 <template>
-  <div class="settings-view">
+  <div class="settings-view scrollbar-none grid h-full gap-[20px] overflow-y-auto p-[20px] lt-md:p-[16px]">
     <NCard title="基础设置" size="large">
       <NForm label-placement="top">
         <NFormItem label="主题模式">
@@ -47,16 +47,6 @@ const { settingsStore } = controller
 </template>
 
 <style scoped>
-.settings-view {
-  height: 100%;
-  padding: 20px;
-  display: grid;
-  gap: 20px;
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
 .settings-view::-webkit-scrollbar {
   width: 0;
   height: 0;
@@ -67,9 +57,4 @@ const { settingsStore } = controller
   padding-top: 4px;
 }
 
-@media (max-width: 768px) {
-  .settings-view {
-    padding: 16px;
-  }
-}
 </style>

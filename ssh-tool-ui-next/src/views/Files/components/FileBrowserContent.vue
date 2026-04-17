@@ -182,170 +182,88 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="contentRef"
-    class="files-content"
-    :class="{ 'files-content-light': !settingsStore.isDark, 'files-content-selecting': selectionState?.active }"
+    class="files-content relative min-h-0 flex-1 overflow-auto p-[4px]"
+    :class="{ 'files-content-light': !settingsStore.isDark, 'select-none': selectionState?.active }"
     @contextmenu="handleBlankContextMenu"
     @pointercancel="finishSelection"
     @pointerdown="handlePointerDown"
     @pointermove="handlePointerMove"
     @pointerup="finishSelection"
   >
-    <div v-if="loading" class="files-loading">
+    <div v-if="loading" class="flex h-full min-h-[260px] items-center justify-center">
       <NSpin size="large" />
     </div>
 
     <template v-else>
-      <NEmpty v-if="files.length === 0" description="当前目录没有文件" class="files-empty" />
+      <NEmpty v-if="files.length === 0" description="当前目录没有文件" class="flex h-full min-h-[260px] items-center justify-center" />
 
-      <div v-else-if="viewMode === 'grid'" class="file-grid">
+      <div v-else-if="viewMode === 'grid'" class="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-[12px]">
         <button
           v-for="file in files"
           :key="file.filename"
           :data-file-name="file.filename"
           type="button"
-          class="file-card"
-          :class="{ 'file-card-active': selectedNames.includes(file.filename) }"
+          class="flex min-h-[130px] flex-col items-center justify-center gap-[10px] rounded-[16px] border p-[14px] text-center text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
+          :class="[
+            settingsStore.isDark
+              ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.62)] hover:border-[rgba(96,165,250,0.55)] hover:bg-[rgba(30,41,59,0.86)]'
+              : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.84)] hover:border-[rgba(59,130,246,0.34)] hover:bg-[rgba(219,234,254,0.68)]',
+            selectedNames.includes(file.filename)
+              ? settingsStore.isDark
+                ? 'border-[rgba(96,165,250,0.55)] bg-[rgba(30,41,59,0.86)]'
+                : 'border-[rgba(59,130,246,0.34)] bg-[rgba(219,234,254,0.68)]'
+              : '',
+          ]"
           @click="emit('clickFile', file, $event)"
           @contextmenu="handleFileContextMenu(file, $event)"
           @dblclick="emit('openFile', file)"
         >
-          <NIcon size="28" class="file-icon" :class="getFileIconClass(file)">
+          <NIcon size="28" class="flex-none" :class="getFileIconClass(file)">
             <component :is="getFileIcon(file).icon" />
           </NIcon>
-          <div class="file-name">{{ file.filename }}</div>
-          <div class="file-meta">{{ file.isDirectory ? '目录' : formatFileSize(file.size) }}</div>
+          <div class="max-w-full truncate-line">{{ file.filename }}</div>
+          <div class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ file.isDirectory ? '目录' : formatFileSize(file.size) }}</div>
         </button>
       </div>
 
-      <div v-else class="file-list">
+      <div v-else class="flex flex-col gap-[8px]">
         <button
           v-for="file in files"
           :key="file.filename"
           :data-file-name="file.filename"
           type="button"
-          class="file-row"
-          :class="{ 'file-row-active': selectedNames.includes(file.filename) }"
+          class="file-row grid grid-cols-[minmax(0,1fr)_120px_180px] items-center gap-[12px] rounded-[14px] border px-[14px] py-[12px] text-left text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
+          :class="[
+            settingsStore.isDark
+              ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.62)] hover:border-[rgba(96,165,250,0.55)] hover:bg-[rgba(30,41,59,0.86)]'
+              : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.84)] hover:border-[rgba(59,130,246,0.34)] hover:bg-[rgba(219,234,254,0.68)]',
+            selectedNames.includes(file.filename)
+              ? settingsStore.isDark
+                ? 'border-[rgba(96,165,250,0.55)] bg-[rgba(30,41,59,0.86)]'
+                : 'border-[rgba(59,130,246,0.34)] bg-[rgba(219,234,254,0.68)]'
+              : '',
+          ]"
           @click="emit('clickFile', file, $event)"
           @contextmenu="handleFileContextMenu(file, $event)"
           @dblclick="emit('openFile', file)"
         >
-          <div class="file-row-main">
-            <NIcon size="20" class="file-icon" :class="getFileIconClass(file)">
+          <div class="flex min-w-0 items-center gap-[10px]">
+            <NIcon size="20" class="flex-none" :class="getFileIconClass(file)">
               <component :is="getFileIcon(file).icon" />
             </NIcon>
-            <span class="file-name">{{ file.filename }}</span>
+            <span class="truncate-line">{{ file.filename }}</span>
           </div>
-          <span class="file-row-size">{{ file.isDirectory ? '-' : formatFileSize(file.size) }}</span>
-          <span class="file-row-time">{{ formatModifyTime(file.modifyTime) }}</span>
+          <span class="file-row-size text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ file.isDirectory ? '-' : formatFileSize(file.size) }}</span>
+          <span class="file-row-time text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ formatModifyTime(file.modifyTime) }}</span>
         </button>
       </div>
     </template>
 
-    <div v-if="selectionState?.active" class="selection-box" :style="selectionBoxStyle" />
+    <div v-if="selectionState?.active" class="pointer-events-none absolute z-5 rounded-[8px] border border-[rgba(96,165,250,0.72)] bg-[rgba(96,165,250,0.16)] shadow-[inset_0_0_0_1px_rgba(96,165,250,0.16)]" :style="selectionBoxStyle" />
   </div>
 </template>
 
 <style scoped>
-.files-content {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 4px;
-}
-
-.files-content-selecting {
-  user-select: none;
-}
-
-.selection-box {
-  position: absolute;
-  z-index: 5;
-  pointer-events: none;
-  border: 1px solid rgba(96, 165, 250, 0.72);
-  border-radius: 8px;
-  background: rgba(96, 165, 250, 0.16);
-  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.16) inset;
-}
-
-.files-empty {
-  height: 100%;
-  min-height: 260px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.files-loading {
-  height: 100%;
-  min-height: 260px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.file-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 12px;
-}
-
-.file-card,
-.file-row {
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(15, 23, 42, 0.62);
-  color: inherit;
-  cursor: pointer;
-  transition: 160ms ease;
-}
-
-.file-card:hover,
-.file-row:hover,
-.file-card-active,
-.file-row-active {
-  border-color: rgba(96, 165, 250, 0.55);
-  background: rgba(30, 41, 59, 0.86);
-}
-
-.file-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 130px;
-  padding: 14px;
-  border-radius: 16px;
-  text-align: center;
-}
-
-.file-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.file-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 180px;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  text-align: left;
-}
-
-.file-row-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.file-icon {
-  flex: 0 0 auto;
-}
-
 .file-icon-folder {
   color: rgba(96, 165, 250, 0.96);
 }
@@ -384,40 +302,6 @@ onBeforeUnmount(() => {
 
 .file-icon-default {
   color: rgba(148, 163, 184, 0.96);
-}
-
-.file-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-
-.file-meta,
-.file-row-size,
-.file-row-time {
-  color: rgba(148, 163, 184, 0.9);
-  font-size: 12px;
-}
-
-.files-content-light .file-card,
-.files-content-light .file-row {
-  border-color: rgba(148, 163, 184, 0.22);
-  background: rgba(255, 255, 255, 0.84);
-}
-
-.files-content-light .file-card:hover,
-.files-content-light .file-row:hover,
-.files-content-light .file-card-active,
-.files-content-light .file-row-active {
-  border-color: rgba(59, 130, 246, 0.34);
-  background: rgba(219, 234, 254, 0.68);
-}
-
-.files-content-light .file-meta,
-.files-content-light .file-row-size,
-.files-content-light .file-row-time {
-  color: rgba(100, 116, 139, 0.92);
 }
 
 .files-content-light .file-icon-folder {

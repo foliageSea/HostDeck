@@ -183,32 +183,72 @@ function handleContextMenuSelect(key: string | number) {
 </script>
 
 <template>
-  <footer ref="selectorTarget" class="desktop-dock" :class="{ 'desktop-dock-light': !settingsStore.isDark }"
-    @contextmenu.prevent>
-    <div v-for="app in dockApps" :key="app.id" class="dock-entry">
-      <button class="dock-item" :class="{
-        'dock-item-open': isAppOpen(app.id),
-        'dock-item-bounce': bouncingAppId === app.id,
-      }" type="button" :title="app.title" :aria-label="app.title" @click="handleOpen($event, app.id)"
+  <footer
+    ref="selectorTarget"
+    class="desktop-dock absolute bottom-[24px] left-1/2 z-20 flex translate-x-[-50%] items-center gap-[12px] rounded-[24px] p-[10px] backdrop-blur-[16px]"
+    :class="[
+      settingsStore.isDark
+        ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.56)]'
+        : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.66)]',
+    ]"
+    @contextmenu.prevent
+  >
+    <div v-for="app in dockApps" :key="app.id" class="dock-entry relative">
+      <button
+        class="dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color] duration-[180ms] ease-in-out hover:translate-y-[-2px] cursor-pointer"
+        :class="[
+          settingsStore.isDark
+            ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0] hover:bg-[rgba(51,65,85,0.92)]'
+            : 'bg-[rgba(241,245,249,0.88)] text-[#1e293b] hover:bg-[rgba(226,232,240,0.96)]',
+          isAppOpen(app.id)
+            ? settingsStore.isDark
+              ? 'translate-y-[-2px] bg-[rgba(51,65,85,0.92)]'
+              : 'translate-y-[-2px] bg-[rgba(226,232,240,0.96)]'
+            : '',
+          { 'dock-item-bounce': bouncingAppId === app.id },
+        ]"
+        type="button"
+        :title="app.title"
+        :aria-label="app.title"
+        @click="handleOpen($event, app.id)"
         @contextmenu="handleContextMenu($event, app.id)" @keydown="handleTriggerKeydown($event, app.id)">
         <AppIcon :name="app.icon" :size="24" />
-        <span v-if="isAppOpen(app.id)" class="dock-item-indicator" aria-hidden="true" />
+        <span v-if="isAppOpen(app.id)" class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[#60a5fa]" aria-hidden="true" />
       </button>
 
     </div>
 
     <Teleport to="body">
-      <div v-if="selectorAppId && selectorPosition" ref="selectorPanel" class="dock-selector" :style="{
+      <div
+        v-if="selectorAppId && selectorPosition"
+        ref="selectorPanel"
+        class="fixed z-[9999] w-[220px] translate-x-[-50%] translate-y-[-100%] rounded-[16px] p-[10px]"
+        :class="[
+          settingsStore.isDark
+            ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.9)] shadow-[0_24px_70px_rgba(2,6,23,0.35)]'
+            : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.94)] shadow-[0_24px_70px_rgba(148,163,184,0.22)]',
+        ]"
+        :style="{
         left: `${selectorPosition.x}px`,
         top: `${selectorPosition.y}px`,
-      }">
-        <div class="dock-selector-title">选择窗口</div>
-        <button v-for="window in selectorWindows" :key="window.id" type="button" class="dock-selector-item"
+      }"
+      >
+        <div class="mb-[8px] text-[0.78rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.62)]' : 'text-[rgba(71,85,105,0.84)]'">选择窗口</div>
+        <button
+          v-for="window in selectorWindows"
+          :key="window.id"
+          type="button"
+          class="mb-[6px] flex w-full items-center justify-between rounded-[12px] border-0 px-[10px] py-[8px] cursor-pointer"
+          :class="[
+            settingsStore.isDark
+              ? 'bg-[rgba(30,41,59,0.7)] text-[#e2e8f0] hover:bg-[rgba(51,65,85,0.92)]'
+              : 'bg-[rgba(241,245,249,0.92)] text-[#1e293b] hover:bg-[rgba(226,232,240,0.96)]',
+          ]"
           @click="activateWindow(window.id)">
           <span>{{ window.title }}</span>
-          <span v-if="desktopStore.activeWindowId === window.id" class="dock-selector-indicator" />
+          <span v-if="desktopStore.activeWindowId === window.id" class="h-[8px] w-[8px] rounded-full bg-[#60a5fa]" />
         </button>
-        <div class="dock-selector-actions">
+        <div class="mt-[8px] flex gap-[8px]">
           <NButton secondary size="small" @click="openNewWindow(selectorAppId)">新建窗口</NButton>
           <NButton tertiary size="small" type="error" @click="closeAppWindows(selectorAppId)">关闭全部</NButton>
         </div>
@@ -222,110 +262,8 @@ function handleContextMenuSelect(key: string | number) {
 </template>
 
 <style scoped>
-.desktop-dock {
-  position: absolute;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px;
-  border-radius: 24px;
-  background: rgba(15, 23, 42, 0.56);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  backdrop-filter: blur(16px);
-  z-index: 20;
-}
-
-.dock-entry {
-  position: relative;
-}
-
-.dock-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  padding: 0;
-  border-radius: 16px;
-  border: none;
-  color: #e2e8f0;
-  background: rgba(30, 41, 59, 0.72);
-  cursor: pointer;
-  transition: transform 0.18s ease, background-color 0.18s ease;
-}
-
-.dock-item:hover,
-.dock-item-open {
-  transform: translateY(-2px);
-  background: rgba(51, 65, 85, 0.92);
-}
-
 .dock-item-bounce {
   animation: dock-bounce 0.38s ease;
-}
-
-.dock-item-indicator {
-  position: absolute;
-  left: 50%;
-  bottom: 4px;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: #60a5fa;
-  transform: translateX(-50%);
-}
-
-.dock-selector {
-  position: fixed;
-  transform: translate(-50%, -100%);
-  width: 220px;
-  padding: 10px;
-  border-radius: 16px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  box-shadow: 0 24px 70px rgba(2, 6, 23, 0.35);
-  z-index: 9999;
-}
-
-.dock-selector-title {
-  margin-bottom: 8px;
-  font-size: 0.78rem;
-  color: rgba(226, 232, 240, 0.62);
-}
-
-.dock-selector-item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 12px;
-  background: rgba(30, 41, 59, 0.7);
-  color: #e2e8f0;
-  cursor: pointer;
-}
-
-.dock-selector-item:hover {
-  background: rgba(51, 65, 85, 0.92);
-}
-
-.dock-selector-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #60a5fa;
-}
-
-.dock-selector-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
 }
 
 @keyframes dock-bounce {
@@ -361,37 +299,4 @@ function handleContextMenuSelect(key: string | number) {
   }
 }
 
-.desktop-dock-light {
-  background: rgba(255, 255, 255, 0.66);
-  border-color: rgba(148, 163, 184, 0.22);
-}
-
-.desktop-dock-light .dock-item {
-  color: #1e293b;
-  background: rgba(241, 245, 249, 0.88);
-}
-
-.desktop-dock-light .dock-item:hover,
-.desktop-dock-light .dock-item-open {
-  background: rgba(226, 232, 240, 0.96);
-}
-
-.desktop-dock-light .dock-selector {
-  background: rgba(255, 255, 255, 0.94);
-  border-color: rgba(148, 163, 184, 0.22);
-  box-shadow: 0 24px 70px rgba(148, 163, 184, 0.22);
-}
-
-.desktop-dock-light .dock-selector-title {
-  color: rgba(71, 85, 105, 0.84);
-}
-
-.desktop-dock-light .dock-selector-item {
-  background: rgba(241, 245, 249, 0.92);
-  color: #1e293b;
-}
-
-.desktop-dock-light .dock-selector-item:hover {
-  background: rgba(226, 232, 240, 0.96);
-}
 </style>

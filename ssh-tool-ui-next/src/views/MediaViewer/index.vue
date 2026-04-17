@@ -154,11 +154,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="media-viewer" :class="{ 'media-viewer-light': !settingsStore.isDark }">
-    <div class="media-toolbar">
-      <div class="media-title">
-        <strong>{{ filename }}</strong>
-        <span v-if="playlistSummary">{{ playlistSummary }}</span>
+  <div class="flex h-full flex-col" :class="settingsStore.isDark ? 'bg-[#020617]' : 'bg-[linear-gradient(180deg,#f8fafc_0%,#e2e8f0_100%)]'">
+    <div class="media-toolbar flex items-center justify-between gap-[12px] border-b px-[14px] py-[12px]" :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] text-[#e2e8f0]' : 'border-[rgba(148,163,184,0.22)] text-[#1e293b]'">
+      <div class="flex min-w-0 items-baseline gap-[10px]">
+        <strong class="truncate-line">{{ filename }}</strong>
+        <span v-if="playlistSummary" class="flex-none text-[12px]" :class="settingsStore.isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'">{{ playlistSummary }}</span>
       </div>
 
       <NSpace>
@@ -171,39 +171,48 @@ onBeforeUnmount(() => {
       </NSpace>
     </div>
 
-    <div class="media-content">
-      <aside v-if="shouldShowSidebar" class="media-sidebar">
-        <div class="media-sidebar-header">
+    <div class="media-content flex min-h-0 flex-1 overflow-hidden">
+      <aside v-if="shouldShowSidebar" class="media-sidebar flex w-[252px] min-w-[220px] flex-col border-r" :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.76)]' : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.82)]'">
+        <div class="flex items-center justify-between gap-[10px] px-[12px] pb-[10px] pt-[12px] text-[13px] font-600" :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#1e293b]'">
           <span>文件列表</span>
-          <span>{{ props.playlist?.length ?? 0 }} 项</span>
+          <span class="text-[12px] font-500" :class="settingsStore.isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'">{{ props.playlist?.length ?? 0 }} 项</span>
         </div>
 
-        <div class="media-sidebar-list">
+        <div class="flex min-h-0 flex-1 flex-col gap-[8px] overflow-auto px-[10px] pb-[12px]">
           <button
             v-for="(item, index) in props.playlist"
             :key="item.path"
             type="button"
-            class="playlist-item"
-            :class="{ 'playlist-item-active': index === currentIndex }"
+            class="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-[8px] rounded-[12px] border px-[10px] py-[9px] text-left transition-[background,border-color,color] duration-[180ms] ease-in-out cursor-pointer"
+            :class="[
+              settingsStore.isDark
+                ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.8)] text-[#cbd5e1] hover:border-[rgba(96,165,250,0.42)] hover:bg-[rgba(30,41,59,0.86)]'
+                : 'border-[rgba(148,163,184,0.24)] bg-[rgba(255,255,255,0.88)] text-[#334155] hover:border-[rgba(37,99,235,0.36)] hover:bg-[rgba(239,246,255,0.92)]',
+              index === currentIndex
+                ? settingsStore.isDark
+                  ? 'border-[rgba(96,165,250,0.7)] bg-[rgba(37,99,235,0.18)] text-white'
+                  : 'bg-[rgba(59,130,246,0.14)] text-[#1d4ed8]'
+                : '',
+            ]"
             :title="item.filename"
             @click="changeFile(index)"
           >
-            <span class="playlist-item-type">{{ item.type === 'video' ? '视频' : '图片' }}</span>
-            <span class="playlist-item-name">{{ item.filename }}</span>
+            <span class="rounded-full px-[6px] py-[2px] text-[11px] leading-[1.4]" :class="settingsStore.isDark ? 'bg-[rgba(59,130,246,0.14)] text-[#93c5fd]' : 'bg-[rgba(37,99,235,0.1)] text-[#2563eb]'">{{ item.type === 'video' ? '视频' : '图片' }}</span>
+            <span class="truncate-line">{{ item.filename }}</span>
           </button>
         </div>
       </aside>
 
-      <div class="media-stage">
+      <div class="media-stage flex min-h-0 min-w-0 flex-1 items-center justify-center p-[16px]">
         <img
           v-if="mediaType === 'image' && !hasError"
           :src="fileUrl"
           :alt="filename"
-          class="media-image"
+          class="max-h-full max-w-full object-contain"
           @error="hasError = true"
         />
 
-        <div v-else-if="mediaType === 'video' && !hasError" ref="videoContainerRef" class="media-video-player" />
+        <div v-else-if="mediaType === 'video' && !hasError" ref="videoContainerRef" class="media-video-player h-full min-h-[260px] w-full overflow-hidden rounded-[16px] bg-black" />
 
         <NResult
           v-else
@@ -217,111 +226,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.media-viewer {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: #020617;
-}
-
-.media-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-  color: #e2e8f0;
-}
-
-.media-title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-
-.media-title strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.media-title span {
-  flex: none;
-  color: #94a3b8;
-  font-size: 12px;
-}
-
-.media-content {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  overflow: hidden;
-}
-
-.media-sidebar {
-  width: 252px;
-  min-width: 220px;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(15, 23, 42, 0.76);
-}
-
-.media-sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 12px 10px;
-  color: #e2e8f0;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.media-sidebar-header span:last-child {
-  color: #94a3b8;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.media-sidebar-list {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow: auto;
-  padding: 0 10px 12px;
-}
-
-.media-stage {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.media-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.media-video-player {
-  width: 100%;
-  height: 100%;
-  min-height: 260px;
-  overflow: hidden;
-  border-radius: 16px;
-  background: #000;
-}
-
 .media-video-player :deep(.xgplayer) {
   width: 100% !important;
   height: 100% !important;
@@ -331,96 +235,6 @@ onBeforeUnmount(() => {
 
 .media-video-player :deep(video) {
   object-fit: contain;
-}
-
-.playlist-item {
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  padding: 9px 10px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.8);
-  color: #cbd5e1;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
-}
-
-.playlist-item:hover {
-  border-color: rgba(96, 165, 250, 0.42);
-  background: rgba(30, 41, 59, 0.86);
-}
-
-.playlist-item-type {
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: rgba(59, 130, 246, 0.14);
-  color: #93c5fd;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.playlist-item-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.playlist-item-active {
-  background: rgba(37, 99, 235, 0.18);
-  border-color: rgba(96, 165, 250, 0.7);
-  color: #fff;
-}
-
-.media-viewer-light {
-  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-}
-
-.media-viewer-light .media-toolbar {
-  border-bottom-color: rgba(148, 163, 184, 0.22);
-  color: #1e293b;
-}
-
-.media-viewer-light .media-title span {
-  color: #64748b;
-}
-
-.media-viewer-light .media-sidebar {
-  border-right-color: rgba(148, 163, 184, 0.22);
-  background: rgba(248, 250, 252, 0.82);
-}
-
-.media-viewer-light .media-sidebar-header {
-  color: #1e293b;
-}
-
-.media-viewer-light .media-sidebar-header span:last-child {
-  color: #64748b;
-}
-
-.media-viewer-light .playlist-item {
-  border-color: rgba(148, 163, 184, 0.24);
-  background: rgba(255, 255, 255, 0.88);
-  color: #334155;
-}
-
-.media-viewer-light .playlist-item-active {
-  background: rgba(59, 130, 246, 0.14);
-  color: #1d4ed8;
-}
-
-.media-viewer-light .playlist-item:hover {
-  border-color: rgba(37, 99, 235, 0.36);
-  background: rgba(239, 246, 255, 0.92);
-}
-
-.media-viewer-light .playlist-item-type {
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
 }
 
 @media (max-width: 720px) {

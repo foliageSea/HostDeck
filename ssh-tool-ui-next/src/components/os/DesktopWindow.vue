@@ -118,199 +118,65 @@ onUnmounted(() => {
 
 <template>
   <section
-    class="desktop-window"
-    :class="{
-      'desktop-window-active': isActive,
-      'desktop-window-dragging': isDragging || isResizing,
-      'desktop-window-light': !settingsStore.isDark,
-      'desktop-window-maximized': window.isMaximized,
-      'desktop-window-minimized': window.isMinimized,
-    }"
+    class="absolute flex min-h-[240px] min-w-[320px] flex-col overflow-hidden rounded-[20px] opacity-100 backdrop-blur-[18px] transition-[opacity,transform,box-shadow,border-color] duration-[240ms] ease-in-out"
+    :class="[
+      settingsStore.isDark
+        ? 'border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.72)] shadow-[0_28px_80px_rgba(2,6,23,0.35)]'
+        : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.76)] shadow-[0_24px_72px_rgba(148,163,184,0.24)]',
+      isActive
+        ? settingsStore.isDark
+          ? 'border-[rgba(96,165,250,0.36)] shadow-[0_34px_96px_rgba(2,6,23,0.44)]'
+          : 'border-[rgba(59,130,246,0.32)] shadow-[0_28px_84px_rgba(59,130,246,0.16)]'
+        : '',
+      {
+        'h-auto': window.isMaximized,
+        'pointer-events-none opacity-0 scale-[0.92] translate-y-[14px]': window.isMinimized,
+        'transition-none': isDragging || isResizing,
+      },
+    ]"
     :style="windowStyle"
     @mousedown="focusWindow"
   >
-    <header class="window-header" @mousedown.prevent="startDrag" @dblclick="maximizeWindow">
-      <div class="window-actions" @mousedown.stop>
-        <button class="window-action window-action-close" type="button" title="关闭" @click="closeWindow" />
-        <button class="window-action window-action-minimize" type="button" title="最小化" @click="minimizeWindow" />
+    <header
+      class="relative flex h-[48px] items-center justify-between gap-[12px] border-b px-[14px]"
+      :class="[
+        settingsStore.isDark
+          ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.74)]'
+          : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.88)]',
+      ]"
+      @mousedown.prevent="startDrag"
+      @dblclick="maximizeWindow"
+    >
+      <div class="flex items-center gap-[8px]" @mousedown.stop>
+        <button class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#ff5f57] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer" type="button" title="关闭" @click="closeWindow" />
+        <button class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#febc2e] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer" type="button" title="最小化" @click="minimizeWindow" />
         <button
-          class="window-action window-action-maximize"
+          class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#28c840] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer"
           type="button"
           :title="window.isMaximized ? '还原' : '最大化'"
           @click="maximizeWindow"
         />
       </div>
 
-      <div class="window-title">
+      <div
+        class="pointer-events-none absolute left-1/2 flex max-w-[min(65%,calc(100%_-_140px))] min-w-0 translate-x-[-50%] items-center gap-[8px] overflow-hidden text-ellipsis whitespace-nowrap font-600"
+        :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
+      >
         <AppIcon :name="window.icon" :size="16" />
-        <span>{{ window.title }}</span>
+        <span class="overflow-hidden text-ellipsis">{{ window.title }}</span>
       </div>
 
-      <div class="window-header-spacer" aria-hidden="true">
-        <span class="window-action window-action-placeholder" />
-        <span class="window-action window-action-placeholder" />
-        <span class="window-action window-action-placeholder" />
+      <div class="invisible flex items-center gap-[8px]" aria-hidden="true">
+        <span class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0" />
+        <span class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0" />
+        <span class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0" />
       </div>
     </header>
 
-    <div class="window-body">
+    <div class="min-h-0 flex-1">
       <component :is="window.component" :window-id="window.id" v-bind="window.props" />
     </div>
 
-    <div v-if="!window.isMaximized" class="window-resize-handle" @mousedown.prevent="startResize" />
+    <div v-if="!window.isMaximized" class="absolute bottom-0 right-0 h-[18px] w-[18px] cursor-nwse-resize" @mousedown.prevent="startResize" />
   </section>
 </template>
-
-<style scoped>
-.desktop-window {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  min-width: 320px;
-  min-height: 240px;
-  border-radius: 20px;
-  overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(15, 23, 42, 0.72);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 28px 80px rgba(2, 6, 23, 0.35);
-   opacity: 1;
-   transform: scale(1) translateY(0);
-   transition: opacity 0.24s ease, transform 0.24s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.desktop-window-maximized {
-  height: auto;
-}
-
-.desktop-window-active {
-  border-color: rgba(96, 165, 250, 0.36);
-  box-shadow: 0 34px 96px rgba(2, 6, 23, 0.44);
-}
-
-.desktop-window-dragging {
-  transition: none;
-}
-
-.desktop-window-minimized {
-  opacity: 0;
-  transform: scale(0.92) translateY(14px);
-  pointer-events: none;
-}
-
-.window-header {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  height: 48px;
-  padding: 0 14px;
-  background: rgba(15, 23, 42, 0.74);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-}
-
-.window-title {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: min(65%, calc(100% - 140px));
-  min-width: 0;
-  color: #f8fafc;
-  font-weight: 600;
-  pointer-events: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.window-title span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.window-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.window-header-spacer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  visibility: hidden;
-}
-
-.window-action {
-  position: relative;
-  width: 12px;
-  height: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: filter 0.18s ease, transform 0.18s ease;
-}
-
-.window-action:hover {
-  transform: scale(1.06);
-  filter: brightness(0.96);
-}
-
-.window-action-close {
-  background: #ff5f57;
-}
-
-.window-action-minimize {
-  background: #febc2e;
-}
-
-.window-action-maximize {
-  background: #28c840;
-}
-
-.window-action-placeholder {
-  cursor: default;
-}
-
-.window-body {
-  flex: 1;
-  min-height: 0;
-}
-
-.window-resize-handle {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 18px;
-  height: 18px;
-  cursor: nwse-resize;
-}
-
-.desktop-window-light {
-  border-color: rgba(148, 163, 184, 0.22);
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow: 0 24px 72px rgba(148, 163, 184, 0.24);
-}
-
-.desktop-window-light.desktop-window-active {
-  border-color: rgba(59, 130, 246, 0.32);
-  box-shadow: 0 28px 84px rgba(59, 130, 246, 0.16);
-}
-
-.desktop-window-light .window-header {
-  background: rgba(248, 250, 252, 0.88);
-  border-bottom-color: rgba(148, 163, 184, 0.22);
-}
-
-.desktop-window-light .window-title {
-  color: #0f172a;
-}
-</style>

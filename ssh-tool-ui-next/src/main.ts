@@ -4,6 +4,7 @@ import { VueQueryPlugin } from '@tanstack/vue-query'
 import App from './App.vue'
 import router from './router'
 import './style.css'
+import 'virtual:uno.css'
 
 const app = createApp(App)
 const pinia = createPinia()
