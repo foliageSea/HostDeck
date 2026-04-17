@@ -20,9 +20,9 @@ const windowStyle = computed(() => {
   if (props.window.isMaximized) {
     return {
       bottom: '0',
-      left: 'var(--desktop-window-edge-gap)',
+      left: '0',
+      right: '0',
       top: '0',
-      width: 'calc(100% - (var(--desktop-window-edge-gap) * 2))',
       zIndex: props.window.zIndex,
     }
   }
