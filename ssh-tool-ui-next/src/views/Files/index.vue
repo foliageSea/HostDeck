@@ -37,12 +37,35 @@ const showCreateDialog = ref(false)
 const showRenameDialog = ref(false)
 const showDeleteDialog = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
+const contextMenu = ref<{ type: 'file' | 'blank'; x: number; y: number } | null>(null)
 
 const selectedFile = computed(() => fileStore.selectedFile)
 const selectedFiles = computed(() =>
   fileStore.files.filter((file) => fileStore.selectedNames.includes(file.filename)),
 )
 const isUploading = computed(() => uploadCenterStore.activeTaskCount > 0)
+const contextMenuOptions = computed(() => {
+  if (contextMenu.value?.type === 'file') {
+    return [
+      { label: '打开', key: 'open', disabled: selectedFiles.value.length !== 1 },
+      { label: '下载', key: 'download', disabled: selectedFiles.value.length === 0 },
+      { type: 'divider', key: 'file-divider-1' },
+      { label: '重命名', key: 'rename', disabled: selectedFiles.value.length !== 1 },
+      { label: '删除', key: 'delete', disabled: selectedFiles.value.length === 0 },
+    ]
+  }
+
+  return [
+    { label: '新建目录', key: 'new-directory' },
+    { label: '新建文件', key: 'new-file' },
+    { label: '上传', key: 'upload', disabled: isUploading.value },
+    { type: 'divider', key: 'blank-divider-1' },
+    { label: '刷新', key: 'refresh' },
+    { label: '全选', key: 'select-all', disabled: fileStore.displayFiles.length === 0 },
+    { type: 'divider', key: 'blank-divider-2' },
+    { label: '在当前目录打开终端', key: 'terminal' },
+  ]
+})
 const breadcrumbs = computed(() => {
   const path = fileStore.currentPath
   if (path === '/') {
@@ -140,13 +163,98 @@ function formatModifyTime(value?: string) {
 }
 
 function handleFileClick(file: FileItem, event: MouseEvent) {
+  closeContextMenu()
   fileStore.selectFile(file, {
     append: event.ctrlKey || event.metaKey,
     range: event.shiftKey,
   })
 }
 
+function handleSelectNames(names: string[]) {
+  closeContextMenu()
+  fileStore.setSelectedNames(names)
+}
+
+function openFileContextMenu(file: FileItem, event: MouseEvent) {
+  if (!fileStore.selectedNames.includes(file.filename)) {
+    fileStore.selectFile(file)
+  }
+
+  contextMenu.value = {
+    type: 'file',
+    x: event.clientX,
+    y: event.clientY,
+  }
+}
+
+function openBlankContextMenu(event: MouseEvent) {
+  fileStore.clearSelection()
+  contextMenu.value = {
+    type: 'blank',
+    x: event.clientX,
+    y: event.clientY,
+  }
+}
+
+function closeContextMenu() {
+  contextMenu.value = null
+}
+
+function handleContextMenuSelect(key: string | number) {
+  closeContextMenu()
+
+  if (key === 'open' && selectedFile.value) {
+    void openFile(selectedFile.value)
+    return
+  }
+
+  if (key === 'download') {
+    void downloadSelectedFiles()
+    return
+  }
+
+  if (key === 'rename') {
+    openRenameDialog()
+    return
+  }
+
+  if (key === 'delete') {
+    showDeleteDialog.value = true
+    return
+  }
+
+  if (key === 'new-directory') {
+    openCreate('directory')
+    return
+  }
+
+  if (key === 'new-file') {
+    openCreate('file')
+    return
+  }
+
+  if (key === 'upload') {
+    triggerUpload()
+    return
+  }
+
+  if (key === 'refresh') {
+    void fileStore.fetchFiles()
+    return
+  }
+
+  if (key === 'select-all') {
+    fileStore.selectAll()
+    return
+  }
+
+  if (key === 'terminal') {
+    openTerminalHere()
+  }
+}
+
 async function openFile(file: FileItem) {
+  closeContextMenu()
   fileStore.selectFile(file)
   if (!file.isDirectory) {
     const extension = file.filename.split('.').pop()?.toLowerCase() || ''
@@ -428,6 +536,7 @@ function handleKeydown(event: KeyboardEvent) {
 
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
     event.preventDefault()
+    closeContextMenu()
     fileStore.selectAll()
     return
   }
@@ -446,12 +555,14 @@ function handleKeydown(event: KeyboardEvent) {
 
   if (event.key === 'Delete' && fileStore.hasSelection) {
     event.preventDefault()
+    closeContextMenu()
     showDeleteDialog.value = true
     return
   }
 
   if (event.key === 'F2' && selectedFiles.value.length === 1) {
     event.preventDefault()
+    closeContextMenu()
     openRenameDialog()
     return
   }
@@ -655,7 +766,12 @@ onMounted(async () => {
 
     <FileBrowserContent :files="fileStore.displayFiles" :loading="fileStore.loading"
       :selected-names="fileStore.selectedNames" :view-mode="fileStore.viewMode" :format-file-size="formatFileSize"
-      :format-modify-time="formatModifyTime" @click-file="handleFileClick" @open-file="openFile" />
+      :format-modify-time="formatModifyTime" @click-file="handleFileClick" @context-blank="openBlankContextMenu"
+      @context-file="openFileContextMenu" @open-file="openFile" @select-names="handleSelectNames" />
+
+    <NDropdown v-if="contextMenu" placement="bottom-start" trigger="manual" show :x="contextMenu.x"
+      :y="contextMenu.y" :options="contextMenuOptions" @clickoutside="closeContextMenu"
+      @select="handleContextMenuSelect" />
 
     <NCard v-if="selectedFile" size="small" class="details-panel">
       <div class="details-title">当前选择</div>

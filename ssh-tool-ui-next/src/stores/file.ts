@@ -157,6 +157,12 @@ export function createFileStore() {
     lastSelectedName.value = null
   }
 
+  function setSelectedNames(names: string[]) {
+    const availableNames = new Set(displayFiles.value.map((file) => file.filename))
+    selectedNames.value = names.filter((name) => availableNames.has(name))
+    lastSelectedName.value = selectedNames.value[selectedNames.value.length - 1] ?? null
+  }
+
   function selectAll() {
     selectedNames.value = displayFiles.value.map((file) => file.filename)
     lastSelectedName.value = selectedNames.value[selectedNames.value.length - 1] ?? null
@@ -183,6 +189,7 @@ export function createFileStore() {
     selectFile,
     selectedFile,
     selectedNames,
+    setSelectedNames,
     sessionId,
     viewMode,
   })
