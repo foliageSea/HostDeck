@@ -5,11 +5,15 @@ import {
   ArrowRight,
   Help,
   ArrowUp,
+  Close,
   Download,
   FolderAdd,
   Grid,
   List,
+  LocationStar,
   Renew,
+  Star,
+  StarFilled,
   Terminal,
   Upload,
 } from '@vicons/carbon'
@@ -44,15 +48,33 @@ const selectedFiles = computed(() =>
   fileStore.files.filter((file) => fileStore.selectedNames.includes(file.filename)),
 )
 const isUploading = computed(() => uploadCenterStore.activeTaskCount > 0)
+const isCurrentPathFavorite = computed(() => fileStore.isFavoritePath(fileStore.currentPath))
+const selectedDirectoryPath = computed(() => {
+  if (selectedFiles.value.length !== 1 || !selectedFile.value?.isDirectory) {
+    return null
+  }
+
+  return resolve(fileStore.currentPath, selectedFile.value.filename)
+})
 const contextMenuOptions = computed(() => {
   if (contextMenu.value?.type === 'file') {
-    return [
+    const options = [
       { label: '打开', key: 'open', disabled: selectedFiles.value.length !== 1 },
       { label: '下载', key: 'download', disabled: selectedFiles.value.length === 0 },
       { type: 'divider', key: 'file-divider-1' },
       { label: '重命名', key: 'rename', disabled: selectedFiles.value.length !== 1 },
       { label: '删除', key: 'delete', disabled: selectedFiles.value.length === 0 },
     ]
+
+    if (selectedDirectoryPath.value) {
+      options.splice(2, 0, {
+        label: fileStore.isFavoritePath(selectedDirectoryPath.value) ? '取消收藏该目录' : '收藏该目录',
+        key: 'toggle-selected-directory-favorite',
+        disabled: false,
+      })
+    }
+
+    return options
   }
 
   return [
@@ -63,6 +85,7 @@ const contextMenuOptions = computed(() => {
     { label: '刷新', key: 'refresh' },
     { label: '全选', key: 'select-all', disabled: fileStore.displayFiles.length === 0 },
     { type: 'divider', key: 'blank-divider-2' },
+    { label: isCurrentPathFavorite.value ? '取消收藏当前目录' : '收藏当前目录', key: 'toggle-current-favorite' },
     { label: '在当前目录打开终端', key: 'terminal' },
   ]
 })
@@ -248,6 +271,16 @@ function handleContextMenuSelect(key: string | number) {
     return
   }
 
+  if (key === 'toggle-current-favorite') {
+    toggleCurrentFavorite()
+    return
+  }
+
+  if (key === 'toggle-selected-directory-favorite') {
+    toggleSelectedDirectoryFavorite()
+    return
+  }
+
   if (key === 'terminal') {
     openTerminalHere()
   }
@@ -309,6 +342,25 @@ async function navigateToPath(path: string) {
   await fileStore.navigateTo(path)
   syncPathInput()
   editingPath.value = false
+}
+
+function toggleCurrentFavorite() {
+  const added = fileStore.toggleFavoritePath(fileStore.currentPath)
+  getUiApi().message.success(added ? '已收藏当前目录。' : '已取消收藏当前目录。')
+}
+
+function toggleSelectedDirectoryFavorite() {
+  if (!selectedDirectoryPath.value) {
+    return
+  }
+
+  const added = fileStore.toggleFavoritePath(selectedDirectoryPath.value)
+  getUiApi().message.success(added ? '已收藏目录。' : '已取消收藏目录。')
+}
+
+function removeFavoritePath(path: string) {
+  fileStore.removeFavoritePath(path)
+  getUiApi().message.success('已移除收藏。')
 }
 
 async function navigateBack() {
@@ -721,6 +773,49 @@ onMounted(async () => {
         </NTooltip>
         <NTooltip>
           <template #trigger>
+            <NButton circle :type="isCurrentPathFavorite ? 'warning' : 'default'" @click="toggleCurrentFavorite">
+              <template #icon>
+                <NIcon>
+                  <component :is="isCurrentPathFavorite ? StarFilled : Star" />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
+          {{ isCurrentPathFavorite ? '取消收藏当前目录' : '收藏当前目录' }}
+        </NTooltip>
+        <NPopover trigger="click" placement="bottom-end">
+          <template #trigger>
+            <NButton circle>
+              <template #icon>
+                <NIcon>
+                  <LocationStar />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
+          <div class="favorite-popover">
+            <div class="favorite-title">收藏目录</div>
+            <NEmpty v-if="fileStore.favoritePaths.length === 0" size="small" description="暂无收藏" />
+            <NScrollbar v-else style="max-height: 260px">
+              <div class="favorite-list">
+                <div v-for="path in fileStore.favoritePaths" :key="path" class="favorite-item">
+                  <button type="button" class="favorite-jump" :title="path" @click="navigateToPath(path)">
+                    {{ path }}
+                  </button>
+                  <NButton quaternary circle size="tiny" @click.stop="removeFavoritePath(path)">
+                    <template #icon>
+                      <NIcon>
+                        <Close />
+                      </NIcon>
+                    </template>
+                  </NButton>
+                </div>
+              </div>
+            </NScrollbar>
+          </div>
+        </NPopover>
+        <NTooltip>
+          <template #trigger>
             <NButton circle @click="openTerminalHere">
               <template #icon>
                 <NIcon>
@@ -880,6 +975,51 @@ onMounted(async () => {
   color: rgba(226, 232, 240, 0.96);
 }
 
+.favorite-popover {
+  width: min(360px, 72vw);
+}
+
+.favorite-title {
+  margin-bottom: 10px;
+  color: rgba(226, 232, 240, 0.96);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.favorite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.favorite-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 6px 6px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.favorite-jump {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favorite-jump:hover {
+  color: rgba(96, 165, 250, 0.95);
+}
+
 .details-meta,
 .details-title {
   color: rgba(148, 163, 184, 0.9);
@@ -920,6 +1060,14 @@ onMounted(async () => {
 
 .files-view-light .shortcut-popover {
   color: rgba(51, 65, 85, 0.96);
+}
+
+.files-view-light .favorite-title {
+  color: rgba(51, 65, 85, 0.96);
+}
+
+.files-view-light .favorite-item {
+  background: rgba(241, 245, 249, 0.92);
 }
 
 .files-view-light .details-meta,

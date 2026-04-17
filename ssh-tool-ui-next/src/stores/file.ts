@@ -6,6 +6,8 @@ import { dirname, resolve } from '@/utils/path'
 
 export type FileViewMode = 'grid' | 'list'
 
+type FavoritePathsByConnection = Record<string, string[]>
+
 function compareFiles(left: FileItem, right: FileItem) {
   if (left.isDirectory !== right.isDirectory) {
     return left.isDirectory ? -1 : 1
@@ -22,6 +24,7 @@ export function createFileStore() {
   const sessionId = ref<string | null>(null)
   const loading = ref(false)
   const viewMode = useLocalStorage<FileViewMode>('ssh-tool:files:view-mode', 'list')
+  const favoritePathsByConnection = useLocalStorage<FavoritePathsByConnection>('ssh-tool:files:favorite-paths', {})
   const selectedNames = ref<string[]>([])
   const lastSelectedName = ref<string | null>(null)
   const search = ref('')
@@ -46,6 +49,51 @@ export function createFileStore() {
   })
 
   const hasSelection = computed(() => selectedNames.value.length > 0)
+
+  const favoritePaths = computed(() => favoritePathsByConnection.value[getFavoriteConnectionKey()] ?? [])
+
+  function getFavoriteConnectionKey() {
+    return sshStore.connectionId ?? 'default'
+  }
+
+  function normalizeFavoritePath(path: string) {
+    return resolve(currentPath.value, path)
+  }
+
+  function setFavoritePaths(paths: string[]) {
+    favoritePathsByConnection.value = {
+      ...favoritePathsByConnection.value,
+      [getFavoriteConnectionKey()]: paths,
+    }
+  }
+
+  function isFavoritePath(path: string) {
+    return favoritePaths.value.includes(normalizeFavoritePath(path))
+  }
+
+  function addFavoritePath(path: string) {
+    const targetPath = normalizeFavoritePath(path)
+    if (favoritePaths.value.includes(targetPath)) {
+      return
+    }
+
+    setFavoritePaths([targetPath, ...favoritePaths.value])
+  }
+
+  function removeFavoritePath(path: string) {
+    const targetPath = normalizeFavoritePath(path)
+    setFavoritePaths(favoritePaths.value.filter((favoritePath) => favoritePath !== targetPath))
+  }
+
+  function toggleFavoritePath(path: string) {
+    if (isFavoritePath(path)) {
+      removeFavoritePath(path)
+      return false
+    }
+
+    addFavoritePath(path)
+    return true
+  }
 
   async function initSession() {
     if (sessionId.value || !sshStore.connectionId) {
@@ -174,16 +222,19 @@ export function createFileStore() {
     currentPath,
     displayFiles,
     fetchFiles,
+    favoritePaths,
     files,
     forwardHistory,
     hasSelection,
     initSession,
+    isFavoritePath,
     lastSelectedName,
     loading,
     navigateBack,
     navigateForward,
     navigateTo,
     navigateUp,
+    removeFavoritePath,
     search,
     selectAll,
     selectFile,
@@ -191,6 +242,7 @@ export function createFileStore() {
     selectedNames,
     setSelectedNames,
     sessionId,
+    toggleFavoritePath,
     viewMode,
   })
 }
