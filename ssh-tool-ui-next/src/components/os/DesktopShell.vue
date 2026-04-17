@@ -84,8 +84,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="relative min-h-screen overflow-hidden [--desktop-topbar-height:48px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:24px] [--desktop-dock-height:72px] [--desktop-dock-safe-area:calc(var(--desktop-dock-bottom-gap)_+_var(--desktop-dock-height)_+_16px)]"
-  >
+    class="relative min-h-screen overflow-hidden [--desktop-topbar-height:48px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:24px] [--desktop-dock-height:72px] [--desktop-dock-safe-area:calc(var(--desktop-dock-bottom-gap)_+_var(--desktop-dock-height)_+_16px)]">
     <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="desktopWallpaperStyle" />
     <div class="absolute inset-0 [backdrop-filter:saturate(108%)]" />
 
@@ -99,14 +98,10 @@ onUnmounted(() => {
 
     <DesktopDock />
 
-    <DesktopWindowSwitcher
-      v-if="switcherVisible"
-      :windows="switcherWindows"
-      :selected-index="switcherIndex"
-      @select="selectWindow"
-    />
+    <DesktopWindowSwitcher v-if="switcherVisible" :windows="switcherWindows" :selected-index="switcherIndex"
+      @select="selectWindow" />
 
-    <div
+    <!-- <div
       class="desktop-status-card absolute bottom-[var(--desktop-dock-safe-area)] right-[24px] z-[15] w-[280px] rounded-[18px] p-[16px] backdrop-blur-[16px]"
       :class="[
         settingsStore.isDark
@@ -117,7 +112,7 @@ onUnmounted(() => {
       <div class="text-[0.82rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.82)]'">当前连接</div>
       <div class="mt-[6px] text-[1.1rem] font-600" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">{{ sshStore.username }}@{{ sshStore.host }}</div>
       <div class="mt-[8px] text-[0.86rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.7)]' : 'text-[rgba(51,65,85,0.8)]'">当前会话已接入桌面环境，可继续打开监控、终端和文件等工作窗口。</div>
-    </div>
+    </div> -->
   </div>
 </template>
 
