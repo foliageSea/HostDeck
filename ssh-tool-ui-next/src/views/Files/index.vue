@@ -632,8 +632,9 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-[14px] p-[16px] outline-none" :class="settingsStore.isDark ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.14),rgba(15,23,42,0.04))]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.68),rgba(226,232,240,0.34))]'" tabindex="0" @keydown="handleKeydown"
-    @click.self="fileStore.clearSelection()">
+  <div class="flex h-full flex-col gap-[14px] p-[16px] outline-none"
+    :class="settingsStore.isDark ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.14),rgba(15,23,42,0.04))]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.68),rgba(226,232,240,0.34))]'"
+    tabindex="0" @keydown="handleKeydown" @click.self="fileStore.clearSelection()">
     <input ref="fileInputRef" type="file" multiple hidden @change="handleUploadChange" />
 
     <div class="flex flex-wrap items-center justify-between gap-[12px]">
@@ -688,9 +689,9 @@ onMounted(async () => {
         </NTooltip>
       </NSpace>
 
-      <div class="flex items-center gap-[12px]">
-        <NInput v-model:value="fileStore.search" placeholder="搜索当前目录" clearable class="w-[min(280px,60vw)]" />
-        <NSpace align="center" size="small">
+      <div class="flex items-center gap-[8px] ">
+        <NInput v-model:value="fileStore.search" placeholder="搜索当前目录" clearable class="w-[min(240px,60vw)]" />
+        <div class="flex items-center gap-[8px] ">
           <NPopover trigger="hover" placement="bottom-end">
             <template #trigger>
               <NButton quaternary circle>
@@ -701,7 +702,8 @@ onMounted(async () => {
                 </template>
               </NButton>
             </template>
-            <div class="flex flex-col gap-[6px] text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'">
+            <div class="flex flex-col gap-[6px] text-[12px]"
+              :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'">
               <div>Ctrl/Cmd + Click：多选</div>
               <div>Shift + Click：范围选择</div>
               <div>Ctrl/Cmd + A：全选</div>
@@ -738,7 +740,7 @@ onMounted(async () => {
             </template>
             网格视图
           </NTooltip>
-        </NSpace>
+        </div>
       </div>
     </div>
 
@@ -746,7 +748,8 @@ onMounted(async () => {
       <div v-if="!editingPath" class="min-w-[240px] flex-1 overflow-x-auto pb-[2px]">
         <NBreadcrumb>
           <NBreadcrumbItem v-for="item in breadcrumbs" :key="item.path">
-            <button type="button" class="btn-reset hover:text-[rgba(96,165,250,0.95)]" @click="navigateToPath(item.path)">
+            <button type="button" class="btn-reset hover:text-[rgba(96,165,250,0.95)]"
+              @click="navigateToPath(item.path)">
               {{ item.label }}
             </button>
           </NBreadcrumbItem>
@@ -794,12 +797,17 @@ onMounted(async () => {
             </NButton>
           </template>
           <div class="w-[min(360px,72vw)]">
-            <div class="mb-[10px] text-[13px] font-600" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'">收藏目录</div>
+            <div class="mb-[10px] text-[13px] font-600"
+              :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'">收藏目录</div>
             <NEmpty v-if="fileStore.favoritePaths.length === 0" size="small" description="暂无收藏" />
             <NScrollbar v-else style="max-height: 260px">
               <div class="flex flex-col gap-[6px]">
-                <div v-for="path in fileStore.favoritePaths" :key="path" class="flex min-w-0 items-center gap-[8px] rounded-[10px] py-[6px] pl-[10px] pr-[6px]" :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.5)]' : 'bg-[rgba(241,245,249,0.92)]'">
-                  <button type="button" class="btn-reset truncate-line flex-1 text-left hover:text-[rgba(96,165,250,0.95)]" :title="path" @click="navigateToPath(path)">
+                <div v-for="path in fileStore.favoritePaths" :key="path"
+                  class="flex min-w-0 items-center gap-[8px] rounded-[10px] py-[6px] pl-[10px] pr-[6px]"
+                  :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.5)]' : 'bg-[rgba(241,245,249,0.92)]'">
+                  <button type="button"
+                    class="btn-reset truncate-line flex-1 text-left hover:text-[rgba(96,165,250,0.95)]" :title="path"
+                    @click="navigateToPath(path)">
                     {{ path }}
                   </button>
                   <NButton quaternary circle size="tiny" @click.stop="removeFavoritePath(path)">
@@ -864,16 +872,22 @@ onMounted(async () => {
       :format-modify-time="formatModifyTime" @click-file="handleFileClick" @context-blank="openBlankContextMenu"
       @context-file="openFileContextMenu" @open-file="openFile" @select-names="handleSelectNames" />
 
-    <NDropdown v-if="contextMenu" placement="bottom-start" trigger="manual" show :x="contextMenu.x"
-      :y="contextMenu.y" :options="contextMenuOptions" @clickoutside="closeContextMenu"
-      @select="handleContextMenuSelect" />
+    <NDropdown v-if="contextMenu" placement="bottom-start" trigger="manual" show :x="contextMenu.x" :y="contextMenu.y"
+      :options="contextMenuOptions" @clickoutside="closeContextMenu" @select="handleContextMenuSelect" />
 
-    <NCard v-if="selectedFile" size="small" class="details-panel rounded-[16px]" :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.56)]' : 'bg-[rgba(255,255,255,0.84)]'">
+    <NCard v-if="selectedFile" size="small" class="details-panel rounded-[16px]"
+      :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.56)]' : 'bg-[rgba(255,255,255,0.84)]'">
       <div class="flex min-w-0 items-center gap-[12px] whitespace-nowrap">
-        <span class="flex-none text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">当前选择</span>
-        <span class="truncate-line">{{ selectedFiles.length > 1 ? `已选 ${selectedFiles.length} 项` : selectedFile.filename }}</span>
-        <span class="flex-none text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ selectedFile.isDirectory ? '目录' : formatFileSize(selectedFile.size) }}</span>
-        <span class="flex-none text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ formatModifyTime(selectedFile.modifyTime) }}</span>
+        <span class="flex-none text-[12px]"
+          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">当前选择</span>
+        <span class="truncate-line">{{ selectedFiles.length > 1 ? `已选 ${selectedFiles.length} 项` : selectedFile.filename
+        }}</span>
+        <span class="flex-none text-[12px]"
+          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{
+            selectedFile.isDirectory ? '目录' : formatFileSize(selectedFile.size) }}</span>
+        <span class="flex-none text-[12px]"
+          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{
+            formatModifyTime(selectedFile.modifyTime) }}</span>
       </div>
     </NCard>
 
