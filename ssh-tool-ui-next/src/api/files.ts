@@ -36,6 +36,13 @@ export const filesApi = {
     return response.data
   },
 
+  copy: async (sessionId: string, source: string, target: string) => {
+    const response = await http.post('/api/files/copy', { source, target }, {
+      params: { sessionId },
+    })
+    return response.data
+  },
+
   delete: async (sessionId: string, path: string) => {
     const response = await http.post('/api/files/delete', {}, {
       params: { path, sessionId },

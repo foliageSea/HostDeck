@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   ArrowLeft,
   ArrowRight,
@@ -20,16 +20,24 @@ import {
 import { filesApi, type FileItem } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
+import { useFileClipboardStore } from '@/stores/file-clipboard'
 import { createFileStore } from '@/stores/file'
 import { useSettingsStore } from '@/stores/settings'
+import { useSshStore } from '@/stores/ssh'
 import { useUploadCenterStore } from '@/stores/upload-center'
 import { basename, resolve } from '@/utils/path'
 import FileBrowserContent from './components/FileBrowserContent.vue'
 import FileNameDialog from './components/FileNameDialog.vue'
 
+const props = defineProps<{
+  windowId?: string
+}>()
+
 const fileStore = createFileStore()
 const desktopStore = useDesktopStore()
+const fileClipboardStore = useFileClipboardStore()
 const settingsStore = useSettingsStore()
+const sshStore = useSshStore()
 const uploadCenterStore = useUploadCenterStore()
 
 const currentPathInput = ref('/')
@@ -47,6 +55,28 @@ const selectedFile = computed(() => fileStore.selectedFile)
 const selectedFiles = computed(() =>
   fileStore.files.filter((file) => fileStore.selectedNames.includes(file.filename)),
 )
+const currentConnectionKey = computed(() => {
+  if (sshStore.connectionId) {
+    return sshStore.connectionId
+  }
+
+  const host = sshStore.host.trim()
+  const username = sshStore.username.trim()
+  const port = sshStore.port
+  return host && username && port !== null ? `${username}@${host}:${port}` : ''
+})
+const clipboardPayload = computed(() => fileClipboardStore.payload)
+const canPasteToCurrentPath = computed(() => {
+  const payload = clipboardPayload.value
+  return Boolean(payload && payload.entries.length > 0 && payload.connectionKey === currentConnectionKey.value)
+})
+const clipboardPasteLabel = computed(() => {
+  if (!clipboardPayload.value) {
+    return '粘贴到此处'
+  }
+
+  return clipboardPayload.value.operation === 'move' ? '粘贴移动到此处' : '粘贴复制到此处'
+})
 const isUploading = computed(() => uploadCenterStore.activeTaskCount > 0)
 const isCurrentPathFavorite = computed(() => fileStore.isFavoritePath(fileStore.currentPath))
 const selectedDirectoryPath = computed(() => {
@@ -61,6 +91,8 @@ const contextMenuOptions = computed(() => {
     const options = [
       { label: '打开', key: 'open', disabled: selectedFiles.value.length !== 1 },
       { label: '下载', key: 'download', disabled: selectedFiles.value.length === 0 },
+      { label: '复制', key: 'copy', disabled: selectedFiles.value.length === 0 },
+      { label: '移动', key: 'move', disabled: selectedFiles.value.length === 0 },
       { type: 'divider', key: 'file-divider-1' },
       { label: '重命名', key: 'rename', disabled: selectedFiles.value.length !== 1 },
       { label: '删除', key: 'delete', disabled: selectedFiles.value.length === 0 },
@@ -81,6 +113,7 @@ const contextMenuOptions = computed(() => {
     { label: '新建目录', key: 'new-directory' },
     { label: '新建文件', key: 'new-file' },
     { label: '上传', key: 'upload', disabled: isUploading.value },
+    { label: clipboardPasteLabel.value, key: 'paste', disabled: !canPasteToCurrentPath.value },
     { type: 'divider', key: 'blank-divider-1' },
     { label: '刷新', key: 'refresh' },
     { label: '全选', key: 'select-all', disabled: fileStore.displayFiles.length === 0 },
@@ -223,6 +256,109 @@ function closeContextMenu() {
   contextMenu.value = null
 }
 
+function isPathInsideDirectory(path: string, directoryPath: string) {
+  return path === directoryPath || path.startsWith(`${directoryPath}/`)
+}
+
+function getClipboardValidationError(targetPath: string) {
+  const payload = clipboardPayload.value
+  if (!payload || payload.entries.length === 0) {
+    return '没有可粘贴的项目。'
+  }
+
+  if (payload.connectionKey !== currentConnectionKey.value) {
+    return '只能在当前连接的文件窗口之间复制或移动。'
+  }
+
+  if (payload.sourcePath === targetPath) {
+    return '不能粘贴到原目录。'
+  }
+
+  const invalidDirectoryEntry = payload.entries.find(
+    (entry) => entry.isDirectory && isPathInsideDirectory(targetPath, entry.path),
+  )
+  if (invalidDirectoryEntry) {
+    return `不能将目录 ${invalidDirectoryEntry.filename} 粘贴到自身或子目录。`
+  }
+
+  const existingNames = new Set(fileStore.files.map((file) => file.filename))
+  const conflictNames = payload.entries
+    .map((entry) => entry.filename)
+    .filter((filename) => existingNames.has(filename))
+
+  if (conflictNames.length > 0) {
+    return `当前目录已存在同名项目：${conflictNames.join('、')}`
+  }
+
+  return null
+}
+
+function saveClipboard(operation: 'copy' | 'move') {
+  if (selectedFiles.value.length === 0 || !currentConnectionKey.value) {
+    return
+  }
+
+  fileClipboardStore.setPayload({
+    connectionKey: currentConnectionKey.value,
+    entries: selectedFiles.value.map((file) => ({
+      filename: file.filename,
+      isDirectory: file.isDirectory,
+      path: resolve(fileStore.currentPath, file.filename),
+    })),
+    operation,
+    sourcePath: fileStore.currentPath,
+  })
+
+  getUiApi().message.success(
+    operation === 'move'
+      ? `已标记移动 ${selectedFiles.value.length} 个项目，请在目标目录粘贴。`
+      : `已复制 ${selectedFiles.value.length} 个项目，请在目标目录粘贴。`,
+  )
+}
+
+async function pasteClipboardItems() {
+  if (!fileStore.sessionId) {
+    return
+  }
+
+  const targetPath = fileStore.currentPath
+  const validationError = getClipboardValidationError(targetPath)
+  if (validationError) {
+    getUiApi().message.error(validationError)
+    return
+  }
+
+  const payload = clipboardPayload.value
+  if (!payload) {
+    return
+  }
+
+  try {
+    await Promise.all(
+      payload.entries.map((entry) => {
+        const nextPath = resolve(targetPath, entry.filename)
+        return payload.operation === 'move'
+          ? filesApi.rename(fileStore.sessionId as string, entry.path, nextPath)
+          : filesApi.copy(fileStore.sessionId as string, entry.path, nextPath)
+      }),
+    )
+
+    await fileStore.fetchFiles()
+    fileStore.setSelectedNames(payload.entries.map((entry) => entry.filename))
+    fileClipboardStore.emitRefresh(targetPath, props.windowId)
+
+    if (payload.operation === 'move') {
+      fileClipboardStore.emitRefresh(payload.sourcePath, props.windowId)
+      fileClipboardStore.clearPayload()
+    }
+
+    getUiApi().message.success(payload.operation === 'move' ? '移动成功。' : '复制成功。')
+  } catch (error) {
+    console.error('Failed to paste files', error)
+    getUiApi().message.error(payload.operation === 'move' ? '移动失败。' : '复制失败。')
+  }
+}
+
 function handleContextMenuSelect(key: string | number) {
   closeContextMenu()
 
@@ -233,6 +369,16 @@ function handleContextMenuSelect(key: string | number) {
 
   if (key === 'download') {
     void downloadSelectedFiles()
+    return
+  }
+
+  if (key === 'copy') {
+    saveClipboard('copy')
+    return
+  }
+
+  if (key === 'move') {
+    saveClipboard('move')
     return
   }
 
@@ -258,6 +404,11 @@ function handleContextMenuSelect(key: string | number) {
 
   if (key === 'upload') {
     triggerUpload()
+    return
+  }
+
+  if (key === 'paste') {
+    void pasteClipboardItems()
     return
   }
 
@@ -605,6 +756,27 @@ function handleKeydown(event: KeyboardEvent) {
     return
   }
 
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c' && fileStore.hasSelection) {
+    event.preventDefault()
+    closeContextMenu()
+    saveClipboard('copy')
+    return
+  }
+
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'x' && fileStore.hasSelection) {
+    event.preventDefault()
+    closeContextMenu()
+    saveClipboard('move')
+    return
+  }
+
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+    event.preventDefault()
+    closeContextMenu()
+    void pasteClipboardItems()
+    return
+  }
+
   if (event.key === 'Delete' && fileStore.hasSelection) {
     event.preventDefault()
     closeContextMenu()
@@ -629,6 +801,17 @@ onMounted(async () => {
   await fileStore.fetchFiles('/')
   syncPathInput()
 })
+
+watch(
+  () => fileClipboardStore.refreshEvent,
+  (event) => {
+    if (!event || event.sourceWindowId === props.windowId || event.path !== fileStore.currentPath) {
+      return
+    }
+
+    void fileStore.fetchFiles()
+  },
+)
 </script>
 
 <template>
@@ -707,6 +890,9 @@ onMounted(async () => {
               <div>Ctrl/Cmd + Click：多选</div>
               <div>Shift + Click：范围选择</div>
               <div>Ctrl/Cmd + A：全选</div>
+              <div>Ctrl/Cmd + C：复制</div>
+              <div>Ctrl/Cmd + X：移动</div>
+              <div>Ctrl/Cmd + V：粘贴</div>
               <div>Ctrl/Cmd + U：上传</div>
               <div>Ctrl/Cmd + D：下载</div>
               <div>Delete：删除</div>

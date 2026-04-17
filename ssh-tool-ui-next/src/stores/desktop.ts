@@ -102,7 +102,7 @@ export const useDesktopStore = defineStore('desktop', {
       },
       settings: {
         component: markRaw(SettingsView),
-        height: 520,
+        height: 800,
         icon: 'settings',
         id: 'settings',
         title: '设置',
