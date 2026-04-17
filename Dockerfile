@@ -1,10 +1,10 @@
 FROM node:20-bookworm-slim AS web-builder
-WORKDIR /src/ssh-tool-ui
+WORKDIR /src/ssh-tool-ui-next
 
-COPY ssh-tool-ui/package.json ssh-tool-ui/pnpm-lock.yaml* ./
+COPY ssh-tool-ui-next/package.json ssh-tool-ui-next/pnpm-lock.yaml* ./
 RUN npm install -g pnpm && pnpm install
 
-COPY ssh-tool-ui/ ./
+COPY ssh-tool-ui-next/ ./
 RUN pnpm build
 
 FROM ghcr.io/cirruslabs/flutter:stable AS server-builder
@@ -28,7 +28,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=server-builder /src/build/server/bundle/ ./
-COPY --from=web-builder /src/ssh-tool-ui/dist ./web
+COPY --from=web-builder /src/ssh-tool-ui-next/dist ./web
 
 EXPOSE 8080
 VOLUME ["/data"]
