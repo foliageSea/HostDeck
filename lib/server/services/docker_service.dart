@@ -1,48 +1,45 @@
 import 'dart:convert';
+
 import 'package:logging/logging.dart';
-import '../models/ssh_session.dart';
+
 import '../models/docker_container.dart';
 import '../models/docker_image.dart';
+import '../models/ssh_session.dart';
+import '../repositories/docker_engine_repository.dart';
 import '../repositories/ssh_repository.dart';
+import 'docker_engine_mapper.dart';
 
 class DockerService {
   final SshRepository _repository;
+  final DockerEngineRepository _engineRepository;
+  final DockerEngineMapper _mapper;
   final _log = Logger('DockerService');
 
-  DockerService(this._repository);
+  DockerService(
+    this._repository, {
+    DockerEngineRepository? engineRepository,
+    DockerEngineMapper? mapper,
+  }) : _engineRepository =
+           engineRepository ?? DockerEngineRepository(_repository),
+       _mapper = mapper ?? DockerEngineMapper();
 
   /// 获取容器列表
   Future<List<DockerContainer>> listContainers(SshSession session) async {
     try {
-      final output = await _repository.exec(
+      final containers = await _engineRepository.requestJsonList(
         session,
-        'docker ps -a --format "{{json .}}"',
+        method: 'GET',
+        path: '/containers/json',
+        queryParameters: {'all': '1'},
       );
 
-      final lines = output.trim().split('\n');
-      final containers = <DockerContainer>[];
-
-      for (final line in lines) {
-        if (line.isEmpty) continue;
-        try {
-          final json = _parseDockerJson(line);
-          containers.add(
-            DockerContainer(
-              id: json['ID'] ?? json['Id'] ?? '',
-              name: (json['Names'] ?? '').toString().split(',')[0],
-              image: json['Image'] ?? '',
-              status: json['Status'] ?? '',
-              state: json['State'] ?? '',
-              ports: _parsePorts(json['Ports']),
-              createdAt: _parseCreatedAt(json['CreatedAt']),
-            ),
-          );
-        } catch (e) {
-          _log.warning('Failed to parse container: $e');
-        }
-      }
-
-      return containers;
+      return containers
+          .whereType<Map>()
+          .map(
+            (item) =>
+                _mapper.mapContainerSummary(Map<String, dynamic>.from(item)),
+          )
+          .toList();
     } catch (e) {
       _log.severe('Failed to list containers: $e');
       throw Exception('Failed to list containers: $e');
@@ -53,39 +50,14 @@ class DockerService {
   Future<List<DockerImage>> listImages(SshSession session) async {
     try {
       final usedImageIds = await _getUsedImageIds(session);
-      final output = await _repository.exec(
+      final images = await _engineRepository.requestJsonList(
         session,
-        'docker images --format "{{json .}}"',
+        method: 'GET',
+        path: '/images/json',
+        queryParameters: {'all': '1'},
       );
 
-      final lines = output.trim().split('\n');
-      final images = <DockerImage>[];
-
-      for (final line in lines) {
-        if (line.isEmpty) continue;
-        try {
-          final json = _parseDockerJson(line);
-          final id = (json['ID'] ?? '').toString();
-          final repository = (json['Repository'] ?? '').toString();
-          final tag = (json['Tag'] ?? '').toString();
-          final dangling = repository == '<none>' && tag == '<none>';
-          images.add(
-            DockerImage(
-              id: id,
-              repository: repository,
-              tag: tag,
-              size: json['Size'] ?? '',
-              createdAt: _parseCreatedAt(json['CreatedAt']),
-              dangling: dangling,
-              inUse: _isImageInUse(id, usedImageIds),
-            ),
-          );
-        } catch (e) {
-          _log.warning('Failed to parse image: $e');
-        }
-      }
-
-      return images;
+      return _mapper.mapImageSummaries(images, usedImageIds);
     } catch (e) {
       _log.severe('Failed to list images: $e');
       throw Exception('Failed to list images: $e');
@@ -94,32 +66,47 @@ class DockerService {
 
   /// 启动容器
   Future<void> startContainer(SshSession session, String containerId) async {
-    final safeContainerId = _shellQuote(containerId);
-    await _repository.exec(session, 'docker start $safeContainerId');
+    await _engineRepository.request(
+      session,
+      method: 'POST',
+      path: '/containers/$containerId/start',
+    );
   }
 
   /// 停止容器
   Future<void> stopContainer(SshSession session, String containerId) async {
-    final safeContainerId = _shellQuote(containerId);
-    await _repository.exec(session, 'docker stop $safeContainerId');
+    await _engineRepository.request(
+      session,
+      method: 'POST',
+      path: '/containers/$containerId/stop',
+    );
   }
 
   /// 重启容器
   Future<void> restartContainer(SshSession session, String containerId) async {
-    final safeContainerId = _shellQuote(containerId);
-    await _repository.exec(session, 'docker restart $safeContainerId');
+    await _engineRepository.request(
+      session,
+      method: 'POST',
+      path: '/containers/$containerId/restart',
+    );
   }
 
   /// 暂停容器
   Future<void> pauseContainer(SshSession session, String containerId) async {
-    final safeContainerId = _shellQuote(containerId);
-    await _repository.exec(session, 'docker pause $safeContainerId');
+    await _engineRepository.request(
+      session,
+      method: 'POST',
+      path: '/containers/$containerId/pause',
+    );
   }
 
   /// 取消暂停容器
   Future<void> unpauseContainer(SshSession session, String containerId) async {
-    final safeContainerId = _shellQuote(containerId);
-    await _repository.exec(session, 'docker unpause $safeContainerId');
+    await _engineRepository.request(
+      session,
+      method: 'POST',
+      path: '/containers/$containerId/unpause',
+    );
   }
 
   /// 重命名容器
@@ -128,11 +115,11 @@ class DockerService {
     String containerId,
     String newName,
   ) async {
-    final safeContainerId = _shellQuote(containerId);
-    final safeNewName = _shellQuote(newName);
-    await _repository.exec(
+    await _engineRepository.request(
       session,
-      'docker rename $safeContainerId $safeNewName',
+      method: 'POST',
+      path: '/containers/$containerId/rename',
+      queryParameters: {'name': newName},
     );
   }
 
@@ -142,9 +129,12 @@ class DockerService {
     String containerId, {
     bool force = false,
   }) async {
-    final forceFlag = force ? '-f' : '';
-    final safeContainerId = _shellQuote(containerId);
-    await _repository.exec(session, 'docker rm $forceFlag $safeContainerId');
+    await _engineRepository.request(
+      session,
+      method: 'DELETE',
+      path: '/containers/$containerId',
+      queryParameters: {'force': force.toString()},
+    );
   }
 
   /// 获取容器日志
@@ -168,15 +158,26 @@ class DockerService {
     String imageId, {
     bool force = false,
   }) async {
-    final forceFlag = force ? '-f' : '';
-    final safeImageId = _shellQuote(imageId);
-    await _repository.exec(session, 'docker rmi $forceFlag $safeImageId');
+    await _engineRepository.request(
+      session,
+      method: 'DELETE',
+      path: '/images/${Uri.encodeComponent(imageId)}',
+      queryParameters: {'force': force.toString()},
+    );
   }
 
   /// 拉取镜像
   Future<String> pullImage(SshSession session, String imageRef) async {
-    final safeImageRef = _shellQuote(imageRef);
-    return await _repository.exec(session, 'docker pull $safeImageRef');
+    final parsed = _splitImageReference(imageRef);
+    return await _engineRepository.requestText(
+      session,
+      method: 'POST',
+      path: '/images/create',
+      queryParameters: {
+        'fromImage': parsed.repository,
+        if (parsed.tag.isNotEmpty) 'tag': parsed.tag,
+      },
+    );
   }
 
   /// 镜像重新打标签
@@ -185,11 +186,15 @@ class DockerService {
     String sourceImage,
     String targetImage,
   ) async {
-    final safeSourceImage = _shellQuote(sourceImage);
-    final safeTargetImage = _shellQuote(targetImage);
-    await _repository.exec(
+    final parsedTarget = _splitImageReference(targetImage);
+    await _engineRepository.request(
       session,
-      'docker tag $safeSourceImage $safeTargetImage',
+      method: 'POST',
+      path: '/images/${Uri.encodeComponent(sourceImage)}/tag',
+      queryParameters: {
+        'repo': parsedTarget.repository,
+        if (parsedTarget.tag.isNotEmpty) 'tag': parsedTarget.tag,
+      },
     );
   }
 
@@ -198,32 +203,19 @@ class DockerService {
     SshSession session,
     String imageId,
   ) async {
-    final safeImageId = _shellQuote(imageId);
-    final output = await _repository.exec(
+    final items = await _engineRepository.requestJsonList(
       session,
-      'docker image history --no-trunc --format "{{json .}}" $safeImageId',
+      method: 'GET',
+      path: '/images/${Uri.encodeComponent(imageId)}/history',
     );
 
-    final lines = output.split('\n').map((line) => line.trim());
-    final items = <Map<String, dynamic>>[];
-    for (final line in lines) {
-      if (line.isEmpty) continue;
-      try {
-        final json = _parseDockerJson(line);
-        items.add({
-          'id': (json['ID'] ?? '').toString(),
-          'createdSince': (json['CreatedSince'] ?? '').toString(),
-          'createdAt': (json['CreatedAt'] ?? '').toString(),
-          'createdBy': (json['CreatedBy'] ?? '').toString(),
-          'size': (json['Size'] ?? '').toString(),
-          'comment': (json['Comment'] ?? '').toString(),
-        });
-      } catch (_) {
-        // ignore invalid row
-      }
-    }
-
-    return items;
+    return items
+        .whereType<Map>()
+        .map(
+          (item) =>
+              _mapper.mapImageHistoryItem(Map<String, dynamic>.from(item)),
+        )
+        .toList();
   }
 
   /// 获取引用镜像的容器
@@ -231,30 +223,32 @@ class DockerService {
     SshSession session,
     String imageId,
   ) async {
-    final safeImageId = _shellQuote(imageId);
-    final output = await _repository.exec(
+    final filters = jsonEncode({
+      'ancestor': [imageId],
+    });
+    final containers = await _engineRepository.requestJsonList(
       session,
-      'docker ps -a --filter ancestor=$safeImageId --format "{{json .}}"',
+      method: 'GET',
+      path: '/containers/json',
+      queryParameters: {'all': '1', 'filters': filters},
     );
 
-    final lines = output.split('\n').map((line) => line.trim());
-    final containers = <Map<String, dynamic>>[];
-    for (final line in lines) {
-      if (line.isEmpty) continue;
-      try {
-        final json = _parseDockerJson(line);
-        containers.add({
-          'id': (json['ID'] ?? '').toString(),
-          'name': (json['Names'] ?? '').toString(),
-          'image': (json['Image'] ?? '').toString(),
-          'state': (json['State'] ?? '').toString(),
-          'status': (json['Status'] ?? '').toString(),
-        });
-      } catch (_) {
-        // ignore invalid row
-      }
-    }
-    return containers;
+    return containers.whereType<Map>().map((item) {
+      final json = Map<String, dynamic>.from(item);
+      final names =
+          (json['Names'] as List?)
+              ?.map((name) => name.toString())
+              .where((name) => name.isNotEmpty)
+              .toList() ??
+          <String>[];
+      return <String, dynamic>{
+        'id': (json['Id'] ?? '').toString(),
+        'name': names.isEmpty ? '' : _normalizeContainerName(names.first),
+        'image': (json['Image'] ?? '').toString(),
+        'state': (json['State'] ?? '').toString(),
+        'status': (json['Status'] ?? '').toString(),
+      };
+    }).toList();
   }
 
   /// 创建容器
@@ -267,17 +261,20 @@ class DockerService {
       throw Exception('image is required');
     }
 
-    final command = _buildDockerCreateCommand(payload);
-    final output = await _repository.exec(session, command);
-    final containerId = output
-        .split('\n')
-        .map((line) => line.trim())
-        .firstWhere((line) => line.isNotEmpty, orElse: () => '');
+    final name = payload['name']?.toString().trim() ?? '';
+    final requestBody = _mapper.buildCreateRequest(payload);
+    final result = await _engineRepository.requestJsonObject(
+      session,
+      method: 'POST',
+      path: '/containers/create',
+      queryParameters: name.isEmpty ? null : {'name': name},
+      body: requestBody,
+    );
+    final containerId = (result['Id'] ?? '').toString();
 
     final startAfterCreate = payload['start'] == true;
-    if (startAfterCreate) {
-      final safeContainerId = _shellQuote(containerId);
-      await _repository.exec(session, 'docker start $safeContainerId');
+    if (startAfterCreate && containerId.isNotEmpty) {
+      await startContainer(session, containerId);
     }
 
     return {'containerId': containerId, 'started': startAfterCreate};
@@ -290,28 +287,21 @@ class DockerService {
   ) async {
     final inspect = await inspectContainer(session, containerId);
     final nameRaw = inspect['Name']?.toString() ?? '';
-    final name = nameRaw.startsWith('/') ? nameRaw.substring(1) : nameRaw;
+    final name = _normalizeContainerName(nameRaw);
     final state =
         inspect['State'] as Map<String, dynamic>? ?? <String, dynamic>{};
     final wasRunning = state['Running'] == true;
 
     final payload = _buildCreatePayloadFromInspect(inspect);
-    final createCommand = _buildDockerCreateCommand(payload);
+    await removeContainer(session, containerId, force: true);
+    final createResult = await createContainer(session, <String, dynamic>{
+      ...payload,
+      'start': false,
+    });
+    final newContainerId = (createResult['containerId'] ?? '').toString();
 
-    final safeContainerId = _shellQuote(containerId);
-    await _repository.exec(session, 'docker rm -f $safeContainerId');
-    final createOutput = await _repository.exec(session, createCommand);
-
-    final newContainerId = createOutput
-        .split('\n')
-        .map((line) => line.trim())
-        .firstWhere((line) => line.isNotEmpty, orElse: () => '');
-
-    if (wasRunning) {
-      if (newContainerId.isNotEmpty) {
-        final safeNewContainerId = _shellQuote(newContainerId);
-        await _repository.exec(session, 'docker start $safeNewContainerId');
-      }
+    if (wasRunning && newContainerId.isNotEmpty) {
+      await startContainer(session, newContainerId);
     }
 
     return {
@@ -348,14 +338,20 @@ class DockerService {
 
   /// 批量删除已停止容器
   Future<int> removeStoppedContainers(SshSession session) async {
-    final output = await _repository.exec(
+    final filters = jsonEncode({
+      'status': ['exited'],
+    });
+    final containers = await _engineRepository.requestJsonList(
       session,
-      'docker ps -a --filter "status=exited" --format "{{.ID}}"',
+      method: 'GET',
+      path: '/containers/json',
+      queryParameters: {'all': '1', 'filters': filters},
     );
-    final ids = output
-        .split('\n')
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty)
+
+    final ids = containers
+        .whereType<Map>()
+        .map((item) => (item['Id'] ?? '').toString())
+        .where((id) => id.isNotEmpty)
         .toList();
 
     for (final id in ids) {
@@ -370,18 +366,22 @@ class DockerService {
     SshSession session, {
     bool includeUnused = false,
   }) async {
-    final allFlag = includeUnused ? '-a' : '';
-    return await _repository.exec(session, 'docker image prune $allFlag -f');
+    final filters = includeUnused
+        ? jsonEncode(<String, List<String>>{})
+        : jsonEncode({
+            'dangling': ['true'],
+          });
+    return await _engineRepository.requestText(
+      session,
+      method: 'POST',
+      path: '/images/prune',
+      queryParameters: {'filters': filters},
+    );
   }
 
   /// 检查 Docker 是否可用
   Future<bool> isDockerAvailable(SshSession session) async {
-    try {
-      await _repository.exec(session, 'docker --version');
-      return true;
-    } catch (e) {
-      return false;
-    }
+    return _engineRepository.ping(session);
   }
 
   /// 获取容器 inspect 详情
@@ -389,19 +389,11 @@ class DockerService {
     SshSession session,
     String containerId,
   ) async {
-    final safeContainerId = _shellQuote(containerId);
-    final output = await _repository.exec(
+    return await _engineRepository.requestJsonObject(
       session,
-      'docker inspect $safeContainerId',
+      method: 'GET',
+      path: '/containers/$containerId/json',
     );
-
-    final parsed = jsonDecode(output);
-    if (parsed is List &&
-        parsed.isNotEmpty &&
-        parsed.first is Map<String, dynamic>) {
-      return parsed.first as Map<String, dynamic>;
-    }
-    throw Exception('Invalid docker inspect output');
   }
 
   /// 获取容器资源信息（docker stats --no-stream）
@@ -409,31 +401,13 @@ class DockerService {
     SshSession session,
     String containerId,
   ) async {
-    final safeContainerId = _shellQuote(containerId);
-    final output = await _repository.exec(
+    final json = await _engineRepository.requestJsonObject(
       session,
-      'docker stats --no-stream --format "{{json .}}" $safeContainerId',
+      method: 'GET',
+      path: '/containers/$containerId/stats',
+      queryParameters: {'stream': 'false'},
     );
-
-    final line = output
-        .split('\n')
-        .map((value) => value.trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    if (line.isEmpty) {
-      throw Exception('Container stats is empty');
-    }
-
-    final json = _parseDockerJson(line);
-    return {
-      'id': (json['ID'] ?? '').toString(),
-      'name': (json['Name'] ?? '').toString(),
-      'cpuPercent': (json['CPUPerc'] ?? '').toString(),
-      'memPercent': (json['MemPerc'] ?? '').toString(),
-      'memUsage': (json['MemUsage'] ?? '').toString(),
-      'netIO': (json['NetIO'] ?? '').toString(),
-      'blockIO': (json['BlockIO'] ?? '').toString(),
-      'pids': (json['PIDs'] ?? '').toString(),
-    };
+    return _mapper.mapContainerStats(json);
   }
 
   /// 获取容器诊断信息（重启次数、健康状态、退出码）
@@ -469,15 +443,6 @@ class DockerService {
     return results;
   }
 
-  // Helper methods
-  Map<String, dynamic> _parseDockerJson(String line) {
-    return jsonDecode(line) as Map<String, dynamic>;
-  }
-
-  String _shellQuote(String value) {
-    return "'${value.replaceAll("'", "'\\''")}'";
-  }
-
   List<String> _normalizeIds(List<String> ids) {
     return ids
         .map((id) => id.trim())
@@ -488,144 +453,42 @@ class DockerService {
 
   Future<Set<String>> _getUsedImageIds(SshSession session) async {
     try {
-      final output = await _repository.exec(
+      final containers = await _engineRepository.requestJsonList(
         session,
-        'docker ps -a --format "{{.ImageID}}"',
+        method: 'GET',
+        path: '/containers/json',
+        queryParameters: {'all': '1'},
       );
 
-      return output
-          .split('\n')
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
+      return containers
+          .whereType<Map>()
+          .map((item) => (item['ImageID'] ?? item['ImageId'] ?? '').toString())
+          .where((id) => id.isNotEmpty)
           .toSet();
     } catch (_) {
       return <String>{};
     }
   }
 
-  bool _isImageInUse(String imageId, Set<String> usedImageIds) {
-    if (imageId.isEmpty) return false;
-    final normalizedImageId = _normalizeImageId(imageId);
-
-    for (final usedId in usedImageIds) {
-      final normalizedUsedId = _normalizeImageId(usedId);
-      if (normalizedUsedId == normalizedImageId ||
-          normalizedUsedId.startsWith(normalizedImageId) ||
-          normalizedImageId.startsWith(normalizedUsedId)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  String _normalizeImageId(String id) {
-    return id.trim().toLowerCase().replaceFirst('sha256:', '');
-  }
-
-  List<String> _parsePorts(dynamic ports) {
-    if (ports == null) return [];
-    if (ports is List) return ports.cast<String>();
-    return ports.toString().split(',').map((s) => s.trim()).toList();
-  }
-
-  DateTime? _parseCreatedAt(dynamic createdAt) {
-    if (createdAt == null) return null;
-    final value = createdAt.toString().trim();
-    if (value.isEmpty) return null;
-
-    var parsed = DateTime.tryParse(value);
-    if (parsed != null) return parsed;
-
-    final withoutTzName = value.replaceFirst(RegExp(r'\s+[A-Za-z]+$'), '');
-    parsed = DateTime.tryParse(withoutTzName);
-    if (parsed != null) return parsed;
-
-    final normalizedOffset = withoutTzName.replaceFirstMapped(
-      RegExp(r'([+-]\d{2})(\d{2})$'),
-      (match) => '${match.group(1)}:${match.group(2)}',
-    );
-    parsed = DateTime.tryParse(normalizedOffset);
-    return parsed;
+  String _shellQuote(String value) {
+    return "'${value.replaceAll("'", "'\\''")}'";
   }
 
   int _toInt(dynamic value) {
-    if (value is int) return value;
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  String _buildDockerCreateCommand(Map<String, dynamic> payload) {
-    final args = <String>['docker create'];
-
-    final image = payload['image']?.toString().trim() ?? '';
-    if (image.isEmpty) {
-      throw Exception('image is required');
+  String _normalizeContainerName(String value) {
+    if (value.startsWith('/')) {
+      return value.substring(1);
     }
-
-    final name = payload['name']?.toString().trim() ?? '';
-    if (name.isNotEmpty) {
-      args.add('--name ${_shellQuote(name)}');
-    }
-
-    final restartPolicy = payload['restartPolicy']?.toString().trim() ?? '';
-    if (restartPolicy.isNotEmpty && restartPolicy != 'no') {
-      args.add('--restart ${_shellQuote(restartPolicy)}');
-    }
-
-    final ports = payload['ports'];
-    if (ports is List) {
-      for (final item in ports) {
-        final port = item.toString().trim();
-        if (port.isNotEmpty) {
-          args.add('-p ${_shellQuote(port)}');
-        }
-      }
-    }
-
-    final env = payload['env'];
-    if (env is List) {
-      for (final item in env) {
-        final value = item.toString().trim();
-        if (value.isNotEmpty) {
-          args.add('-e ${_shellQuote(value)}');
-        }
-      }
-    }
-
-    final volumes = payload['volumes'];
-    if (volumes is List) {
-      for (final item in volumes) {
-        final value = item.toString().trim();
-        if (value.isNotEmpty) {
-          args.add('-v ${_shellQuote(value)}');
-        }
-      }
-    }
-
-    final entrypoint = payload['entrypoint'];
-    if (entrypoint is List) {
-      final values = entrypoint
-          .map((item) => item.toString().trim())
-          .where((item) => item.isNotEmpty)
-          .toList();
-      if (values.isNotEmpty) {
-        final encoded = jsonEncode(values);
-        args.add('--entrypoint ${_shellQuote(encoded)}');
-      }
-    }
-
-    args.add(_shellQuote(image));
-
-    final cmd = payload['cmd'];
-    if (cmd is List) {
-      final values = cmd
-          .map((item) => item.toString().trim())
-          .where((item) => item.isNotEmpty);
-      for (final value in values) {
-        args.add(_shellQuote(value));
-      }
-    }
-
-    return args.join(' ');
+    return value;
   }
 
   Map<String, dynamic> _buildCreatePayloadFromInspect(
@@ -636,7 +499,7 @@ class DockerService {
     final hostConfig =
         inspect['HostConfig'] as Map<String, dynamic>? ?? <String, dynamic>{};
     final nameRaw = inspect['Name']?.toString() ?? '';
-    final name = nameRaw.startsWith('/') ? nameRaw.substring(1) : nameRaw;
+    final name = _normalizeContainerName(nameRaw);
 
     final restartName =
         (hostConfig['RestartPolicy'] as Map<String, dynamic>? ??
@@ -654,7 +517,9 @@ class DockerService {
           if (binding is Map<String, dynamic>) {
             final hostIp = (binding['HostIp'] ?? '').toString();
             final hostPort = (binding['HostPort'] ?? '').toString();
-            if (hostPort.isEmpty) continue;
+            if (hostPort.isEmpty) {
+              continue;
+            }
             if (hostIp.isNotEmpty && hostIp != '0.0.0.0') {
               ports.add('$hostIp:$hostPort:$containerPort');
             } else {
@@ -672,7 +537,9 @@ class DockerService {
         if (mount is Map<String, dynamic>) {
           final source = (mount['Source'] ?? '').toString();
           final destination = (mount['Destination'] ?? '').toString();
-          if (source.isEmpty || destination.isEmpty) continue;
+          if (source.isEmpty || destination.isEmpty) {
+            continue;
+          }
           final rw = mount['RW'] != false;
           final suffix = rw ? '' : ':ro';
           volumes.add('$source:$destination$suffix');
@@ -699,4 +566,30 @@ class DockerService {
           <String>[],
     };
   }
+
+  _ImageReference _splitImageReference(String imageRef) {
+    final value = imageRef.trim();
+    final digestIndex = value.indexOf('@');
+    if (digestIndex >= 0) {
+      return _ImageReference(value, '');
+    }
+
+    final lastSlash = value.lastIndexOf('/');
+    final lastColon = value.lastIndexOf(':');
+    if (lastColon > lastSlash) {
+      return _ImageReference(
+        value.substring(0, lastColon),
+        value.substring(lastColon + 1),
+      );
+    }
+
+    return _ImageReference(value, 'latest');
+  }
+}
+
+class _ImageReference {
+  final String repository;
+  final String tag;
+
+  const _ImageReference(this.repository, this.tag);
 }
