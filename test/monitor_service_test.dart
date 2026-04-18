@@ -12,6 +12,11 @@ class MockSshRepository implements SshRepository {
   int _callCount = 0;
 
   @override
+  Future<Uint8List> execBytes(SshSession session, String command) async {
+    return Uint8List.fromList((await exec(session, command)).codeUnits);
+  }
+
+  @override
   Future<String> exec(SshSession session, String command) async {
     if (command.contains('grep Mem')) {
       return "Mem:           8000        4000         480          18        3627        3829";
@@ -23,7 +28,7 @@ class MockSshRepository implements SshRepository {
       return " 13:22:01 up 1 day,  3:10,  1 user,  load average: 0.50, 0.05, 0.01";
     }
     if (command.contains('top')) {
-       return "%Cpu(s):  0.3 us,  0.3 sy,  0.0 ni, 99.3 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st";
+      return "%Cpu(s):  0.3 us,  0.3 sy,  0.0 ni, 99.3 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st";
     }
     if (command.contains('/proc/net/dev')) {
       _callCount++;

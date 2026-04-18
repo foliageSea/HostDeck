@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:logging/logging.dart';
 
@@ -10,18 +11,21 @@ import '../repositories/ssh_repository.dart';
 import 'docker_engine_mapper.dart';
 
 class DockerService {
-  final SshRepository _repository;
   final DockerEngineRepository _engineRepository;
   final DockerEngineMapper _mapper;
   final _log = Logger('DockerService');
 
   DockerService(
-    this._repository, {
+    SshRepository repository, {
     DockerEngineRepository? engineRepository,
     DockerEngineMapper? mapper,
   }) : _engineRepository =
-           engineRepository ?? DockerEngineRepository(_repository),
+           engineRepository ?? DockerEngineRepository(repository),
        _mapper = mapper ?? DockerEngineMapper();
+
+  String debugDecodeDockerLogs(Uint8List bytes) {
+    return _decodeDockerLogs(bytes);
+  }
 
   /// 获取容器列表
   Future<List<DockerContainer>> listContainers(SshSession session) async {
@@ -144,12 +148,18 @@ class DockerService {
     int tail = 100,
     bool timestamps = false,
   }) async {
-    final safeContainerId = _shellQuote(containerId);
-    final timestampFlag = timestamps ? '-t' : '';
-    return await _repository.exec(
+    final logs = await _engineRepository.requestBytes(
       session,
-      'docker logs $timestampFlag --tail $tail $safeContainerId',
+      method: 'GET',
+      path: '/containers/$containerId/logs',
+      queryParameters: {
+        'stdout': '1',
+        'stderr': '1',
+        'tail': tail.toString(),
+        'timestamps': timestamps ? '1' : '0',
+      },
     );
+    return _decodeDockerLogs(logs);
   }
 
   /// 删除镜像
@@ -470,10 +480,6 @@ class DockerService {
     }
   }
 
-  String _shellQuote(String value) {
-    return "'${value.replaceAll("'", "'\\''")}'";
-  }
-
   int _toInt(dynamic value) {
     if (value is int) {
       return value;
@@ -482,6 +488,56 @@ class DockerService {
       return value.toInt();
     }
     return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  String _decodeDockerLogs(Uint8List bytes) {
+    if (bytes.isEmpty) {
+      return '';
+    }
+
+    if (!_looksLikeDockerMultiplexedStream(bytes)) {
+      return utf8.decode(bytes, allowMalformed: true);
+    }
+
+    final output = BytesBuilder(copy: false);
+    var offset = 0;
+    while (offset + 8 <= bytes.length) {
+      final frameLength =
+          (bytes[offset + 4] << 24) |
+          (bytes[offset + 5] << 16) |
+          (bytes[offset + 6] << 8) |
+          bytes[offset + 7];
+      final frameStart = offset + 8;
+      final frameEnd = frameStart + frameLength;
+      if (frameLength < 0 || frameEnd > bytes.length) {
+        return utf8.decode(bytes, allowMalformed: true);
+      }
+
+      final streamType = bytes[offset];
+      if (streamType == 1 || streamType == 2) {
+        output.add(Uint8List.sublistView(bytes, frameStart, frameEnd));
+      }
+      offset = frameEnd;
+    }
+
+    if (offset != bytes.length) {
+      return utf8.decode(bytes, allowMalformed: true);
+    }
+
+    return utf8.decode(output.takeBytes(), allowMalformed: true);
+  }
+
+  bool _looksLikeDockerMultiplexedStream(Uint8List bytes) {
+    if (bytes.length < 8) {
+      return false;
+    }
+
+    final streamType = bytes[0];
+    if (streamType != 0 && streamType != 1 && streamType != 2) {
+      return false;
+    }
+
+    return bytes[1] == 0 && bytes[2] == 0 && bytes[3] == 0;
   }
 
   String _normalizeContainerName(String value) {

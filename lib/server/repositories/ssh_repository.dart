@@ -7,8 +7,13 @@ import '../models/file_item.dart';
 
 class SshRepository {
   Future<String> exec(SshSession session, String command) async {
-    final result = await session.client.run(command);
+    final result = await execBytes(session, command);
     return utf8.decode(result);
+  }
+
+  Future<Uint8List> execBytes(SshSession session, String command) async {
+    final result = await session.client.run(command);
+    return result;
   }
 
   Future<List<FileItem>> listFiles(SshSession session, String path) async {

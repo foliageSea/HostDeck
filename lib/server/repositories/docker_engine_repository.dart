@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import '../models/ssh_session.dart';
 import 'ssh_repository.dart';
@@ -16,9 +17,14 @@ class DockerEngineHttpException implements Exception {
 
 class DockerEngineResponse {
   final int statusCode;
-  final String body;
+  final Uint8List bodyBytes;
 
-  const DockerEngineResponse({required this.statusCode, required this.body});
+  const DockerEngineResponse({
+    required this.statusCode,
+    required this.bodyBytes,
+  });
+
+  String get body => utf8.decode(bodyBytes);
 }
 
 class DockerEngineRepository {
@@ -58,6 +64,25 @@ class DockerEngineRepository {
       headers: headers,
     );
     return response.body;
+  }
+
+  Future<Uint8List> requestBytes(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+  }) async {
+    final response = await request(
+      session,
+      method: method,
+      path: path,
+      queryParameters: queryParameters,
+      body: body,
+      headers: headers,
+    );
+    return response.bodyBytes;
   }
 
   Future<dynamic> requestJson(
@@ -168,32 +193,36 @@ class DockerEngineRepository {
     args.add(_shellQuote(_buildUrl(path, queryParameters)));
 
     final command = 'sh -lc ${_shellQuote('${args.join(' ')} 2>&1')}';
-    final output = await _sshRepository.exec(session, command);
-    final marker = '\n$_statusMarker:';
-    final markerIndex = output.lastIndexOf(marker);
+    final output = await _sshRepository.execBytes(session, command);
+    final markerBytes = Uint8List.fromList(utf8.encode('\n$_statusMarker:'));
+    final markerIndex = _lastIndexOfBytes(output, markerBytes);
 
     if (markerIndex < 0) {
-      final message = output.trim().isEmpty
+      final outputText = utf8.decode(output, allowMalformed: true);
+      final message = outputText.trim().isEmpty
           ? 'Docker Engine API request failed without a response marker'
-          : output.trim();
+          : outputText.trim();
       throw Exception(message);
     }
 
-    final bodyText = output.substring(0, markerIndex);
-    final statusText = output.substring(markerIndex + marker.length).trim();
+    final bodyBytes = Uint8List.sublistView(output, 0, markerIndex);
+    final statusStart = markerIndex + markerBytes.length;
+    final statusBytes = Uint8List.sublistView(output, statusStart);
+    final statusText = utf8.decode(statusBytes, allowMalformed: true).trim();
     final statusCode = int.tryParse(statusText);
     if (statusCode == null) {
       throw Exception('Invalid Docker Engine API status code: $statusText');
     }
 
     if (statusCode >= 400) {
+      final bodyText = utf8.decode(bodyBytes, allowMalformed: true);
       throw DockerEngineHttpException(
         statusCode,
         _extractErrorMessage(bodyText),
       );
     }
 
-    return DockerEngineResponse(statusCode: statusCode, body: bodyText);
+    return DockerEngineResponse(statusCode: statusCode, bodyBytes: bodyBytes);
   }
 
   String _buildUrl(String path, Map<String, String>? queryParameters) {
@@ -228,5 +257,26 @@ class DockerEngineRepository {
 
   String _shellQuote(String value) {
     return "'${value.replaceAll("'", "'\\''")}'";
+  }
+
+  int _lastIndexOfBytes(Uint8List bytes, Uint8List pattern) {
+    if (pattern.isEmpty || bytes.length < pattern.length) {
+      return -1;
+    }
+
+    for (var index = bytes.length - pattern.length; index >= 0; index--) {
+      var matched = true;
+      for (var offset = 0; offset < pattern.length; offset++) {
+        if (bytes[index + offset] != pattern[offset]) {
+          matched = false;
+          break;
+        }
+      }
+      if (matched) {
+        return index;
+      }
+    }
+
+    return -1;
   }
 }
