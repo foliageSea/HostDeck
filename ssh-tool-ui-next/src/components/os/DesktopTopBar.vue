@@ -45,6 +45,30 @@ const sessionStatusMeta = computed(() => {
     label: '当前未连接 SSH 会话',
   }
 })
+const monitorData = computed(() => sshStore.monitorData)
+const cpuUsage = computed(() => {
+  if (typeof monitorData.value?.cpuUsage === 'number') {
+    return `${monitorData.value.cpuUsage.toFixed(1)}%`
+  }
+
+  return '--'
+})
+const memoryUsage = computed(() => {
+  const ram = monitorData.value?.ram
+  if (!ram?.total) {
+    return '--'
+  }
+
+  return `${Math.round((ram.used / ram.total) * 100)}%`
+})
+const uploadSpeed = computed(() => formatSpeed(monitorData.value?.network?.uploadSpeed ?? 0))
+const downloadSpeed = computed(() => formatSpeed(monitorData.value?.network?.downloadSpeed ?? 0))
+const performanceStats = computed(() => [
+  { label: 'CPU', value: cpuUsage.value },
+  { label: '内存', value: memoryUsage.value },
+  { label: '上传', value: uploadSpeed.value },
+  { label: '下载', value: downloadSpeed.value },
+])
 const hasUnreadUploads = computed(() => uploadCenterStore.activeTaskCount > 0)
 const uploadBatches = computed(() =>
   uploadCenterStore.batches.map((batch) => {
@@ -114,6 +138,18 @@ function formatBatchTime(timestamp: number) {
   }).format(new Date(timestamp))
 }
 
+function formatSpeed(value: number) {
+  if (value >= 1024 * 1024) {
+    return `${(value / 1024 / 1024).toFixed(2)} MB/s`
+  }
+
+  if (value >= 1024) {
+    return `${(value / 1024).toFixed(1)} KB/s`
+  }
+
+  return `${value.toFixed(0)} B/s`
+}
+
 function isBatchActive(batch: UploadBatch) {
   return batch.tasks.some((task) => task.status === 'pending' || task.status === 'uploading')
 }
@@ -169,6 +205,16 @@ function disconnect() {
         </template>
         {{ sessionStatusMeta.label }}
       </NTooltip>
+      <div class="hidden items-center gap-[8px] xl:flex">
+        <div v-for="stat in performanceStats" :key="stat.label"
+          class="flex min-w-[92px] items-center justify-between gap-[8px] rounded-[10px] px-[10px] py-[4px] text-[12px]"
+          :class="settingsStore.isDark
+            ? 'bg-[rgba(15,23,42,0.46)] text-[rgba(226,232,240,0.88)]'
+            : 'bg-[rgba(255,255,255,0.58)] text-[rgba(30,41,59,0.88)]'">
+          <span class="text-[rgba(148,163,184,0.94)]">{{ stat.label }}</span>
+          <strong class="font-600">{{ stat.value }}</strong>
+        </div>
+      </div>
     </div>
 
     <div class="flex min-w-0 items-center justify-end gap-[12px]">
