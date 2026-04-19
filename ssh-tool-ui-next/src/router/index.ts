@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useSshStore } from '@/stores/ssh'
 import DashboardView from '@/views/Dashboard/index.vue'
 import FilesView from '@/views/Files/index.vue'
+import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
 import TerminalView from '@/views/Terminal/index.vue'
 
 const router = createRouter({
@@ -27,6 +28,12 @@ const router = createRouter({
       path: '/files',
       name: 'files',
       component: FilesView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/runtime-sessions',
+      name: 'runtime-sessions',
+      component: RuntimeSessionsView,
       meta: { requiresAuth: true },
     },
   ],

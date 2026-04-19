@@ -5,6 +5,7 @@ import '../controllers/file_controller.dart';
 import '../controllers/terminal_controller.dart';
 import '../controllers/server_controller.dart';
 import '../controllers/docker_controller.dart';
+import '../controllers/runtime_controller.dart';
 
 class ApiRoutes {
   final AuthController authController;
@@ -13,6 +14,7 @@ class ApiRoutes {
   final TerminalController terminalController;
   final ServerController serverController;
   final DockerController dockerController;
+  final RuntimeController runtimeController;
 
   ApiRoutes({
     required this.authController,
@@ -21,6 +23,7 @@ class ApiRoutes {
     required this.terminalController,
     required this.serverController,
     required this.dockerController,
+    required this.runtimeController,
   });
 
   Router get router {
@@ -35,6 +38,10 @@ class ApiRoutes {
     router.post('/api/servers', serverController.create);
     router.put('/api/servers/<id>', serverController.update);
     router.delete('/api/servers/<id>', serverController.delete);
+
+    // Runtime
+    router.get('/api/runtime/sessions', runtimeController.listSessions);
+    router.get('/api/ws/runtime', runtimeController.wsSessions);
 
     // System
     router.get('/api/status', systemController.status);

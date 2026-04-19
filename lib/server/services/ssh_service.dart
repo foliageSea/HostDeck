@@ -117,6 +117,56 @@ class SshService {
 
   SSHClient? getClient(String connectionId) => _clients[connectionId];
 
+  Map<String, dynamic> getRuntimeSnapshot() {
+    final sessionCounts = <String, int>{};
+    for (final session in _sessions.values) {
+      sessionCounts.update(
+        session.connectionId,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+    }
+
+    final clients = _clients.entries
+        .map(
+          (entry) => {
+            'connectionId': entry.key,
+            'isClosed': entry.value.isClosed,
+            'sessionCount': sessionCounts[entry.key] ?? 0,
+          },
+        )
+        .toList()
+      ..sort(
+        (left, right) => (left['connectionId'] as String).compareTo(
+          right['connectionId'] as String,
+        ),
+      );
+
+    final sessions = _sessions.values
+        .map(
+          (session) => {
+            'sessionId': session.id,
+            'connectionId': session.connectionId,
+            'type': session.shell == null ? 'sftp' : 'shell',
+            'hasShell': session.shell != null,
+            'clientClosed': session.client.isClosed,
+          },
+        )
+        .toList()
+      ..sort(
+        (left, right) => (left['sessionId'] as String).compareTo(
+          right['sessionId'] as String,
+        ),
+      );
+
+    return {
+      'totalClients': clients.length,
+      'totalSessions': sessions.length,
+      'clients': clients,
+      'sessions': sessions,
+    };
+  }
+
   Future<void> closeSession(String id) async {
     final session = _sessions[id];
     if (session != null) {

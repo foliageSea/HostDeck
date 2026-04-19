@@ -19,6 +19,7 @@ import 'controllers/file_controller.dart';
 import 'controllers/terminal_controller.dart';
 import 'controllers/server_controller.dart';
 import 'controllers/docker_controller.dart';
+import 'controllers/runtime_controller.dart';
 import 'routes/api_routes.dart';
 
 class ServerService {
@@ -75,6 +76,7 @@ class ServerService {
     final terminalController = TerminalController(sshService);
     final serverController = ServerController(serverRepository);
     final dockerController = DockerController(sshService, dockerService);
+    final runtimeController = RuntimeController(sshService);
 
     // 3. Initialize Routes
     final apiRoutes = ApiRoutes(
@@ -84,6 +86,7 @@ class ServerService {
       terminalController: terminalController,
       serverController: serverController,
       dockerController: dockerController,
+      runtimeController: runtimeController,
     );
 
     // 4. Setup Static Handler

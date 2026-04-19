@@ -7,6 +7,7 @@ import DashboardView from '@/views/Dashboard/index.vue'
 import DockerView from '@/views/Docker/index.vue'
 import FilesView from '@/views/Files/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
+import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
 import SettingsView from '@/views/Settings/index.vue'
 import TerminalView from '@/views/Terminal/index.vue'
 import TextEditorView from '@/views/TextEditor/index.vue'
@@ -73,6 +74,14 @@ export const useDesktopStore = defineStore('desktop', {
         id: 'docker',
         title: 'Docker 管理',
         width: 1180,
+      },
+      'runtime-sessions': {
+        component: markRaw(RuntimeSessionsView),
+        height: 720,
+        icon: 'runtime',
+        id: 'runtime-sessions',
+        title: '运行态会话',
+        width: 1120,
       },
       editor: {
         component: markRaw(TextEditorView),
