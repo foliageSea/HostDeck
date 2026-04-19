@@ -9,7 +9,6 @@ export interface ConnectParams {
 }
 
 export interface ConnectResponse {
-  sessionId: string
   connectionId: string
 }
 

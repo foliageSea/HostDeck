@@ -8,7 +8,7 @@ class SshService {
   final Map<String, SshSession> _sessions = {};
   final Map<String, SSHClient> _clients = {};
 
-  Future<SshSession> connect({
+  Future<String> connect({
     required String host,
     required int port,
     required String username,
@@ -36,8 +36,7 @@ class SshService {
       _disconnectInternal(connectionId);
     });
 
-    // Create initial shell (Main Session)
-    return await createShell(connectionId);
+    return connectionId;
   }
 
   Future<SshSession> createShell(String connectionId) async {
@@ -115,6 +114,8 @@ class SshService {
   // Let's fix connect() to attach listener.
 
   SshSession? getSession(String id) => _sessions[id];
+
+  SSHClient? getClient(String connectionId) => _clients[connectionId];
 
   Future<void> closeSession(String id) async {
     final session = _sessions[id];

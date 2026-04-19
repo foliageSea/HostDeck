@@ -1,4 +1,4 @@
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { markRaw, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { Terminal } from '@xterm/xterm'
@@ -11,6 +11,7 @@ interface TerminalProps {
   windowId?: string
   sessionId?: string
   cwd?: string
+  closeSessionOnUnmount?: boolean
 }
 
 export function useTerminalSession(props: TerminalProps) {
@@ -18,7 +19,7 @@ export function useTerminalSession(props: TerminalProps) {
   const settingsStore = useSettingsStore()
   const desktopStore = useDesktopStore()
   const terminalContainer = ref<HTMLElement | null>(null)
-  const terminalRef = ref<Terminal | null>(null)
+  const terminalRef = shallowRef<Terminal | null>(null)
 
   let fitAddon: FitAddon | null = null
   let webLinksAddon: WebLinksAddon | null = null
@@ -94,7 +95,7 @@ export function useTerminalSession(props: TerminalProps) {
   }
 
   function createTerminal() {
-    terminalRef.value = new Terminal({
+    terminalRef.value = markRaw(new Terminal({
       allowProposedApi: true,
       cursorBlink: true,
       fontFamily: settingsStore.terminalFontFamily,
@@ -103,13 +104,13 @@ export function useTerminalSession(props: TerminalProps) {
         background: '#050816',
         foreground: '#e2e8f0',
       },
-    })
+    }))
 
-    fitAddon = new FitAddon()
-    webLinksAddon = new WebLinksAddon((event, uri) => {
+    fitAddon = markRaw(new FitAddon())
+    webLinksAddon = markRaw(new WebLinksAddon((event, uri) => {
       event.preventDefault()
       window.open(uri, '_blank', 'noopener')
-    })
+    }))
 
     terminalRef.value.loadAddon(fitAddon)
     terminalRef.value.loadAddon(webLinksAddon)
@@ -182,15 +183,19 @@ export function useTerminalSession(props: TerminalProps) {
   })
 
   onBeforeUnmount(async () => {
+    const sessionIdToClose = ownedSessionId ?? (props.closeSessionOnUnmount ? props.sessionId ?? null : null)
+
     resizeObserver?.disconnect()
     socket?.close()
-    webLinksAddon?.dispose()
-    fitAddon?.dispose()
     terminalRef.value?.dispose()
+    webLinksAddon = null
+    fitAddon = null
+    socket = null
+    resizeObserver = null
 
-    if (ownedSessionId) {
+    if (sessionIdToClose) {
       try {
-        await terminalApi.deleteSession(ownedSessionId)
+        await terminalApi.deleteSession(sessionIdToClose)
       } catch (error) {
         console.error('Failed to delete terminal session', error)
       }

@@ -30,6 +30,21 @@ class FileController {
     }
   }
 
+  Future<Response> closeSession(Request request) async {
+    try {
+      final sessionId = request.url.queryParameters['sessionId'];
+      if (sessionId == null) {
+        return Result.fail(400, 'Missing sessionId');
+      }
+
+      await _sshService.closeSession(sessionId);
+
+      return Result.ok('Session closed');
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
   Future<Response> listFiles(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'] ?? '.';

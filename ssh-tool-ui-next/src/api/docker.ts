@@ -24,6 +24,10 @@ export interface DockerShellSessionResponse {
   sessionId: string
 }
 
+export interface DockerSessionResponse {
+  sessionId: string
+}
+
 export interface DockerContainerStats {
   id: string
   name: string
@@ -107,6 +111,18 @@ export interface DockerContainerInspect {
 }
 
 export const dockerApi = {
+  async createSession(connectionId: string) {
+    const response = await http.post<DockerSessionResponse>('/api/docker/session', { connectionId })
+    return response.data
+  },
+
+  async deleteSession(sessionId: string) {
+    const response = await http.delete('/api/docker/session', {
+      params: { sessionId },
+    })
+    return response.data
+  },
+
   async checkDocker(sessionId: string) {
     const response = await http.get<{ available: boolean }>('/api/docker/check', {
       params: { sessionId },

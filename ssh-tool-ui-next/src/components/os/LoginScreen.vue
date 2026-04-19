@@ -111,7 +111,6 @@ const connectMutation = useMutation<ConnectResponse, Error, ConnectParams>({
   mutationFn: authApi.connect,
   onSuccess: (data) => {
     sshStore.setSession(
-      data.sessionId,
       data.connectionId,
       connectionForm.host,
       connectionForm.port,

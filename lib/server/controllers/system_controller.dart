@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import '../models/ssh_session.dart';
 import '../services/ssh_service.dart';
 import '../services/monitor_service.dart';
 import '../models/result.dart';
@@ -18,21 +19,20 @@ class SystemController {
 
   Handler get wsSessionStatus {
     return (Request request) {
-      final sessionId = request.url.queryParameters['sessionId'];
+      final connectionId = request.url.queryParameters['connectionId'];
       return webSocketHandler((WebSocketChannel channel, String? protocol) {
-        if (sessionId == null) {
-          channel.sink.close(4000, 'Missing sessionId parameter');
+        if (connectionId == null) {
+          channel.sink.close(4000, 'Missing connectionId parameter');
           return;
         }
 
-        final session = _sshService.getSession(sessionId);
-        if (session == null) {
-          channel.sink.close(4004, 'Session not found');
+        final client = _sshService.getClient(connectionId);
+        if (client == null) {
+          channel.sink.close(4004, 'Connection not found');
           return;
         }
 
-        // Monitor the actual SSH client connection
-        session.client.done
+        client.done
             .then((_) {
               channel.sink.add(
                 jsonEncode({'type': 'status', 'status': 'disconnected'}),
@@ -58,24 +58,37 @@ class SystemController {
 
   Handler get wsMonitor {
     return (Request request) {
-      final sessionId = request.url.queryParameters['sessionId'];
+      final connectionId = request.url.queryParameters['connectionId'];
       return webSocketHandler((WebSocketChannel channel, String? protocol) {
-        if (sessionId == null) {
-          channel.sink.close(4000, 'Missing sessionId parameter');
+        if (connectionId == null) {
+          channel.sink.close(4000, 'Missing connectionId parameter');
           return;
         }
 
-        final session = _sshService.getSession(sessionId);
-        if (session == null) {
-          channel.sink.close(4004, 'Session not found');
+        final client = _sshService.getClient(connectionId);
+        if (client == null) {
+          channel.sink.close(4004, 'Connection not found');
           return;
         }
 
         bool isMonitoring = true;
+        SshSession? monitorSession;
+
+        Future<SshSession> resolveMonitorSession() async {
+          final existingSession = monitorSession;
+          if (existingSession != null) {
+            return existingSession;
+          }
+
+          final nextSession = await _sshService.createSftpSession(connectionId);
+          monitorSession = nextSession;
+          return nextSession;
+        }
 
         void startMonitoring() async {
-          while (isMonitoring && !session.client.isClosed) {
+          while (isMonitoring && !client.isClosed) {
             try {
+              final session = await resolveMonitorSession();
               final status = await _monitorService.getSystemStatus(session);
               if (isMonitoring) {
                 channel.sink.add(
@@ -99,7 +112,7 @@ class SystemController {
                 final errorStr = e.toString();
                 if (errorStr.contains('SocketException') ||
                     errorStr.contains('SSHChannelOpenError') ||
-                    session.client.isClosed) {
+                    client.isClosed) {
                   channel.sink.close(1011, 'SSH Connection Lost');
                   isMonitoring = false;
                   break;
@@ -112,20 +125,30 @@ class SystemController {
             }
           }
 
-          if (isMonitoring && session.client.isClosed) {
+          if (isMonitoring && client.isClosed) {
             channel.sink.close(1011, 'SSH Connection Lost');
           }
         }
 
-        // startMonitoring();
+        startMonitoring();
 
         channel.stream.listen(
           (message) {}, // Ignore incoming messages
           onDone: () {
             isMonitoring = false;
+            final session = monitorSession;
+            if (session != null) {
+              monitorSession = null;
+              _sshService.closeSession(session.id);
+            }
           },
           onError: (e) {
             isMonitoring = false;
+            final session = monitorSession;
+            if (session != null) {
+              monitorSession = null;
+              _sshService.closeSession(session.id);
+            }
           },
         );
       })(request);

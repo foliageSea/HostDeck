@@ -11,6 +11,7 @@ const props = defineProps<{
   windowId?: string
   sessionId?: string
   cwd?: string
+  closeSessionOnUnmount?: boolean
 }>()
 
 const sshStore = useSshStore()

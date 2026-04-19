@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, ref, watch } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { DataTableColumns } from 'naive-ui'
 import { NButton, NIcon, NPopover, NSpace } from 'naive-ui'
 import {
@@ -34,8 +34,8 @@ import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSshStore } from '@/stores/ssh'
 
-const sshStore = useSshStore()
 const desktopStore = useDesktopStore()
+const sshStore = useSshStore()
 
 const activeTab = ref<'containers' | 'images'>('containers')
 const loading = ref(false)
@@ -92,6 +92,7 @@ const renameVisible = ref(false)
 const renamingContainer = ref(false)
 const renamingContainerId = ref('')
 const renamingContainerName = ref('')
+const sessionId = ref<string | null>(null)
 let logsRefreshTimer: number | null = null
 
 const runningContainers = computed(() => containers.value.filter((item) => item.state === 'running').length)
@@ -342,11 +343,35 @@ const imageColumns: DataTableColumns<DockerImage> = [
 ]
 
 function requireSession() {
-  if (!sshStore.sessionId) {
-    throw new Error('当前没有可用的 SSH 会话。')
+  if (!sessionId.value) {
+    throw new Error('当前没有可用的 Docker 会话。')
   }
 
-  return sshStore.sessionId
+  return sessionId.value
+}
+
+async function initSession() {
+  if (sessionId.value || !sshStore.connectionId) {
+    return
+  }
+
+  const response = await dockerApi.createSession(sshStore.connectionId)
+  sessionId.value = response.sessionId
+}
+
+async function disposeSession() {
+  const currentSessionId = sessionId.value
+  if (!currentSessionId) {
+    return
+  }
+
+  sessionId.value = null
+
+  try {
+    await dockerApi.deleteSession(currentSessionId)
+  } catch (error) {
+    console.error('Failed to delete docker session', error)
+  }
 }
 
 function formatTime(value?: string) {
@@ -498,6 +523,7 @@ async function loadDockerState() {
   loading.value = true
 
   try {
+    await initSession()
     const sessionId = requireSession()
     const result = await dockerApi.checkDocker(sessionId)
     dockerAvailable.value = result.available
@@ -657,6 +683,7 @@ async function enterShell(container: DockerContainer) {
     const sessionId = requireSession()
     const result = await dockerApi.createContainerShellSession(sessionId, container.id)
     desktopStore.openWindow('terminal', {
+      closeSessionOnUnmount: true,
       sessionId: result.sessionId,
       title: `Shell · ${container.name}`,
     })
@@ -941,6 +968,15 @@ async function pruneImages(includeUnused: boolean) {
 
 onMounted(() => {
   void loadDockerState()
+})
+
+onBeforeUnmount(() => {
+  if (logsRefreshTimer) {
+    clearInterval(logsRefreshTimer)
+    logsRefreshTimer = null
+  }
+
+  void disposeSession()
 })
 
 watch([logsVisible, logsAutoRefresh], () => {

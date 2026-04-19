@@ -9,7 +9,6 @@ export { type SavedServer }
 type SessionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
 
 export const useSshStore = defineStore('ssh', () => {
-  const sessionId = ref<string | null>(null)
   const connectionId = ref<string | null>(null)
   const isConnected = ref(false)
   const sessionStatus = ref<SessionStatus>('disconnected')
@@ -61,7 +60,6 @@ export const useSshStore = defineStore('ssh', () => {
     isIntentionalClose = true
     stopSessionWs()
     stopMonitorWs()
-    sessionId.value = null
     connectionId.value = null
     isConnected.value = false
     sessionStatus.value = 'disconnected'
@@ -81,12 +79,12 @@ export const useSshStore = defineStore('ssh', () => {
 
   function startSessionWs() {
     stopSessionWs()
-    if (!sessionId.value) {
+    if (!connectionId.value) {
       return
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/api/ws/session?sessionId=${sessionId.value}`
+    const wsUrl = `${protocol}//${window.location.host}/api/ws/session?connectionId=${connectionId.value}`
 
     sessionWs = new WebSocket(wsUrl)
     sessionWs.onopen = () => {
@@ -134,12 +132,12 @@ export const useSshStore = defineStore('ssh', () => {
 
   function startMonitorWs() {
     stopMonitorWs()
-    if (!sessionId.value) {
+    if (!connectionId.value) {
       return
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/api/ws/monitor?sessionId=${sessionId.value}`
+    const wsUrl = `${protocol}//${window.location.host}/api/ws/monitor?connectionId=${connectionId.value}`
 
     monitorWs = new WebSocket(wsUrl)
     monitorWs.onmessage = (event) => {
@@ -196,8 +194,7 @@ export const useSshStore = defineStore('ssh', () => {
     }
   }
 
-  function setSession(nextSessionId: string, nextConnectionId: string, nextHost: string, nextPort: number, nextUsername: string) {
-    sessionId.value = nextSessionId
+  function setSession(nextConnectionId: string, nextHost: string, nextPort: number, nextUsername: string) {
     connectionId.value = nextConnectionId
     host.value = nextHost
     port.value = nextPort
@@ -221,7 +218,6 @@ export const useSshStore = defineStore('ssh', () => {
     removeServer,
     savedServers,
     sessionStatus,
-    sessionId,
     setSession,
     updateServer,
     username,

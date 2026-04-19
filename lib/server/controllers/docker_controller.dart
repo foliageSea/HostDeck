@@ -12,6 +12,39 @@ class DockerController {
 
   DockerController(this._sshService, this._dockerService);
 
+  Future<Response> createSession(Request request) async {
+    try {
+      final body = await request.readAsString();
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final connectionId = data['connectionId'];
+
+      if (connectionId == null) {
+        return Result.fail(400, 'Missing connectionId');
+      }
+
+      final session = await _sshService.createShell(connectionId);
+
+      return Result.ok({'sessionId': session.id});
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
+  Future<Response> closeSession(Request request) async {
+    try {
+      final sessionId = request.url.queryParameters['sessionId'];
+      if (sessionId == null) {
+        return Result.fail(400, 'Missing sessionId');
+      }
+
+      await _sshService.closeSession(sessionId);
+
+      return Result.ok('Session closed');
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
   String _shellQuote(String value) {
     // Safe for POSIX sh: wrap in single quotes and escape embedded single quotes.
     return "'${value.replaceAll("'", "'\\''")}'";

@@ -142,6 +142,21 @@ export function createFileStore() {
     sessionId.value = response.sessionId
   }
 
+  async function disposeSession() {
+    const currentSessionId = sessionId.value
+    if (!currentSessionId) {
+      return
+    }
+
+    sessionId.value = null
+
+    try {
+      await filesApi.deleteSession(currentSessionId)
+    } catch (error) {
+      console.error('Failed to delete file session', error)
+    }
+  }
+
   async function fetchFiles(nextPath?: string) {
     loading.value = true
 
@@ -259,6 +274,7 @@ export function createFileStore() {
     clearSelection,
     currentPath,
     displayFiles,
+    disposeSession,
     fetchFiles,
     favoritePaths,
     files,

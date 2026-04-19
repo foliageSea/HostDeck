@@ -43,6 +43,7 @@ class ApiRoutes {
     // Files
     router.get('/api/files/list', fileController.listFiles);
     router.post('/api/files/session', fileController.createSession);
+    router.delete('/api/files/session', fileController.closeSession);
     router.get('/api/files/read', fileController.readFile);
     router.post('/api/files/write', fileController.writeFile);
     router.post('/api/files/delete', fileController.deleteFile);
@@ -58,6 +59,8 @@ class ApiRoutes {
     router.delete('/api/terminal/session', terminalController.closeSession);
 
     // Docker
+    router.post('/api/docker/session', dockerController.createSession);
+    router.delete('/api/docker/session', dockerController.closeSession);
     router.get('/api/docker/check', dockerController.checkDocker);
     router.get('/api/docker/containers', dockerController.listContainers);
     router.get(

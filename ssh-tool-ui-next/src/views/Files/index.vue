@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   ArrowLeft,
   ArrowRight,
@@ -854,6 +854,10 @@ function handleKeydown(event: KeyboardEvent) {
 onMounted(async () => {
   await fileStore.fetchFiles('/')
   syncPathInput()
+})
+
+onBeforeUnmount(() => {
+  void fileStore.disposeSession()
 })
 
 watch(

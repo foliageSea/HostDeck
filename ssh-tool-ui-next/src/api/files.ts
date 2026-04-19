@@ -15,6 +15,13 @@ export const filesApi = {
     return response.data
   },
 
+  deleteSession: async (sessionId: string) => {
+    const response = await http.delete('/api/files/session', {
+      params: { sessionId },
+    })
+    return response.data
+  },
+
   list: async (sessionId: string, path: string) => {
     const response = await http.get<FileItem[]>('/api/files/list', {
       params: { path, sessionId },
