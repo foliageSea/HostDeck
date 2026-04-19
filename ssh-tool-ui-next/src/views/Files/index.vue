@@ -86,9 +86,10 @@ const selectedDirectoryPath = computed(() => {
 
   return resolve(fileStore.currentPath, selectedFile.value.filename)
 })
-const canOpenSelectedFileInEditor = computed(() =>
-  selectedFiles.value.length === 1 && Boolean(selectedFile.value) && !selectedFile.value.isDirectory,
-)
+const canOpenSelectedFileInEditor = computed(() => {
+  const file = selectedFile.value
+  return selectedFiles.value.length === 1 && file !== null && !file.isDirectory
+})
 const contextMenuOptions = computed(() => {
   if (contextMenu.value?.type === 'file') {
     const options = [

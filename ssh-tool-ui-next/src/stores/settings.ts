@@ -14,10 +14,14 @@ import {
 const THEME_STORAGE_KEY = 'ssh-tool-ui-next.theme'
 const TERMINAL_FONT_SIZE_STORAGE_KEY = 'ssh-tool-ui-next.terminalFontSize'
 const TERMINAL_FONT_FAMILY_STORAGE_KEY = 'ssh-tool-ui-next.terminalFontFamily'
+const EDITOR_FONT_SIZE_STORAGE_KEY = 'ssh-tool-ui-next.editorFontSize'
+const EDITOR_FONT_FAMILY_STORAGE_KEY = 'ssh-tool-ui-next.editorFontFamily'
 const DESKTOP_WALLPAPER_STORAGE_KEY = 'ssh-tool-ui-next.desktopWallpaper'
 const LOGIN_WALLPAPER_STORAGE_KEY = 'ssh-tool-ui-next.loginWallpaper'
 const DEFAULT_TERMINAL_FONT_SIZE = 14
 const DEFAULT_TERMINAL_FONT_FAMILY = 'Consolas, "Cascadia Mono", "Courier New", monospace'
+const DEFAULT_EDITOR_FONT_SIZE = 13
+const DEFAULT_EDITOR_FONT_FAMILY = 'Consolas, "Cascadia Mono", "Courier New", monospace'
 
 type ThemeMode = 'dark' | 'light' | 'system'
 
@@ -37,6 +41,24 @@ function resolveStoredFontFamily(): string {
   }
 
   return DEFAULT_TERMINAL_FONT_FAMILY
+}
+
+function resolveStoredEditorFontSize(): number {
+  const value = Number.parseInt(window.localStorage.getItem(EDITOR_FONT_SIZE_STORAGE_KEY) ?? '', 10)
+  if (Number.isFinite(value) && value >= 8 && value <= 40) {
+    return value
+  }
+
+  return DEFAULT_EDITOR_FONT_SIZE
+}
+
+function resolveStoredEditorFontFamily(): string {
+  const value = window.localStorage.getItem(EDITOR_FONT_FAMILY_STORAGE_KEY)
+  if (value && value.trim()) {
+    return value
+  }
+
+  return DEFAULT_EDITOR_FONT_FAMILY
 }
 
 function resolveStoredMode(): ThemeMode {
@@ -99,6 +121,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const prefersDark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches)
   const terminalFontSize = ref(resolveStoredFontSize())
   const terminalFontFamily = ref(resolveStoredFontFamily())
+  const editorFontSize = ref(resolveStoredEditorFontSize())
+  const editorFontFamily = ref(resolveStoredEditorFontFamily())
   const desktopWallpaper = ref<WallpaperSettings>(resolveStoredWallpaper(DESKTOP_WALLPAPER_STORAGE_KEY))
   const loginWallpaper = ref<WallpaperSettings>(resolveStoredWallpaper(LOGIN_WALLPAPER_STORAGE_KEY))
 
@@ -187,6 +211,22 @@ export const useSettingsStore = defineStore('settings', () => {
   )
 
   watch(
+    editorFontSize,
+    (value) => {
+      window.localStorage.setItem(EDITOR_FONT_SIZE_STORAGE_KEY, String(value))
+    },
+    { immediate: true },
+  )
+
+  watch(
+    editorFontFamily,
+    (value) => {
+      window.localStorage.setItem(EDITOR_FONT_FAMILY_STORAGE_KEY, value)
+    },
+    { immediate: true },
+  )
+
+  watch(
     desktopWallpaper,
     (value) => {
       void syncWallpaperStorage('desktop', value)
@@ -223,6 +263,19 @@ export const useSettingsStore = defineStore('settings', () => {
     terminalFontFamily.value = DEFAULT_TERMINAL_FONT_FAMILY
   }
 
+  function setEditorFontSize(size: number) {
+    editorFontSize.value = Math.max(8, Math.min(40, Math.round(size)))
+  }
+
+  function setEditorFontFamily(family: string) {
+    editorFontFamily.value = family.trim() || DEFAULT_EDITOR_FONT_FAMILY
+  }
+
+  function resetEditorSettings() {
+    editorFontSize.value = DEFAULT_EDITOR_FONT_SIZE
+    editorFontFamily.value = DEFAULT_EDITOR_FONT_FAMILY
+  }
+
   function setDesktopWallpaper(value: WallpaperSettings) {
     desktopWallpaper.value = normalizeWallpaperSettings(value)
   }
@@ -241,12 +294,17 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     desktopWallpaper,
+    editorFontFamily,
+    editorFontSize,
     isDark,
     loginWallpaper,
     resetDesktopWallpaper,
+    resetEditorSettings,
     resetLoginWallpaper,
     setTheme,
     setDesktopWallpaper,
+    setEditorFontFamily,
+    setEditorFontSize,
     setLoginWallpaper,
     resetTerminalSettings,
     setTerminalFontFamily,

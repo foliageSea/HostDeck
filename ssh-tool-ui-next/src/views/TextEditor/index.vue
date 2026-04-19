@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as monaco from 'monaco-editor'
 import { filesApi } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
+import { useSettingsStore } from '@/stores/settings'
 
 const props = defineProps<{
   path: string
@@ -12,11 +13,13 @@ const props = defineProps<{
 }>()
 
 const desktopStore = useDesktopStore()
+const settingsStore = useSettingsStore()
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const content = ref('')
 const editorContainer = ref<HTMLElement | null>(null)
+const showSettings = ref(false)
 
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 let model: monaco.editor.ITextModel | null = null
@@ -120,8 +123,8 @@ async function initEditor() {
     model,
     automaticLayout: true,
     minimap: { enabled: false },
-    fontSize: 13,
-    fontFamily: "Consolas, 'Cascadia Mono', 'Courier New', monospace",
+    fontSize: settingsStore.editorFontSize,
+    fontFamily: settingsStore.editorFontFamily,
     scrollBeyondLastLine: false,
     wordWrap: 'off',
     tabSize: 2,
@@ -188,6 +191,20 @@ onMounted(() => {
 onBeforeUnmount(() => {
   disposeEditor()
 })
+
+watch(
+  () => settingsStore.editorFontSize,
+  (value) => {
+    editor?.updateOptions({ fontSize: value })
+  },
+)
+
+watch(
+  () => settingsStore.editorFontFamily,
+  (value) => {
+    editor?.updateOptions({ fontFamily: value })
+  },
+)
 </script>
 
 <template>
@@ -199,6 +216,7 @@ onBeforeUnmount(() => {
       </div>
 
       <NSpace>
+        <NButton @click="showSettings = true">设置</NButton>
         <NButton @click="loadFile">重新加载</NButton>
         <NButton type="primary" :loading="saving" @click="saveFile">保存</NButton>
         <NButton quaternary @click="closeWindow">关闭</NButton>
@@ -214,6 +232,40 @@ onBeforeUnmount(() => {
 
       <div v-else ref="editorContainer" class="h-full min-h-0 overflow-hidden" />
     </NSpin>
+
+    <NModal
+      :show="showSettings"
+      preset="card"
+      title="编辑器设置"
+      style="width: min(380px, calc(100vw - 24px))"
+      @update:show="(value: boolean) => showSettings = value"
+    >
+      <NSpace vertical size="large">
+        <div>
+          <div class="mb-[10px] text-[13px] text-[rgba(148,163,184,0.92)]">字体大小</div>
+          <NSlider
+            :value="settingsStore.editorFontSize"
+            :min="8"
+            :max="32"
+            @update:value="(value: number) => settingsStore.setEditorFontSize(value)"
+          />
+        </div>
+
+        <div>
+          <div class="mb-[10px] text-[13px] text-[rgba(148,163,184,0.92)]">字体名称</div>
+          <NInput
+            :value="settingsStore.editorFontFamily"
+            placeholder="例如 Consolas, monospace"
+            @update:value="(value: string) => settingsStore.setEditorFontFamily(value)"
+          />
+        </div>
+
+        <NSpace justify="end">
+          <NButton @click="settingsStore.resetEditorSettings()">恢复默认</NButton>
+          <NButton type="primary" @click="showSettings = false">完成</NButton>
+        </NSpace>
+      </NSpace>
+    </NModal>
   </div>
 </template>
 
