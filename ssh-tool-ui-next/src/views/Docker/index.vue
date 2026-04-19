@@ -97,6 +97,17 @@ let logsRefreshTimer: number | null = null
 const runningContainers = computed(() => containers.value.filter((item) => item.state === 'running').length)
 const stoppedContainers = computed(() => containers.value.filter((item) => item.state !== 'running').length)
 const danglingImages = computed(() => images.value.filter((item) => item.dangling).length)
+const createImageOptions = computed(() =>
+  images.value
+    .filter((item) => item.repository && item.tag && !item.dangling)
+    .map((item) => {
+      const imageName = `${item.repository}:${item.tag}`
+      return {
+        label: item.inUse ? `${imageName} (使用中)` : imageName,
+        value: imageName,
+      }
+    }),
+)
 const containerStatusOptions = [
   { label: '全部状态', value: 'all' },
   { label: '运行中', value: 'running' },
@@ -1071,7 +1082,13 @@ watch(logsTail, async (value, previous) => {
       <NForm label-placement="top">
         <NGrid :cols="2" :x-gap="12">
           <NFormItemGi label="镜像">
-            <NInput v-model:value="createForm.image" placeholder="例如 nginx:latest" />
+            <NSelect
+              v-model:value="createForm.image"
+              :options="createImageOptions"
+              :disabled="createImageOptions.length === 0"
+              filterable
+              placeholder="请选择镜像"
+            />
           </NFormItemGi>
           <NFormItemGi label="容器名称">
             <NInput v-model:value="createForm.name" placeholder="可选" />
