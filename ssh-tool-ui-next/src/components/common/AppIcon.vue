@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Application, ChartLine, ContainerSoftware, Document, Image, Folder, Logout, Terminal } from '@vicons/carbon'
+import { Settings, ChartLine, Cube, Document, Image, Folder, Logout, Terminal } from '@vicons/carbon'
 import type { Component } from 'vue'
 import type { AppIconKey } from '@/types/desktop'
 
@@ -16,12 +16,12 @@ const props = withDefaults(
 
 const iconMap: Record<AppIconKey, Component> = {
   dashboard: ChartLine,
-  docker: ContainerSoftware,
+  docker: Cube,
   editor: Document,
   folder: Folder,
   logout: Logout,
   media: Image,
-  settings: Application,
+  settings: Settings,
   terminal: Terminal,
 }
 
