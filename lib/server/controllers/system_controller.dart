@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
@@ -32,25 +33,64 @@ class SystemController {
           return;
         }
 
+        Timer? heartbeatTimer;
+        var isCleanedUp = false;
+
+        Future<void> cleanup() async {
+          if (isCleanedUp) {
+            return;
+          }
+
+          isCleanedUp = true;
+          heartbeatTimer?.cancel();
+          await _sshService.disconnect(connectionId);
+        }
+
+        void resetHeartbeatTimeout() {
+          heartbeatTimer?.cancel();
+          heartbeatTimer = Timer(const Duration(seconds: 30), () async {
+            if (isCleanedUp) {
+              return;
+            }
+
+            await cleanup();
+          });
+        }
+
+        resetHeartbeatTimeout();
+
         client.done
             .then((_) {
-              channel.sink.add(
-                jsonEncode({'type': 'status', 'status': 'disconnected'}),
-              );
-              channel.sink.close(1011, 'SSH Connection Lost');
+              if (!isCleanedUp) {
+                channel.sink.add(
+                  jsonEncode({'type': 'status', 'status': 'disconnected'}),
+                );
+                channel.sink.close(1011, 'SSH Connection Lost');
+              }
+
+              return cleanup();
             })
             .catchError((e) {
-              channel.sink.close(1011, 'SSH Connection Error');
+              if (!isCleanedUp) {
+                channel.sink.close(1011, 'SSH Connection Error');
+              }
+
+              return cleanup();
             });
 
         channel.stream.listen(
           (message) {
             if (message == 'ping') {
+              resetHeartbeatTimeout();
               channel.sink.add('pong');
             }
           },
-          onDone: () {},
-          onError: (e) {},
+          onDone: () {
+            cleanup();
+          },
+          onError: (e) {
+            cleanup();
+          },
         );
       })(request);
     };
