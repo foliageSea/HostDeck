@@ -6,10 +6,13 @@ import { getUiApi } from '@/lib/ui'
 
 export { type SavedServer }
 
+type SessionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
+
 export const useSshStore = defineStore('ssh', () => {
   const sessionId = ref<string | null>(null)
   const connectionId = ref<string | null>(null)
   const isConnected = ref(false)
+  const sessionStatus = ref<SessionStatus>('disconnected')
   const host = ref('')
   const port = ref<number | null>(null)
   const username = ref('')
@@ -61,6 +64,7 @@ export const useSshStore = defineStore('ssh', () => {
     sessionId.value = null
     connectionId.value = null
     isConnected.value = false
+    sessionStatus.value = 'disconnected'
     host.value = ''
     port.value = null
     username.value = ''
@@ -85,6 +89,10 @@ export const useSshStore = defineStore('ssh', () => {
     const wsUrl = `${protocol}//${window.location.host}/api/ws/session?sessionId=${sessionId.value}`
 
     sessionWs = new WebSocket(wsUrl)
+    sessionWs.onopen = () => {
+      sessionStatus.value = 'connected'
+    }
+
     sessionWs.onmessage = (event) => {
       if (event.data === 'pong') {
         return
@@ -110,7 +118,9 @@ export const useSshStore = defineStore('ssh', () => {
         return
       }
 
+      sessionStatus.value = 'reconnecting'
       sessionReconnectTimer = window.setTimeout(() => {
+        sessionStatus.value = 'connecting'
         startSessionWs()
       }, 3000)
     }
@@ -194,6 +204,7 @@ export const useSshStore = defineStore('ssh', () => {
     username.value = nextUsername
     isConnected.value = true
     isIntentionalClose = false
+    sessionStatus.value = 'connecting'
     startSessionWs()
     startMonitorWs()
   }
@@ -209,6 +220,7 @@ export const useSshStore = defineStore('ssh', () => {
     port,
     removeServer,
     savedServers,
+    sessionStatus,
     sessionId,
     setSession,
     updateServer,

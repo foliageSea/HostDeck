@@ -18,6 +18,33 @@ const currentTime = computed(() =>
     minute: '2-digit',
   }).format(new Date()),
 )
+const sessionStatusMeta = computed(() => {
+  if (sshStore.sessionStatus === 'connected') {
+    return {
+      className: settingsStore.isDark ? 'bg-emerald-400' : 'bg-emerald-500',
+      label: 'SSH 会话已连接',
+    }
+  }
+
+  if (sshStore.sessionStatus === 'reconnecting') {
+    return {
+      className: settingsStore.isDark ? 'bg-amber-300 animate-pulse' : 'bg-amber-500 animate-pulse',
+      label: 'SSH 会话重连中',
+    }
+  }
+
+  if (sshStore.sessionStatus === 'connecting') {
+    return {
+      className: settingsStore.isDark ? 'bg-sky-300 animate-pulse' : 'bg-sky-500 animate-pulse',
+      label: 'SSH 会话连接中',
+    }
+  }
+
+  return {
+    className: settingsStore.isDark ? 'bg-slate-500' : 'bg-slate-400',
+    label: '当前未连接 SSH 会话',
+  }
+})
 const hasUnreadUploads = computed(() => uploadCenterStore.activeTaskCount > 0)
 const uploadBatches = computed(() =>
   uploadCenterStore.batches.map((batch) => {
@@ -118,6 +145,15 @@ function disconnect() {
     <div class="flex min-w-0 items-center justify-center gap-[12px] text-[0.92rem]"
       :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.8)]' : 'text-[rgba(51,65,85,0.82)]'">
       <span>{{ sshStore.host || '未连接主机' }}</span>
+      <NTooltip placement="bottom">
+        <template #trigger>
+          <span
+            class="h-[10px] w-[10px] shrink-0 rounded-full shadow-[0_0_0_3px_rgba(148,163,184,0.12)]"
+            :class="sessionStatusMeta.className"
+            :aria-label="sessionStatusMeta.label" />
+        </template>
+        {{ sessionStatusMeta.label }}
+      </NTooltip>
     </div>
 
     <div class="flex min-w-0 items-center justify-end gap-[12px]">
