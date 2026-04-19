@@ -17,4 +17,10 @@ export const authApi = {
     const response = await http.post<ConnectResponse>('/api/connect', data)
     return response.data
   },
+  disconnect: async (connectionId: string) => {
+    const response = await http.delete<{ success: boolean }>('/api/connect', {
+      params: { connectionId },
+    })
+    return response.data
+  },
 }

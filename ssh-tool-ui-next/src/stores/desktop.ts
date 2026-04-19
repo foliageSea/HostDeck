@@ -1,6 +1,7 @@
 import { markRaw, type Component } from 'vue'
 import { defineStore } from 'pinia'
 import { useSshStore } from '@/stores/ssh'
+import { useWindowSessionStore } from '@/stores/window-session'
 import type { AppIconKey, DesktopAppId } from '@/types/desktop'
 import DashboardView from '@/views/Dashboard/index.vue'
 import DockerView from '@/views/Docker/index.vue'
@@ -116,7 +117,13 @@ export const useDesktopStore = defineStore('desktop', {
 
   actions: {
     closeAppWindows(appId: DesktopAppId) {
+      const closedWindowIds = this.windows.filter((window) => window.appId === appId).map((window) => window.id)
+      const windowSessionStore = useWindowSessionStore()
+
       this.windows = this.windows.filter((window) => window.appId !== appId)
+      closedWindowIds.forEach((windowId) => {
+        void windowSessionStore.disconnectWindow(windowId)
+      })
 
       if (this.activeWindowId && !this.windows.some((window) => window.id === this.activeWindowId)) {
         const nextActiveWindow = [...this.windows].sort((left, right) => right.zIndex - left.zIndex)[0]
@@ -131,6 +138,7 @@ export const useDesktopStore = defineStore('desktop', {
       }
 
       this.windows.splice(targetIndex, 1)
+      void useWindowSessionStore().disconnectWindow(id)
 
       if (this.activeWindowId === id) {
         const nextActiveWindow = [...this.windows].sort((left, right) => right.zIndex - left.zIndex)[0]
@@ -176,7 +184,7 @@ export const useDesktopStore = defineStore('desktop', {
 
     openWindow(appId: DesktopAppId, props?: Record<string, unknown>) {
       if (appId === 'logout') {
-        useSshStore().clearSession()
+        void useSshStore().clearSession()
         this.windows = []
         this.activeWindowId = null
         return
@@ -209,6 +217,10 @@ export const useDesktopStore = defineStore('desktop', {
     },
 
     reset() {
+      const windowSessionStore = useWindowSessionStore()
+      this.windows.forEach((window) => {
+        void windowSessionStore.disconnectWindow(window.id)
+      })
       this.windows = []
       this.activeWindowId = null
       this.nextZIndex = 100

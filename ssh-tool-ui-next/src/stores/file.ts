@@ -1,12 +1,18 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 import { filesApi, type FileItem } from '@/api/files'
-import { useSshStore } from '@/stores/ssh'
 import { dirname, resolve } from '@/utils/path'
 
 export type FileViewMode = 'grid' | 'list'
 
 type FavoritePathsByConnection = Record<string, string[]>
+
+interface FileStoreConnection {
+  connectionId: string | null
+  host: string
+  port: number | null
+  username: string
+}
 
 function compareFiles(left: FileItem, right: FileItem) {
   if (left.isDirectory !== right.isDirectory) {
@@ -16,9 +22,7 @@ function compareFiles(left: FileItem, right: FileItem) {
   return left.filename.localeCompare(right.filename)
 }
 
-export function createFileStore() {
-  const sshStore = useSshStore()
-
+export function createFileStore(connection: FileStoreConnection) {
   const currentPath = ref('/')
   const files = ref<FileItem[]>([])
   const sessionId = ref<string | null>(null)
@@ -60,9 +64,9 @@ export function createFileStore() {
   }
 
   function getStableFavoriteConnectionKey() {
-    const host = sshStore.host.trim()
-    const username = sshStore.username.trim()
-    const port = sshStore.port
+    const host = connection.host.trim()
+    const username = connection.username.trim()
+    const port = connection.port
 
     if (!host || !username || port === null) {
       return null
@@ -72,12 +76,12 @@ export function createFileStore() {
   }
 
   function getLegacyFavoriteConnectionKey() {
-    return sshStore.connectionId ?? 'default'
+    return connection.connectionId ?? 'default'
   }
 
   function migrateLegacyFavoritePaths() {
     const stableKey = getStableFavoriteConnectionKey()
-    const legacyKey = sshStore.connectionId
+    const legacyKey = connection.connectionId
 
     if (!stableKey || !legacyKey || stableKey === legacyKey) {
       return
@@ -134,11 +138,11 @@ export function createFileStore() {
   }
 
   async function initSession() {
-    if (sessionId.value || !sshStore.connectionId) {
+    if (sessionId.value || !connection.connectionId) {
       return
     }
 
-    const response = await filesApi.createSession(sshStore.connectionId)
+    const response = await filesApi.createSession(connection.connectionId)
     sessionId.value = response.sessionId
   }
 

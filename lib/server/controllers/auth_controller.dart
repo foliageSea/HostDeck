@@ -31,4 +31,19 @@ class AuthController {
       return Result.fail(500, e.toString());
     }
   }
+
+  Future<Response> disconnect(Request request) async {
+    try {
+      final connectionId = request.url.queryParameters['connectionId'];
+      if (connectionId == null || connectionId.isEmpty) {
+        return Result.fail(400, 'Missing connectionId');
+      }
+
+      await _sshService.disconnect(connectionId);
+      return Result.ok({'success': true});
+    } catch (e) {
+      _log.severe('Disconnect Error: $e');
+      return Result.fail(500, e.toString());
+    }
+  }
 }

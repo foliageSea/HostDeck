@@ -34,6 +34,13 @@ import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSshStore } from '@/stores/ssh'
 
+const props = defineProps<{
+  windowId?: string
+  connectionId?: string
+  host?: string
+  username?: string
+}>()
+
 const desktopStore = useDesktopStore()
 const sshStore = useSshStore()
 
@@ -351,11 +358,17 @@ function requireSession() {
 }
 
 async function initSession() {
-  if (sessionId.value || !sshStore.connectionId) {
+  if (sessionId.value) {
     return
   }
 
-  const response = await dockerApi.createSession(sshStore.connectionId)
+  const connectionId = props.connectionId ?? sshStore.connectionId
+
+  if (!connectionId) {
+    return
+  }
+
+  const response = await dockerApi.createSession(connectionId)
   sessionId.value = response.sessionId
 }
 
@@ -680,12 +693,14 @@ async function enterShell(container: DockerContainer) {
   }
 
   try {
-    const sessionId = requireSession()
-    const result = await dockerApi.createContainerShellSession(sessionId, container.id)
+    const connectionId = props.connectionId ?? sshStore.connectionId
+
     desktopStore.openWindow('terminal', {
-      closeSessionOnUnmount: true,
-      sessionId: result.sessionId,
+      connectionId: connectionId ?? undefined,
+      host: props.host ?? sshStore.host,
+      startupCommand: `docker exec -it ${container.id} bash || docker exec -it ${container.id} sh`,
       title: `Shell · ${container.name}`,
+      username: props.username ?? sshStore.username,
     })
   } catch (error) {
     console.error('Failed to enter container shell', error)

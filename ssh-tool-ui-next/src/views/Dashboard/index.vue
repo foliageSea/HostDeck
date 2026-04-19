@@ -2,9 +2,19 @@
 import { computed } from 'vue'
 import { useSshStore } from '@/stores/ssh'
 
+const props = defineProps<{
+  windowId?: string
+  connectionId?: string
+  host?: string
+  port?: number
+  username?: string
+}>()
+
 const sshStore = useSshStore()
 
-const monitorData = computed(() => sshStore.monitorData)
+const monitorData = computed(() => {
+  return sshStore.monitorData
+})
 
 const cpuLoad = computed(() => monitorData.value?.cpu || '0.0')
 

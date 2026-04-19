@@ -20,10 +20,6 @@ export interface DockerImage {
   inUse?: boolean
 }
 
-export interface DockerShellSessionResponse {
-  sessionId: string
-}
-
 export interface DockerSessionResponse {
   sessionId: string
 }
@@ -238,17 +234,6 @@ export const dockerApi = {
     const response = await http.get<DockerContainerStats>(`/api/docker/containers/${containerId}/stats`, {
       params: { sessionId },
     })
-    return response.data
-  },
-
-  async createContainerShellSession(sessionId: string, containerId: string) {
-    const response = await http.post<DockerShellSessionResponse>(
-      `/api/docker/containers/${containerId}/shell`,
-      null,
-      {
-        params: { sessionId },
-      },
-    )
     return response.data
   },
 

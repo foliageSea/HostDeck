@@ -31,14 +31,32 @@ import FileNameDialog from './components/FileNameDialog.vue'
 
 const props = defineProps<{
   windowId?: string
+  connectionId?: string
+  host?: string
+  port?: number
+  username?: string
 }>()
 
-const fileStore = createFileStore()
 const desktopStore = useDesktopStore()
 const fileClipboardStore = useFileClipboardStore()
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const uploadCenterStore = useUploadCenterStore()
+
+const fileStore = createFileStore({
+  get connectionId() {
+    return (props.connectionId as string | undefined) ?? sshStore.connectionId
+  },
+  get host() {
+    return (props.host as string | undefined) ?? sshStore.host
+  },
+  get port() {
+    return (props.port as number | undefined) ?? sshStore.port
+  },
+  get username() {
+    return (props.username as string | undefined) ?? sshStore.username
+  },
+})
 
 const currentPathInput = ref('/')
 const createDialogMode = ref<'directory' | 'file'>('directory')
@@ -57,13 +75,14 @@ const selectedFiles = computed(() =>
   fileStore.files.filter((file) => fileStore.selectedNames.includes(file.filename)),
 )
 const currentConnectionKey = computed(() => {
-  if (sshStore.connectionId) {
-    return sshStore.connectionId
+  const connectionId = (props.connectionId as string | undefined) ?? sshStore.connectionId
+  if (connectionId) {
+    return connectionId
   }
 
-  const host = sshStore.host.trim()
-  const username = sshStore.username.trim()
-  const port = sshStore.port
+  const host = ((props.host as string | undefined) ?? sshStore.host).trim()
+  const username = ((props.username as string | undefined) ?? sshStore.username).trim()
+  const port = (props.port as number | undefined) ?? sshStore.port
   return host && username && port !== null ? `${username}@${host}:${port}` : ''
 })
 const clipboardPayload = computed(() => fileClipboardStore.payload)
@@ -776,9 +795,13 @@ async function handleUploadChange(event: Event) {
 }
 
 function openTerminalHere() {
+  const currentConnectionId = props.connectionId ?? sshStore.connectionId
   desktopStore.openWindow('terminal', {
+    connectionId: currentConnectionId ?? undefined,
     cwd: fileStore.currentPath,
+    host: props.host ?? sshStore.host,
     title: `终端 · ${fileStore.currentPath}`,
+    username: props.username ?? sshStore.username,
   })
 }
 

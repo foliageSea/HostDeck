@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import '@xterm/xterm/css/xterm.css'
 import TerminalSettingsModal from './components/TerminalSettingsModal.vue'
 import { useTerminalSession } from './hooks/useTerminalSession'
@@ -9,9 +9,14 @@ import { getUiApi } from '@/lib/ui'
 
 const props = defineProps<{
   windowId?: string
+  connectionId?: string
+  host?: string
+  username?: string
   sessionId?: string
   cwd?: string
+  startupCommand?: string
   closeSessionOnUnmount?: boolean
+  closeConnectionOnUnmount?: boolean
 }>()
 
 const sshStore = useSshStore()
@@ -21,6 +26,19 @@ const showCopyButton = ref(false)
 const selectedText = ref('')
 const copyButtonStyle = ref({ left: '0px', top: '0px' })
 const { terminal, terminalContainer } = useTerminalSession(props)
+const sessionMeta = computed(() => {
+  if (props.host || props.username) {
+    return {
+      host: props.host ?? '',
+      username: props.username ?? '',
+    }
+  }
+
+  return {
+    host: sshStore.host,
+    username: sshStore.username,
+  }
+})
 
 void terminalContainer
 
@@ -73,7 +91,7 @@ async function copySelection() {
         : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.74)] text-[#334155]',
     ]">
       <div class="flex min-w-0 items-center gap-[10px] text-[13px]">
-        <span>{{ sshStore.username || 'unknown' }}@{{ sshStore.host || 'localhost' }}</span>
+        <span>{{ sessionMeta.username || 'unknown' }}@{{ sessionMeta.host || 'localhost' }}</span>
         <span v-if="cwd" class="truncate-line"
           :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(71,85,105,0.88)]'">{{ cwd
           }}</span>

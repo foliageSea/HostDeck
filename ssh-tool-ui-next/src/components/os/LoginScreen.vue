@@ -115,6 +115,13 @@ const connectMutation = useMutation<ConnectResponse, Error, ConnectParams>({
       connectionForm.host,
       connectionForm.port,
       connectionForm.username,
+      {
+        host: connectionForm.host,
+        password: connectionForm.password || undefined,
+        port: connectionForm.port,
+        privateKey: connectionForm.privateKey || undefined,
+        username: connectionForm.username,
+      },
     )
   },
   onError: (error) => {

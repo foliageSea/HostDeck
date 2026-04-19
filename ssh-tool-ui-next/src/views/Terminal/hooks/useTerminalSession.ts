@@ -9,9 +9,12 @@ import { useSshStore } from '@/stores/ssh'
 
 interface TerminalProps {
   windowId?: string
+  connectionId?: string
   sessionId?: string
   cwd?: string
+  startupCommand?: string
   closeSessionOnUnmount?: boolean
+  closeConnectionOnUnmount?: boolean
 }
 
 export function useTerminalSession(props: TerminalProps) {
@@ -49,12 +52,14 @@ export function useTerminalSession(props: TerminalProps) {
       return props.sessionId
     }
 
-    if (!sshStore.connectionId) {
+    const connectionId = props.connectionId ?? sshStore.connectionId
+
+    if (!connectionId) {
       throw new Error('当前没有可用的 SSH 连接。')
     }
 
     const response = await terminalApi.createSession({
-      connectionId: sshStore.connectionId,
+      connectionId,
       cols: terminalRef.value?.cols || 80,
       rows: terminalRef.value?.rows || 24,
     })
@@ -73,6 +78,12 @@ export function useTerminalSession(props: TerminalProps) {
       if (!initializedCwd && props.cwd) {
         initializedCwd = true
         socket?.send(`cd ${shellQuotePosix(props.cwd)}\r`)
+      }
+
+      if (props.startupCommand) {
+        window.setTimeout(() => {
+          socket?.send(`${props.startupCommand}\r`)
+        }, 1000)
       }
     }
 
@@ -200,6 +211,7 @@ export function useTerminalSession(props: TerminalProps) {
         console.error('Failed to delete terminal session', error)
       }
     }
+
   })
 
   return {

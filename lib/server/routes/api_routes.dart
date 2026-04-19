@@ -28,6 +28,7 @@ class ApiRoutes {
 
     // Auth
     router.post('/api/connect', authController.connect);
+    router.delete('/api/connect', authController.disconnect);
 
     // Servers
     router.get('/api/servers', serverController.list);

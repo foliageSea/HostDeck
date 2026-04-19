@@ -1,6 +1,7 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { MonitorResponse } from '@/api/system'
+import { authApi, type ConnectParams } from '@/api/auth'
 import { serverApi, type SavedServer } from '@/api/server'
 import { getUiApi } from '@/lib/ui'
 
@@ -17,6 +18,7 @@ export const useSshStore = defineStore('ssh', () => {
   const username = ref('')
   const savedServers = ref<SavedServer[]>([])
   const monitorData = ref<MonitorResponse | null>(null)
+  const connectPayload = ref<ConnectParams | null>(null)
 
   let monitorWs: WebSocket | null = null
   let monitorReconnectTimer: number | null = null
@@ -56,7 +58,9 @@ export const useSshStore = defineStore('ssh', () => {
     }
   }
 
-  function clearSession() {
+  async function clearSession() {
+    const currentConnectionId = connectionId.value
+
     isIntentionalClose = true
     stopSessionWs()
     stopMonitorWs()
@@ -66,6 +70,17 @@ export const useSshStore = defineStore('ssh', () => {
     host.value = ''
     port.value = null
     username.value = ''
+    connectPayload.value = null
+
+    if (!currentConnectionId) {
+      return
+    }
+
+    try {
+      await authApi.disconnect(currentConnectionId)
+    } catch (error) {
+      console.error('Failed to disconnect SSH session', error)
+    }
   }
 
   function handleSessionLost() {
@@ -74,7 +89,7 @@ export const useSshStore = defineStore('ssh', () => {
     }
 
     getUiApi().message.error('SSH 会话已断开，请重新登录。')
-    clearSession()
+    void clearSession()
   }
 
   function startSessionWs() {
@@ -194,7 +209,7 @@ export const useSshStore = defineStore('ssh', () => {
     }
   }
 
-  function setSession(nextConnectionId: string, nextHost: string, nextPort: number, nextUsername: string) {
+  function setSession(nextConnectionId: string, nextHost: string, nextPort: number, nextUsername: string, payload?: ConnectParams) {
     connectionId.value = nextConnectionId
     host.value = nextHost
     port.value = nextPort
@@ -202,15 +217,23 @@ export const useSshStore = defineStore('ssh', () => {
     isConnected.value = true
     isIntentionalClose = false
     sessionStatus.value = 'connecting'
+    connectPayload.value = payload ?? {
+      host: nextHost,
+      port: nextPort,
+      username: nextUsername,
+    }
     startSessionWs()
     startMonitorWs()
   }
+
+  const baseConnectPayload = computed(() => connectPayload.value)
 
   return {
     addServer,
     clearSession,
     connectionId,
     fetchServers,
+    baseConnectPayload,
     host,
     isConnected,
     monitorData,

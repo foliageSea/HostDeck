@@ -1,6 +1,4 @@
 import axios, { AxiosError } from 'axios'
-import { getUiApi } from '@/lib/ui'
-import { useSshStore } from '@/stores/ssh'
 
 interface ApiError {
   code?: number | string
@@ -10,27 +8,6 @@ interface ApiError {
 export const http = axios.create({
   baseURL: '/',
 })
-
-let isHandlingSessionError = false
-
-function handleSessionError(message = 'SSH 会话已失效，请重新连接。') {
-  if (isHandlingSessionError) {
-    return
-  }
-
-  const sshStore = useSshStore()
-  if (!sshStore.isConnected) {
-    return
-  }
-
-  isHandlingSessionError = true
-  getUiApi().message.error(message)
-  sshStore.clearSession()
-
-  window.setTimeout(() => {
-    isHandlingSessionError = false
-  }, 2000)
-}
 
 http.interceptors.response.use(
   (response) => {
@@ -49,7 +26,7 @@ http.interceptors.response.use(
         (errorMessage.includes('SSHChannelOpenError') || errorMessage.includes('SocketException'))
 
       if (isSessionError) {
-        handleSessionError()
+        // handleSessionError()
       }
 
       const error = new AxiosError(
@@ -93,7 +70,7 @@ http.interceptors.response.use(
           (errorMessage.includes('SSHChannelOpenError') || errorMessage.includes('SocketException'))
 
         if (isSessionError) {
-          handleSessionError()
+          // handleSessionError()
         }
       }
     }
