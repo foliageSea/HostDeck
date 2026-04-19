@@ -86,10 +86,14 @@ const selectedDirectoryPath = computed(() => {
 
   return resolve(fileStore.currentPath, selectedFile.value.filename)
 })
+const canOpenSelectedFileInEditor = computed(() =>
+  selectedFiles.value.length === 1 && Boolean(selectedFile.value) && !selectedFile.value.isDirectory,
+)
 const contextMenuOptions = computed(() => {
   if (contextMenu.value?.type === 'file') {
     const options = [
       { label: '打开', key: 'open', disabled: selectedFiles.value.length !== 1 },
+      { label: '使用文本编辑器打开', key: 'open-in-editor', disabled: !canOpenSelectedFileInEditor.value },
       { label: '下载', key: 'download', disabled: selectedFiles.value.length === 0 },
       { label: '复制', key: 'copy', disabled: selectedFiles.value.length === 0 },
       { label: '移动', key: 'move', disabled: selectedFiles.value.length === 0 },
@@ -367,6 +371,11 @@ function handleContextMenuSelect(key: string | number) {
     return
   }
 
+  if (key === 'open-in-editor' && selectedFile.value) {
+    openFileInEditor(selectedFile.value)
+    return
+  }
+
   if (key === 'download') {
     void downloadSelectedFiles()
     return
@@ -437,6 +446,18 @@ function handleContextMenuSelect(key: string | number) {
   }
 }
 
+function openFileInEditor(file: FileItem) {
+  if (file.isDirectory || !fileStore.sessionId) {
+    return
+  }
+
+  desktopStore.openWindow('editor', {
+    path: resolve(fileStore.currentPath, file.filename),
+    sessionId: fileStore.sessionId,
+    title: file.filename,
+  })
+}
+
 async function openFile(file: FileItem) {
   closeContextMenu()
   fileStore.selectFile(file)
@@ -444,11 +465,7 @@ async function openFile(file: FileItem) {
     const extension = file.filename.split('.').pop()?.toLowerCase() || ''
 
     if (editableExtensions.has(extension)) {
-      desktopStore.openWindow('editor', {
-        path: resolve(fileStore.currentPath, file.filename),
-        sessionId: fileStore.sessionId,
-        title: file.filename,
-      })
+      openFileInEditor(file)
       return
     }
 
