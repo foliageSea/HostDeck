@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Close, Logout, Moon, Notification, Sun } from '@vicons/carbon'
+import { Close, Logout, Moon, Notification, StopFilledAlt, Sun } from '@vicons/carbon'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -51,11 +51,13 @@ const uploadBatches = computed(() =>
     const totalBytes = batch.tasks.reduce((sum, task) => sum + task.total, 0)
     const loadedBytes = batch.tasks.reduce((sum, task) => sum + task.loaded, 0)
     const completedCount = batch.tasks.filter((task) => task.status === 'success').length
+    const cancelledCount = batch.tasks.filter((task) => task.status === 'cancelled').length
     const failedCount = batch.tasks.filter((task) => task.status === 'error').length
     const activeTask = batch.tasks.find((task) => task.status === 'uploading')
 
     return {
       ...batch,
+      cancelledCount,
       completedCount,
       currentFileName: activeTask?.name ?? '',
       failedCount,
@@ -96,6 +98,10 @@ function formatUploadStatus(status: UploadTaskStatus) {
     return '失败'
   }
 
+  if (status === 'cancelled') {
+    return '已中断'
+  }
+
   return '等待中'
 }
 
@@ -110,6 +116,10 @@ function formatBatchTime(timestamp: number) {
 
 function isBatchActive(batch: UploadBatch) {
   return batch.tasks.some((task) => task.status === 'pending' || task.status === 'uploading')
+}
+
+function cancelUploadBatch(batchId: string) {
+  uploadCenterStore.cancelBatch(batchId)
 }
 
 function handleTaskCenterVisibilityChange(value: boolean) {
@@ -228,15 +238,28 @@ function disconnect() {
                       · 正在上传 {{ batch.currentFileName }}
                     </template>
                     · {{ batch.completedCount }}/{{ batch.totalCount }} 完成
+                    <template v-if="batch.cancelledCount > 0">
+                      · {{ batch.cancelledCount }} 已中断
+                    </template>
                     <template v-if="batch.failedCount > 0">
                       · {{ batch.failedCount }} 失败
                     </template>
                   </div>
                 </div>
-                <div class="flex flex-col items-end gap-[4px] text-[12px] lt-md:items-start"
-                  :class="settingsStore.isDark ? 'text-[rgba(191,219,254,0.96)]' : 'text-[rgba(37,99,235,0.86)]'">
-                  <span>{{ batch.progress }}%</span>
-                  <span>{{ formatFileSize(batch.loadedBytes) }} / {{ formatFileSize(batch.totalBytes) }}</span>
+                <div class="flex flex-col items-end gap-[8px] lt-md:items-start">
+                  <div class="flex flex-col items-end gap-[4px] text-[12px] lt-md:items-start"
+                    :class="settingsStore.isDark ? 'text-[rgba(191,219,254,0.96)]' : 'text-[rgba(37,99,235,0.86)]'">
+                    <span>{{ batch.progress }}%</span>
+                    <span>{{ formatFileSize(batch.loadedBytes) }} / {{ formatFileSize(batch.totalBytes) }}</span>
+                  </div>
+                  <NButton v-if="isBatchActive(batch)" quaternary size="tiny" @click="cancelUploadBatch(batch.id)">
+                    <template #icon>
+                      <NIcon :size="14">
+                        <StopFilledAlt />
+                      </NIcon>
+                    </template>
+                    中断上传
+                  </NButton>
                 </div>
               </div>
 
@@ -269,7 +292,7 @@ function disconnect() {
                       {{
                         task.name }}</div>
                     <NTag size="small"
-                      :type="task.status === 'error' ? 'error' : task.status === 'success' ? 'success' : 'info'">
+                      :type="task.status === 'error' ? 'error' : task.status === 'success' ? 'success' : task.status === 'cancelled' ? 'warning' : 'info'">
                       {{ formatUploadStatus(task.status) }}
                     </NTag>
                   </div>
@@ -279,7 +302,7 @@ function disconnect() {
                     <span>{{ task.progress }}%</span>
                   </div>
                   <NProgress type="line" :percentage="task.progress"
-                    :status="task.status === 'error' ? 'error' : task.status === 'success' ? 'success' : 'default'"
+                    :status="task.status === 'error' ? 'error' : task.status === 'success' ? 'success' : task.status === 'cancelled' ? 'warning' : 'default'"
                     :show-indicator="false" :processing="task.status === 'uploading'" />
                 </div>
               </div>

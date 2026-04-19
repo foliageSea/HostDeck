@@ -669,6 +669,10 @@ function triggerUpload() {
   fileInputRef.value?.click()
 }
 
+function isUploadCancelled(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ERR_CANCELED'
+}
+
 async function handleUploadChange(event: Event) {
   if (!fileStore.sessionId) {
     return
@@ -682,10 +686,18 @@ async function handleUploadChange(event: Event) {
 
   const selectedUploads = Array.from(files)
   const batchId = uploadCenterStore.createBatch(fileStore.sessionId, fileStore.currentPath, selectedUploads)
+  const controller = new AbortController()
   uploadCenterStore.clearBatchError(batchId)
+  uploadCenterStore.registerBatchController(batchId, controller)
+
+  let hasUploadedFiles = false
 
   try {
     for (const [index, file] of selectedUploads.entries()) {
+      if (uploadCenterStore.isBatchCancelled(batchId)) {
+        break
+      }
+
       const batch = uploadCenterStore.batches.find((item) => item.id === batchId)
       const task = batch?.tasks[index]
       if (!task) {
@@ -710,7 +722,7 @@ async function handleUploadChange(event: Event) {
           progress: total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0,
           total,
         })
-      })
+      }, controller.signal)
 
       uploadCenterStore.updateTask(task.id, {
         loaded: file.size,
@@ -718,11 +730,30 @@ async function handleUploadChange(event: Event) {
         status: 'success',
         total: file.size,
       })
+      hasUploadedFiles = true
+    }
+
+    if (uploadCenterStore.isBatchCancelled(batchId)) {
+      if (hasUploadedFiles) {
+        await fileStore.fetchFiles()
+      }
+      return
     }
 
     await fileStore.fetchFiles()
     getUiApi().message.success(`已上传 ${files.length} 个文件。`)
   } catch (error) {
+    if (isUploadCancelled(error) || uploadCenterStore.isBatchCancelled(batchId)) {
+      if (!uploadCenterStore.isBatchCancelled(batchId)) {
+        uploadCenterStore.cancelBatch(batchId)
+      }
+
+      if (hasUploadedFiles) {
+        await fileStore.fetchFiles()
+      }
+      return
+    }
+
     const batch = uploadCenterStore.batches.find((item) => item.id === batchId)
     const uploadingTask = batch?.tasks.find((task) => task.status === 'uploading')
     if (uploadingTask) {
@@ -735,6 +766,7 @@ async function handleUploadChange(event: Event) {
     console.error('Failed to upload files', error)
     getUiApi().message.error('上传失败。')
   } finally {
+    uploadCenterStore.clearBatchController(batchId)
     input.value = ''
   }
 }

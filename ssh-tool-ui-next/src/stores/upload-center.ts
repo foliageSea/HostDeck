@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-export type UploadTaskStatus = 'pending' | 'uploading' | 'success' | 'error'
+export type UploadTaskStatus = 'pending' | 'uploading' | 'success' | 'error' | 'cancelled'
 
 export interface UploadTaskItem {
   id: string
@@ -28,10 +28,16 @@ export interface UploadBatch {
 export const useUploadCenterStore = defineStore('upload-center', () => {
   const batches = ref<UploadBatch[]>([])
   const panelOpen = ref(false)
+  const batchControllers = new Map<string, AbortController>()
+  const cancelledBatchIds = new Set<string>()
+
+  function isTaskActive(status: UploadTaskStatus) {
+    return status === 'pending' || status === 'uploading'
+  }
 
   const activeTaskCount = computed(() =>
     batches.value.reduce(
-      (count, batch) => count + batch.tasks.filter((task) => task.status === 'pending' || task.status === 'uploading').length,
+      (count, batch) => count + batch.tasks.filter((task) => isTaskActive(task.status)).length,
       0,
     ),
   )
@@ -45,6 +51,7 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
   function createBatch(sessionId: string, path: string, files: File[]) {
     const batchId = `upload-batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const createdAt = Date.now()
+    cancelledBatchIds.delete(batchId)
     const tasks = files.map((file, index) => ({
       id: `${batchId}-${index}`,
       loaded: 0,
@@ -82,6 +89,10 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     return null
   }
 
+  function findBatch(batchId: string) {
+    return batches.value.find((item) => item.id === batchId) ?? null
+  }
+
   function updateTask(taskId: string, patch: Partial<UploadTaskItem>) {
     const task = findTask(taskId)
     if (!task) {
@@ -92,7 +103,7 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
   }
 
   function markBatchError(batchId: string, message: string) {
-    const batch = batches.value.find((item) => item.id === batchId)
+    const batch = findBatch(batchId)
     if (!batch) {
       return
     }
@@ -102,7 +113,7 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
   }
 
   function clearBatchError(batchId: string) {
-    const batch = batches.value.find((item) => item.id === batchId)
+    const batch = findBatch(batchId)
     if (!batch) {
       return
     }
@@ -110,17 +121,70 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     batch.errorMessage = ''
   }
 
+  function registerBatchController(batchId: string, controller: AbortController) {
+    batchControllers.get(batchId)?.abort()
+    cancelledBatchIds.delete(batchId)
+    batchControllers.set(batchId, controller)
+  }
+
+  function clearBatchController(batchId: string) {
+    batchControllers.delete(batchId)
+  }
+
+  function isBatchCancelled(batchId: string) {
+    return cancelledBatchIds.has(batchId)
+  }
+
+  function cancelBatch(batchId: string) {
+    const batch = findBatch(batchId)
+    if (!batch) {
+      return
+    }
+
+    if (!batch.tasks.some((task) => isTaskActive(task.status))) {
+      return
+    }
+
+    cancelledBatchIds.add(batchId)
+    batchControllers.get(batchId)?.abort()
+    batchControllers.delete(batchId)
+    batch.errorMessage = '上传已中断。'
+
+    for (const task of batch.tasks) {
+      if (task.status === 'pending' || task.status === 'uploading') {
+        task.status = 'cancelled'
+      }
+    }
+
+    panelOpen.value = true
+  }
+
   function removeBatch(batchId: string) {
+    const batch = findBatch(batchId)
+    if (batch?.tasks.some((task) => isTaskActive(task.status))) {
+      cancelBatch(batchId)
+    }
+
+    clearBatchController(batchId)
+    cancelledBatchIds.delete(batchId)
     batches.value = batches.value.filter((batch) => batch.id !== batchId)
   }
 
   function clearFinished() {
     batches.value = batches.value.filter((batch) =>
-      batch.tasks.some((task) => task.status === 'pending' || task.status === 'uploading'),
+      batch.tasks.some((task) => isTaskActive(task.status)),
     )
   }
 
   function clearAll() {
+    for (const batch of batches.value) {
+      if (batch.tasks.some((task) => isTaskActive(task.status))) {
+        cancelBatch(batch.id)
+      }
+    }
+
+    batchControllers.clear()
+    cancelledBatchIds.clear()
     batches.value = []
   }
 
@@ -139,15 +203,19 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
   return {
     activeTaskCount,
     batches,
+    cancelBatch,
     clearAll,
     clearBatchError,
+    clearBatchController,
     clearFinished,
     closePanel,
     createBatch,
     hasTasks,
+    isBatchCancelled,
     markBatchError,
     openPanel,
     panelOpen,
+    registerBatchController,
     removeBatch,
     togglePanel,
     totalTaskCount,

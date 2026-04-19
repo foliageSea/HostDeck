@@ -55,6 +55,7 @@ export const filesApi = {
     path: string,
     formData: FormData,
     onUploadProgress?: (event: AxiosProgressEvent) => void,
+    signal?: AbortSignal,
   ) => {
     const response = await http.post('/api/files/upload', formData, {
       headers: {
@@ -62,6 +63,7 @@ export const filesApi = {
       },
       onUploadProgress,
       params: { path, sessionId },
+      signal,
     })
     return response.data
   },
