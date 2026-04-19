@@ -48,6 +48,7 @@ const editingPath = ref(false)
 const showCreateDialog = ref(false)
 const showRenameDialog = ref(false)
 const showDeleteDialog = ref(false)
+const deletingFiles = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const contextMenu = ref<{ type: 'file' | 'blank'; x: number; y: number } | null>(null)
 
@@ -606,10 +607,11 @@ async function confirmRename() {
 }
 
 async function confirmDelete() {
-  if (!fileStore.sessionId || selectedFiles.value.length === 0) {
+  if (!fileStore.sessionId || selectedFiles.value.length === 0 || deletingFiles.value) {
     return
   }
 
+  deletingFiles.value = true
   try {
     await Promise.all(
       selectedFiles.value.map((file) =>
@@ -624,6 +626,8 @@ async function confirmDelete() {
   } catch (error) {
     console.error('Failed to delete files', error)
     getUiApi().message.error('删除失败。')
+  } finally {
+    deletingFiles.value = false
   }
 }
 
@@ -1134,6 +1138,7 @@ watch(
       @update:value="(value) => (renameValue = value)" @confirm="confirmRename" />
 
     <NModal v-model:show="showDeleteDialog" preset="dialog" title="确认删除" positive-text="删除" negative-text="取消"
+      :positive-button-props="{ loading: deletingFiles }"
       @positive-click="confirmDelete" @negative-click="showDeleteDialog = false">
       删除 {{ selectedFiles.length > 1 ? `这 ${selectedFiles.length} 个项目` : '`' + (selectedFile?.filename ?? '') + '`' }}
       后不可恢复。

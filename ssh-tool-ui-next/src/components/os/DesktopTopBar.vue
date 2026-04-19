@@ -127,14 +127,19 @@ function handleTaskCenterVisibilityChange(value: boolean) {
 }
 
 function disconnect() {
-  getUiApi().dialog.warning({
+  const dialog = getUiApi().dialog.warning({
     title: '断开连接',
     content: '确认结束当前 SSH 会话并返回登录页？',
     positiveText: '断开',
     negativeText: '取消',
-    onPositiveClick: () => {
-      desktopStore.reset()
-      sshStore.clearSession()
+    onPositiveClick: async () => {
+      dialog.loading = true
+      try {
+        desktopStore.reset()
+        sshStore.clearSession()
+      } finally {
+        dialog.loading = false
+      }
     },
   })
 }

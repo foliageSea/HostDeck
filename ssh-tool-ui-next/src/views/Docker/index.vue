@@ -163,6 +163,13 @@ const displayedLogs = computed(() => {
     .join('\n')
 })
 
+interface DangerActionConfirmOptions {
+  title: string
+  content: string
+  positiveText: string
+  action: () => Promise<void> | void
+}
+
 function renderContainerPorts(row: DockerContainer) {
   const ports = row.ports ?? []
 
@@ -581,6 +588,23 @@ async function handleContainerAdvancedAction(container: DockerContainer, action:
   }
 }
 
+function confirmDangerAction(options: DangerActionConfirmOptions) {
+  const dialog = getUiApi().dialog.warning({
+    title: options.title,
+    content: options.content,
+    positiveText: options.positiveText,
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      dialog.loading = true
+      try {
+        await options.action()
+      } finally {
+        dialog.loading = false
+      }
+    },
+  })
+}
+
 function confirmContainerAction(container: DockerContainer, action: 'start' | 'stop' | 'restart' | 'remove') {
   const actionTextMap = {
     remove: '删除',
@@ -589,12 +613,11 @@ function confirmContainerAction(container: DockerContainer, action: 'start' | 's
     stop: '停止',
   } as const
 
-  getUiApi().dialog.warning({
+  confirmDangerAction({
     title: `${actionTextMap[action]}容器`,
     content: `确认${actionTextMap[action]}容器 ${container.name}？`,
     positiveText: actionTextMap[action],
-    negativeText: '取消',
-    onPositiveClick: () => handleContainerAction(container, action),
+    action: () => handleContainerAction(container, action),
   })
 }
 
@@ -756,12 +779,31 @@ async function viewImageRefs(image: DockerImage) {
 }
 
 function confirmRemoveImage(image: DockerImage) {
-  getUiApi().dialog.warning({
+  confirmDangerAction({
     title: '删除镜像',
     content: `确认删除镜像 ${image.repository}:${image.tag}？`,
     positiveText: '删除',
-    negativeText: '取消',
-    onPositiveClick: () => removeImage(image),
+    action: () => removeImage(image),
+  })
+}
+
+function confirmRemoveStoppedContainers() {
+  confirmDangerAction({
+    title: '清理已停止容器',
+    content: '确认删除当前会话中所有已停止的容器？该操作不可撤销。',
+    positiveText: '清理',
+    action: () => removeStoppedContainers(),
+  })
+}
+
+function confirmPruneImages(includeUnused: boolean) {
+  confirmDangerAction({
+    title: includeUnused ? '清理无引用镜像' : '清理悬空镜像',
+    content: includeUnused
+      ? '确认清理当前会话中所有未被容器引用的镜像？该操作可能影响后续快速启动。'
+      : '确认清理当前会话中的所有 dangling 镜像？该操作不可撤销。',
+    positiveText: '清理',
+    action: () => pruneImages(includeUnused),
   })
 }
 
@@ -992,9 +1034,9 @@ watch(logsTail, async (value, previous) => {
                 />
                 <NButton quaternary :loading="batchProcessing" @click="batchStartSelected">批量启动</NButton>
                 <NButton quaternary :loading="batchProcessing" @click="batchStopSelected">批量停止</NButton>
-                <NButton quaternary @click="removeStoppedContainers">清理已停止</NButton>
-                <NButton quaternary @click="pruneImages(false)">清理悬空镜像</NButton>
-                <NButton quaternary @click="pruneImages(true)">清理无引用镜像</NButton>
+                <NButton quaternary @click="confirmRemoveStoppedContainers">清理已停止</NButton>
+                <NButton quaternary @click="confirmPruneImages(false)">清理悬空镜像</NButton>
+                <NButton quaternary @click="confirmPruneImages(true)">清理无引用镜像</NButton>
                 <NTag round size="small">已选 {{ selectedContainerIds.length }}</NTag>
                 <NTag round size="small">显示 {{ filteredContainers.length }} / {{ containers.length }}</NTag>
               </NSpace>

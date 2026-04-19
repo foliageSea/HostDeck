@@ -23,6 +23,7 @@ const sshStore = useSshStore()
 const settingsStore = useSettingsStore()
 const isShaking = ref(false)
 const selectedServerId = ref<number | null>(null)
+const deletingServerId = ref<number | null>(null)
 const serverEditorVisible = ref(false)
 const editingServerId = ref<number | null>(null)
 const serverEditorMode = ref<'create' | 'edit'>('create')
@@ -196,20 +197,28 @@ function handleCloseServerEditor() {
 }
 
 async function handleDeleteServer(serverId?: number) {
-  if (serverId === undefined) {
+  if (serverId === undefined || deletingServerId.value === serverId) {
     return
   }
 
-  await sshStore.removeServer(serverId)
-  if (selectedServerId.value === serverId) {
-    resetConnectionForm()
-  }
+  deletingServerId.value = serverId
+  try {
+    await sshStore.removeServer(serverId)
+    if (selectedServerId.value === serverId) {
+      resetConnectionForm()
+    }
 
-  if (editingServerId.value === serverId) {
-    handleCloseServerEditor()
-  }
+    if (editingServerId.value === serverId) {
+      handleCloseServerEditor()
+    }
 
-  getUiApi().message.success('服务器配置已删除。')
+    getUiApi().message.success('服务器配置已删除。')
+  } catch (error) {
+    console.error('Failed to delete saved server', error)
+    getUiApi().message.error(error instanceof Error ? error.message : '删除服务器配置失败。')
+  } finally {
+    deletingServerId.value = null
+  }
 }
 
 onMounted(() => {
@@ -269,7 +278,8 @@ onMounted(() => {
                   <NButton quaternary size="small" @click="openEditServerModal(server)">
                     编辑
                   </NButton>
-                  <NPopconfirm @positive-click="handleDeleteServer(server.id)">
+                  <NPopconfirm :positive-button-props="{ loading: deletingServerId === server.id }"
+                    @positive-click="handleDeleteServer(server.id)">
                     <template #trigger>
                       <NButton quaternary type="error" size="small">
                         删除
