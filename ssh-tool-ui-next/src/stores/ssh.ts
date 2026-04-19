@@ -223,7 +223,7 @@ export const useSshStore = defineStore('ssh', () => {
       username: nextUsername,
     }
     startSessionWs()
-    startMonitorWs()
+    // startMonitorWs()
   }
 
   const baseConnectPayload = computed(() => connectPayload.value)
