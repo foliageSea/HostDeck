@@ -20,6 +20,39 @@ export interface DockerImage {
   inUse?: boolean
 }
 
+export interface PagedResponse<T, TSummary = Record<string, number>> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+  summary?: TSummary
+}
+
+export type DockerContainerStatusFilter = 'all' | 'running' | 'stopped' | 'paused' | 'restarting' | 'exited'
+
+export interface DockerContainerListParams {
+  page?: number
+  pageSize?: number
+  status?: DockerContainerStatusFilter
+}
+
+export interface DockerImageListParams {
+  page?: number
+  pageSize?: number
+}
+
+export interface DockerContainerSummary {
+  total: number
+  running: number
+  stopped: number
+}
+
+export interface DockerImageSummary {
+  total: number
+  dangling: number
+}
+
 export interface DockerSessionResponse {
   sessionId: string
 }
@@ -126,16 +159,16 @@ export const dockerApi = {
     return response.data
   },
 
-  async listContainers(sessionId: string) {
-    const response = await http.get<DockerContainer[]>('/api/docker/containers', {
-      params: { sessionId },
+  async listContainers(sessionId: string, params: DockerContainerListParams = {}) {
+    const response = await http.get<PagedResponse<DockerContainer, DockerContainerSummary>>('/api/docker/containers', {
+      params: { ...params, sessionId },
     })
     return response.data
   },
 
-  async listImages(sessionId: string) {
-    const response = await http.get<DockerImage[]>('/api/docker/images', {
-      params: { sessionId },
+  async listImages(sessionId: string, params: DockerImageListParams = {}) {
+    const response = await http.get<PagedResponse<DockerImage, DockerImageSummary>>('/api/docker/images', {
+      params: { ...params, sessionId },
     })
     return response.data
   },

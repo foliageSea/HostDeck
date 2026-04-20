@@ -24,10 +24,13 @@ import {
   type DockerContainer,
   type DockerContainerDiagnostic,
   type DockerContainerInspect,
+  type DockerContainerStatusFilter,
+  type DockerContainerSummary,
   type DockerContainerStats,
   type DockerCreateContainerPayload,
   type DockerImageContainerRef,
   type DockerImageHistoryItem,
+  type DockerImageSummary,
   type DockerImage,
 } from '@/api/docker'
 import { getUiApi } from '@/lib/ui'
@@ -48,8 +51,16 @@ const activeTab = ref<'containers' | 'images'>('containers')
 const loading = ref(false)
 const dockerAvailable = ref<boolean | null>(null)
 const containers = ref<DockerContainer[]>([])
-const containerStatusFilter = ref<'all' | 'running' | 'stopped' | 'paused' | 'restarting' | 'exited'>('all')
+const containerStatusFilter = ref<DockerContainerStatusFilter>('all')
+const containerPage = ref(1)
+const containerPageSize = ref(8)
+const containerTotal = ref(0)
+const containerSummary = ref<DockerContainerSummary>({ total: 0, running: 0, stopped: 0 })
 const images = ref<DockerImage[]>([])
+const imagePage = ref(1)
+const imagePageSize = ref(8)
+const imageTotal = ref(0)
+const imageSummary = ref<DockerImageSummary>({ total: 0, dangling: 0 })
 const statsMap = ref<Record<string, DockerContainerStats>>({})
 const diagnosticsMap = ref<Record<string, DockerContainerDiagnostic>>({})
 const selectedContainerIds = ref<string[]>([])
@@ -63,6 +74,7 @@ const logsTail = ref(200)
 const logsAutoRefresh = ref(false)
 const logsKeyword = ref('')
 const logsLastUpdatedAt = ref<Date | null>(null)
+const logsContainerId = ref('')
 const logsContainerName = ref('')
 const inspectVisible = ref(false)
 const inspectLoading = ref(false)
@@ -102,9 +114,10 @@ const renamingContainerName = ref('')
 const sessionId = ref<string | null>(null)
 let logsRefreshTimer: number | null = null
 
-const runningContainers = computed(() => containers.value.filter((item) => item.state === 'running').length)
-const stoppedContainers = computed(() => containers.value.filter((item) => item.state !== 'running').length)
-const danglingImages = computed(() => images.value.filter((item) => item.dangling).length)
+const dockerPageSizes = [8, 16, 32, 50]
+const runningContainers = computed(() => containerSummary.value.running)
+const stoppedContainers = computed(() => containerSummary.value.stopped)
+const danglingImages = computed(() => imageSummary.value.dangling)
 const createImageOptions = computed(() =>
   images.value
     .filter((item) => item.repository && item.tag && !item.dangling)
@@ -116,6 +129,20 @@ const createImageOptions = computed(() =>
       }
     }),
 )
+const containerPagination = computed(() => ({
+  page: containerPage.value,
+  pageSize: containerPageSize.value,
+  itemCount: containerTotal.value,
+  pageSizes: dockerPageSizes,
+  showSizePicker: true,
+}))
+const imagePagination = computed(() => ({
+  page: imagePage.value,
+  pageSize: imagePageSize.value,
+  itemCount: imageTotal.value,
+  pageSizes: dockerPageSizes,
+  showSizePicker: true,
+}))
 const containerStatusOptions = [
   { label: '全部状态', value: 'all' },
   { label: '运行中', value: 'running' },
@@ -124,35 +151,6 @@ const containerStatusOptions = [
   { label: '重启中', value: 'restarting' },
   { label: '已退出', value: 'exited' },
 ]
-const filteredContainers = computed(() =>
-  containers.value.filter((item) => {
-    const status = item.status.toLowerCase()
-
-    if (containerStatusFilter.value === 'all') {
-      return true
-    }
-
-    if (containerStatusFilter.value === 'running') {
-      return item.state === 'running' && !status.includes('paused')
-    }
-
-    if (containerStatusFilter.value === 'stopped') {
-      return item.state !== 'running'
-    }
-
-    if (containerStatusFilter.value === 'paused') {
-      return status.includes('paused')
-    }
-
-    if (containerStatusFilter.value === 'restarting') {
-      return item.state === 'restarting' || status.includes('restarting')
-    }
-
-    return item.state === 'exited' || status.includes('exited')
-  }),
-)
-const containerPagination = { pageSize: 8 }
-const imagePagination = { pageSize: 8 }
 const selectedStoppedIds = computed(() =>
   containers.value.filter((item) => selectedContainerIds.value.includes(item.id) && item.state !== 'running').map((item) => item.id),
 )
@@ -442,16 +440,11 @@ function downloadLogs() {
 }
 
 async function refreshLogs(silent = false) {
-  if (!logsContainerName.value) {
+  if (!logsContainerId.value) {
     return
   }
 
   try {
-    const container = containers.value.find((item) => item.name === logsContainerName.value)
-    if (!container) {
-      return
-    }
-
     if (silent) {
       logsRefreshing.value = true
     } else {
@@ -459,7 +452,7 @@ async function refreshLogs(silent = false) {
     }
 
     const sessionId = requireSession()
-    const result = await dockerApi.getContainerLogsAdvanced(sessionId, container.id, {
+    const result = await dockerApi.getContainerLogsAdvanced(sessionId, logsContainerId.value, {
       tail: logsTail.value,
       timestamps: true,
     })
@@ -473,6 +466,68 @@ async function refreshLogs(silent = false) {
   } finally {
     logsLoading.value = false
     logsRefreshing.value = false
+  }
+}
+
+function resetDockerLists() {
+  containers.value = []
+  images.value = []
+  containerTotal.value = 0
+  imageTotal.value = 0
+  containerSummary.value = { total: 0, running: 0, stopped: 0 }
+  imageSummary.value = { total: 0, dangling: 0 }
+  selectedContainerIds.value = []
+  statsMap.value = {}
+  diagnosticsMap.value = {}
+}
+
+async function loadContainersPage(page = containerPage.value, pageSize = containerPageSize.value) {
+  const sessionId = requireSession()
+  const result = await dockerApi.listContainers(sessionId, {
+    page,
+    pageSize,
+    status: containerStatusFilter.value,
+  })
+
+  containers.value = result.items
+  containerPage.value = result.page
+  containerPageSize.value = result.pageSize
+  containerTotal.value = result.total
+  containerSummary.value = result.summary ?? {
+    total: result.total,
+    running: 0,
+    stopped: 0,
+  }
+  selectedContainerIds.value = selectedContainerIds.value.filter((id) => result.items.some((container) => container.id === id))
+
+  // await refreshContainerStats()
+  await refreshContainerDiagnostics()
+}
+
+async function loadImagesPage(page = imagePage.value, pageSize = imagePageSize.value) {
+  const sessionId = requireSession()
+  const result = await dockerApi.listImages(sessionId, { page, pageSize })
+
+  images.value = result.items
+  imagePage.value = result.page
+  imagePageSize.value = result.pageSize
+  imageTotal.value = result.total
+  imageSummary.value = result.summary ?? {
+    total: result.total,
+    dangling: result.items.filter((image) => image.dangling).length,
+  }
+}
+
+async function loadDockerSection(action: () => Promise<void>, fallbackMessage: string) {
+  loading.value = true
+  try {
+    await initSession()
+    await action()
+  } catch (error) {
+    console.error(fallbackMessage, error)
+    getUiApi().message.error(error instanceof Error ? error.message : fallbackMessage)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -542,26 +597,15 @@ async function loadDockerState() {
     dockerAvailable.value = result.available
 
     if (!result.available) {
-      containers.value = []
-      images.value = []
+      resetDockerLists()
       return
     }
 
-    const [nextContainers, nextImages] = await Promise.all([
-      dockerApi.listContainers(sessionId),
-      dockerApi.listImages(sessionId),
-    ])
-
-    containers.value = nextContainers
-    images.value = nextImages
-    selectedContainerIds.value = selectedContainerIds.value.filter((id) =>
-      nextContainers.some((container) => container.id === id),
-    )
-    await refreshContainerStats()
-    await refreshContainerDiagnostics()
+    await Promise.all([loadContainersPage(), loadImagesPage()])
   } catch (error) {
     console.error('Failed to load Docker state', error)
     dockerAvailable.value = false
+    resetDockerLists()
     getUiApi().message.error(error instanceof Error ? error.message : '加载 Docker 数据失败。')
   } finally {
     loading.value = false
@@ -570,6 +614,22 @@ async function loadDockerState() {
 
 async function refresh() {
   await loadDockerState()
+}
+
+async function handleContainerPageChange(page: number) {
+  await loadDockerSection(() => loadContainersPage(page, containerPageSize.value), '加载容器列表失败。')
+}
+
+async function handleContainerPageSizeChange(pageSize: number) {
+  await loadDockerSection(() => loadContainersPage(1, pageSize), '加载容器列表失败。')
+}
+
+async function handleImagePageChange(page: number) {
+  await loadDockerSection(() => loadImagesPage(page, imagePageSize.value), '加载镜像列表失败。')
+}
+
+async function handleImagePageSizeChange(pageSize: number) {
+  await loadDockerSection(() => loadImagesPage(1, pageSize), '加载镜像列表失败。')
 }
 
 async function handleContainerAction(
@@ -663,6 +723,7 @@ function confirmContainerAction(container: DockerContainer, action: 'start' | 's
 async function viewLogs(container: DockerContainer) {
   logsVisible.value = true
   logsTitle.value = `容器日志 · ${container.name}`
+  logsContainerId.value = container.id
   logsContainerName.value = container.name
   logsKeyword.value = ''
   logsLastUpdatedAt.value = null
@@ -998,6 +1059,11 @@ watch([logsVisible, logsAutoRefresh], () => {
   syncLogsRefreshTimer()
 })
 
+watch(containerStatusFilter, async () => {
+  selectedContainerIds.value = []
+  await loadDockerSection(() => loadContainersPage(1, containerPageSize.value), '加载容器列表失败。')
+})
+
 watch(logsTail, async (value, previous) => {
   if (value !== previous && logsVisible.value) {
     await refreshLogs()
@@ -1055,7 +1121,7 @@ watch(logsTail, async (value, previous) => {
         </NCard>
         <NCard size="small" :bordered="false" class="rounded-[18px] bg-[rgba(15,23,42,0.72)]">
           <div class="text-[12px] text-[rgba(226,232,240,0.68)]">镜像总数</div>
-          <div class="mt-[6px] text-[28px] font-700">{{ images.length }}</div>
+          <div class="mt-[6px] text-[28px] font-700">{{ imageSummary.total }}</div>
         </NCard>
         <NCard size="small" :bordered="false" class="rounded-[18px] bg-[rgba(15,23,42,0.72)]">
           <div class="text-[12px] text-[rgba(226,232,240,0.68)]">悬空镜像</div>
@@ -1089,7 +1155,7 @@ watch(logsTail, async (value, previous) => {
                 <NButton quaternary @click="confirmPruneImages(false)">清理悬空镜像</NButton>
                 <NButton quaternary @click="confirmPruneImages(true)">清理无引用镜像</NButton>
                 <NTag round size="small">已选 {{ selectedContainerIds.length }}</NTag>
-                <NTag round size="small">显示 {{ filteredContainers.length }} / {{ containers.length }}</NTag>
+                <NTag round size="small">显示 {{ containerTotal }} / {{ containerSummary.total }}</NTag>
               </NSpace>
             </div>
 
@@ -1099,10 +1165,13 @@ watch(logsTail, async (value, previous) => {
                 class="docker-table"
                 :single-line="false"
                 :columns="containerColumns"
-                :data="filteredContainers"
+                :data="containers"
                 :pagination="containerPagination"
                 :row-key="containerRowKey"
+                remote
                 size="small"
+                @update:page="handleContainerPageChange"
+                @update:page-size="handleContainerPageSizeChange"
               />
             </div>
           </div>
@@ -1118,7 +1187,10 @@ watch(logsTail, async (value, previous) => {
                 :columns="imageColumns"
                 :data="images"
                 :pagination="imagePagination"
+                remote
                 size="small"
+                @update:page="handleImagePageChange"
+                @update:page-size="handleImagePageSizeChange"
               />
             </div>
           </div>
@@ -1178,9 +1250,9 @@ watch(logsTail, async (value, previous) => {
             <NSelect
               v-model:value="createForm.image"
               :options="createImageOptions"
-              :disabled="createImageOptions.length === 0"
               filterable
-              placeholder="请选择镜像"
+              tag
+              placeholder="请选择或输入镜像"
             />
           </NFormItemGi>
           <NFormItemGi label="容器名称">

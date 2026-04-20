@@ -1,10 +1,13 @@
-import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:shelf/shelf.dart';
-import '../services/ssh_service.dart';
-import '../services/docker_service.dart';
-import '../models/ssh_session.dart';
+
+import '../models/docker_container.dart';
 import '../models/result.dart';
+import '../models/ssh_session.dart';
+import '../services/docker_service.dart';
+import '../services/ssh_service.dart';
 
 class DockerController {
   final SshService _sshService;
@@ -108,6 +111,8 @@ class DockerController {
   /// 获取容器列表
   Future<Response> listContainers(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
+    final pagination = _parsePagination(request);
+    final statusFilter = request.url.queryParameters['status'] ?? 'all';
     if (sessionId == null) {
       return Result.fail(400, 'Missing sessionId');
     }
@@ -119,7 +124,27 @@ class DockerController {
 
     try {
       final containers = await _dockerService.listContainers(session);
-      return Result.ok(containers.map((c) => c.toJson()).toList());
+      final filteredContainers = containers
+          .where(
+            (container) => _matchesContainerStatus(container, statusFilter),
+          )
+          .toList();
+      return Result.ok(
+        _pageResponse(
+          filteredContainers,
+          pagination,
+          (container) => container.toJson(),
+          summary: {
+            'total': containers.length,
+            'running': containers
+                .where((container) => container.state == 'running')
+                .length,
+            'stopped': containers
+                .where((container) => container.state != 'running')
+                .length,
+          },
+        ),
+      );
     } catch (e) {
       return Result.fail(500, e.toString());
     }
@@ -128,6 +153,7 @@ class DockerController {
   /// 获取镜像列表
   Future<Response> listImages(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
+    final pagination = _parsePagination(request);
     if (sessionId == null) {
       return Result.fail(400, 'Missing sessionId');
     }
@@ -139,7 +165,17 @@ class DockerController {
 
     try {
       final images = await _dockerService.listImages(session);
-      return Result.ok(images.map((i) => i.toJson()).toList());
+      return Result.ok(
+        _pageResponse(
+          images,
+          pagination,
+          (image) => image.toJson(),
+          summary: {
+            'total': images.length,
+            'dangling': images.where((image) => image.dangling).length,
+          },
+        ),
+      );
     } catch (e) {
       return Result.fail(500, e.toString());
     }
@@ -632,4 +668,77 @@ class DockerController {
     if (parsed > 5000) return 5000;
     return parsed;
   }
+
+  _PaginationParams _parsePagination(Request request) {
+    final query = request.url.queryParameters;
+    final page = int.tryParse(query['page'] ?? '') ?? 1;
+    final pageSize = int.tryParse(query['pageSize'] ?? '') ?? 8;
+
+    return _PaginationParams(
+      page: page < 1 ? 1 : page,
+      pageSize: pageSize < 1 ? 8 : (pageSize > 100 ? 100 : pageSize),
+    );
+  }
+
+  Map<String, dynamic> _pageResponse<T>(
+    List<T> items,
+    _PaginationParams pagination,
+    Object? Function(T item) toJson, {
+    Map<String, dynamic> summary = const {},
+  }) {
+    final total = items.length;
+    final totalPages = total == 0
+        ? 0
+        : ((total + pagination.pageSize - 1) ~/ pagination.pageSize);
+    final page = totalPages == 0
+        ? 1
+        : (pagination.page > totalPages ? totalPages : pagination.page);
+    final start = (page - 1) * pagination.pageSize;
+    final pageItems = start >= total
+        ? <T>[]
+        : items.skip(start).take(pagination.pageSize).toList();
+
+    return {
+      'items': pageItems.map(toJson).toList(),
+      'total': total,
+      'page': page,
+      'pageSize': pagination.pageSize,
+      'totalPages': totalPages,
+      if (summary.isNotEmpty) 'summary': summary,
+    };
+  }
+
+  bool _matchesContainerStatus(DockerContainer container, String statusFilter) {
+    final filter = statusFilter.trim().toLowerCase();
+    final state = container.state.toLowerCase();
+    final status = container.status.toLowerCase();
+
+    if (filter.isEmpty || filter == 'all') {
+      return true;
+    }
+    if (filter == 'running') {
+      return state == 'running' && !status.contains('paused');
+    }
+    if (filter == 'stopped') {
+      return state != 'running';
+    }
+    if (filter == 'paused') {
+      return status.contains('paused');
+    }
+    if (filter == 'restarting') {
+      return state == 'restarting' || status.contains('restarting');
+    }
+    if (filter == 'exited') {
+      return state == 'exited' || status.contains('exited');
+    }
+
+    return true;
+  }
+}
+
+class _PaginationParams {
+  final int page;
+  final int pageSize;
+
+  const _PaginationParams({required this.page, required this.pageSize});
 }
