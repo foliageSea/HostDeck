@@ -4,9 +4,21 @@ import 'dart:math';
 import 'package:dartssh2/dartssh2.dart';
 import '../models/ssh_session.dart';
 
+class SshSessionLimitExceeded implements Exception {
+  final int maxSessions;
+
+  const SshSessionLimitExceeded(this.maxSessions);
+
+  @override
+  String toString() => 'SSH session limit exceeded: $maxSessions';
+}
+
 class SshService {
+  static const maxSessions = 8;
+
   final Map<String, SshSession> _sessions = {};
   final Map<String, SSHClient> _clients = {};
+  int _pendingSessionCreations = 0;
 
   Future<String> connect({
     required String host,
@@ -54,36 +66,44 @@ class SshService {
       throw Exception('Connection is closed');
     }
 
-    final shell = await client.shell(pty: SSHPtyConfig(width: 80, height: 24));
+    _reserveSessionCapacity();
 
-    final sessionId = _generateId();
-    final outputController = StreamController<String>.broadcast();
+    try {
+      final shell = await client.shell(
+        pty: SSHPtyConfig(width: 80, height: 24),
+      );
 
-    // Pipe shell output to controller
-    shell.stdout.listen((data) {
-      outputController.add(utf8.decode(data));
-    });
-    shell.stderr.listen((data) {
-      outputController.add(utf8.decode(data));
-    });
+      final sessionId = _generateId();
+      final outputController = StreamController<String>.broadcast();
 
-    final session = SshSession(
-      id: sessionId,
-      connectionId: connectionId,
-      client: client,
-      shell: shell,
-      outputController: outputController,
-    );
+      // Pipe shell output to controller
+      shell.stdout.listen((data) {
+        outputController.add(utf8.decode(data));
+      });
+      shell.stderr.listen((data) {
+        outputController.add(utf8.decode(data));
+      });
 
-    _sessions[sessionId] = session;
+      final session = SshSession(
+        id: sessionId,
+        connectionId: connectionId,
+        client: client,
+        shell: shell,
+        outputController: outputController,
+      );
 
-    // Handle client disconnection (only once per client usually, but safe to add listener?)
-    // Actually client.done is a future. We should set it up when client is created.
-    // But we didn't do it in connect() fully.
-    // Let's do it here? No, better in connect.
-    // However, if we do it in connect, we need to know how to clean up.
+      _sessions[sessionId] = session;
 
-    return session;
+      // Handle client disconnection (only once per client usually, but safe to add listener?)
+      // Actually client.done is a future. We should set it up when client is created.
+      // But we didn't do it in connect() fully.
+      // Let's do it here? No, better in connect.
+      // However, if we do it in connect, we need to know how to clean up.
+
+      return session;
+    } finally {
+      _releaseSessionReservation();
+    }
   }
 
   Future<SshSession> createSftpSession(String connectionId) async {
@@ -97,17 +117,23 @@ class SshService {
       throw Exception('Connection is closed');
     }
 
-    final sessionId = _generateId();
-    // Create session without shell
-    final session = SshSession(
-      id: sessionId,
-      connectionId: connectionId,
-      client: client,
-      shell: null,
-    );
+    _reserveSessionCapacity();
 
-    _sessions[sessionId] = session;
-    return session;
+    try {
+      final sessionId = _generateId();
+      // Create session without shell
+      final session = SshSession(
+        id: sessionId,
+        connectionId: connectionId,
+        client: client,
+        shell: null,
+      );
+
+      _sessions[sessionId] = session;
+      return session;
+    } finally {
+      _releaseSessionReservation();
+    }
   }
 
   // Helper to setup client cleanup.
@@ -186,6 +212,20 @@ class SshService {
     if (client != null) {
       client.close();
       _disconnectInternal(connectionId);
+    }
+  }
+
+  void _reserveSessionCapacity() {
+    if (_sessions.length + _pendingSessionCreations >= maxSessions) {
+      throw const SshSessionLimitExceeded(maxSessions);
+    }
+
+    _pendingSessionCreations++;
+  }
+
+  void _releaseSessionReservation() {
+    if (_pendingSessionCreations > 0) {
+      _pendingSessionCreations--;
     }
   }
 

@@ -25,6 +25,8 @@ class FileController {
       final session = await _sshService.createSftpSession(connectionId);
 
       return Result.ok({'sessionId': session.id});
+    } on SshSessionLimitExceeded catch (e) {
+      return Result.fail(429, '最多只能创建 ${e.maxSessions} 个 SSH 会话。');
     } catch (e) {
       return Result.fail(500, e.toString());
     }
@@ -78,8 +80,9 @@ class FileController {
     final path = request.url.queryParameters['path'];
     final download = request.url.queryParameters['download'] == 'true';
 
-    if (sessionId == null || path == null)
+    if (sessionId == null || path == null) {
       return Response.badRequest(body: 'Missing sessionId or path');
+    }
 
     final session = _sshService.getSession(sessionId);
     if (session == null) return Response.notFound('Session not found');
@@ -107,8 +110,9 @@ class FileController {
   Future<Response> writeFile(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'];
-    if (sessionId == null || path == null)
+    if (sessionId == null || path == null) {
       return Result.fail(400, 'Missing sessionId or path');
+    }
 
     final session = _sshService.getSession(sessionId);
     if (session == null) return Result.fail(404, 'Session not found');
@@ -124,8 +128,9 @@ class FileController {
   Future<Response> uploadFile(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'];
-    if (sessionId == null || path == null)
+    if (sessionId == null || path == null) {
       return Result.fail(400, 'Missing sessionId or path');
+    }
 
     final session = _sshService.getSession(sessionId);
     if (session == null) return Result.fail(404, 'Session not found');
@@ -159,8 +164,9 @@ class FileController {
 
   Future<Response> batchDownload(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null)
+    if (sessionId == null) {
       return Response.badRequest(body: 'Missing sessionId');
+    }
 
     final session = _sshService.getSession(sessionId);
     if (session == null) return Response.notFound('Session not found');
@@ -245,8 +251,9 @@ class FileController {
   Future<Response> deleteFile(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'];
-    if (sessionId == null || path == null)
+    if (sessionId == null || path == null) {
       return Result.fail(400, 'Missing sessionId or path');
+    }
 
     final session = _sshService.getSession(sessionId);
     if (session == null) return Result.fail(404, 'Session not found');

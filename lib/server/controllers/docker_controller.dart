@@ -28,6 +28,8 @@ class DockerController {
       final session = await _sshService.createShell(connectionId);
 
       return Result.ok({'sessionId': session.id});
+    } on SshSessionLimitExceeded catch (e) {
+      return Result.fail(429, '最多只能创建 ${e.maxSessions} 个 SSH 会话。');
     } catch (e) {
       return Result.fail(500, e.toString());
     }
@@ -83,6 +85,8 @@ class DockerController {
       shell.write(Uint8List.fromList(utf8.encode('$cmd\n')));
 
       return Result.ok({'sessionId': shellSession.id});
+    } on SshSessionLimitExceeded catch (e) {
+      return Result.fail(429, '最多只能创建 ${e.maxSessions} 个 SSH 会话。');
     } catch (e) {
       return Result.fail(500, e.toString());
     }

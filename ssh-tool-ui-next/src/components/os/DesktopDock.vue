@@ -28,7 +28,7 @@ const contextMenuOptions = computed(() => {
 
   const hasWindows = getAppWindows(appId).length > 0
   return [
-    { key: 'new', label: '新建窗口' },
+    { key: 'new', label: '新建窗口', disabled: !desktopStore.canOpenWindow(appId) },
     ...(hasWindows ? [{ key: 'close-all', label: '关闭全部窗口', props: { style: 'color: #dc2626;' } }] : []),
   ]
 })
@@ -249,7 +249,7 @@ function handleContextMenuSelect(key: string | number) {
           <span v-if="desktopStore.activeWindowId === window.id" class="h-[8px] w-[8px] rounded-full bg-[#60a5fa]" />
         </button>
         <div class="mt-[8px] flex gap-[8px]">
-          <NButton secondary size="small" @click="openNewWindow(selectorAppId)">新建窗口</NButton>
+          <NButton secondary size="small" :disabled="!desktopStore.canOpenWindow(selectorAppId)" @click="openNewWindow(selectorAppId)">新建窗口</NButton>
           <NButton tertiary size="small" type="error" @click="closeAppWindows(selectorAppId)">关闭全部</NButton>
         </div>
       </div>

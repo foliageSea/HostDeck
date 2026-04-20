@@ -43,6 +43,8 @@ class TerminalController {
       final session = await _sshService.createShell(connectionId);
 
       return Result.ok({'sessionId': session.id});
+    } on SshSessionLimitExceeded catch (e) {
+      return Result.fail(429, '最多只能创建 ${e.maxSessions} 个 SSH 会话。');
     } catch (e) {
       return Result.fail(500, e.toString());
     }

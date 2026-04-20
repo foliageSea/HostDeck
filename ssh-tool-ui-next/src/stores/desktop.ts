@@ -1,5 +1,6 @@
 import { markRaw, type Component } from 'vue'
 import { defineStore } from 'pinia'
+import { getUiApi } from '@/lib/ui'
 import { useSshStore } from '@/stores/ssh'
 import { useWindowSessionStore } from '@/stores/window-session'
 import type { AppIconKey, DesktopAppId } from '@/types/desktop'
@@ -11,6 +12,14 @@ import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
 import SettingsView from '@/views/Settings/index.vue'
 import TerminalView from '@/views/Terminal/index.vue'
 import TextEditorView from '@/views/TextEditor/index.vue'
+
+export const maxSessionWindows = 8
+
+const sessionWindowAppIds = new Set<DesktopAppId>(['terminal', 'files', 'docker'])
+
+function isSessionWindowAppId(appId: DesktopAppId) {
+  return sessionWindowAppIds.has(appId)
+}
 
 export interface AppConfig {
   id: DesktopAppId
@@ -74,7 +83,7 @@ export const useDesktopStore = defineStore('desktop', {
         id: 'docker',
         title: 'Docker 管理',
         width: 1180,
-        hide: true,
+        hide: false,
       },
       'runtime-sessions': {
         component: markRaw(RuntimeSessionsView),
@@ -125,7 +134,15 @@ export const useDesktopStore = defineStore('desktop', {
     windows: [] as WindowState[],
   }),
 
+  getters: {
+    sessionWindowCount: (state): number => state.windows.filter((window) => isSessionWindowAppId(window.appId)).length,
+  },
+
   actions: {
+    canOpenWindow(appId: DesktopAppId) {
+      return !isSessionWindowAppId(appId) || this.sessionWindowCount < maxSessionWindows
+    },
+
     closeAppWindows(appId: DesktopAppId) {
       const closedWindowIds = this.windows.filter((window) => window.appId === appId).map((window) => window.id)
       const windowSessionStore = useWindowSessionStore()
@@ -202,6 +219,11 @@ export const useDesktopStore = defineStore('desktop', {
 
       const app = this.apps[appId]
       if (!app) {
+        return
+      }
+
+      if (!this.canOpenWindow(appId)) {
+        getUiApi().message.warning(`最多只能打开 ${maxSessionWindows} 个会话窗口。`)
         return
       }
 
