@@ -74,6 +74,7 @@ export const useDesktopStore = defineStore('desktop', {
         id: 'docker',
         title: 'Docker 管理',
         width: 1180,
+        hide: true,
       },
       'runtime-sessions': {
         component: markRaw(RuntimeSessionsView),
