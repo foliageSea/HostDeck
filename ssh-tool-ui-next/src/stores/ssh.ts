@@ -33,8 +33,12 @@ export const useSshStore = defineStore('ssh', () => {
       monitorReconnectTimer = null
     }
 
-    if (monitorWs) {
-      monitorWs.close(1000, 'Normal Closure')
+    const ws = monitorWs
+    if (ws) {
+      ws.onmessage = null
+      ws.onclose = null
+      ws.onerror = null
+      ws.close(1000, 'Normal Closure')
       monitorWs = null
     }
 
@@ -52,8 +56,13 @@ export const useSshStore = defineStore('ssh', () => {
       sessionPingTimer = null
     }
 
-    if (sessionWs) {
-      sessionWs.close(1000, 'Normal Closure')
+    const ws = sessionWs
+    if (ws) {
+      ws.onopen = null
+      ws.onmessage = null
+      ws.onclose = null
+      ws.onerror = null
+      ws.close(1000, 'Normal Closure')
       sessionWs = null
     }
   }
@@ -101,12 +110,21 @@ export const useSshStore = defineStore('ssh', () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/api/ws/session?connectionId=${connectionId.value}`
 
-    sessionWs = new WebSocket(wsUrl)
-    sessionWs.onopen = () => {
+    const ws = new WebSocket(wsUrl)
+    sessionWs = ws
+    ws.onopen = () => {
+      if (sessionWs !== ws) {
+        return
+      }
+
       sessionStatus.value = 'connected'
     }
 
-    sessionWs.onmessage = (event) => {
+    ws.onmessage = (event) => {
+      if (sessionWs !== ws) {
+        return
+      }
+
       if (event.data === 'pong') {
         return
       }
@@ -121,7 +139,17 @@ export const useSshStore = defineStore('ssh', () => {
       }
     }
 
-    sessionWs.onclose = (event) => {
+    ws.onclose = (event) => {
+      if (sessionWs !== ws) {
+        return
+      }
+
+      sessionWs = null
+      if (sessionPingTimer) {
+        clearInterval(sessionPingTimer)
+        sessionPingTimer = null
+      }
+
       if (isIntentionalClose || !isConnected.value) {
         return
       }
@@ -133,14 +161,15 @@ export const useSshStore = defineStore('ssh', () => {
 
       sessionStatus.value = 'reconnecting'
       sessionReconnectTimer = window.setTimeout(() => {
+        sessionReconnectTimer = null
         sessionStatus.value = 'connecting'
         startSessionWs()
       }, 3000)
     }
 
     sessionPingTimer = window.setInterval(() => {
-      if (sessionWs?.readyState === WebSocket.OPEN) {
-        sessionWs.send('ping')
+      if (sessionWs === ws && ws.readyState === WebSocket.OPEN) {
+        ws.send('ping')
       }
     }, 10000)
   }
@@ -154,8 +183,13 @@ export const useSshStore = defineStore('ssh', () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/api/ws/monitor?connectionId=${connectionId.value}`
 
-    monitorWs = new WebSocket(wsUrl)
-    monitorWs.onmessage = (event) => {
+    const ws = new WebSocket(wsUrl)
+    monitorWs = ws
+    ws.onmessage = (event) => {
+      if (monitorWs !== ws) {
+        return
+      }
+
       try {
         const payload = JSON.parse(event.data) as { code?: number; data?: MonitorResponse }
         if (payload.code === 200 && payload.data) {
@@ -166,12 +200,18 @@ export const useSshStore = defineStore('ssh', () => {
       }
     }
 
-    monitorWs.onclose = () => {
+    ws.onclose = () => {
+      if (monitorWs !== ws) {
+        return
+      }
+
+      monitorWs = null
       if (isIntentionalClose || !isConnected.value) {
         return
       }
 
       monitorReconnectTimer = window.setTimeout(() => {
+        monitorReconnectTimer = null
         startMonitorWs()
       }, 3000)
     }

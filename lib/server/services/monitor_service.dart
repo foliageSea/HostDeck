@@ -16,37 +16,29 @@ class MonitorService {
 
   MonitorService(this._repository);
 
+  void clearSession(String sessionId) {
+    _lastNetworkStats.remove(sessionId);
+  }
+
   Future<SystemStatus> getSystemStatus(SshSession session) async {
-    // Basic Linux commands for monitoring
-    final ramFuture = _repository.exec(session, 'free -m | grep Mem');
-    // disk usage of /
-    final diskFuture = _repository.exec(
+    // Keep monitor commands sequential to avoid exhausting low SSH MaxSessions.
+    final ramResult = await _repository.exec(session, 'free -m | grep Mem');
+    final diskResult = await _repository.exec(
       session,
       "df -h / | awk 'NR==2 {print \$5}'",
     );
-    // Load average from uptime
-    final uptimeFuture = _repository.exec(session, "uptime");
-    // CPU usage from top (batch mode, 1 iteration)
-    // Try standard top, then busybox top style
-    final topFuture = _repository
+    final uptimeResult = await _repository.exec(session, "uptime");
+    final topResult = await _repository
         .exec(
           session,
           "LC_ALL=C top -bn1 2>/dev/null | grep -E 'Cpu\\(s\\)|CPU:' || LC_ALL=C top -n1 2>/dev/null | grep -E 'Cpu\\(s\\)|CPU:' || true",
         )
         .catchError((_) => "");
-
-    // Network usage
-    final netFuture = _repository
+    final netResult = await _repository
         .exec(session, "cat /proc/net/dev")
         .catchError((_) => "");
 
-    final results = await Future.wait([
-      ramFuture,
-      diskFuture,
-      uptimeFuture,
-      topFuture,
-      netFuture,
-    ]);
+    final results = [ramResult, diskResult, uptimeResult, topResult, netResult];
 
     // Parse RAM
     // Mem: 7963 3855 ...

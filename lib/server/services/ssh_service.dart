@@ -31,10 +31,14 @@ class SshService {
     final connectionId = _generateId();
     _clients[connectionId] = client;
 
-    // Handle unexpected disconnection
-    client.done.then((_) {
-      _disconnectInternal(connectionId);
-    });
+    // Handle unexpected disconnection, including futures completed with errors.
+    unawaited(
+      client.done
+          .whenComplete(() {
+            _disconnectInternal(connectionId);
+          })
+          .catchError((_) {}),
+    );
 
     return connectionId;
   }
@@ -127,37 +131,39 @@ class SshService {
       );
     }
 
-    final clients = _clients.entries
-        .map(
-          (entry) => {
-            'connectionId': entry.key,
-            'isClosed': entry.value.isClosed,
-            'sessionCount': sessionCounts[entry.key] ?? 0,
-          },
-        )
-        .toList()
-      ..sort(
-        (left, right) => (left['connectionId'] as String).compareTo(
-          right['connectionId'] as String,
-        ),
-      );
+    final clients =
+        _clients.entries
+            .map(
+              (entry) => {
+                'connectionId': entry.key,
+                'isClosed': entry.value.isClosed,
+                'sessionCount': sessionCounts[entry.key] ?? 0,
+              },
+            )
+            .toList()
+          ..sort(
+            (left, right) => (left['connectionId'] as String).compareTo(
+              right['connectionId'] as String,
+            ),
+          );
 
-    final sessions = _sessions.values
-        .map(
-          (session) => {
-            'sessionId': session.id,
-            'connectionId': session.connectionId,
-            'type': session.shell == null ? 'sftp' : 'shell',
-            'hasShell': session.shell != null,
-            'clientClosed': session.client.isClosed,
-          },
-        )
-        .toList()
-      ..sort(
-        (left, right) => (left['sessionId'] as String).compareTo(
-          right['sessionId'] as String,
-        ),
-      );
+    final sessions =
+        _sessions.values
+            .map(
+              (session) => {
+                'sessionId': session.id,
+                'connectionId': session.connectionId,
+                'type': session.shell == null ? 'sftp' : 'shell',
+                'hasShell': session.shell != null,
+                'clientClosed': session.client.isClosed,
+              },
+            )
+            .toList()
+          ..sort(
+            (left, right) => (left['sessionId'] as String).compareTo(
+              right['sessionId'] as String,
+            ),
+          );
 
     return {
       'totalClients': clients.length,

@@ -9,6 +9,7 @@ class SshSession {
   final StreamController<String> _outputController;
   SftpClient? _sftpClient;
   Future<SftpClient>? _sftpInitFuture;
+  bool _isClosed = false;
 
   Stream<String> get output => _outputController.stream;
   StreamController<String> get outputController => _outputController;
@@ -39,10 +40,17 @@ class SshSession {
   }) : _outputController = outputController ?? StreamController.broadcast();
 
   Future<void> close() async {
+    if (_isClosed) {
+      return;
+    }
+
+    _isClosed = true;
     _sftpClient?.close();
     shell?.close();
     // Do not close client here, as it may be shared across sessions
-    // client.close(); 
-    await _outputController.close();
+    // client.close();
+    if (!_outputController.isClosed) {
+      await _outputController.close();
+    }
   }
 }

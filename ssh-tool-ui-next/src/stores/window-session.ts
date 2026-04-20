@@ -81,8 +81,12 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
       runtime.monitorReconnectTimer = null
     }
 
-    if (runtime.monitorWs) {
-      runtime.monitorWs.close(1000, 'Normal Closure')
+    const ws = runtime.monitorWs
+    if (ws) {
+      ws.onmessage = null
+      ws.onclose = null
+      ws.onerror = null
+      ws.close(1000, 'Normal Closure')
       runtime.monitorWs = null
     }
 
@@ -102,8 +106,13 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
       runtime.sessionPingTimer = null
     }
 
-    if (runtime.sessionWs) {
-      runtime.sessionWs.close(1000, 'Normal Closure')
+    const ws = runtime.sessionWs
+    if (ws) {
+      ws.onopen = null
+      ws.onmessage = null
+      ws.onclose = null
+      ws.onerror = null
+      ws.close(1000, 'Normal Closure')
       runtime.sessionWs = null
     }
   }
@@ -159,12 +168,21 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/api/ws/session?connectionId=${state.connectionId}`
 
-    runtime.sessionWs = new WebSocket(wsUrl)
-    runtime.sessionWs.onopen = () => {
+    const ws = new WebSocket(wsUrl)
+    runtime.sessionWs = ws
+    ws.onopen = () => {
+      if (runtime.sessionWs !== ws) {
+        return
+      }
+
       state.sessionStatus = 'connected'
     }
 
-    runtime.sessionWs.onmessage = (event) => {
+    ws.onmessage = (event) => {
+      if (runtime.sessionWs !== ws) {
+        return
+      }
+
       if (event.data === 'pong') {
         return
       }
@@ -179,7 +197,17 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
       }
     }
 
-    runtime.sessionWs.onclose = (event) => {
+    ws.onclose = (event) => {
+      if (runtime.sessionWs !== ws) {
+        return
+      }
+
+      runtime.sessionWs = null
+      if (runtime.sessionPingTimer) {
+        clearInterval(runtime.sessionPingTimer)
+        runtime.sessionPingTimer = null
+      }
+
       if (runtime.isIntentionalClose || !state.isConnected) {
         return
       }
@@ -191,14 +219,15 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
 
       state.sessionStatus = 'reconnecting'
       runtime.sessionReconnectTimer = window.setTimeout(() => {
+        runtime.sessionReconnectTimer = null
         state.sessionStatus = 'connecting'
         startSessionWs(windowId)
       }, 3000)
     }
 
     runtime.sessionPingTimer = window.setInterval(() => {
-      if (runtime.sessionWs?.readyState === WebSocket.OPEN) {
-        runtime.sessionWs.send('ping')
+      if (runtime.sessionWs === ws && ws.readyState === WebSocket.OPEN) {
+        ws.send('ping')
       }
     }, 10000)
   }
@@ -215,8 +244,13 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/api/ws/monitor?connectionId=${state.connectionId}`
 
-    runtime.monitorWs = new WebSocket(wsUrl)
-    runtime.monitorWs.onmessage = (event) => {
+    const ws = new WebSocket(wsUrl)
+    runtime.monitorWs = ws
+    ws.onmessage = (event) => {
+      if (runtime.monitorWs !== ws) {
+        return
+      }
+
       try {
         const payload = JSON.parse(event.data) as { code?: number; data?: MonitorResponse }
         if (payload.code === 200 && payload.data) {
@@ -227,12 +261,18 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
       }
     }
 
-    runtime.monitorWs.onclose = () => {
+    ws.onclose = () => {
+      if (runtime.monitorWs !== ws) {
+        return
+      }
+
+      runtime.monitorWs = null
       if (runtime.isIntentionalClose || !state.isConnected) {
         return
       }
 
       runtime.monitorReconnectTimer = window.setTimeout(() => {
+        runtime.monitorReconnectTimer = null
         startMonitorWs(windowId)
       }, 3000)
     }
