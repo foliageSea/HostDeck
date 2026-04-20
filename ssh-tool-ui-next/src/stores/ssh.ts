@@ -1,17 +1,19 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import type { ConnectionStatus, ConnectionStatusResponse, ConnectParams } from '@/api/auth'
+import { authApi } from '@/api/auth'
 import type { MonitorResponse } from '@/api/system'
-import { authApi, type ConnectParams } from '@/api/auth'
 import { serverApi, type SavedServer } from '@/api/server'
 import { getUiApi } from '@/lib/ui'
 
 export { type SavedServer }
 
-type SessionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
+type SessionStatus = ConnectionStatus
 
 export const useSshStore = defineStore('ssh', () => {
   const connectionId = ref<string | null>(null)
   const isConnected = ref(false)
+  const isReady = ref(false)
   const sessionStatus = ref<SessionStatus>('disconnected')
   const host = ref('')
   const port = ref<number | null>(null)
@@ -19,6 +21,7 @@ export const useSshStore = defineStore('ssh', () => {
   const savedServers = ref<SavedServer[]>([])
   const monitorData = ref<MonitorResponse | null>(null)
   const connectPayload = ref<ConnectParams | null>(null)
+  const lastError = ref<string | null>(null)
 
   let monitorWs: WebSocket | null = null
   let monitorReconnectTimer: number | null = null
@@ -67,12 +70,7 @@ export const useSshStore = defineStore('ssh', () => {
     }
   }
 
-  async function clearSession() {
-    const currentConnectionId = connectionId.value
-
-    isIntentionalClose = true
-    stopSessionWs()
-    stopMonitorWs()
+  function resetSessionState() {
     connectionId.value = null
     isConnected.value = false
     sessionStatus.value = 'disconnected'
@@ -80,25 +78,55 @@ export const useSshStore = defineStore('ssh', () => {
     port.value = null
     username.value = ''
     connectPayload.value = null
+    lastError.value = null
+    monitorData.value = null
+  }
 
-    if (!currentConnectionId) {
+  function applyConnectionSnapshot(snapshot: ConnectionStatusResponse, payload?: ConnectParams | null) {
+    if (!snapshot) {
+      resetSessionState()
       return
     }
 
-    try {
-      await authApi.disconnect(currentConnectionId)
-    } catch (error) {
-      console.error('Failed to disconnect SSH session', error)
+    connectionId.value = snapshot.connectionId
+    host.value = snapshot.host
+    port.value = snapshot.port
+    username.value = snapshot.username
+    sessionStatus.value = snapshot.status
+    isConnected.value = snapshot.isConnected
+    lastError.value = snapshot.lastError
+    connectPayload.value = payload ?? {
+      host: snapshot.host,
+      port: snapshot.port,
+      username: snapshot.username,
     }
   }
 
-  function handleSessionLost() {
-    if (!isConnected.value) {
+  async function clearSession(options?: { silent?: boolean }) {
+    isIntentionalClose = true
+    stopSessionWs()
+    stopMonitorWs()
+    resetSessionState()
+
+    try {
+      await authApi.disconnect()
+    } catch (error) {
+      console.error('Failed to disconnect SSH session', error)
+      if (!options?.silent) {
+        getUiApi().message.error(error instanceof Error ? error.message : '断开 SSH 会话失败。')
+      }
+    }
+  }
+
+  function handleSessionLost(message = 'SSH 会话已断开，请重新登录。') {
+    if (!connectionId.value) {
       return
     }
 
-    getUiApi().message.error('SSH 会话已断开，请重新登录。')
-    void clearSession()
+    stopSessionWs()
+    stopMonitorWs()
+    resetSessionState()
+    getUiApi().message.error(message)
   }
 
   function startSessionWs() {
@@ -112,13 +140,6 @@ export const useSshStore = defineStore('ssh', () => {
 
     const ws = new WebSocket(wsUrl)
     sessionWs = ws
-    ws.onopen = () => {
-      if (sessionWs !== ws) {
-        return
-      }
-
-      sessionStatus.value = 'connected'
-    }
 
     ws.onmessage = (event) => {
       if (sessionWs !== ws) {
@@ -130,9 +151,25 @@ export const useSshStore = defineStore('ssh', () => {
       }
 
       try {
-        const payload = JSON.parse(event.data) as { status?: string }
-        if (payload.status === 'disconnected') {
-          handleSessionLost()
+        const payload = JSON.parse(event.data) as ({ type?: string } & NonNullable<ConnectionStatusResponse>)
+        if (payload.type !== 'status') {
+          return
+        }
+
+        applyConnectionSnapshot({
+          connectionId: payload.connectionId,
+          host: payload.host,
+          port: payload.port,
+          username: payload.username,
+          status: payload.status,
+          isConnected: payload.isConnected,
+          isRecoverable: payload.isRecoverable,
+          lastError: payload.lastError,
+          updatedAt: payload.updatedAt,
+        }, connectPayload.value)
+
+        if (payload.status === 'disconnected' || payload.status === 'failed') {
+          handleSessionLost(payload.lastError || 'SSH 会话已断开，请重新登录。')
         }
       } catch (error) {
         console.error('Failed to parse session WS message', error)
@@ -150,19 +187,17 @@ export const useSshStore = defineStore('ssh', () => {
         sessionPingTimer = null
       }
 
-      if (isIntentionalClose || !isConnected.value) {
+      if (isIntentionalClose || !connectionId.value) {
         return
       }
 
-      if (event.code === 4004 || event.code === 1011) {
-        handleSessionLost()
+      if (event.code === 4004) {
+        handleSessionLost('SSH 会话不存在，请重新登录。')
         return
       }
 
-      sessionStatus.value = 'reconnecting'
       sessionReconnectTimer = window.setTimeout(() => {
         sessionReconnectTimer = null
-        sessionStatus.value = 'connecting'
         startSessionWs()
       }, 3000)
     }
@@ -206,7 +241,7 @@ export const useSshStore = defineStore('ssh', () => {
       }
 
       monitorWs = null
-      if (isIntentionalClose || !isConnected.value) {
+      if (isIntentionalClose || !connectionId.value) {
         return
       }
 
@@ -215,6 +250,42 @@ export const useSshStore = defineStore('ssh', () => {
         startMonitorWs()
       }, 3000)
     }
+  }
+
+  function syncRealtimeChannels() {
+    if (!connectionId.value) {
+      stopSessionWs()
+      stopMonitorWs()
+      return
+    }
+
+    isIntentionalClose = false
+    startSessionWs()
+    startMonitorWs()
+  }
+
+  async function restoreSession() {
+    try {
+      const snapshot = await authApi.status()
+      applyConnectionSnapshot(snapshot)
+      syncRealtimeChannels()
+    } catch (error) {
+      console.error('Failed to restore SSH session', error)
+      resetSessionState()
+    } finally {
+      isReady.value = true
+    }
+  }
+
+  async function connect(payload: ConnectParams) {
+    isIntentionalClose = false
+    sessionStatus.value = 'connecting'
+    lastError.value = null
+
+    const snapshot = await authApi.connect(payload)
+    applyConnectionSnapshot(snapshot, payload)
+    syncRealtimeChannels()
+    return snapshot
   }
 
   async function fetchServers() {
@@ -249,39 +320,25 @@ export const useSshStore = defineStore('ssh', () => {
     }
   }
 
-  function setSession(nextConnectionId: string, nextHost: string, nextPort: number, nextUsername: string, payload?: ConnectParams) {
-    connectionId.value = nextConnectionId
-    host.value = nextHost
-    port.value = nextPort
-    username.value = nextUsername
-    isConnected.value = true
-    isIntentionalClose = false
-    sessionStatus.value = 'connecting'
-    connectPayload.value = payload ?? {
-      host: nextHost,
-      port: nextPort,
-      username: nextUsername,
-    }
-    startSessionWs()
-    startMonitorWs()
-  }
-
   const baseConnectPayload = computed(() => connectPayload.value)
 
   return {
     addServer,
     clearSession,
+    connect,
     connectionId,
     fetchServers,
     baseConnectPayload,
     host,
     isConnected,
+    isReady,
+    lastError,
     monitorData,
     port,
     removeServer,
+    restoreSession,
     savedServers,
     sessionStatus,
-    setSession,
     updateServer,
     username,
   }

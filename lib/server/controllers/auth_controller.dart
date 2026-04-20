@@ -1,21 +1,28 @@
 import 'dart:convert';
+
 import 'package:shelf/shelf.dart';
 import 'package:logging/logging.dart';
-import '../services/ssh_service.dart';
+
 import '../models/result.dart';
+import '../services/client_session_service.dart';
+import '../services/ssh_service.dart';
 
 class AuthController {
   final _log = Logger('AuthController');
+  final ClientSessionService _clientSessionService;
   final SshService _sshService;
 
-  AuthController(this._sshService);
+  AuthController(this._sshService, this._clientSessionService);
 
   Future<Response> connect(Request request) async {
+    final clientSession = _clientSessionService.resolve(request);
+
     try {
       final payload = await request.readAsString();
       final data = jsonDecode(payload);
 
-      final connectionId = await _sshService.connect(
+      final connection = await _sshService.connect(
+        clientId: clientSession.clientId,
         host: data['host'],
         port: int.parse(data['port'].toString()),
         username: data['username'],
@@ -23,27 +30,68 @@ class AuthController {
         privateKey: data['privateKey'],
       );
 
-      return Result.ok({
-        'connectionId': connectionId,
-      });
+      return _withSessionHeaders(
+        Result.ok(connection.toClientJson()),
+        clientSession,
+      );
     } catch (e) {
       _log.severe('Connect Error: $e');
-      return Result.fail(500, e.toString());
+      return _withSessionHeaders(
+        Result.fail(500, e.toString()),
+        clientSession,
+      );
+    }
+  }
+
+  Future<Response> status(Request request) async {
+    final clientSession = _clientSessionService.resolve(request);
+
+    try {
+      final connection = _sshService.getConnectionForClient(clientSession.clientId);
+
+      return _withSessionHeaders(
+        Result.ok(connection?.toClientJson()),
+        clientSession,
+      );
+    } catch (e) {
+      _log.severe('Status Error: $e');
+      return _withSessionHeaders(
+        Result.fail(500, e.toString()),
+        clientSession,
+      );
     }
   }
 
   Future<Response> disconnect(Request request) async {
+    final clientSession = _clientSessionService.resolve(request);
+
     try {
       final connectionId = request.url.queryParameters['connectionId'];
-      if (connectionId == null || connectionId.isEmpty) {
-        return Result.fail(400, 'Missing connectionId');
+      if (connectionId != null && connectionId.isNotEmpty) {
+        await _sshService.disconnect(connectionId);
+      } else {
+        await _sshService.disconnectClient(clientSession.clientId);
       }
 
-      await _sshService.disconnect(connectionId);
-      return Result.ok({'success': true});
+      return _withSessionHeaders(
+        Result.ok({'success': true}),
+        clientSession,
+      );
     } catch (e) {
       _log.severe('Disconnect Error: $e');
-      return Result.fail(500, e.toString());
+      return _withSessionHeaders(
+        Result.fail(500, e.toString()),
+        clientSession,
+      );
     }
+  }
+
+  Response _withSessionHeaders(Response response, ClientSession session) {
+    return response.change(
+      headers: {
+        ...response.headers,
+        ..._clientSessionService.buildSessionHeaders(session),
+      },
+    );
   }
 }

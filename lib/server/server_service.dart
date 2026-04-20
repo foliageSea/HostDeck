@@ -13,6 +13,7 @@ import 'services/monitor_service.dart';
 import 'services/file_service.dart';
 import 'services/docker_service.dart';
 import 'services/database_service.dart';
+import 'services/client_session_service.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/system_controller.dart';
 import 'controllers/file_controller.dart';
@@ -64,13 +65,14 @@ class ServerService {
 
     final sshRepository = SshRepository();
     final serverRepository = ServerRepository(_dbService!);
+    final clientSessionService = ClientSessionService();
     final sshService = SshService(); // Manages connections
     final monitorService = MonitorService(sshRepository);
     final fileService = FileService(sshRepository);
     final dockerService = DockerService(sshRepository);
 
     // 2. Initialize Controllers
-    final authController = AuthController(sshService);
+    final authController = AuthController(sshService, clientSessionService);
     final systemController = SystemController(sshService, monitorService);
     final fileController = FileController(sshService, fileService);
     final terminalController = TerminalController(sshService);

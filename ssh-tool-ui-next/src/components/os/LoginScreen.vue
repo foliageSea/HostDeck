@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
-import { authApi, type ConnectParams, type ConnectResponse } from '@/api/auth'
+import { type ConnectParams, type ConnectResponse } from '@/api/auth'
 import type { SavedServer } from '@/api/server'
 import { createWallpaperStyle } from '@/lib/wallpapers'
 import { getUiApi } from '@/lib/ui'
@@ -108,21 +108,8 @@ function resetServerForm() {
 }
 
 const connectMutation = useMutation<ConnectResponse, Error, ConnectParams>({
-  mutationFn: authApi.connect,
-  onSuccess: (data) => {
-    sshStore.setSession(
-      data.connectionId,
-      connectionForm.host,
-      connectionForm.port,
-      connectionForm.username,
-      {
-        host: connectionForm.host,
-        password: connectionForm.password || undefined,
-        port: connectionForm.port,
-        privateKey: connectionForm.privateKey || undefined,
-        username: connectionForm.username,
-      },
-    )
+  mutationFn: sshStore.connect,
+  onSuccess: () => {
   },
   onError: (error) => {
     isShaking.value = true

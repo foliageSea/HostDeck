@@ -24,8 +24,7 @@ class SystemMonitorWsHandler {
           return;
         }
 
-        final client = _sshService.getClient(connectionId);
-        if (client == null) {
+        if (_sshService.getConnectionById(connectionId) == null) {
           channel.sink.close(4004, 'Connection not found');
           return;
         }
@@ -46,7 +45,9 @@ class SystemMonitorWsHandler {
 
         bool isConnectionLostError(Object error) {
           final errorStr = error.toString();
-          return client.isClosed ||
+          final activeClient = _sshService.getClient(connectionId);
+          return activeClient == null ||
+              activeClient.isClosed ||
               errorStr.contains('SocketException') ||
               errorStr.contains('Connection is closed') ||
               errorStr.contains('Connection not found');
@@ -65,7 +66,7 @@ class SystemMonitorWsHandler {
 
         void startMonitoring() async {
           try {
-            while (isMonitoring && !client.isClosed) {
+            while (isMonitoring) {
               try {
                 final session = await resolveMonitorSession();
                 final status = await _monitorService.getSystemStatus(session);
@@ -101,7 +102,8 @@ class SystemMonitorWsHandler {
               }
             }
 
-            if (isMonitoring && client.isClosed) {
+            final latestConnection = _sshService.getConnectionById(connectionId);
+            if (isMonitoring && latestConnection?.isRecoverable != true) {
               channel.sink.close(1011, 'SSH Connection Lost');
             }
           } finally {
