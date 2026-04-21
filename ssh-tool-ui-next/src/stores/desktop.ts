@@ -74,7 +74,7 @@ export const useDesktopStore = defineStore('desktop', {
         icon: 'folder',
         id: 'files',
         title: '文件管理',
-        width: 1080,
+        width: 1280,
       },
       docker: {
         component: markRaw(DockerView),

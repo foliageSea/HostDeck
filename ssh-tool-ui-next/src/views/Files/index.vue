@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useLocalStorage } from '@vueuse/core'
 import {
   ArrowLeft,
   ArrowRight,
@@ -27,6 +28,7 @@ import { useSshStore } from '@/stores/ssh'
 import { useUploadCenterStore } from '@/stores/upload-center'
 import { basename, resolve } from '@/utils/path'
 import FileBrowserContent from './components/FileBrowserContent.vue'
+import FileFavoriteSidebar from './components/FileFavoriteSidebar.vue'
 import FileNameDialog from './components/FileNameDialog.vue'
 
 const props = defineProps<{
@@ -69,6 +71,7 @@ const showDeleteDialog = ref(false)
 const deletingFiles = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const contextMenu = ref<{ type: 'file' | 'blank'; x: number; y: number } | null>(null)
+const isFavoriteSidebarVisible = useLocalStorage('ssh-tool:files:favorite-sidebar-visible', true)
 
 const selectedFile = computed(() => fileStore.selectedFile)
 const selectedFiles = computed(() =>
@@ -241,6 +244,10 @@ function formatModifyTime(value?: string) {
   }
 
   return date.toLocaleString('zh-CN')
+}
+
+function formatFavoritePath(path: string) {
+  return basename(path) || '根目录'
 }
 
 function handleFileClick(file: FileItem, event: MouseEvent) {
@@ -550,6 +557,10 @@ function toggleSelectedDirectoryFavorite() {
 function removeFavoritePath(path: string) {
   fileStore.removeFavoritePath(path)
   getUiApi().message.success('已移除收藏。')
+}
+
+function toggleFavoriteSidebar() {
+  isFavoriteSidebarVisible.value = !isFavoriteSidebarVisible.value
 }
 
 async function navigateBack() {
@@ -1011,152 +1022,160 @@ watch(
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-[12px]">
-      <div v-if="!editingPath" class="min-w-[240px] flex-1 overflow-x-auto pb-[2px]">
-        <NBreadcrumb>
-          <NBreadcrumbItem v-for="item in breadcrumbs" :key="item.path">
-            <button type="button" class="btn-reset hover:text-[rgba(96,165,250,0.95)]"
-              @click="navigateToPath(item.path)">
-              {{ item.label }}
-            </button>
-          </NBreadcrumbItem>
-        </NBreadcrumb>
-      </div>
-      <div v-else class="path-editor min-w-[240px] flex-1">
-        <NInput v-model:value="currentPathInput" placeholder="输入远程路径快速跳转" @keyup.enter="submitPath"
-          @keyup.esc="stopPathEditing" @blur="stopPathEditing" />
-      </div>
+    <div class="flex min-h-0 flex-1 gap-[14px]">
+      <FileFavoriteSidebar :current-path="fileStore.currentPath" :favorite-paths="fileStore.favoritePaths"
+        :is-current-path-favorite="isCurrentPathFavorite" :visible="isFavoriteSidebarVisible"
+        @navigate="navigateToPath" @remove="removeFavoritePath" @toggle-current-favorite="toggleCurrentFavorite"
+        @toggle-visibility="toggleFavoriteSidebar" />
 
-      <div class="flex flex-wrap items-center justify-end gap-[12px]">
-        <NButton v-if="editingPath" type="primary" @mousedown.prevent @click="submitPath">跳转</NButton>
-        <NTooltip v-else>
-          <template #trigger>
-            <NButton circle @click="startPathEditing">
-              <template #icon>
-                <NIcon>
-                  <ArrowRight />
-                </NIcon>
-              </template>
-            </NButton>
-          </template>
-          输入路径跳转
-        </NTooltip>
-        <NTooltip>
-          <template #trigger>
-            <NButton circle :type="isCurrentPathFavorite ? 'warning' : 'default'" @click="toggleCurrentFavorite">
-              <template #icon>
-                <NIcon>
-                  <component :is="isCurrentPathFavorite ? StarFilled : Star" />
-                </NIcon>
-              </template>
-            </NButton>
-          </template>
-          {{ isCurrentPathFavorite ? '取消收藏当前目录' : '收藏当前目录' }}
-        </NTooltip>
-        <NPopover trigger="click" placement="bottom-end">
-          <template #trigger>
-            <NButton circle>
-              <template #icon>
-                <NIcon>
-                  <LocationStar />
-                </NIcon>
-              </template>
-            </NButton>
-          </template>
-          <div class="w-[min(360px,72vw)]">
-            <div class="mb-[10px] text-[13px] font-600"
-              :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'">收藏目录</div>
-            <NEmpty v-if="fileStore.favoritePaths.length === 0" size="small" description="暂无收藏" />
-            <NScrollbar v-else style="max-height: 260px">
-              <div class="flex flex-col gap-[6px]">
-                <div v-for="path in fileStore.favoritePaths" :key="path"
-                  class="flex min-w-0 items-center gap-[8px] rounded-[10px] py-[6px] pl-[10px] pr-[6px]"
-                  :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.5)]' : 'bg-[rgba(241,245,249,0.92)]'">
-                  <button type="button"
-                    class="btn-reset truncate-line flex-1 text-left hover:text-[rgba(96,165,250,0.95)]" :title="path"
-                    @click="navigateToPath(path)">
-                    {{ path }}
-                  </button>
-                  <NButton quaternary circle size="tiny" @click.stop="removeFavoritePath(path)">
-                    <template #icon>
-                      <NIcon>
-                        <Close />
-                      </NIcon>
-                    </template>
-                  </NButton>
-                </div>
-              </div>
-            </NScrollbar>
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-[14px]">
+        <div class="flex flex-wrap items-center justify-between gap-[12px]">
+          <div v-if="!editingPath" class="min-w-[240px] flex-1 overflow-x-auto pb-[2px]">
+            <NBreadcrumb>
+              <NBreadcrumbItem v-for="item in breadcrumbs" :key="item.path">
+                <button type="button" class="btn-reset hover:text-[rgba(96,165,250,0.95)]"
+                  @click="navigateToPath(item.path)">
+                  {{ item.label }}
+                </button>
+              </NBreadcrumbItem>
+            </NBreadcrumb>
           </div>
-        </NPopover>
-        <NTooltip>
-          <template #trigger>
-            <NButton circle @click="openTerminalHere">
-              <template #icon>
-                <NIcon>
-                  <Terminal />
-                </NIcon>
+          <div v-else class="path-editor min-w-[240px] flex-1">
+            <NInput v-model:value="currentPathInput" placeholder="输入远程路径快速跳转" @keyup.enter="submitPath"
+              @keyup.esc="stopPathEditing" @blur="stopPathEditing" />
+          </div>
+
+          <div class="flex flex-wrap items-center justify-end gap-[12px]">
+            <NButton v-if="editingPath" type="primary" @mousedown.prevent @click="submitPath">跳转</NButton>
+            <NTooltip v-else>
+              <template #trigger>
+                <NButton circle @click="startPathEditing">
+                  <template #icon>
+                    <NIcon>
+                      <ArrowRight />
+                    </NIcon>
+                  </template>
+                </NButton>
               </template>
-            </NButton>
-          </template>
-          在当前目录打开终端
-        </NTooltip>
+              输入路径跳转
+            </NTooltip>
+            <NTooltip>
+              <template #trigger>
+                <NButton circle :type="isCurrentPathFavorite ? 'warning' : 'default'" @click="toggleCurrentFavorite">
+                  <template #icon>
+                    <NIcon>
+                      <component :is="isCurrentPathFavorite ? StarFilled : Star" />
+                    </NIcon>
+                  </template>
+                </NButton>
+              </template>
+              {{ isCurrentPathFavorite ? '取消收藏当前目录' : '收藏当前目录' }}
+            </NTooltip>
+            <NPopover v-if="fileStore.favoritePaths.length > 0" trigger="click" placement="bottom-end">
+              <template #trigger>
+                <NButton circle class="md:hidden">
+                  <template #icon>
+                    <NIcon>
+                      <LocationStar />
+                    </NIcon>
+                  </template>
+                </NButton>
+              </template>
+              <div class="w-[min(360px,72vw)]">
+                <div class="mb-[10px] text-[13px] font-600"
+                  :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'">收藏目录</div>
+                <NScrollbar style="max-height: 260px">
+                  <div class="flex flex-col gap-[6px]">
+                    <div v-for="path in fileStore.favoritePaths" :key="path"
+                      class="flex min-w-0 items-center gap-[8px] rounded-[10px] py-[6px] pl-[10px] pr-[6px]"
+                      :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.5)]' : 'bg-[rgba(241,245,249,0.92)]'">
+                      <button type="button"
+                        class="btn-reset truncate-line flex-1 text-left hover:text-[rgba(96,165,250,0.95)]" :title="path"
+                        @click="navigateToPath(path)">
+                        {{ formatFavoritePath(path) }}
+                      </button>
+                      <NButton quaternary circle size="tiny" @click.stop="removeFavoritePath(path)">
+                        <template #icon>
+                          <NIcon>
+                            <Close />
+                          </NIcon>
+                        </template>
+                      </NButton>
+                    </div>
+                  </div>
+                </NScrollbar>
+              </div>
+            </NPopover>
+            <NTooltip>
+              <template #trigger>
+                <NButton circle @click="openTerminalHere">
+                  <template #icon>
+                    <NIcon>
+                      <Terminal />
+                    </NIcon>
+                  </template>
+                </NButton>
+              </template>
+              在当前目录打开终端
+            </NTooltip>
+          </div>
+        </div>
+
+        <div class="flex w-full flex-wrap items-center justify-end gap-[12px]">
+          <NButton @click="openCreate('directory')">
+            <template #icon>
+              <NIcon>
+                <FolderAdd />
+              </NIcon>
+            </template>
+            新建目录
+          </NButton>
+          <NButton @click="openCreate('file')">新建文件</NButton>
+          <NButton :disabled="isUploading" :loading="isUploading" @click="triggerUpload">
+            <template #icon>
+              <NIcon>
+                <Upload />
+              </NIcon>
+            </template>
+            上传
+          </NButton>
+          <NButton :disabled="selectedFiles.length !== 1" @click="openRenameDialog">重命名</NButton>
+          <NButton :disabled="selectedFiles.length === 0" type="error" ghost @click="showDeleteDialog = true">删除</NButton>
+          <NButton :disabled="selectedFiles.length === 0" @click="downloadSelectedFiles">
+            <template #icon>
+              <NIcon>
+                <Download />
+              </NIcon>
+            </template>
+            下载
+          </NButton>
+        </div>
+
+        <FileBrowserContent :files="fileStore.displayFiles" :loading="fileStore.loading"
+          :selected-names="fileStore.selectedNames" :view-mode="fileStore.viewMode" :format-file-size="formatFileSize"
+          :format-modify-time="formatModifyTime" @click-file="handleFileClick" @context-blank="openBlankContextMenu"
+          @context-file="openFileContextMenu" @open-file="openFile" @select-names="handleSelectNames" />
+
+        <NCard v-if="selectedFile" size="small" class="details-panel rounded-[16px]"
+          :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.56)]' : 'bg-[rgba(255,255,255,0.84)]'">
+          <div class="flex min-w-0 items-center gap-[12px] whitespace-nowrap">
+            <span class="flex-none text-[12px]"
+              :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">当前选择</span>
+            <span class="truncate-line">{{ selectedFiles.length > 1 ? `已选 ${selectedFiles.length} 项` : selectedFile.filename
+            }}</span>
+            <span class="flex-none text-[12px]"
+              :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{
+                selectedFile.isDirectory ? '目录' : formatFileSize(selectedFile.size) }}</span>
+            <span class="flex-none text-[12px]"
+              :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{
+                formatModifyTime(selectedFile.modifyTime) }}</span>
+          </div>
+        </NCard>
       </div>
     </div>
-
-    <div class="flex w-full flex-wrap items-center justify-end gap-[12px]">
-      <NButton @click="openCreate('directory')">
-        <template #icon>
-          <NIcon>
-            <FolderAdd />
-          </NIcon>
-        </template>
-        新建目录
-      </NButton>
-      <NButton @click="openCreate('file')">新建文件</NButton>
-      <NButton :disabled="isUploading" :loading="isUploading" @click="triggerUpload">
-        <template #icon>
-          <NIcon>
-            <Upload />
-          </NIcon>
-        </template>
-        上传
-      </NButton>
-      <NButton :disabled="selectedFiles.length !== 1" @click="openRenameDialog">重命名</NButton>
-      <NButton :disabled="selectedFiles.length === 0" type="error" ghost @click="showDeleteDialog = true">删除</NButton>
-      <NButton :disabled="selectedFiles.length === 0" @click="downloadSelectedFiles">
-        <template #icon>
-          <NIcon>
-            <Download />
-          </NIcon>
-        </template>
-        下载
-      </NButton>
-    </div>
-
-    <FileBrowserContent :files="fileStore.displayFiles" :loading="fileStore.loading"
-      :selected-names="fileStore.selectedNames" :view-mode="fileStore.viewMode" :format-file-size="formatFileSize"
-      :format-modify-time="formatModifyTime" @click-file="handleFileClick" @context-blank="openBlankContextMenu"
-      @context-file="openFileContextMenu" @open-file="openFile" @select-names="handleSelectNames" />
 
     <NDropdown v-if="contextMenu" placement="bottom-start" trigger="manual" show :x="contextMenu.x" :y="contextMenu.y"
       :options="contextMenuOptions" @clickoutside="closeContextMenu" @select="handleContextMenuSelect" />
-
-    <NCard v-if="selectedFile" size="small" class="details-panel rounded-[16px]"
-      :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.56)]' : 'bg-[rgba(255,255,255,0.84)]'">
-      <div class="flex min-w-0 items-center gap-[12px] whitespace-nowrap">
-        <span class="flex-none text-[12px]"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">当前选择</span>
-        <span class="truncate-line">{{ selectedFiles.length > 1 ? `已选 ${selectedFiles.length} 项` : selectedFile.filename
-        }}</span>
-        <span class="flex-none text-[12px]"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{
-            selectedFile.isDirectory ? '目录' : formatFileSize(selectedFile.size) }}</span>
-        <span class="flex-none text-[12px]"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{
-            formatModifyTime(selectedFile.modifyTime) }}</span>
-      </div>
-    </NCard>
 
     <FileNameDialog v-model:show="showCreateDialog" :title="createDialogMode === 'directory' ? '新建目录' : '新建文件'"
       :value="newItemName" @update:value="(value) => (newItemName = value)" @confirm="confirmCreate" />
