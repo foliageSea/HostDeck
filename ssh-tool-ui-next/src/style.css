@@ -49,6 +49,50 @@ textarea {
   font: inherit;
 }
 
+.app-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--app-scrollbar-thumb, rgba(148, 163, 184, 0.34)) transparent;
+  overscroll-behavior: contain;
+}
+
+.app-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.app-scrollbar-compact::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.app-scrollbar::-webkit-scrollbar-track,
+.app-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.app-scrollbar::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: var(--app-scrollbar-thumb, rgba(148, 163, 184, 0.34));
+}
+
+.app-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: var(--app-scrollbar-thumb-hover, rgba(96, 165, 250, 0.48));
+}
+
+.app-scrollbar-dark {
+  --app-scrollbar-thumb: rgba(148, 163, 184, 0.34);
+  --app-scrollbar-thumb-hover: rgba(96, 165, 250, 0.52);
+}
+
+.app-scrollbar-light {
+  --app-scrollbar-thumb: rgba(100, 116, 139, 0.26);
+  --app-scrollbar-thumb-hover: rgba(59, 130, 246, 0.42);
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.24s ease;

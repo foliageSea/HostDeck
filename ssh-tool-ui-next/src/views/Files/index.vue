@@ -1067,7 +1067,8 @@ watch(
 
       <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-[14px]">
         <div class="flex flex-wrap items-center justify-between gap-[12px]">
-          <div v-if="!editingPath" class="min-w-[240px] flex-1 overflow-x-auto pb-[2px]">
+          <div v-if="!editingPath" class="min-w-[240px] flex-1 overflow-x-auto pb-[2px] app-scrollbar app-scrollbar-compact"
+            :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'">
             <NBreadcrumb>
               <NBreadcrumbItem v-for="item in breadcrumbs" :key="item.path">
                 <button type="button" class="btn-reset hover:text-[rgba(96,165,250,0.95)]"

@@ -183,7 +183,10 @@ onBeforeUnmount(() => {
   <div
     ref="contentRef"
     class="files-content relative min-h-0 flex-1 overflow-auto p-[4px]"
-    :class="{ 'files-content-light': !settingsStore.isDark, 'select-none': selectionState?.active }"
+    :class="[
+      settingsStore.isDark ? 'app-scrollbar app-scrollbar-dark' : 'app-scrollbar app-scrollbar-light files-content-light',
+      { 'select-none': selectionState?.active },
+    ]"
     @contextmenu="handleBlankContextMenu"
     @pointercancel="finishSelection"
     @pointerdown="handlePointerDown"

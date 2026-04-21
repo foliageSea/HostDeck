@@ -1072,7 +1072,7 @@ watch(logsTail, async (value, previous) => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-[16px] overflow-auto bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))] p-[18px]">
+  <div class="flex h-full flex-col gap-[16px] overflow-auto bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))] p-[18px] app-scrollbar app-scrollbar-dark">
     <div class="flex flex-col gap-[16px]">
       <div class="flex flex-wrap items-start justify-between gap-[16px]">
         <div>
@@ -1222,7 +1222,7 @@ watch(logsTail, async (value, previous) => {
         </NSpace>
       </div>
       <NSpin :show="logsLoading">
-        <pre class="mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] bg-[rgba(2,6,23,0.9)] p-[14px] text-[12px] leading-[1.6] text-[#dbeafe]">{{ displayedLogs }}</pre>
+        <pre class="docker-console mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] bg-[rgba(2,6,23,0.9)] p-[14px] text-[12px] leading-[1.6] text-[#dbeafe] app-scrollbar app-scrollbar-dark">{{ displayedLogs }}</pre>
       </NSpin>
     </NModal>
 
@@ -1234,7 +1234,7 @@ watch(logsTail, async (value, previous) => {
       style="width: min(960px, 92vw)"
     >
       <NSpin :show="inspectLoading">
-        <pre class="mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] bg-[rgba(2,6,23,0.9)] p-[14px] text-[12px] leading-[1.6] text-[#dbeafe]">{{ inspectContent ? JSON.stringify(inspectContent, null, 2) : '' }}</pre>
+        <pre class="docker-console mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] bg-[rgba(2,6,23,0.9)] p-[14px] text-[12px] leading-[1.6] text-[#dbeafe] app-scrollbar app-scrollbar-dark">{{ inspectContent ? JSON.stringify(inspectContent, null, 2) : '' }}</pre>
       </NSpin>
     </NModal>
 
@@ -1415,6 +1415,32 @@ watch(logsTail, async (value, previous) => {
 
 .docker-table {
   min-width: 100%;
+}
+
+.docker-table-shell :deep(.n-data-table-base-table-body) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.34) transparent;
+}
+
+.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar) {
+  width: 10px;
+  height: 10px;
+}
+
+.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar-track),
+.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar-corner) {
+  background: transparent;
+}
+
+.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar-thumb) {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: rgba(148, 163, 184, 0.34);
+}
+
+.docker-table-shell:hover :deep(.n-data-table-base-table-body::-webkit-scrollbar-thumb) {
+  background-color: rgba(96, 165, 250, 0.52);
 }
 
 .container-port-summary {
