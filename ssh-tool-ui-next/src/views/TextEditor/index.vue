@@ -20,6 +20,7 @@ const error = ref('')
 const content = ref('')
 const editorContainer = ref<HTMLElement | null>(null)
 const showSettings = ref(false)
+const editorFontFamilyDraft = ref(settingsStore.editorFontFamily)
 
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 let model: monaco.editor.ITextModel | null = null
@@ -111,6 +112,37 @@ function syncEditorContent(nextContent: string) {
   model.setValue(nextContent)
 }
 
+function updateEditorFontOptions(options: { fontFamily?: string, fontSize?: number }) {
+  if (!editor) {
+    return
+  }
+
+  editor.updateOptions(options)
+
+  if (options.fontFamily !== undefined) {
+    monaco.editor.remeasureFonts()
+  }
+
+  editor.layout()
+}
+
+function applyEditorSettings() {
+  const nextFontFamily = editorFontFamilyDraft.value.trim()
+
+  if (nextFontFamily) {
+    settingsStore.setEditorFontFamily(nextFontFamily)
+  } else {
+    editorFontFamilyDraft.value = settingsStore.editorFontFamily
+  }
+
+  showSettings.value = false
+}
+
+function resetEditorSettings() {
+  settingsStore.resetEditorSettings()
+  editorFontFamilyDraft.value = settingsStore.editorFontFamily
+}
+
 async function initEditor() {
   await nextTick()
 
@@ -195,16 +227,23 @@ onBeforeUnmount(() => {
 watch(
   () => settingsStore.editorFontSize,
   (value) => {
-    editor?.updateOptions({ fontSize: value })
+    updateEditorFontOptions({ fontSize: value })
   },
 )
 
 watch(
   () => settingsStore.editorFontFamily,
   (value) => {
-    editor?.updateOptions({ fontFamily: value })
+    editorFontFamilyDraft.value = value
+    updateEditorFontOptions({ fontFamily: value })
   },
 )
+
+watch(showSettings, (value) => {
+  if (value) {
+    editorFontFamilyDraft.value = settingsStore.editorFontFamily
+  }
+})
 </script>
 
 <template>
@@ -254,15 +293,21 @@ watch(
         <div>
           <div class="mb-[10px] text-[13px] text-[rgba(148,163,184,0.92)]">字体名称</div>
           <NInput
-            :value="settingsStore.editorFontFamily"
+            :value="editorFontFamilyDraft"
             placeholder="例如 Consolas, monospace"
-            @update:value="(value: string) => settingsStore.setEditorFontFamily(value)"
+            @update:value="(value: string) => editorFontFamilyDraft = value"
+            @blur="() => {
+              const nextValue = editorFontFamilyDraft.trim()
+              if (nextValue) {
+                settingsStore.setEditorFontFamily(nextValue)
+              }
+            }"
           />
         </div>
 
         <NSpace justify="end">
-          <NButton @click="settingsStore.resetEditorSettings()">恢复默认</NButton>
-          <NButton type="primary" @click="showSettings = false">完成</NButton>
+          <NButton @click="resetEditorSettings">恢复默认</NButton>
+          <NButton type="primary" @click="applyEditorSettings">完成</NButton>
         </NSpace>
       </NSpace>
     </NModal>
