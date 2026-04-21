@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:dartssh2/dartssh2.dart';
+import 'package:logging/logging.dart';
 import '../models/ssh_session.dart';
 
 class SshSessionLimitExceeded implements Exception {
@@ -19,6 +20,8 @@ class SshService {
   final Map<String, SshSession> _sessions = {};
   final Map<String, SSHClient> _clients = {};
   int _pendingSessionCreations = 0;
+
+  final logger = Logger('SshService');
 
   Future<String> connect({
     required String host,
@@ -47,9 +50,13 @@ class SshService {
     unawaited(
       client.done
           .whenComplete(() {
+            logger.warning('Connection $connectionId closed');
             _disconnectInternal(connectionId);
           })
-          .catchError((_) {}),
+          .catchError(
+            (error) =>
+                logger.severe('Error $error on connection $connectionId'),
+          ),
     );
 
     return connectionId;
