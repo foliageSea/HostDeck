@@ -9,8 +9,12 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../services/ssh_service.dart';
 
 class SessionStatusWsHandler {
+  static const _disconnectDelay = Duration(minutes: 2);
+
   final _log = Logger('SessionStatusWsHandler');
   final SshService _sshService;
+  final Map<String, Timer> _disconnectTimers = {};
+  final Map<String, int> _listenerCounts = {};
 
   SessionStatusWsHandler(this._sshService);
 
@@ -23,25 +27,27 @@ class SessionStatusWsHandler {
           return;
         }
 
-        final connection = _sshService.getConnectionById(connectionId);
-        if (connection == null) {
+        final client = _sshService.getClient(connectionId);
+        if (client == null) {
           channel.sink.close(4004, 'Connection not found');
           return;
         }
 
         Timer? heartbeatTimer;
-        StreamSubscription? subscription;
         var isCleanedUp = false;
+        _registerListener(connectionId);
 
-        void cleanup(String reason) {
+        void cleanup(String reason, {bool scheduleDisconnect = true}) {
           if (isCleanedUp) {
             return;
           }
 
           isCleanedUp = true;
           heartbeatTimer?.cancel();
-          unawaited(subscription?.cancel());
-          _log.fine('Session status WS cleaned up for $connectionId: $reason');
+          _unregisterListener(connectionId);
+          if (scheduleDisconnect) {
+            _scheduleDisconnect(connectionId, reason);
+          }
         }
 
         void resetHeartbeatTimeout() {
@@ -58,17 +64,24 @@ class SessionStatusWsHandler {
 
         resetHeartbeatTimeout();
 
-        channel.sink.add(
-          jsonEncode({'type': 'status', ...connection.toClientJson()}),
-        );
+        client.done
+            .then((_) {
+              if (!isCleanedUp) {
+                channel.sink.add(
+                  jsonEncode({'type': 'status', 'status': 'disconnected'}),
+                );
+                channel.sink.close(1011, 'SSH Connection Lost');
+              }
 
-        subscription = _sshService.watchConnection(connectionId)?.listen((event) {
-          if (isCleanedUp) {
-            return;
-          }
+              cleanup('client done', scheduleDisconnect: false);
+            })
+            .catchError((e) {
+              if (!isCleanedUp) {
+                channel.sink.close(1011, 'SSH Connection Error');
+              }
 
-          channel.sink.add(jsonEncode({'type': 'status', ...event.toClientJson()}));
-        });
+              cleanup('client error', scheduleDisconnect: false);
+            });
 
         channel.stream.listen(
           (message) {
@@ -86,5 +99,86 @@ class SessionStatusWsHandler {
         );
       })(request);
     };
+  }
+
+  void _registerListener(String connectionId) {
+    _cancelPendingDisconnect(connectionId);
+    _listenerCounts.update(
+      connectionId,
+      (count) => count + 1,
+      ifAbsent: () => 1,
+    );
+  }
+
+  void _unregisterListener(String connectionId) {
+    final count = _listenerCounts[connectionId];
+    if (count == null) {
+      return;
+    }
+
+    if (count <= 1) {
+      _listenerCounts.remove(connectionId);
+      return;
+    }
+
+    _listenerCounts[connectionId] = count - 1;
+  }
+
+  void _cancelPendingDisconnect(String connectionId) {
+    final timer = _disconnectTimers.remove(connectionId);
+    if (timer == null) {
+      return;
+    }
+
+    timer.cancel();
+    _log.fine('Cancelled pending SSH disconnect for $connectionId');
+  }
+
+  void _scheduleDisconnect(String connectionId, String reason) {
+    if (_sshService.getClient(connectionId) == null) {
+      return;
+    }
+
+    if ((_listenerCounts[connectionId] ?? 0) > 0) {
+      return;
+    }
+
+    _disconnectTimers[connectionId]?.cancel();
+    _log.warning(
+      'Session status WS closed for $connectionId ($reason); scheduling SSH '
+      'disconnect in ${_disconnectDelay.inSeconds}s',
+    );
+
+    _disconnectTimers[connectionId] = Timer(_disconnectDelay, () {
+      _disconnectTimers.remove(connectionId);
+      unawaited(_disconnectInactiveSession(connectionId, reason));
+    });
+  }
+
+  Future<void> _disconnectInactiveSession(
+    String connectionId,
+    String reason,
+  ) async {
+    if ((_listenerCounts[connectionId] ?? 0) > 0) {
+      return;
+    }
+
+    if (_sshService.getClient(connectionId) == null) {
+      return;
+    }
+
+    try {
+      _log.warning(
+        'Disconnecting inactive SSH connection $connectionId after session '
+        'status WS closed ($reason)',
+      );
+      await _sshService.disconnect(connectionId);
+    } catch (e, stackTrace) {
+      _log.severe(
+        'Failed to disconnect inactive SSH connection $connectionId',
+        e,
+        stackTrace,
+      );
+    }
   }
 }

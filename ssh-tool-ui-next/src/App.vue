@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch, watchEffect } from 'vue'
+import { computed, watch, watchEffect } from 'vue'
 import { darkTheme, dateZhCN, NConfigProvider, NDialogProvider, NGlobalStyle, NLoadingBarProvider, NMessageProvider, NNotificationProvider, zhCN } from 'naive-ui'
 import UiApiBridge from '@/components/common/UiApiBridge.vue'
 import DesktopShell from '@/components/os/DesktopShell.vue'
@@ -26,10 +26,6 @@ watch(
     }
   },
 )
-
-onMounted(() => {
-  void sshStore.restoreSession()
-})
 </script>
 
 <template>
@@ -41,10 +37,7 @@ onMounted(() => {
             <NGlobalStyle />
             <UiApiBridge />
             <div class="min-h-screen">
-              <div v-if="!sshStore.isReady" class="grid min-h-screen place-items-center text-[0.95rem] text-[rgba(100,116,139,0.9)]">
-                正在恢复连接状态...
-              </div>
-              <Transition v-else name="fade" mode="out-in">
+              <Transition name="fade" mode="out-in">
                 <DesktopShell v-if="sshStore.isConnected" />
                 <LoginScreen v-else />
               </Transition>

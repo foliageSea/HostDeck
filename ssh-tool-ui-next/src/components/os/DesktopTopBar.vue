@@ -40,13 +40,6 @@ const sessionStatusMeta = computed(() => {
     }
   }
 
-  if (sshStore.sessionStatus === 'failed') {
-    return {
-      className: settingsStore.isDark ? 'bg-rose-400' : 'bg-rose-500',
-      label: 'SSH 会话连接失败',
-    }
-  }
-
   return {
     className: settingsStore.isDark ? 'bg-slate-500' : 'bg-slate-400',
     label: '当前未连接 SSH 会话',
