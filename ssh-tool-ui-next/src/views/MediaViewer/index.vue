@@ -19,7 +19,7 @@ const props = defineProps<{
 const settingsStore = useSettingsStore()
 const activePath = ref(props.path)
 const hasError = ref(false)
-const isSidebarVisible = ref(true)
+const isSidebarVisible = ref(false)
 const videoContainerRef = ref<HTMLElement | null>(null)
 
 let playerInstance: InstanceType<typeof Player> | null = null
@@ -112,7 +112,6 @@ async function initializePlayer() {
     cssFullscreen: true,
     download: false,
     el: videoContainerRef.value,
-    fluid: true,
     height: '100%',
     lang: 'zh-cn',
     playbackRate: [0.5, 0.75, 1, 1.25, 1.5, 2],
@@ -172,7 +171,29 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="media-content flex min-h-0 flex-1 overflow-hidden">
-      <aside v-if="shouldShowSidebar" class="media-sidebar flex w-[252px] min-w-[220px] flex-col border-r" :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.76)]' : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.82)]'">
+      <div
+        class="media-stage flex min-h-0 min-w-0 flex-1 items-center justify-center"
+        :class="mediaType === 'video' && !hasError ? 'media-stage--video p-0' : 'p-[16px]'"
+      >
+        <img
+          v-if="mediaType === 'image' && !hasError"
+          :src="fileUrl"
+          :alt="filename"
+          class="max-h-full max-w-full object-contain"
+          @error="hasError = true"
+        />
+
+        <div v-else-if="mediaType === 'video' && !hasError" ref="videoContainerRef" class="media-video-player h-full min-h-[260px] w-full overflow-hidden rounded-[16px] bg-black" />
+
+        <NResult
+          v-else
+          status="warning"
+          title="无法预览该文件"
+          description="当前仅支持基础图片和视频预览。"
+        />
+      </div>
+
+      <aside v-if="shouldShowSidebar" class="media-sidebar flex w-[252px] min-w-[220px] flex-col border-l" :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.76)]' : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.82)]'">
         <div class="flex items-center justify-between gap-[10px] px-[12px] pb-[10px] pt-[12px] text-[13px] font-600" :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#1e293b]'">
           <span>文件列表</span>
           <span class="text-[12px] font-500" :class="settingsStore.isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'">{{ props.playlist?.length ?? 0 }} 项</span>
@@ -183,7 +204,7 @@ onBeforeUnmount(() => {
             v-for="(item, index) in props.playlist"
             :key="item.path"
             type="button"
-            class="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-[8px] rounded-[12px] border px-[10px] py-[9px] text-left transition-[background,border-color,color] duration-[180ms] ease-in-out cursor-pointer"
+            class="grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-[8px] rounded-[12px] border px-[10px] py-[9px] text-left transition-[background,border-color,color] duration-[180ms] ease-in-out"
             :class="[
               settingsStore.isDark
                 ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.8)] text-[#cbd5e1] hover:border-[rgba(96,165,250,0.42)] hover:bg-[rgba(30,41,59,0.86)]'
@@ -202,30 +223,15 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </aside>
-
-      <div class="media-stage flex min-h-0 min-w-0 flex-1 items-center justify-center p-[16px]">
-        <img
-          v-if="mediaType === 'image' && !hasError"
-          :src="fileUrl"
-          :alt="filename"
-          class="max-h-full max-w-full object-contain"
-          @error="hasError = true"
-        />
-
-        <div v-else-if="mediaType === 'video' && !hasError" ref="videoContainerRef" class="media-video-player h-full min-h-[260px] w-full overflow-hidden rounded-[16px] bg-black" />
-
-        <NResult
-          v-else
-          status="warning"
-          title="无法预览该文件"
-          description="当前仅支持基础图片和视频预览。"
-        />
-      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.media-video-player {
+  flex: 1;
+}
+
 .media-video-player :deep(.xgplayer) {
   width: 100% !important;
   height: 100% !important;
@@ -233,7 +239,16 @@ onBeforeUnmount(() => {
   background: #000;
 }
 
+.media-video-player :deep(.xgplayer-player),
+.media-video-player :deep(.xgplayer-canvas),
+.media-video-player :deep(.xgplayer-video-wrap) {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .media-video-player :deep(video) {
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
@@ -250,13 +265,17 @@ onBeforeUnmount(() => {
   .media-sidebar {
     position: absolute;
     z-index: 2;
-    inset: 0 auto 0 0;
+    inset: 0 0 0 auto;
     width: min(78vw, 280px);
-    box-shadow: 20px 0 40px rgba(2, 6, 23, 0.32);
+    box-shadow: -20px 0 40px rgba(2, 6, 23, 0.32);
   }
 
   .media-stage {
     padding: 10px;
+  }
+
+  .media-stage--video {
+    padding: 0;
   }
 }
 </style>
