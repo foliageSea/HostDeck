@@ -953,7 +953,7 @@ watch(
       <NSpace align="center" wrap>
         <NTooltip>
           <template #trigger>
-            <NButton quaternary circle :disabled="fileStore.backHistory.length === 0" @click="navigateBack">
+            <NButton quaternary round :disabled="fileStore.backHistory.length === 0" @click="navigateBack">
               <template #icon>
                 <NIcon>
                   <ArrowLeft />
@@ -965,7 +965,7 @@ watch(
         </NTooltip>
         <NTooltip>
           <template #trigger>
-            <NButton quaternary circle :disabled="fileStore.forwardHistory.length === 0" @click="navigateForward">
+            <NButton quaternary round :disabled="fileStore.forwardHistory.length === 0" @click="navigateForward">
               <template #icon>
                 <NIcon>
                   <ArrowRight />
@@ -977,7 +977,7 @@ watch(
         </NTooltip>
         <NTooltip>
           <template #trigger>
-            <NButton quaternary circle @click="navigateUp">
+            <NButton quaternary round @click="navigateUp">
               <template #icon>
                 <NIcon>
                   <ArrowUp />
@@ -989,7 +989,7 @@ watch(
         </NTooltip>
         <NTooltip>
           <template #trigger>
-            <NButton quaternary circle @click="fileStore.fetchFiles()">
+            <NButton quaternary round @click="fileStore.fetchFiles()">
               <template #icon>
                 <NIcon>
                   <Renew />
@@ -1006,7 +1006,7 @@ watch(
         <div class="flex items-center gap-[8px] ">
           <NPopover trigger="hover" placement="bottom-end">
             <template #trigger>
-              <NButton quaternary circle>
+              <NButton quaternary round>
                 <template #icon>
                   <NIcon>
                     <Help />
@@ -1031,7 +1031,7 @@ watch(
           </NPopover>
           <NTooltip>
             <template #trigger>
-              <NButton quaternary circle :type="fileStore.viewMode === 'list' ? 'primary' : 'default'"
+              <NButton quaternary round :type="fileStore.viewMode === 'list' ? 'primary' : 'default'"
                 @click="fileStore.viewMode = 'list'">
                 <template #icon>
                   <NIcon>
@@ -1044,7 +1044,7 @@ watch(
           </NTooltip>
           <NTooltip>
             <template #trigger>
-              <NButton quaternary circle :type="fileStore.viewMode === 'grid' ? 'primary' : 'default'"
+              <NButton quaternary round :type="fileStore.viewMode === 'grid' ? 'primary' : 'default'"
                 @click="fileStore.viewMode = 'grid'">
                 <template #icon>
                   <NIcon>
@@ -1084,10 +1084,10 @@ watch(
           </div>
 
           <div class="flex flex-wrap items-center justify-end gap-[12px]">
-            <NButton v-if="editingPath" type="primary" @mousedown.prevent @click="submitPath">跳转</NButton>
+            <NButton v-if="editingPath" round type="primary" @mousedown.prevent @click="submitPath">跳转</NButton>
             <NTooltip v-else>
               <template #trigger>
-                <NButton circle @click="startPathEditing">
+                <NButton round @click="startPathEditing">
                   <template #icon>
                     <NIcon>
                       <ArrowRight />
@@ -1099,7 +1099,7 @@ watch(
             </NTooltip>
             <NTooltip>
               <template #trigger>
-                <NButton circle :type="isCurrentPathFavorite ? 'warning' : 'default'" @click="toggleCurrentFavorite">
+                <NButton round :type="isCurrentPathFavorite ? 'warning' : 'default'" @click="toggleCurrentFavorite">
                   <template #icon>
                     <NIcon>
                       <component :is="isCurrentPathFavorite ? StarFilled : Star" />
@@ -1111,7 +1111,7 @@ watch(
             </NTooltip>
             <NTooltip>
               <template #trigger>
-                <NButton circle :type="isCurrentPathPinned ? 'primary' : 'default'" @click="toggleCurrentDesktopPin">
+                <NButton round :type="isCurrentPathPinned ? 'primary' : 'default'" @click="toggleCurrentDesktopPin">
                   <template #icon>
                     <NIcon>
                       <component :is="isCurrentPathPinned ? PinFilled : Pin" />
@@ -1123,7 +1123,7 @@ watch(
             </NTooltip>
             <NPopover v-if="fileStore.favoritePaths.length > 0" trigger="click" placement="bottom-end">
               <template #trigger>
-                <NButton circle class="md:hidden">
+                <NButton round class="md:hidden">
                   <template #icon>
                     <NIcon>
                       <LocationStar />
@@ -1144,7 +1144,7 @@ watch(
                         @click="navigateToPath(path)">
                         {{ formatFavoritePath(path) }}
                       </button>
-                      <NButton quaternary circle size="tiny" @click.stop="removeFavoritePath(path)">
+                      <NButton quaternary round size="tiny" @click.stop="removeFavoritePath(path)">
                         <template #icon>
                           <NIcon>
                             <Close />
@@ -1158,7 +1158,7 @@ watch(
             </NPopover>
             <NTooltip>
               <template #trigger>
-                <NButton circle @click="openTerminalHere">
+                <NButton round @click="openTerminalHere">
                   <template #icon>
                     <NIcon>
                       <Terminal />
@@ -1172,7 +1172,7 @@ watch(
         </div>
 
         <div class="flex w-full flex-wrap items-center justify-end gap-[12px]">
-          <NButton @click="openCreate('directory')">
+          <NButton round @click="openCreate('directory')">
             <template #icon>
               <NIcon>
                 <FolderAdd />
@@ -1180,8 +1180,8 @@ watch(
             </template>
             新建目录
           </NButton>
-          <NButton @click="openCreate('file')">新建文件</NButton>
-          <NButton :disabled="isUploading" :loading="isUploading" @click="triggerUpload">
+          <NButton round @click="openCreate('file')">新建文件</NButton>
+          <NButton round :disabled="isUploading" :loading="isUploading" @click="triggerUpload">
             <template #icon>
               <NIcon>
                 <Upload />
@@ -1189,9 +1189,9 @@ watch(
             </template>
             上传
           </NButton>
-          <NButton :disabled="selectedFiles.length !== 1" @click="openRenameDialog">重命名</NButton>
-          <NButton :disabled="selectedFiles.length === 0" type="error" ghost @click="showDeleteDialog = true">删除</NButton>
-          <NButton :disabled="selectedFiles.length === 0" @click="downloadSelectedFiles">
+          <NButton round :disabled="selectedFiles.length !== 1" @click="openRenameDialog">重命名</NButton>
+          <NButton round :disabled="selectedFiles.length === 0" type="error" ghost @click="showDeleteDialog = true">删除</NButton>
+          <NButton round :disabled="selectedFiles.length === 0" @click="downloadSelectedFiles">
             <template #icon>
               <NIcon>
                 <Download />

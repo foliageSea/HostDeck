@@ -77,7 +77,7 @@ function formatFavoritePath(path: string) {
                 @click="emit('navigate', path)">
                 {{ formatFavoritePath(path) }}
               </button>
-              <NButton quaternary circle size="tiny" class="opacity-70 transition-opacity group-hover:opacity-100"
+              <NButton quaternary round size="tiny" class="opacity-70 transition-opacity group-hover:opacity-100"
                 @click.stop="emit('remove', path)">
                 <template #icon>
                   <NIcon>

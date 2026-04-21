@@ -560,7 +560,7 @@ onUnmounted(() => {
           left: `${directory.x}px`,
           top: `${directory.y}px`,
         }"
-        :title="directory.path"
+        :title="directory.label"
         @click.stop="handleDirectoryClick(directory.path, $event)"
         @contextmenu.stop="handleDirectoryContextMenu(directory.path, $event)"
         @dblclick.stop="openDirectory(directory.path)"
@@ -577,12 +577,6 @@ onUnmounted(() => {
         </div>
         <div class="w-full">
           <div class="truncate-line text-[13px] font-600">{{ directory.label }}</div>
-          <div
-            class="mt-[3px] truncate-line text-[11px]"
-            :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.94)]' : 'text-[rgba(71,85,105,0.84)]'"
-          >
-            {{ directory.path }}
-          </div>
         </div>
       </button>
 
