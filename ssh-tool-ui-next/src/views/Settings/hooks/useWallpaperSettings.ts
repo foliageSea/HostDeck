@@ -14,19 +14,24 @@ export function useWallpaperSettings() {
     return target === 'desktop' ? settingsStore.desktopWallpaper : settingsStore.loginWallpaper
   }
 
-  function setPresetWallpaper(target: WallpaperTarget, presetId: string) {
-    const nextValue: WallpaperSettings = {
-      mode: 'preset',
-      presetId,
-      customDataUrl: null,
-    }
-
+  function updateWallpaperSettings(target: WallpaperTarget, nextValue: WallpaperSettings) {
     if (target === 'desktop') {
       settingsStore.setDesktopWallpaper(nextValue)
       return
     }
 
     settingsStore.setLoginWallpaper(nextValue)
+  }
+
+  function setPresetWallpaper(target: WallpaperTarget, presetId: string) {
+    const nextValue: WallpaperSettings = {
+      ...getWallpaperSettings(target),
+      mode: 'preset',
+      presetId,
+      customDataUrl: null,
+    }
+
+    updateWallpaperSettings(target, nextValue)
   }
 
   function resetWallpaper(target: WallpaperTarget) {
@@ -45,17 +50,13 @@ export function useWallpaperSettings() {
 
   function applyCustomWallpaper(target: WallpaperTarget, dataUrl: string) {
     const nextValue: WallpaperSettings = {
+      ...getWallpaperSettings(target),
       mode: 'custom',
       presetId: null,
       customDataUrl: dataUrl,
     }
 
-    if (target === 'desktop') {
-      settingsStore.setDesktopWallpaper(nextValue)
-      return
-    }
-
-    settingsStore.setLoginWallpaper(nextValue)
+    updateWallpaperSettings(target, nextValue)
   }
 
   function handleWallpaperUpload(target: WallpaperTarget, event: Event) {

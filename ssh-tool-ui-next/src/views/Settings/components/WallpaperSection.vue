@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { wallpaperPresets, type WallpaperTarget } from '@/lib/wallpapers'
+import { wallpaperPresets, type WallpaperSettings, type WallpaperTarget } from '@/lib/wallpapers'
 import type { useWallpaperSettings } from '../hooks/useWallpaperSettings'
 
 const props = defineProps<{
@@ -15,6 +15,30 @@ const props = defineProps<{
 const wallpaperSettings = computed(() =>
   props.target === 'desktop' ? props.controller.settingsStore.desktopWallpaper : props.controller.settingsStore.loginWallpaper,
 )
+
+function updateWallpaperSettings(nextValue: WallpaperSettings) {
+  if (props.target === 'desktop') {
+    props.controller.settingsStore.setDesktopWallpaper(nextValue)
+    return
+  }
+
+  props.controller.settingsStore.setLoginWallpaper(nextValue)
+}
+
+function updateWallpaperEffect(effect: 'brightness' | 'contrast', value: number) {
+  updateWallpaperSettings({
+    ...wallpaperSettings.value,
+    [effect]: value,
+  })
+}
+
+function resetWallpaperEffects() {
+  updateWallpaperSettings({
+    ...wallpaperSettings.value,
+    brightness: 100,
+    contrast: 100,
+  })
+}
 </script>
 
 <template>
@@ -90,6 +114,46 @@ const wallpaperSettings = computed(() =>
           <span class="text-[0.84rem] text-[rgba(100,116,139,0.92)]">最大 10MB</span>
         </div>
       </div>
+    </div>
+
+    <div class="mt-[20px] rounded-[18px] border border-[rgba(148,163,184,0.18)] bg-[rgba(248,250,252,0.78)] p-[16px] lt-md:p-[14px]">
+      <div class="mb-[14px] flex items-start justify-between gap-[12px] lt-md:flex-col">
+        <div>
+          <h4 class="m-0 text-[0.96rem] font-600 text-[rgba(15,23,42,0.92)]">背景效果</h4>
+          <p class="mb-0 mt-[6px] text-[0.84rem] text-[rgba(100,116,139,0.92)]">亮度和对比度会立即应用到桌面与登录背景，并在下次进入时保持。</p>
+        </div>
+        <NButton tertiary @click="resetWallpaperEffects">重置效果</NButton>
+      </div>
+
+      <NSpace vertical size="large">
+        <div>
+          <div class="mb-[10px] flex items-center justify-between gap-[12px] text-[0.88rem] text-[rgba(51,65,85,0.88)]">
+            <span>亮度</span>
+            <strong>{{ wallpaperSettings.brightness }}%</strong>
+          </div>
+          <NSlider
+            :value="wallpaperSettings.brightness"
+            :min="50"
+            :max="150"
+            :step="1"
+            @update:value="(value: number) => updateWallpaperEffect('brightness', value)"
+          />
+        </div>
+
+        <div>
+          <div class="mb-[10px] flex items-center justify-between gap-[12px] text-[0.88rem] text-[rgba(51,65,85,0.88)]">
+            <span>对比度</span>
+            <strong>{{ wallpaperSettings.contrast }}%</strong>
+          </div>
+          <NSlider
+            :value="wallpaperSettings.contrast"
+            :min="50"
+            :max="150"
+            :step="1"
+            @update:value="(value: number) => updateWallpaperEffect('contrast', value)"
+          />
+        </div>
+      </NSpace>
     </div>
   </section>
 </template>

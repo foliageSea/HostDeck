@@ -7,6 +7,8 @@ export interface WallpaperSettings {
   mode: WallpaperMode
   presetId: string | null
   customDataUrl: string | null
+  brightness: number
+  contrast: number
 }
 
 export interface WallpaperPreset {
@@ -55,6 +57,8 @@ export function createDefaultWallpaperSettings(): WallpaperSettings {
     mode: 'default',
     presetId: null,
     customDataUrl: null,
+    brightness: 100,
+    contrast: 100,
   }
 }
 
@@ -91,6 +95,7 @@ export function createWallpaperStyle(
   settings: WallpaperSettings,
   isDark: boolean,
 ): CSSProperties {
+  const filter = `brightness(${settings.brightness}%) contrast(${settings.contrast}%)`
   const background = resolveWallpaperBackground(target, settings, isDark)
   if (settings.mode === 'custom' && settings.customDataUrl) {
     return {
@@ -99,10 +104,12 @@ export function createWallpaperStyle(
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
       backgroundSize: 'cover',
+      filter,
     }
   }
 
   return {
     background,
+    filter,
   }
 }

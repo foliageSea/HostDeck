@@ -25,6 +25,15 @@ const DEFAULT_EDITOR_FONT_FAMILY = 'Consolas, "Cascadia Mono", "Courier New", mo
 
 type ThemeMode = 'dark' | 'light' | 'system'
 
+function normalizeWallpaperEffectValue(value: unknown): number {
+  const numericValue = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(numericValue)) {
+    return 100
+  }
+
+  return Math.max(50, Math.min(150, Math.round(numericValue)))
+}
+
 function resolveStoredFontSize(): number {
   const value = Number.parseInt(window.localStorage.getItem(TERMINAL_FONT_SIZE_STORAGE_KEY) ?? '', 10)
   if (Number.isFinite(value) && value >= 8 && value <= 40) {
@@ -83,11 +92,15 @@ function normalizeWallpaperSettings(value: unknown): WallpaperSettings {
   const customDataUrl = typeof candidate.customDataUrl === 'string' && candidate.customDataUrl.trim()
     ? candidate.customDataUrl
     : null
+  const brightness = normalizeWallpaperEffectValue(candidate.brightness)
+  const contrast = normalizeWallpaperEffectValue(candidate.contrast)
 
   return {
     mode,
     presetId,
     customDataUrl,
+    brightness,
+    contrast,
   }
 }
 
