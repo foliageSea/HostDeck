@@ -4,8 +4,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Close,
-  Star,
-  StarFilled,
 } from '@vicons/carbon'
 import { useSettingsStore } from '@/stores/settings'
 import { basename } from '@/utils/path'

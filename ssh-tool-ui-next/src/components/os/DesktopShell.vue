@@ -4,6 +4,7 @@ import { createWallpaperStyle } from '@/lib/wallpapers'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import DesktopDock from '@/components/os/DesktopDock.vue'
+import DesktopPinnedDirectories from '@/components/os/DesktopPinnedDirectories.vue'
 import DesktopTopBar from '@/components/os/DesktopTopBar.vue'
 import DesktopWindow from '@/components/os/DesktopWindow.vue'
 import DesktopWindowSwitcher from '@/components/os/DesktopWindowSwitcher.vue'
@@ -89,6 +90,7 @@ onUnmounted(() => {
     <DesktopTopBar />
 
     <main class="absolute [inset:var(--desktop-topbar-height)_0_var(--desktop-dock-safe-area)]">
+      <DesktopPinnedDirectories />
       <TransitionGroup name="desktop-window-anim" tag="div" class="relative h-full w-full">
         <DesktopWindow v-for="window in windows" :key="window.id" :window="window" />
       </TransitionGroup>

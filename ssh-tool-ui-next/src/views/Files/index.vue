@@ -12,6 +12,8 @@ import {
   Grid,
   List,
   LocationStar,
+  Pin,
+  PinFilled,
   Renew,
   Star,
   StarFilled,
@@ -35,6 +37,7 @@ const props = defineProps<{
   windowId?: string
   connectionId?: string
   host?: string
+  path?: string
   port?: number
   username?: string
 }>()
@@ -102,6 +105,7 @@ const clipboardPasteLabel = computed(() => {
 })
 const isUploading = computed(() => uploadCenterStore.activeTaskCount > 0)
 const isCurrentPathFavorite = computed(() => fileStore.isFavoritePath(fileStore.currentPath))
+const isCurrentPathPinned = computed(() => desktopStore.isDirectoryPinned(fileStore.currentPath))
 const selectedDirectoryPath = computed(() => {
   if (selectedFiles.value.length !== 1 || !selectedFile.value?.isDirectory) {
     return null
@@ -109,6 +113,9 @@ const selectedDirectoryPath = computed(() => {
 
   return resolve(fileStore.currentPath, selectedFile.value.filename)
 })
+const isSelectedDirectoryPinned = computed(() =>
+  selectedDirectoryPath.value ? desktopStore.isDirectoryPinned(selectedDirectoryPath.value) : false,
+)
 const canOpenSelectedFileInEditor = computed(() => {
   const file = selectedFile.value
   return selectedFiles.value.length === 1 && file !== null && !file.isDirectory
@@ -132,6 +139,11 @@ const contextMenuOptions = computed(() => {
         key: 'toggle-selected-directory-favorite',
         disabled: false,
       })
+      options.splice(3, 0, {
+        label: isSelectedDirectoryPinned.value ? '从桌面移除该目录' : '将该目录钉到桌面',
+        key: 'toggle-selected-directory-pin',
+        disabled: false,
+      })
     }
 
     return options
@@ -147,6 +159,7 @@ const contextMenuOptions = computed(() => {
     { label: '全选', key: 'select-all', disabled: fileStore.displayFiles.length === 0 },
     { type: 'divider', key: 'blank-divider-2' },
     { label: isCurrentPathFavorite.value ? '取消收藏当前目录' : '收藏当前目录', key: 'toggle-current-favorite' },
+    { label: isCurrentPathPinned.value ? '从桌面移除当前目录' : '将当前目录钉到桌面', key: 'toggle-current-directory-pin' },
     { label: '在当前目录打开终端', key: 'terminal' },
   ]
 })
@@ -469,6 +482,16 @@ function handleContextMenuSelect(key: string | number) {
     return
   }
 
+  if (key === 'toggle-current-directory-pin') {
+    toggleCurrentDesktopPin()
+    return
+  }
+
+  if (key === 'toggle-selected-directory-pin') {
+    toggleSelectedDirectoryDesktopPin()
+    return
+  }
+
   if (key === 'terminal') {
     openTerminalHere()
   }
@@ -552,6 +575,20 @@ function toggleSelectedDirectoryFavorite() {
 
   const added = fileStore.toggleFavoritePath(selectedDirectoryPath.value)
   getUiApi().message.success(added ? '已收藏目录。' : '已取消收藏目录。')
+}
+
+function toggleCurrentDesktopPin() {
+  const pinned = desktopStore.toggleDirectoryPin(fileStore.currentPath)
+  getUiApi().message.success(pinned ? '已将当前目录钉到桌面。' : '已从桌面移除当前目录。')
+}
+
+function toggleSelectedDirectoryDesktopPin() {
+  if (!selectedDirectoryPath.value) {
+    return
+  }
+
+  const pinned = desktopStore.toggleDirectoryPin(selectedDirectoryPath.value)
+  getUiApi().message.success(pinned ? '已将目录钉到桌面。' : '已从桌面移除该目录。')
 }
 
 function removeFavoritePath(path: string) {
@@ -886,7 +923,7 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 onMounted(async () => {
-  await fileStore.fetchFiles('/')
+  await fileStore.fetchFiles(props.path || '/')
   syncPathInput()
 })
 
@@ -1070,6 +1107,18 @@ watch(
                 </NButton>
               </template>
               {{ isCurrentPathFavorite ? '取消收藏当前目录' : '收藏当前目录' }}
+            </NTooltip>
+            <NTooltip>
+              <template #trigger>
+                <NButton circle :type="isCurrentPathPinned ? 'primary' : 'default'" @click="toggleCurrentDesktopPin">
+                  <template #icon>
+                    <NIcon>
+                      <component :is="isCurrentPathPinned ? PinFilled : Pin" />
+                    </NIcon>
+                  </template>
+                </NButton>
+              </template>
+              {{ isCurrentPathPinned ? '从桌面移除当前目录' : '将当前目录钉到桌面' }}
             </NTooltip>
             <NPopover v-if="fileStore.favoritePaths.length > 0" trigger="click" placement="bottom-end">
               <template #trigger>

@@ -4,6 +4,7 @@ import { getUiApi } from '@/lib/ui'
 import { useSshStore } from '@/stores/ssh'
 import { useWindowSessionStore } from '@/stores/window-session'
 import type { AppIconKey, DesktopAppId } from '@/types/desktop'
+import { basename, normalize } from '@/utils/path'
 import DashboardView from '@/views/Dashboard/index.vue'
 import DockerView from '@/views/Docker/index.vue'
 import FilesView from '@/views/Files/index.vue'
@@ -15,7 +16,140 @@ import TextEditorView from '@/views/TextEditor/index.vue'
 
 export const maxSessionWindows = 8
 
+const PINNED_DIRECTORIES_STORAGE_KEY = 'ssh-tool:desktop:pinned-directories'
+const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'ssh-tool:desktop:pinned-directory-positions'
+
 const sessionWindowAppIds = new Set<DesktopAppId>(['terminal', 'files', 'docker'])
+
+type PinnedDirectoriesByConnection = Record<string, string[]>
+type PinnedDirectoryPositions = Record<string, {
+  x: number
+  y: number
+}>
+type PinnedDirectoryPositionsByConnection = Record<string, PinnedDirectoryPositions>
+
+function normalizePinnedDirectoriesRecord(value: unknown): PinnedDirectoriesByConnection {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, paths]) => [
+      key,
+      Array.isArray(paths)
+        ? Array.from(new Set(paths.filter((path): path is string => typeof path === 'string').map((path) => normalize(path))))
+        : [],
+    ]),
+  )
+}
+
+function loadPinnedDirectories(): PinnedDirectoriesByConnection {
+  if (typeof window === 'undefined') {
+    return {}
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(PINNED_DIRECTORIES_STORAGE_KEY)
+    if (!rawValue) {
+      return {}
+    }
+
+    return normalizePinnedDirectoriesRecord(JSON.parse(rawValue))
+  } catch {
+    return {}
+  }
+}
+
+function normalizePinnedDirectoryPositionsRecord(value: unknown): PinnedDirectoryPositionsByConnection {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([connectionKey, positions]) => {
+      if (!positions || typeof positions !== 'object' || Array.isArray(positions)) {
+        return [connectionKey, {}]
+      }
+
+      return [
+        connectionKey,
+        Object.fromEntries(
+          Object.entries(positions)
+            .filter(([path, position]) => {
+              if (typeof path !== 'string' || !position || typeof position !== 'object' || Array.isArray(position)) {
+                return false
+              }
+
+              const x = 'x' in position ? position.x : null
+              const y = 'y' in position ? position.y : null
+              return Number.isFinite(x) && Number.isFinite(y)
+            })
+            .map(([path, position]) => {
+              const nextPosition = position as { x: number; y: number }
+
+              return [
+                normalize(path),
+                {
+                  x: Math.round(nextPosition.x),
+                  y: Math.round(nextPosition.y),
+                },
+              ]
+            }),
+        ),
+      ]
+    }),
+  )
+}
+
+function loadPinnedDirectoryPositions(): PinnedDirectoryPositionsByConnection {
+  if (typeof window === 'undefined') {
+    return {}
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(PINNED_DIRECTORY_POSITIONS_STORAGE_KEY)
+    if (!rawValue) {
+      return {}
+    }
+
+    return normalizePinnedDirectoryPositionsRecord(JSON.parse(rawValue))
+  } catch {
+    return {}
+  }
+}
+
+function persistPinnedDirectories(value: PinnedDirectoriesByConnection) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(PINNED_DIRECTORIES_STORAGE_KEY, JSON.stringify(value))
+}
+
+function persistPinnedDirectoryPositions(value: PinnedDirectoryPositionsByConnection) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(PINNED_DIRECTORY_POSITIONS_STORAGE_KEY, JSON.stringify(value))
+}
+
+function getPinnedDirectoryConnectionKey() {
+  const sshStore = useSshStore()
+  const host = sshStore.host.trim()
+  const username = sshStore.username.trim()
+  const port = sshStore.port
+
+  if (!host || !username || port === null) {
+    return null
+  }
+
+  return `${username}@${host}:${port}`
+}
+
+function formatPinnedDirectoryTitle(path: string) {
+  return path === '/' ? '文件管理 · 根目录' : `文件管理 · ${basename(path)}`
+}
 
 function isSessionWindowAppId(appId: DesktopAppId) {
   return sessionWindowAppIds.has(appId)
@@ -131,6 +265,8 @@ export const useDesktopStore = defineStore('desktop', {
 
     } as Record<DesktopAppId, AppConfig>,
     nextZIndex: 100,
+    pinnedDirectoriesByConnection: loadPinnedDirectories() as PinnedDirectoriesByConnection,
+    pinnedDirectoryPositionsByConnection: loadPinnedDirectoryPositions() as PinnedDirectoryPositionsByConnection,
     windows: [] as WindowState[],
   }),
 
@@ -141,6 +277,110 @@ export const useDesktopStore = defineStore('desktop', {
   actions: {
     canOpenWindow(appId: DesktopAppId) {
       return !isSessionWindowAppId(appId) || this.sessionWindowCount < maxSessionWindows
+    },
+
+    getPinnedDirectories() {
+      const connectionKey = getPinnedDirectoryConnectionKey()
+      return connectionKey ? this.pinnedDirectoriesByConnection[connectionKey] ?? [] : []
+    },
+
+    getPinnedDirectoryPositions() {
+      const connectionKey = getPinnedDirectoryConnectionKey()
+      return connectionKey ? this.pinnedDirectoryPositionsByConnection[connectionKey] ?? {} : {}
+    },
+
+    isDirectoryPinned(path: string) {
+      return this.getPinnedDirectories().includes(normalize(path))
+    },
+
+    openPinnedDirectory(path: string) {
+      const targetPath = normalize(path)
+      this.openWindow('files', {
+        path: targetPath,
+        title: formatPinnedDirectoryTitle(targetPath),
+      })
+    },
+
+    pinDirectoryToDesktop(path: string) {
+      const targetPath = normalize(path)
+      if (this.isDirectoryPinned(targetPath)) {
+        return false
+      }
+
+      this.setPinnedDirectories([...this.getPinnedDirectories(), targetPath])
+      return true
+    },
+
+    setPinnedDirectories(paths: string[]) {
+      const connectionKey = getPinnedDirectoryConnectionKey()
+      if (!connectionKey) {
+        return
+      }
+
+      const normalizedPaths = Array.from(
+        new Set(paths.map((path) => normalize(path))),
+      )
+      const nextPinnedDirectories = { ...this.pinnedDirectoriesByConnection }
+      const nextPinnedDirectoryPositions = { ...this.pinnedDirectoryPositionsByConnection }
+      const currentPositions = this.pinnedDirectoryPositionsByConnection[connectionKey] ?? {}
+      const retainedPositions = Object.fromEntries(
+        Object.entries(currentPositions).filter(([path]) => normalizedPaths.includes(path)),
+      )
+
+      if (normalizedPaths.length === 0) {
+        delete nextPinnedDirectories[connectionKey]
+        delete nextPinnedDirectoryPositions[connectionKey]
+      } else {
+        nextPinnedDirectories[connectionKey] = normalizedPaths
+        if (Object.keys(retainedPositions).length > 0) {
+          nextPinnedDirectoryPositions[connectionKey] = retainedPositions
+        } else {
+          delete nextPinnedDirectoryPositions[connectionKey]
+        }
+      }
+
+      this.pinnedDirectoriesByConnection = nextPinnedDirectories
+      this.pinnedDirectoryPositionsByConnection = nextPinnedDirectoryPositions
+      persistPinnedDirectories(nextPinnedDirectories)
+      persistPinnedDirectoryPositions(nextPinnedDirectoryPositions)
+    },
+
+    setPinnedDirectoryPosition(path: string, x: number, y: number) {
+      const connectionKey = getPinnedDirectoryConnectionKey()
+      if (!connectionKey || !this.isDirectoryPinned(path)) {
+        return
+      }
+
+      const targetPath = normalize(path)
+      const nextPinnedDirectoryPositions = {
+        ...this.pinnedDirectoryPositionsByConnection,
+        [connectionKey]: {
+          ...(this.pinnedDirectoryPositionsByConnection[connectionKey] ?? {}),
+          [targetPath]: {
+            x: Math.round(x),
+            y: Math.round(y),
+          },
+        },
+      }
+
+      this.pinnedDirectoryPositionsByConnection = nextPinnedDirectoryPositions
+      persistPinnedDirectoryPositions(nextPinnedDirectoryPositions)
+    },
+
+    toggleDirectoryPin(path: string) {
+      const targetPath = normalize(path)
+      if (this.isDirectoryPinned(targetPath)) {
+        this.unpinDirectoryFromDesktop(targetPath)
+        return false
+      }
+
+      this.pinDirectoryToDesktop(targetPath)
+      return true
+    },
+
+    unpinDirectoryFromDesktop(paths: string | string[]) {
+      const targetPaths = new Set((Array.isArray(paths) ? paths : [paths]).map((path) => normalize(path)))
+      this.setPinnedDirectories(this.getPinnedDirectories().filter((path) => !targetPaths.has(path)))
     },
 
     closeAppWindows(appId: DesktopAppId) {
