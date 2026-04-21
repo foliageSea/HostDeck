@@ -130,11 +130,12 @@ onUnmounted(() => {
         : '',
       {
         'h-auto': window.isMaximized,
-        'pointer-events-none opacity-0 scale-[0.92] translate-y-[14px]': window.isMinimized,
+        'invisible pointer-events-none opacity-0 scale-[0.92] translate-y-[14px]': window.isMinimized,
         'transition-none': isDragging || isResizing,
       },
     ]"
     :style="windowStyle"
+    :aria-hidden="window.isMinimized"
     @mousedown="focusWindow"
   >
     <header

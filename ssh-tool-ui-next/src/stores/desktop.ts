@@ -181,6 +181,12 @@ export interface WindowState {
   props?: Record<string, unknown>
 }
 
+function getTopVisibleWindow(windows: WindowState[]) {
+  return [...windows]
+    .filter((window) => !window.isMinimized)
+    .sort((left, right) => right.zIndex - left.zIndex)[0]
+}
+
 export const useDesktopStore = defineStore('desktop', {
   state: () => ({
     activeWindowId: null as string | null,
@@ -393,7 +399,7 @@ export const useDesktopStore = defineStore('desktop', {
       })
 
       if (this.activeWindowId && !this.windows.some((window) => window.id === this.activeWindowId)) {
-        const nextActiveWindow = [...this.windows].sort((left, right) => right.zIndex - left.zIndex)[0]
+        const nextActiveWindow = getTopVisibleWindow(this.windows)
         this.activeWindowId = nextActiveWindow?.id ?? null
       }
     },
@@ -408,7 +414,7 @@ export const useDesktopStore = defineStore('desktop', {
       void useWindowSessionStore().disconnectWindow(id)
 
       if (this.activeWindowId === id) {
-        const nextActiveWindow = [...this.windows].sort((left, right) => right.zIndex - left.zIndex)[0]
+        const nextActiveWindow = getTopVisibleWindow(this.windows)
         this.activeWindowId = nextActiveWindow?.id ?? null
       }
     },
@@ -445,7 +451,8 @@ export const useDesktopStore = defineStore('desktop', {
 
       targetWindow.isMinimized = true
       if (this.activeWindowId === id) {
-        this.activeWindowId = null
+        const nextActiveWindow = getTopVisibleWindow(this.windows)
+        this.activeWindowId = nextActiveWindow?.id ?? null
       }
     },
 
