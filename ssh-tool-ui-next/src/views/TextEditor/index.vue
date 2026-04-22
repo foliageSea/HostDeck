@@ -30,6 +30,77 @@ const filename = computed(() => props.path.split('/').pop() || props.path)
 
 const language = computed(() => detectLanguage(props.path))
 
+const languageByFilename: Record<string, string> = {
+  '.bash_profile': 'shell',
+  '.bashrc': 'shell',
+  '.editorconfig': 'ini',
+  '.gitconfig': 'ini',
+  '.profile': 'shell',
+  '.zshrc': 'shell',
+  config: 'ini',
+  dockerfile: 'dockerfile',
+}
+
+const languageByExtension: Record<string, string> = {
+  bash: 'shell',
+  bat: 'bat',
+  c: 'c',
+  cc: 'cpp',
+  cjs: 'javascript',
+  conf: 'ini',
+  cpp: 'cpp',
+  cs: 'csharp',
+  cts: 'typescript',
+  cxx: 'cpp',
+  dart: 'dart',
+  gql: 'graphql',
+  graphql: 'graphql',
+  h: 'c',
+  hh: 'cpp',
+  hpp: 'cpp',
+  htm: 'html',
+  htmx: 'html',
+  hxx: 'cpp',
+  ini: 'ini',
+  java: 'java',
+  js: 'javascript',
+  json: 'json',
+  jsx: 'javascript',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  less: 'less',
+  lua: 'lua',
+  md: 'markdown',
+  mjs: 'javascript',
+  mts: 'typescript',
+  phtml: 'php',
+  php: 'php',
+  pl: 'perl',
+  pm: 'perl',
+  properties: 'ini',
+  proto: 'protobuf',
+  ps1: 'powershell',
+  psd1: 'powershell',
+  psm1: 'powershell',
+  py: 'python',
+  r: 'r',
+  rb: 'ruby',
+  rs: 'rust',
+  scala: 'scala',
+  scss: 'scss',
+  sh: 'shell',
+  sql: 'sql',
+  swift: 'swift',
+  ts: 'typescript',
+  tsx: 'typescript',
+  txt: 'plaintext',
+  vue: 'html',
+  xml: 'xml',
+  yaml: 'yaml',
+  yml: 'yaml',
+  zsh: 'shell',
+}
+
 const editorTheme = computed(() => (settingsStore.isDark ? 'vs-dark' : 'vs'))
 
 const surfaceClass = computed(() => (
@@ -40,73 +111,24 @@ const surfaceClass = computed(() => (
 
 function detectLanguage(path: string) {
   const lowerPath = path.toLowerCase()
+  const name = lowerPath.split('/').pop() || lowerPath
 
   if (lowerPath.endsWith('.d.ts') || lowerPath.endsWith('.ts') || lowerPath.endsWith('.mts') || lowerPath.endsWith('.cts')) {
     return 'typescript'
   }
 
-  if (lowerPath.endsWith('.js') || lowerPath.endsWith('.mjs') || lowerPath.endsWith('.cjs')) {
-    return 'javascript'
+  const filenameLanguage = languageByFilename[name]
+  if (filenameLanguage) {
+    return filenameLanguage
   }
 
-  if (lowerPath.endsWith('.json')) {
-    return 'json'
-  }
-
-  if (lowerPath.endsWith('.md')) {
-    return 'markdown'
-  }
-
-  if (lowerPath.endsWith('.py')) {
-    return 'python'
-  }
-
-  if (lowerPath.endsWith('.sh') || lowerPath.endsWith('.bash') || lowerPath.endsWith('.zsh')) {
-    return 'shell'
-  }
-
-  if (lowerPath.endsWith('.yml') || lowerPath.endsWith('.yaml')) {
-    return 'yaml'
-  }
-
-  if (lowerPath.endsWith('.xml')) {
-    return 'xml'
-  }
-
-  if (lowerPath.endsWith('.html') || lowerPath.endsWith('.htm') || lowerPath.endsWith('.vue')) {
-    return 'html'
-  }
-
-  if (lowerPath.endsWith('.css')) {
-    return 'css'
-  }
-
-  if (lowerPath.endsWith('.scss')) {
-    return 'scss'
-  }
-
-  if (lowerPath.endsWith('.less')) {
-    return 'less'
-  }
-
-  if (lowerPath.endsWith('.sql')) {
-    return 'sql'
-  }
-
-  if (lowerPath.endsWith('.java')) {
-    return 'java'
-  }
-
-  if (lowerPath.endsWith('.go')) {
-    return 'go'
-  }
-
-  if (lowerPath.endsWith('.rs')) {
-    return 'rust'
-  }
-
-  if (lowerPath.endsWith('.php')) {
-    return 'php'
+  const extensionIndex = name.lastIndexOf('.')
+  if (extensionIndex >= 0 && extensionIndex < name.length - 1) {
+    const extension = name.slice(extensionIndex + 1)
+    const extensionLanguage = languageByExtension[extension]
+    if (extensionLanguage) {
+      return extensionLanguage
+    }
   }
 
   return 'plaintext'

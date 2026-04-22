@@ -519,8 +519,7 @@ async function loadContainersPage(page = containerPage.value, pageSize = contain
   }
   selectedContainerIds.value = selectedContainerIds.value.filter((id) => result.items.some((container) => container.id === id))
 
-  // await refreshContainerStats()
-  await refreshContainerDiagnostics()
+  await Promise.all([refreshContainerStats(), refreshContainerDiagnostics()])
 }
 
 async function loadImagesPage(page = imagePage.value, pageSize = imagePageSize.value) {
