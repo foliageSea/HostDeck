@@ -91,7 +91,7 @@ function formatFavoritePath(path: string) {
       </div>
     </aside>
 
-    <div class="pointer-events-none absolute right-0 top-1/2 z-2 -translate-y-1/2">
+    <div class="pointer-events-none absolute right-[16px] top-1/2 z-2 -translate-y-1/2">
       <NTooltip placement="right">
         <template #trigger>
           <div
