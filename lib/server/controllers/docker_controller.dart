@@ -12,8 +12,89 @@ import '../services/ssh_service.dart';
 class DockerController {
   final SshService _sshService;
   final DockerService _dockerService;
+  final Map<String, String> _sharedSessionIds = {};
+  final Map<String, Future<SshSession>> _pendingSharedSessions = {};
 
   DockerController(this._sshService, this._dockerService);
+
+  Future<SshSession> _getOrCreateSharedSession(String connectionId) async {
+    final existingSessionId = _sharedSessionIds[connectionId];
+    if (existingSessionId != null) {
+      final existingSession = _sshService.getSession(existingSessionId);
+      if (existingSession != null) {
+        return existingSession;
+      }
+
+      _sharedSessionIds.remove(connectionId);
+    }
+
+    final pendingSession = _pendingSharedSessions[connectionId];
+    if (pendingSession != null) {
+      return pendingSession;
+    }
+
+    final nextSession = _sshService
+        .createShell(connectionId)
+        .then((session) {
+          _sharedSessionIds[connectionId] = session.id;
+          return session;
+        })
+        .whenComplete(() {
+          _pendingSharedSessions.remove(connectionId);
+        });
+
+    _pendingSharedSessions[connectionId] = nextSession;
+    return nextSession;
+  }
+
+  void _removeSharedSessionById(String sessionId) {
+    _sharedSessionIds.removeWhere((_, value) => value == sessionId);
+  }
+
+  Future<SshSession> _resolveSession(Request request) async {
+    final sessionId = request.url.queryParameters['sessionId'];
+    if (sessionId != null) {
+      final session = _sshService.getSession(sessionId);
+      if (session != null) {
+        return session;
+      }
+
+      throw StateError('Session not found');
+    }
+
+    final connectionId = request.url.queryParameters['connectionId'];
+    if (connectionId == null) {
+      throw ArgumentError('Missing connectionId or sessionId');
+    }
+
+    return _getOrCreateSharedSession(connectionId);
+  }
+
+  Response _sessionErrorResponse(Object error) {
+    if (error is ArgumentError) {
+      return Result.fail(400, error.message?.toString() ?? error.toString());
+    }
+
+    if (error is StateError) {
+      return Result.fail(404, error.message);
+    }
+
+    return Result.fail(500, error.toString());
+  }
+
+  Future<Response> _withSession(
+    Request request,
+    Future<Response> Function(SshSession session) action,
+  ) async {
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
+
+    return action(session);
+  }
 
   Future<Response> createSession(Request request) async {
     try {
@@ -25,7 +106,7 @@ class DockerController {
         return Result.fail(400, 'Missing connectionId');
       }
 
-      final session = await _sshService.createShell(connectionId);
+      final session = await _getOrCreateSharedSession(connectionId.toString());
 
       return Result.ok({'sessionId': session.id});
     } on SshSessionLimitExceeded catch (e) {
@@ -38,11 +119,19 @@ class DockerController {
   Future<Response> closeSession(Request request) async {
     try {
       final sessionId = request.url.queryParameters['sessionId'];
-      if (sessionId == null) {
-        return Result.fail(400, 'Missing sessionId');
+      final connectionId = request.url.queryParameters['connectionId'];
+
+      String? targetSessionId = sessionId;
+      if (targetSessionId == null && connectionId != null) {
+        targetSessionId = _sharedSessionIds.remove(connectionId);
       }
 
-      await _sshService.closeSession(sessionId);
+      if (targetSessionId == null) {
+        return Result.fail(400, 'Missing connectionId or sessionId');
+      }
+
+      _removeSharedSessionById(targetSessionId);
+      await _sshService.closeSession(targetSessionId);
 
       return Result.ok('Session closed');
     } catch (e) {
@@ -62,127 +151,98 @@ class DockerController {
     Request request,
     String id,
   ) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
+    return _withSession(request, (session) async {
+      try {
+        final shellSession = await _sshService.createShell(
+          session.connectionId,
+        );
+        final shell = shellSession.shell;
+        if (shell == null) {
+          return Result.fail(500, 'Shell not available');
+        }
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
+        // Prefer bash if present, fallback to sh.
+        final safeId = _shellQuote(id);
+        final cmd =
+            'docker exec -it $safeId bash || docker exec -it $safeId sh';
+        shell.write(Uint8List.fromList(utf8.encode('$cmd\n')));
 
-    try {
-      final shellSession = await _sshService.createShell(session.connectionId);
-      final shell = shellSession.shell;
-      if (shell == null) {
-        return Result.fail(500, 'Shell not available');
+        return Result.ok({'sessionId': shellSession.id});
+      } on SshSessionLimitExceeded catch (e) {
+        return Result.fail(429, '最多只能创建 ${e.maxSessions} 个 SSH 会话。');
+      } catch (e) {
+        return Result.fail(500, e.toString());
       }
-
-      // Prefer bash if present, fallback to sh.
-      final safeId = _shellQuote(id);
-      final cmd = 'docker exec -it $safeId bash || docker exec -it $safeId sh';
-      shell.write(Uint8List.fromList(utf8.encode('$cmd\n')));
-
-      return Result.ok({'sessionId': shellSession.id});
-    } on SshSessionLimitExceeded catch (e) {
-      return Result.fail(429, '最多只能创建 ${e.maxSessions} 个 SSH 会话。');
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    });
   }
 
   /// 检查 Docker 可用性
   Future<Response> checkDocker(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final available = await _dockerService.isDockerAvailable(session);
-      return Result.ok({'available': available});
-    } catch (e) {
-      return Result.ok({'available': false});
-    }
+    return _withSession(request, (session) async {
+      try {
+        final available = await _dockerService.isDockerAvailable(session);
+        return Result.ok({'available': available});
+      } catch (e) {
+        return Result.ok({'available': false});
+      }
+    });
   }
 
   /// 获取容器列表
   Future<Response> listContainers(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
     final pagination = _parsePagination(request);
     final statusFilter = request.url.queryParameters['status'] ?? 'all';
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final containers = await _dockerService.listContainers(session);
-      final filteredContainers = containers
-          .where(
-            (container) => _matchesContainerStatus(container, statusFilter),
-          )
-          .toList();
-      return Result.ok(
-        _pageResponse(
-          filteredContainers,
-          pagination,
-          (container) => container.toJson(),
-          summary: {
-            'total': containers.length,
-            'running': containers
-                .where((container) => container.state == 'running')
-                .length,
-            'stopped': containers
-                .where((container) => container.state != 'running')
-                .length,
-          },
-        ),
-      );
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final containers = await _dockerService.listContainers(session);
+        final filteredContainers = containers
+            .where(
+              (container) => _matchesContainerStatus(container, statusFilter),
+            )
+            .toList();
+        return Result.ok(
+          _pageResponse(
+            filteredContainers,
+            pagination,
+            (container) => container.toJson(),
+            summary: {
+              'total': containers.length,
+              'running': containers
+                  .where((container) => container.state == 'running')
+                  .length,
+              'stopped': containers
+                  .where((container) => container.state != 'running')
+                  .length,
+            },
+          ),
+        );
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 获取镜像列表
   Future<Response> listImages(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
     final pagination = _parsePagination(request);
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final images = await _dockerService.listImages(session);
-      return Result.ok(
-        _pageResponse(
-          images,
-          pagination,
-          (image) => image.toJson(),
-          summary: {
-            'total': images.length,
-            'dangling': images.where((image) => image.dangling).length,
-          },
-        ),
-      );
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final images = await _dockerService.listImages(session);
+        return Result.ok(
+          _pageResponse(
+            images,
+            pagination,
+            (image) => image.toJson(),
+            summary: {
+              'total': images.length,
+              'dangling': images.where((image) => image.dangling).length,
+            },
+          ),
+        );
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 启动容器
@@ -212,307 +272,207 @@ class DockerController {
 
   /// 重命名容器
   Future<Response> renameContainer(Request request, String id) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
+    return _withSession(request, (session) async {
+      try {
+        final body = await request.readAsString();
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final newName = data['newName']?.toString().trim() ?? '';
+        if (newName.isEmpty) {
+          return Result.fail(400, 'newName is required');
+        }
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
-      final newName = data['newName']?.toString().trim() ?? '';
-      if (newName.isEmpty) {
-        return Result.fail(400, 'newName is required');
+        await _dockerService.renameContainer(session, id, newName);
+        return Result.ok({'success': true});
+      } catch (e) {
+        return Result.fail(500, e.toString());
       }
-
-      await _dockerService.renameContainer(session, id, newName);
-      return Result.ok({'success': true});
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    });
   }
 
   /// 删除容器
   Future<Response> removeContainer(Request request, String id) async {
-    final sessionId = request.url.queryParameters['sessionId'];
     final force = request.url.queryParameters['force'] == 'true';
 
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      await _dockerService.removeContainer(session, id, force: force);
-      return Result.ok({'success': true});
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        await _dockerService.removeContainer(session, id, force: force);
+        return Result.ok({'success': true});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 获取容器日志
   Future<Response> getContainerLogs(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
     final containerId = request.url.queryParameters['containerId'];
     final tail = _parseTail(request.url.queryParameters['tail']);
     final timestamps = request.url.queryParameters['timestamps'] == 'true';
 
-    if (sessionId == null || containerId == null) {
-      return Result.fail(400, 'Missing sessionId or containerId');
+    if (containerId == null) {
+      return Result.fail(400, 'Missing containerId');
     }
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final logs = await _dockerService.getContainerLogs(
-        session,
-        containerId,
-        tail: tail,
-        timestamps: timestamps,
-      );
-      return Result.ok({'logs': logs});
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final logs = await _dockerService.getContainerLogs(
+          session,
+          containerId,
+          tail: tail,
+          timestamps: timestamps,
+        );
+        return Result.ok({'logs': logs});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 获取容器 inspect 详情
   Future<Response> inspectContainer(Request request, String id) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final detail = await _dockerService.inspectContainer(session, id);
-      return Result.ok(detail);
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final detail = await _dockerService.inspectContainer(session, id);
+        return Result.ok(detail);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 获取容器资源信息
   Future<Response> getContainerStats(Request request, String id) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final stats = await _dockerService.getContainerStats(session, id);
-      return Result.ok(stats);
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final stats = await _dockerService.getContainerStats(session, id);
+        return Result.ok(stats);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 批量获取容器诊断信息
   Future<Response> getContainerDiagnostics(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
     final ids = await _parseIds(request);
     if (ids == null) {
       return Result.fail(400, 'Missing or invalid containerIds');
     }
 
-    try {
-      final diagnostics = await _dockerService.getContainerDiagnostics(
-        session,
-        ids,
-      );
-      return Result.ok(diagnostics);
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final diagnostics = await _dockerService.getContainerDiagnostics(
+          session,
+          ids,
+        );
+        return Result.ok(diagnostics);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 删除镜像
   Future<Response> removeImage(Request request, String id) async {
-    final sessionId = request.url.queryParameters['sessionId'];
     final force = request.url.queryParameters['force'] == 'true';
 
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      await _dockerService.removeImage(session, id, force: force);
-      return Result.ok({'success': true});
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        await _dockerService.removeImage(session, id, force: force);
+        return Result.ok({'success': true});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 拉取镜像
   Future<Response> pullImage(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
+    return _withSession(request, (session) async {
+      try {
+        final body = await request.readAsString();
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final image = data['image']?.toString().trim() ?? '';
+        if (image.isEmpty) {
+          return Result.fail(400, 'image is required');
+        }
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
-      final image = data['image']?.toString().trim() ?? '';
-      if (image.isEmpty) {
-        return Result.fail(400, 'image is required');
+        final output = await _dockerService.pullImage(session, image);
+        return Result.ok({'success': true, 'output': output});
+      } catch (e) {
+        return Result.fail(500, e.toString());
       }
-
-      final output = await _dockerService.pullImage(session, image);
-      return Result.ok({'success': true, 'output': output});
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    });
   }
 
   /// 镜像重新打标签
   Future<Response> tagImage(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
+    return _withSession(request, (session) async {
+      try {
+        final body = await request.readAsString();
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final sourceImage = data['sourceImage']?.toString().trim() ?? '';
+        final targetImage = data['targetImage']?.toString().trim() ?? '';
+        if (sourceImage.isEmpty || targetImage.isEmpty) {
+          return Result.fail(400, 'sourceImage and targetImage are required');
+        }
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
-      final sourceImage = data['sourceImage']?.toString().trim() ?? '';
-      final targetImage = data['targetImage']?.toString().trim() ?? '';
-      if (sourceImage.isEmpty || targetImage.isEmpty) {
-        return Result.fail(400, 'sourceImage and targetImage are required');
+        await _dockerService.tagImage(session, sourceImage, targetImage);
+        return Result.ok({'success': true});
+      } catch (e) {
+        return Result.fail(500, e.toString());
       }
-
-      await _dockerService.tagImage(session, sourceImage, targetImage);
-      return Result.ok({'success': true});
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    });
   }
 
   /// 镜像历史
   Future<Response> getImageHistory(Request request, String id) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final history = await _dockerService.getImageHistory(session, id);
-      return Result.ok(history);
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final history = await _dockerService.getImageHistory(session, id);
+        return Result.ok(history);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 获取镜像引用容器
   Future<Response> getImageContainers(Request request, String id) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final containers = await _dockerService.getImageContainers(session, id);
-      return Result.ok(containers);
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final containers = await _dockerService.getImageContainers(session, id);
+        return Result.ok(containers);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 创建容器
   Future<Response> createContainer(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
-      final result = await _dockerService.createContainer(session, data);
-      return Result.ok(result);
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final body = await request.readAsString();
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final result = await _dockerService.createContainer(session, data);
+        return Result.ok(result);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 快速重建容器
   Future<Response> recreateContainer(Request request, String id) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final result = await _dockerService.recreateContainer(session, id);
-      return Result.ok(result);
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final result = await _dockerService.recreateContainer(session, id);
+        return Result.ok(result);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 批量启动容器
@@ -535,38 +495,20 @@ class DockerController {
 
   /// 批量删除已停止容器
   Future<Response> removeStoppedContainers(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      final removedCount = await _dockerService.removeStoppedContainers(
-        session,
-      );
-      return Result.ok({'success': true, 'removedCount': removedCount});
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final removedCount = await _dockerService.removeStoppedContainers(
+          session,
+        );
+        return Result.ok({'success': true, 'removedCount': removedCount});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   /// 清理镜像
   Future<Response> pruneImages(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
     bool includeUnused = false;
     try {
       final body = await request.readAsString();
@@ -578,15 +520,17 @@ class DockerController {
       includeUnused = false;
     }
 
-    try {
-      final output = await _dockerService.pruneImages(
-        session,
-        includeUnused: includeUnused,
-      );
-      return Result.ok({'success': true, 'output': output});
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final output = await _dockerService.pruneImages(
+          session,
+          includeUnused: includeUnused,
+        );
+        return Result.ok({'success': true, 'output': output});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   // Helper method
@@ -595,22 +539,14 @@ class DockerController {
     String containerId,
     Future<void> Function(SshSession, String) action,
   ) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
-    try {
-      await action(session, containerId);
-      return Result.ok({'success': true});
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        await action(session, containerId);
+        return Result.ok({'success': true});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   Future<Response> _handleBatchContainerAction(
@@ -618,16 +554,6 @@ class DockerController {
     Future<int> Function(SshSession, List<String>) action, {
     required String successMessage,
   }) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Result.fail(400, 'Missing sessionId');
-    }
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) {
-      return Result.fail(404, 'Session not found');
-    }
-
     final ids = await _parseIds(request);
     if (ids == null) {
       return Result.fail(400, 'Missing or invalid containerIds');
@@ -636,16 +562,18 @@ class DockerController {
       return Result.fail(400, 'containerIds cannot be empty');
     }
 
-    try {
-      final processed = await action(session, ids);
-      return Result.ok({
-        'success': true,
-        'processed': processed,
-        'message': successMessage,
-      });
-    } catch (e) {
-      return Result.fail(500, e.toString());
-    }
+    return _withSession(request, (session) async {
+      try {
+        final processed = await action(session, ids);
+        return Result.ok({
+          'success': true,
+          'processed': processed,
+          'message': successMessage,
+        });
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
   }
 
   Future<List<String>?> _parseIds(Request request) async {

@@ -4,23 +4,23 @@ import { defineStore } from 'pinia'
 export type UploadTaskStatus = 'pending' | 'uploading' | 'success' | 'error' | 'cancelled'
 
 export interface UploadTaskItem {
+  connectionId: string
   id: string
   loaded: number
   name: string
   path: string
   progress: number
-  sessionId: string
   source: 'files'
   status: UploadTaskStatus
   total: number
 }
 
 export interface UploadBatch {
+  connectionId: string
   createdAt: number
   errorMessage: string
   id: string
   path: string
-  sessionId: string
   source: 'files'
   tasks: UploadTaskItem[]
 }
@@ -48,28 +48,28 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
 
   const hasTasks = computed(() => batches.value.length > 0)
 
-  function createBatch(sessionId: string, path: string, files: File[]) {
+  function createBatch(connectionId: string, path: string, files: File[]) {
     const batchId = `upload-batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const createdAt = Date.now()
     cancelledBatchIds.delete(batchId)
     const tasks = files.map((file, index) => ({
+      connectionId,
       id: `${batchId}-${index}`,
       loaded: 0,
       name: file.name,
       path,
       progress: 0,
-      sessionId,
       source: 'files' as const,
       status: 'pending' as const,
       total: file.size,
     }))
 
     batches.value.unshift({
+      connectionId,
       createdAt,
       errorMessage: '',
       id: batchId,
       path,
-      sessionId,
       source: 'files',
       tasks,
     })

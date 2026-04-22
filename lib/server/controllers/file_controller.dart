@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
+import '../models/ssh_session.dart';
 import '../services/ssh_service.dart';
 import '../services/file_service.dart';
 import '../models/result.dart';
@@ -9,8 +10,75 @@ import '../models/result.dart';
 class FileController {
   final SshService _sshService;
   final FileService _fileService;
+  final Map<String, String> _sharedSessionIds = {};
+  final Map<String, Future<SshSession>> _pendingSharedSessions = {};
 
   FileController(this._sshService, this._fileService);
+
+  Future<SshSession> _getOrCreateSharedSession(String connectionId) async {
+    final existingSessionId = _sharedSessionIds[connectionId];
+    if (existingSessionId != null) {
+      final existingSession = _sshService.getSession(existingSessionId);
+      if (existingSession != null) {
+        return existingSession;
+      }
+
+      _sharedSessionIds.remove(connectionId);
+    }
+
+    final pendingSession = _pendingSharedSessions[connectionId];
+    if (pendingSession != null) {
+      return pendingSession;
+    }
+
+    final nextSession = _sshService
+        .createSftpSession(connectionId)
+        .then((session) {
+          _sharedSessionIds[connectionId] = session.id;
+          return session;
+        })
+        .whenComplete(() {
+          _pendingSharedSessions.remove(connectionId);
+        });
+
+    _pendingSharedSessions[connectionId] = nextSession;
+    return nextSession;
+  }
+
+  void _removeSharedSessionById(String sessionId) {
+    _sharedSessionIds.removeWhere((_, value) => value == sessionId);
+  }
+
+  Future<SshSession> _resolveSession(Request request) async {
+    final sessionId = request.url.queryParameters['sessionId'];
+    if (sessionId != null) {
+      final session = _sshService.getSession(sessionId);
+      if (session != null) {
+        return session;
+      }
+
+      throw StateError('Session not found');
+    }
+
+    final connectionId = request.url.queryParameters['connectionId'];
+    if (connectionId == null) {
+      throw ArgumentError('Missing connectionId or sessionId');
+    }
+
+    return _getOrCreateSharedSession(connectionId);
+  }
+
+  Response _sessionErrorResponse(Object error) {
+    if (error is ArgumentError) {
+      return Result.fail(400, error.message?.toString() ?? error.toString());
+    }
+
+    if (error is StateError) {
+      return Result.fail(404, error.message);
+    }
+
+    return Result.fail(500, error.toString());
+  }
 
   Future<Response> createSession(Request request) async {
     try {
@@ -22,7 +90,7 @@ class FileController {
         return Result.fail(400, 'Missing connectionId');
       }
 
-      final session = await _sshService.createSftpSession(connectionId);
+      final session = await _getOrCreateSharedSession(connectionId.toString());
 
       return Result.ok({'sessionId': session.id});
     } on SshSessionLimitExceeded catch (e) {
@@ -35,11 +103,19 @@ class FileController {
   Future<Response> closeSession(Request request) async {
     try {
       final sessionId = request.url.queryParameters['sessionId'];
-      if (sessionId == null) {
-        return Result.fail(400, 'Missing sessionId');
+      final connectionId = request.url.queryParameters['connectionId'];
+
+      String? targetSessionId = sessionId;
+      if (targetSessionId == null && connectionId != null) {
+        targetSessionId = _sharedSessionIds.remove(connectionId);
       }
 
-      await _sshService.closeSession(sessionId);
+      if (targetSessionId == null) {
+        return Result.fail(400, 'Missing connectionId or sessionId');
+      }
+
+      _removeSharedSessionById(targetSessionId);
+      await _sshService.closeSession(targetSessionId);
 
       return Result.ok('Session closed');
     } catch (e) {
@@ -48,12 +124,14 @@ class FileController {
   }
 
   Future<Response> listFiles(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'] ?? '.';
-    if (sessionId == null) return Result.fail(400, 'Missing sessionId');
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) return Result.fail(404, 'Session not found');
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
 
     try {
       final items = await _fileService.listFiles(session, path);
@@ -76,16 +154,29 @@ class FileController {
   }
 
   Future<Response> readFile(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'];
     final download = request.url.queryParameters['download'] == 'true';
 
-    if (sessionId == null || path == null) {
-      return Response.badRequest(body: 'Missing sessionId or path');
+    if (path == null) {
+      return Response.badRequest(body: 'Missing path');
     }
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) return Response.notFound('Session not found');
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      if (error is ArgumentError) {
+        return Response.badRequest(
+          body: error.message?.toString() ?? error.toString(),
+        );
+      }
+
+      if (error is StateError) {
+        return Response.notFound(error.message);
+      }
+
+      return Response.internalServerError(body: error.toString());
+    }
 
     try {
       final stream = await _fileService.readFileStream(session, path);
@@ -108,14 +199,17 @@ class FileController {
   }
 
   Future<Response> writeFile(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'];
-    if (sessionId == null || path == null) {
-      return Result.fail(400, 'Missing sessionId or path');
+    if (path == null) {
+      return Result.fail(400, 'Missing path');
     }
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) return Result.fail(404, 'Session not found');
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
 
     try {
       await _fileService.writeFileStream(session, path, request.read());
@@ -126,14 +220,17 @@ class FileController {
   }
 
   Future<Response> uploadFile(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'];
-    if (sessionId == null || path == null) {
-      return Result.fail(400, 'Missing sessionId or path');
+    if (path == null) {
+      return Result.fail(400, 'Missing path');
     }
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) return Result.fail(404, 'Session not found');
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
 
     try {
       if (request.multipart() case var multipart?) {
@@ -163,13 +260,22 @@ class FileController {
   }
 
   Future<Response> batchDownload(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) {
-      return Response.badRequest(body: 'Missing sessionId');
-    }
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      if (error is ArgumentError) {
+        return Response.badRequest(
+          body: error.message?.toString() ?? error.toString(),
+        );
+      }
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) return Response.notFound('Session not found');
+      if (error is StateError) {
+        return Response.notFound(error.message);
+      }
+
+      return Response.internalServerError(body: error.toString());
+    }
 
     try {
       final body = await request.readAsString();
@@ -190,11 +296,12 @@ class FileController {
   }
 
   Future<Response> rename(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) return Result.fail(400, 'Missing sessionId');
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) return Result.fail(404, 'Session not found');
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
 
     try {
       final body = await request.readAsString();
@@ -210,11 +317,12 @@ class FileController {
   }
 
   Future<Response> mkdir(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) return Result.fail(400, 'Missing sessionId');
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) return Result.fail(404, 'Session not found');
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
 
     try {
       final body = await request.readAsString();
@@ -229,11 +337,12 @@ class FileController {
   }
 
   Future<Response> copy(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) return Result.fail(400, 'Missing sessionId');
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) return Result.fail(404, 'Session not found');
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
 
     try {
       final body = await request.readAsString();
@@ -249,11 +358,12 @@ class FileController {
   }
 
   Future<Response> extract(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
-    if (sessionId == null) return Result.fail(400, 'Missing sessionId');
-
-    final session = _sshService.getSession(sessionId);
-    if (session == null) return Result.fail(404, 'Session not found');
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
 
     try {
       final body = await request.readAsString();
@@ -275,14 +385,17 @@ class FileController {
   }
 
   Future<Response> deleteFile(Request request) async {
-    final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'];
-    if (sessionId == null || path == null) {
-      return Result.fail(400, 'Missing sessionId or path');
+    if (path == null) {
+      return Result.fail(400, 'Missing path');
     }
 
-    final session = _sshService.getSession(sessionId);
-    if (session == null) return Result.fail(404, 'Session not found');
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
 
     try {
       await _fileService.delete(session, path);

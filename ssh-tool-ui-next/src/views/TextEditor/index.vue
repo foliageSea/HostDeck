@@ -7,8 +7,8 @@ import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 
 const props = defineProps<{
+  connectionId: string
   path: string
-  sessionId: string
   windowId?: string
 }>()
 
@@ -212,7 +212,7 @@ async function loadFile() {
   error.value = ''
 
   try {
-    content.value = await filesApi.readFile(props.sessionId, props.path)
+    content.value = await filesApi.readFile(props.connectionId, props.path)
     syncEditorContent(content.value)
 
     if (model) {
@@ -229,7 +229,7 @@ async function loadFile() {
 async function saveFile() {
   saving.value = true
   try {
-    await filesApi.writeFile(props.sessionId, props.path, content.value)
+    await filesApi.writeFile(props.connectionId, props.path, content.value)
     getUiApi().message.success('文件已保存。')
   } catch (saveError) {
     console.error('Failed to save file', saveError)

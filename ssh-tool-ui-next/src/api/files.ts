@@ -22,50 +22,50 @@ export const filesApi = {
     return response.data
   },
 
-  list: async (sessionId: string, path: string) => {
+  list: async (connectionId: string, path: string) => {
     const response = await http.get<FileItem[]>('/api/files/list', {
-      params: { path, sessionId },
+      params: { connectionId, path },
     })
     return response.data
   },
 
-  mkdir: async (sessionId: string, path: string) => {
+  mkdir: async (connectionId: string, path: string) => {
     const response = await http.post('/api/files/mkdir', { path }, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  rename: async (sessionId: string, oldPath: string, newPath: string) => {
+  rename: async (connectionId: string, oldPath: string, newPath: string) => {
     const response = await http.post('/api/files/rename', { newPath, oldPath }, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  copy: async (sessionId: string, source: string, target: string) => {
+  copy: async (connectionId: string, source: string, target: string) => {
     const response = await http.post('/api/files/copy', { source, target }, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  extract: async (sessionId: string, archivePath: string, targetPath: string) => {
+  extract: async (connectionId: string, archivePath: string, targetPath: string) => {
     const response = await http.post('/api/files/extract', { archivePath, targetPath }, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  delete: async (sessionId: string, path: string) => {
+  delete: async (connectionId: string, path: string) => {
     const response = await http.post('/api/files/delete', {}, {
-      params: { path, sessionId },
+      params: { connectionId, path },
     })
     return response.data
   },
 
   upload: async (
-    sessionId: string,
+    connectionId: string,
     path: string,
     formData: FormData,
     onUploadProgress?: (event: AxiosProgressEvent) => void,
@@ -76,41 +76,41 @@ export const filesApi = {
         'Content-Type': 'multipart/form-data',
       },
       onUploadProgress,
-      params: { path, sessionId },
+      params: { connectionId, path },
       signal,
     })
     return response.data
   },
 
-  writeFile: async (sessionId: string, path: string, content: string) => {
+  writeFile: async (connectionId: string, path: string, content: string) => {
     const response = await http.post('/api/files/write', content, {
       headers: {
         'Content-Type': 'text/plain',
       },
-      params: { path, sessionId },
+      params: { connectionId, path },
     })
     return response.data
   },
 
-  readFile: async (sessionId: string, path: string) => {
+  readFile: async (connectionId: string, path: string) => {
     const response = await http.get<string>('/api/files/read', {
-      params: { path, sessionId },
+      params: { connectionId, path },
       responseType: 'text',
     })
     return response.data
   },
 
-  download: async (sessionId: string, path: string) => {
+  download: async (connectionId: string, path: string) => {
     const response = await http.get<Blob>('/api/files/read', {
-      params: { download: 'true', path, sessionId },
+      params: { connectionId, download: 'true', path },
       responseType: 'blob',
     })
     return response.data
   },
 
-  batchDownload: async (sessionId: string, paths: string[]) => {
+  batchDownload: async (connectionId: string, paths: string[]) => {
     const response = await http.post<Blob>('/api/files/batch-download', { paths }, {
-      params: { sessionId },
+      params: { connectionId },
       responseType: 'blob',
     })
     return response.data

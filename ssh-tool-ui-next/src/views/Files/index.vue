@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 import {
   ArrowLeft,
@@ -386,7 +386,7 @@ function saveClipboard(operation: 'copy' | 'move') {
 }
 
 async function pasteClipboardItems() {
-  if (!fileStore.sessionId) {
+  if (!fileStore.connectionId) {
     return
   }
 
@@ -407,8 +407,8 @@ async function pasteClipboardItems() {
       payload.entries.map((entry) => {
         const nextPath = resolve(targetPath, entry.filename)
         return payload.operation === 'move'
-          ? filesApi.rename(fileStore.sessionId as string, entry.path, nextPath)
-          : filesApi.copy(fileStore.sessionId as string, entry.path, nextPath)
+          ? filesApi.rename(fileStore.connectionId as string, entry.path, nextPath)
+          : filesApi.copy(fileStore.connectionId as string, entry.path, nextPath)
       }),
     )
 
@@ -527,13 +527,13 @@ function handleContextMenuSelect(key: string | number) {
 }
 
 function openFileInEditor(file: FileItem) {
-  if (file.isDirectory || !fileStore.sessionId) {
+  if (file.isDirectory || !fileStore.connectionId) {
     return
   }
 
   desktopStore.openWindow('editor', {
+    connectionId: fileStore.connectionId,
     path: resolve(fileStore.currentPath, file.filename),
-    sessionId: fileStore.sessionId,
     title: file.filename,
   })
 }
@@ -566,9 +566,9 @@ async function openFile(file: FileItem) {
         })
 
       desktopStore.openWindow('media-viewer', {
+        connectionId: fileStore.connectionId,
         path: resolve(fileStore.currentPath, file.filename),
         playlist,
-        sessionId: fileStore.sessionId,
         title: file.filename,
       })
     }
@@ -651,7 +651,7 @@ function openCreate(mode: 'directory' | 'file') {
 }
 
 async function confirmCreate() {
-  if (!fileStore.sessionId || !newItemName.value.trim()) {
+  if (!fileStore.connectionId || !newItemName.value.trim()) {
     return
   }
 
@@ -659,9 +659,9 @@ async function confirmCreate() {
 
   try {
     if (createDialogMode.value === 'directory') {
-      await filesApi.mkdir(fileStore.sessionId, nextPath)
+      await filesApi.mkdir(fileStore.connectionId, nextPath)
     } else {
-      await filesApi.writeFile(fileStore.sessionId, nextPath, '')
+      await filesApi.writeFile(fileStore.connectionId, nextPath, '')
     }
 
     showCreateDialog.value = false
@@ -692,7 +692,7 @@ function openExtractDialog() {
 }
 
 async function confirmExtract() {
-  if (!fileStore.sessionId || !selectedFile.value || !canExtractSelectedArchive.value || extractingArchive.value) {
+  if (!fileStore.connectionId || !selectedFile.value || !canExtractSelectedArchive.value || extractingArchive.value) {
     return
   }
 
@@ -705,7 +705,7 @@ async function confirmExtract() {
   extractingArchive.value = true
   try {
     await filesApi.extract(
-      fileStore.sessionId,
+      fileStore.connectionId,
       resolve(fileStore.currentPath, selectedFile.value.filename),
       resolve(fileStore.currentPath, targetName),
     )
@@ -722,13 +722,13 @@ async function confirmExtract() {
 }
 
 async function confirmRename() {
-  if (!fileStore.sessionId || !selectedFile.value || !renameValue.value.trim()) {
+  if (!fileStore.connectionId || !selectedFile.value || !renameValue.value.trim()) {
     return
   }
 
   try {
     await filesApi.rename(
-      fileStore.sessionId,
+      fileStore.connectionId,
       resolve(fileStore.currentPath, selectedFile.value.filename),
       resolve(fileStore.currentPath, renameValue.value.trim()),
     )
@@ -742,7 +742,7 @@ async function confirmRename() {
 }
 
 async function confirmDelete() {
-  if (!fileStore.sessionId || selectedFiles.value.length === 0 || deletingFiles.value) {
+  if (!fileStore.connectionId || selectedFiles.value.length === 0 || deletingFiles.value) {
     return
   }
 
@@ -750,7 +750,7 @@ async function confirmDelete() {
   try {
     await Promise.all(
       selectedFiles.value.map((file) =>
-        filesApi.delete(fileStore.sessionId as string, resolve(fileStore.currentPath, file.filename)),
+        filesApi.delete(fileStore.connectionId as string, resolve(fileStore.currentPath, file.filename)),
       ),
     )
 
@@ -767,22 +767,22 @@ async function confirmDelete() {
 }
 
 async function downloadSelectedFiles() {
-  if (!fileStore.sessionId || selectedFiles.value.length === 0) {
+  if (!fileStore.connectionId || selectedFiles.value.length === 0) {
     return
   }
 
   try {
-    const fileSessionId = fileStore.sessionId
+    const fileConnectionId = fileStore.connectionId
     let blob: Blob
     let filename: string
 
     if (selectedFiles.value.length === 1 && !selectedFiles.value[0]?.isDirectory) {
       const singleFile = selectedFiles.value[0]
-      blob = await filesApi.download(fileSessionId, resolve(fileStore.currentPath, singleFile.filename))
+      blob = await filesApi.download(fileConnectionId, resolve(fileStore.currentPath, singleFile.filename))
       filename = basename(singleFile.filename)
     } else {
       blob = await filesApi.batchDownload(
-        fileSessionId,
+        fileConnectionId,
         selectedFiles.value.map((file) => resolve(fileStore.currentPath, file.filename)),
       )
       filename = 'download.tar.gz'
@@ -813,7 +813,7 @@ function isUploadCancelled(error: unknown) {
 }
 
 async function handleUploadChange(event: Event) {
-  if (!fileStore.sessionId) {
+  if (!fileStore.connectionId) {
     return
   }
 
@@ -824,7 +824,7 @@ async function handleUploadChange(event: Event) {
   }
 
   const selectedUploads = Array.from(files)
-  const batchId = uploadCenterStore.createBatch(fileStore.sessionId, fileStore.currentPath, selectedUploads)
+  const batchId = uploadCenterStore.createBatch(fileStore.connectionId, fileStore.currentPath, selectedUploads)
   const controller = new AbortController()
   uploadCenterStore.clearBatchError(batchId)
   uploadCenterStore.registerBatchController(batchId, controller)
@@ -849,10 +849,10 @@ async function handleUploadChange(event: Event) {
         status: 'uploading',
         total: file.size,
       })
-
+      
       const formData = new FormData()
       formData.append('file', file, file.name)
-      await filesApi.upload(fileStore.sessionId, fileStore.currentPath, formData, (progressEvent) => {
+      await filesApi.upload(fileStore.connectionId, fileStore.currentPath, formData, (progressEvent) => {
         const total = progressEvent.total ?? file.size
         const loaded = Math.min(progressEvent.loaded, total)
 
@@ -993,10 +993,6 @@ function handleKeydown(event: KeyboardEvent) {
 onMounted(async () => {
   await fileStore.fetchFiles(props.path || '/')
   syncPathInput()
-})
-
-onBeforeUnmount(() => {
-  void fileStore.disposeSession()
 })
 
 watch(

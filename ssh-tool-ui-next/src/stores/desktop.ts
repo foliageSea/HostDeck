@@ -19,7 +19,7 @@ export const maxSessionWindows = 8
 const PINNED_DIRECTORIES_STORAGE_KEY = 'ssh-tool:desktop:pinned-directories'
 const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'ssh-tool:desktop:pinned-directory-positions'
 
-const sessionWindowAppIds = new Set<DesktopAppId>(['terminal', 'files', 'docker'])
+const sessionWindowAppIds = new Set<DesktopAppId>(['terminal'])
 
 type PinnedDirectoriesByConnection = Record<string, string[]>
 type PinnedDirectoryPositions = Record<string, {

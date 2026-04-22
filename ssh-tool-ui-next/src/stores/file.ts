@@ -25,7 +25,7 @@ function compareFiles(left: FileItem, right: FileItem) {
 export function createFileStore(connection: FileStoreConnection) {
   const currentPath = ref('/')
   const files = ref<FileItem[]>([])
-  const sessionId = ref<string | null>(null)
+  const currentConnectionId = computed(() => connection.connectionId)
   const loading = ref(false)
   const viewMode = useLocalStorage<FileViewMode>('ssh-tool:files:view-mode', 'list')
   const favoritePathsByConnection = useLocalStorage<FavoritePathsByConnection>('ssh-tool:files:favorite-paths', {})
@@ -137,41 +137,17 @@ export function createFileStore(connection: FileStoreConnection) {
     return true
   }
 
-  async function initSession() {
-    if (sessionId.value || !connection.connectionId) {
-      return
-    }
-
-    const response = await filesApi.createSession(connection.connectionId)
-    sessionId.value = response.sessionId
-  }
-
-  async function disposeSession() {
-    const currentSessionId = sessionId.value
-    if (!currentSessionId) {
-      return
-    }
-
-    sessionId.value = null
-
-    try {
-      await filesApi.deleteSession(currentSessionId)
-    } catch (error) {
-      console.error('Failed to delete file session', error)
-    }
-  }
-
   async function fetchFiles(nextPath?: string) {
     loading.value = true
 
     try {
-      await initSession()
-      if (!sessionId.value) {
+      const connectionId = currentConnectionId.value
+      if (!connectionId) {
         return
       }
 
       const targetPath = nextPath ? resolve(currentPath.value, nextPath) : currentPath.value
-      const response = await filesApi.list(sessionId.value, targetPath)
+      const response = await filesApi.list(connectionId, targetPath)
       files.value = response
       currentPath.value = targetPath
 
@@ -276,15 +252,14 @@ export function createFileStore(connection: FileStoreConnection) {
   return reactive({
     backHistory,
     clearSelection,
+    connectionId: currentConnectionId,
     currentPath,
     displayFiles,
-    disposeSession,
     fetchFiles,
     favoritePaths,
     files,
     forwardHistory,
     hasSelection,
-    initSession,
     isFavoritePath,
     lastSelectedName,
     loading,
@@ -299,7 +274,6 @@ export function createFileStore(connection: FileStoreConnection) {
     selectedFile,
     selectedNames,
     setSelectedNames,
-    sessionId,
     toggleFavoritePath,
     viewMode,
   })

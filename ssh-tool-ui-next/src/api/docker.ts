@@ -152,103 +152,103 @@ export const dockerApi = {
     return response.data
   },
 
-  async checkDocker(sessionId: string) {
+  async checkDocker(connectionId: string) {
     const response = await http.get<{ available: boolean }>('/api/docker/check', {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async listContainers(sessionId: string, params: DockerContainerListParams = {}) {
+  async listContainers(connectionId: string, params: DockerContainerListParams = {}) {
     const response = await http.get<PagedResponse<DockerContainer, DockerContainerSummary>>('/api/docker/containers', {
-      params: { ...params, sessionId },
+      params: { ...params, connectionId },
     })
     return response.data
   },
 
-  async listImages(sessionId: string, params: DockerImageListParams = {}) {
+  async listImages(connectionId: string, params: DockerImageListParams = {}) {
     const response = await http.get<PagedResponse<DockerImage, DockerImageSummary>>('/api/docker/images', {
-      params: { ...params, sessionId },
+      params: { ...params, connectionId },
     })
     return response.data
   },
 
-  async startContainer(sessionId: string, id: string) {
+  async startContainer(connectionId: string, id: string) {
     const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/start`, null, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async stopContainer(sessionId: string, id: string) {
+  async stopContainer(connectionId: string, id: string) {
     const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/stop`, null, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async restartContainer(sessionId: string, id: string) {
+  async restartContainer(connectionId: string, id: string) {
     const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/restart`, null, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async pauseContainer(sessionId: string, id: string) {
+  async pauseContainer(connectionId: string, id: string) {
     const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/pause`, null, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async unpauseContainer(sessionId: string, id: string) {
+  async unpauseContainer(connectionId: string, id: string) {
     const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/unpause`, null, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async renameContainer(sessionId: string, id: string, newName: string) {
+  async renameContainer(connectionId: string, id: string, newName: string) {
     const response = await http.post<{ success: boolean }>(
       `/api/docker/containers/${id}/rename`,
       { newName },
-      { params: { sessionId } },
+      { params: { connectionId } },
     )
     return response.data
   },
 
-  async recreateContainer(sessionId: string, id: string) {
+  async recreateContainer(connectionId: string, id: string) {
     const response = await http.post<{ oldContainerId: string; newContainerId: string; name: string; started: boolean }>(
       `/api/docker/containers/${id}/recreate`,
       null,
-      { params: { sessionId } },
+      { params: { connectionId } },
     )
     return response.data
   },
 
-  async removeContainer(sessionId: string, id: string, force = false) {
+  async removeContainer(connectionId: string, id: string, force = false) {
     const response = await http.delete<{ success: boolean }>(`/api/docker/containers/${id}`, {
-      params: { force, sessionId },
+      params: { connectionId, force },
     })
     return response.data
   },
 
-  async getContainerLogs(sessionId: string, containerId: string, tail = 200) {
+  async getContainerLogs(connectionId: string, containerId: string, tail = 200) {
     const response = await http.get<{ logs: string }>('/api/docker/containers/logs', {
-      params: { containerId, sessionId, tail },
+      params: { connectionId, containerId, tail },
     })
     return response.data
   },
 
   async getContainerLogsAdvanced(
-    sessionId: string,
+    connectionId: string,
     containerId: string,
     options: { tail?: number; timestamps?: boolean } = {},
   ) {
     const response = await http.get<{ logs: string }>('/api/docker/containers/logs', {
       params: {
+        connectionId,
         containerId,
-        sessionId,
         tail: options.tail ?? 200,
         timestamps: options.timestamps ?? false,
       },
@@ -256,107 +256,107 @@ export const dockerApi = {
     return response.data
   },
 
-  async inspectContainer(sessionId: string, containerId: string) {
+  async inspectContainer(connectionId: string, containerId: string) {
     const response = await http.get<DockerContainerInspect>(`/api/docker/containers/${containerId}/inspect`, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async getContainerStats(sessionId: string, containerId: string) {
+  async getContainerStats(connectionId: string, containerId: string) {
     const response = await http.get<DockerContainerStats>(`/api/docker/containers/${containerId}/stats`, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async createContainer(sessionId: string, payload: DockerCreateContainerPayload) {
+  async createContainer(connectionId: string, payload: DockerCreateContainerPayload) {
     const response = await http.post<{ containerId: string; started: boolean }>(
       '/api/docker/containers',
       payload,
-      { params: { sessionId } },
+      { params: { connectionId } },
     )
     return response.data
   },
 
-  async removeImage(sessionId: string, id: string, force = false) {
+  async removeImage(connectionId: string, id: string, force = false) {
     const response = await http.delete<{ success: boolean }>(`/api/docker/images/${id}`, {
-      params: { force, sessionId },
+      params: { connectionId, force },
     })
     return response.data
   },
 
-  async pullImage(sessionId: string, image: string) {
+  async pullImage(connectionId: string, image: string) {
     const response = await http.post<{ success: boolean; output: string }>(
       '/api/docker/images/pull',
       { image },
-      { params: { sessionId } },
+      { params: { connectionId } },
     )
     return response.data
   },
 
-  async tagImage(sessionId: string, sourceImage: string, targetImage: string) {
+  async tagImage(connectionId: string, sourceImage: string, targetImage: string) {
     const response = await http.post<{ success: boolean }>(
       '/api/docker/images/tag',
       { sourceImage, targetImage },
-      { params: { sessionId } },
+      { params: { connectionId } },
     )
     return response.data
   },
 
-  async getImageHistory(sessionId: string, imageId: string) {
+  async getImageHistory(connectionId: string, imageId: string) {
     const response = await http.get<DockerImageHistoryItem[]>(`/api/docker/images/${imageId}/history`, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async getImageContainers(sessionId: string, imageId: string) {
+  async getImageContainers(connectionId: string, imageId: string) {
     const response = await http.get<DockerImageContainerRef[]>(`/api/docker/images/${imageId}/containers`, {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async batchStartContainers(sessionId: string, containerIds: string[]) {
+  async batchStartContainers(connectionId: string, containerIds: string[]) {
     const response = await http.post<{ success: boolean; processed: number }>(
       '/api/docker/containers/batch-start',
       { containerIds },
-      { params: { sessionId } },
+      { params: { connectionId } },
     )
     return response.data
   },
 
-  async batchStopContainers(sessionId: string, containerIds: string[]) {
+  async batchStopContainers(connectionId: string, containerIds: string[]) {
     const response = await http.post<{ success: boolean; processed: number }>(
       '/api/docker/containers/batch-stop',
       { containerIds },
-      { params: { sessionId } },
+      { params: { connectionId } },
     )
     return response.data
   },
 
-  async removeStoppedContainers(sessionId: string) {
+  async removeStoppedContainers(connectionId: string) {
     const response = await http.delete<{ success: boolean; removedCount: number }>('/api/docker/containers/stopped', {
-      params: { sessionId },
+      params: { connectionId },
     })
     return response.data
   },
 
-  async pruneImages(sessionId: string, includeUnused = false) {
+  async pruneImages(connectionId: string, includeUnused = false) {
     const response = await http.post<{ success: boolean; output: string }>(
       '/api/docker/images/prune',
       { includeUnused },
-      { params: { sessionId } },
+      { params: { connectionId } },
     )
     return response.data
   },
 
-  async getContainerDiagnostics(sessionId: string, containerIds: string[]) {
+  async getContainerDiagnostics(connectionId: string, containerIds: string[]) {
     const response = await http.post<DockerContainerDiagnostic[]>(
       '/api/docker/containers/diagnostics',
       { containerIds },
-      { params: { sessionId } },
+      { params: { connectionId } },
     )
     return response.data
   },

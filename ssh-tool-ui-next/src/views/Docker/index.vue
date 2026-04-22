@@ -111,10 +111,10 @@ const renameVisible = ref(false)
 const renamingContainer = ref(false)
 const renamingContainerId = ref('')
 const renamingContainerName = ref('')
-const sessionId = ref<string | null>(null)
 let logsRefreshTimer: number | null = null
 
 const dockerPageSizes = [8, 16, 32, 50]
+const activeConnectionId = computed(() => props.connectionId ?? sshStore.connectionId)
 const runningContainers = computed(() => containerSummary.value.running)
 const stoppedContainers = computed(() => containerSummary.value.stopped)
 const danglingImages = computed(() => imageSummary.value.dangling)
@@ -366,42 +366,13 @@ const imageHistoryColumns: DataTableColumns<DockerImageHistoryItem> = [
   { title: '备注', key: 'comment', width: 260 },
 ]
 
-function requireSession() {
-  if (!sessionId.value) {
-    throw new Error('当前没有可用的 Docker 会话。')
-  }
-
-  return sessionId.value
-}
-
-async function initSession() {
-  if (sessionId.value) {
-    return
-  }
-
-  const connectionId = props.connectionId ?? sshStore.connectionId
-
+function requireConnectionId() {
+  const connectionId = activeConnectionId.value
   if (!connectionId) {
-    return
+    throw new Error('当前没有可用的 Docker 连接。')
   }
 
-  const response = await dockerApi.createSession(connectionId)
-  sessionId.value = response.sessionId
-}
-
-async function disposeSession() {
-  const currentSessionId = sessionId.value
-  if (!currentSessionId) {
-    return
-  }
-
-  sessionId.value = null
-
-  try {
-    await dockerApi.deleteSession(currentSessionId)
-  } catch (error) {
-    console.error('Failed to delete docker session', error)
-  }
+  return connectionId
 }
 
 function formatTime(value?: string) {
@@ -470,8 +441,8 @@ async function refreshLogs(silent = false) {
       logsLoading.value = true
     }
 
-    const sessionId = requireSession()
-    const result = await dockerApi.getContainerLogsAdvanced(sessionId, logsContainerId.value, {
+    const connectionId = requireConnectionId()
+    const result = await dockerApi.getContainerLogsAdvanced(connectionId, logsContainerId.value, {
       tail: logsTail.value,
       timestamps: true,
     })
@@ -501,8 +472,8 @@ function resetDockerLists() {
 }
 
 async function loadContainersPage(page = containerPage.value, pageSize = containerPageSize.value) {
-  const sessionId = requireSession()
-  const result = await dockerApi.listContainers(sessionId, {
+  const connectionId = requireConnectionId()
+  const result = await dockerApi.listContainers(connectionId, {
     page,
     pageSize,
     status: containerStatusFilter.value,
@@ -523,8 +494,8 @@ async function loadContainersPage(page = containerPage.value, pageSize = contain
 }
 
 async function loadImagesPage(page = imagePage.value, pageSize = imagePageSize.value) {
-  const sessionId = requireSession()
-  const result = await dockerApi.listImages(sessionId, { page, pageSize })
+  const connectionId = requireConnectionId()
+  const result = await dockerApi.listImages(connectionId, { page, pageSize })
 
   images.value = result.items
   imagePage.value = result.page
@@ -539,7 +510,6 @@ async function loadImagesPage(page = imagePage.value, pageSize = imagePageSize.v
 async function loadDockerSection(action: () => Promise<void>, fallbackMessage: string) {
   loading.value = true
   try {
-    await initSession()
     await action()
   } catch (error) {
     console.error(fallbackMessage, error)
@@ -569,11 +539,11 @@ async function refreshContainerStats() {
   }
 
   try {
-    const sessionId = requireSession()
+    const connectionId = requireConnectionId()
     const nextEntries = await Promise.all(
       containers.value.map(async (container) => {
         try {
-          const stats = await dockerApi.getContainerStats(sessionId, container.id)
+          const stats = await dockerApi.getContainerStats(connectionId, container.id)
           return [container.id, stats] as const
         } catch {
           return null
@@ -594,9 +564,9 @@ async function refreshContainerDiagnostics() {
   }
 
   try {
-    const sessionId = requireSession()
+    const connectionId = requireConnectionId()
     const diagnostics = await dockerApi.getContainerDiagnostics(
-      sessionId,
+      connectionId,
       containers.value.map((container) => container.id),
     )
     diagnosticsMap.value = Object.fromEntries(diagnostics.map((item) => [item.containerId, item]))
@@ -609,9 +579,8 @@ async function loadDockerState() {
   loading.value = true
 
   try {
-    await initSession()
-    const sessionId = requireSession()
-    const result = await dockerApi.checkDocker(sessionId)
+    const connectionId = requireConnectionId()
+    const result = await dockerApi.checkDocker(connectionId)
     dockerAvailable.value = result.available
 
     if (!result.available) {
@@ -655,25 +624,25 @@ async function handleContainerAction(
   action: 'start' | 'stop' | 'restart' | 'remove',
 ) {
   try {
-    const sessionId = requireSession()
+    const connectionId = requireConnectionId()
 
     if (action === 'start') {
-      await dockerApi.startContainer(sessionId, container.id)
+      await dockerApi.startContainer(connectionId, container.id)
       getUiApi().message.success(`已启动容器 ${container.name}。`)
     }
 
     if (action === 'stop') {
-      await dockerApi.stopContainer(sessionId, container.id)
+      await dockerApi.stopContainer(connectionId, container.id)
       getUiApi().message.success(`已停止容器 ${container.name}。`)
     }
 
     if (action === 'restart') {
-      await dockerApi.restartContainer(sessionId, container.id)
+      await dockerApi.restartContainer(connectionId, container.id)
       getUiApi().message.success(`已重启容器 ${container.name}。`)
     }
 
     if (action === 'remove') {
-      await dockerApi.removeContainer(sessionId, container.id, true)
+      await dockerApi.removeContainer(connectionId, container.id, true)
       getUiApi().message.success(`已删除容器 ${container.name}。`)
     }
 
@@ -686,15 +655,15 @@ async function handleContainerAction(
 
 async function handleContainerAdvancedAction(container: DockerContainer, action: 'pause' | 'unpause') {
   try {
-    const sessionId = requireSession()
+    const connectionId = requireConnectionId()
 
     if (action === 'pause') {
-      await dockerApi.pauseContainer(sessionId, container.id)
+      await dockerApi.pauseContainer(connectionId, container.id)
       getUiApi().message.success(`已暂停容器 ${container.name}。`)
     }
 
     if (action === 'unpause') {
-      await dockerApi.unpauseContainer(sessionId, container.id)
+      await dockerApi.unpauseContainer(connectionId, container.id)
       getUiApi().message.success(`已恢复容器 ${container.name}。`)
     }
 
@@ -755,8 +724,8 @@ async function viewInspect(container: DockerContainer) {
   inspectContent.value = null
 
   try {
-    const sessionId = requireSession()
-    inspectContent.value = await dockerApi.inspectContainer(sessionId, container.id)
+    const connectionId = requireConnectionId()
+    inspectContent.value = await dockerApi.inspectContainer(connectionId, container.id)
   } catch (error) {
     console.error('Failed to inspect container', error)
     getUiApi().message.error(error instanceof Error ? error.message : 'Inspect 加载失败。')
@@ -772,10 +741,10 @@ async function enterShell(container: DockerContainer) {
   }
 
   try {
-    const connectionId = props.connectionId ?? sshStore.connectionId
+    const connectionId = requireConnectionId()
 
     desktopStore.openWindow('terminal', {
-      connectionId: connectionId ?? undefined,
+      connectionId,
       host: props.host ?? sshStore.host,
       startupCommand: `docker exec -it ${container.id} bash || docker exec -it ${container.id} sh`,
       title: `Shell · ${container.name}`,
@@ -801,8 +770,8 @@ async function submitRenameContainer() {
 
   renamingContainer.value = true
   try {
-    const sessionId = requireSession()
-    await dockerApi.renameContainer(sessionId, renamingContainerId.value, renamingContainerName.value.trim())
+    const connectionId = requireConnectionId()
+    await dockerApi.renameContainer(connectionId, renamingContainerId.value, renamingContainerName.value.trim())
     renameVisible.value = false
     getUiApi().message.success('容器重命名成功。')
     await loadDockerState()
@@ -816,8 +785,8 @@ async function submitRenameContainer() {
 
 async function recreateContainer(container: DockerContainer) {
   try {
-    const sessionId = requireSession()
-    const result = await dockerApi.recreateContainer(sessionId, container.id)
+    const connectionId = requireConnectionId()
+    const result = await dockerApi.recreateContainer(connectionId, container.id)
     getUiApi().message.success(`容器 ${result.name} 重建完成。`)
     await loadDockerState()
   } catch (error) {
@@ -828,8 +797,8 @@ async function recreateContainer(container: DockerContainer) {
 
 async function removeImage(image: DockerImage) {
   try {
-    const sessionId = requireSession()
-    await dockerApi.removeImage(sessionId, image.id, true)
+    const connectionId = requireConnectionId()
+    await dockerApi.removeImage(connectionId, image.id, true)
     getUiApi().message.success(`已删除镜像 ${image.repository}:${image.tag}。`)
     await loadDockerState()
   } catch (error) {
@@ -852,8 +821,8 @@ async function submitTagImage() {
 
   imageTagging.value = true
   try {
-    const sessionId = requireSession()
-    await dockerApi.tagImage(sessionId, imageTagSource.value.trim(), imageTagTarget.value.trim())
+    const connectionId = requireConnectionId()
+    await dockerApi.tagImage(connectionId, imageTagSource.value.trim(), imageTagTarget.value.trim())
     imageTagVisible.value = false
     getUiApi().message.success('镜像重新打标签成功。')
     await loadDockerState()
@@ -872,8 +841,8 @@ async function viewImageHistory(image: DockerImage) {
   imageHistoryItems.value = []
 
   try {
-    const sessionId = requireSession()
-    imageHistoryItems.value = await dockerApi.getImageHistory(sessionId, image.id)
+    const connectionId = requireConnectionId()
+    imageHistoryItems.value = await dockerApi.getImageHistory(connectionId, image.id)
   } catch (error) {
     console.error('Failed to load image history', error)
     getUiApi().message.error(error instanceof Error ? error.message : '获取镜像历史失败。')
@@ -889,8 +858,8 @@ async function viewImageRefs(image: DockerImage) {
   imageRefsItems.value = []
 
   try {
-    const sessionId = requireSession()
-    imageRefsItems.value = await dockerApi.getImageContainers(sessionId, image.id)
+    const connectionId = requireConnectionId()
+    imageRefsItems.value = await dockerApi.getImageContainers(connectionId, image.id)
   } catch (error) {
     console.error('Failed to load image refs', error)
     getUiApi().message.error(error instanceof Error ? error.message : '获取镜像引用容器失败。')
@@ -911,7 +880,7 @@ function confirmRemoveImage(image: DockerImage) {
 function confirmRemoveStoppedContainers() {
   confirmDangerAction({
     title: '清理已停止容器',
-    content: '确认删除当前会话中所有已停止的容器？该操作不可撤销。',
+    content: '确认删除当前连接中所有已停止的容器？该操作不可撤销。',
     positiveText: '清理',
     action: () => removeStoppedContainers(),
   })
@@ -921,8 +890,8 @@ function confirmPruneImages(includeUnused: boolean) {
   confirmDangerAction({
     title: includeUnused ? '清理无引用镜像' : '清理悬空镜像',
     content: includeUnused
-      ? '确认清理当前会话中所有未被容器引用的镜像？该操作可能影响后续快速启动。'
-      : '确认清理当前会话中的所有 dangling 镜像？该操作不可撤销。',
+      ? '确认清理当前连接中所有未被容器引用的镜像？该操作可能影响后续快速启动。'
+      : '确认清理当前连接中的所有 dangling 镜像？该操作不可撤销。',
     positiveText: '清理',
     action: () => pruneImages(includeUnused),
   })
@@ -935,8 +904,8 @@ async function pullImage() {
 
   pullingImage.value = true
   try {
-    const sessionId = requireSession()
-    await dockerApi.pullImage(sessionId, pullImageName.value.trim())
+    const connectionId = requireConnectionId()
+    await dockerApi.pullImage(connectionId, pullImageName.value.trim())
     getUiApi().message.success(`已开始拉取镜像 ${pullImageName.value.trim()}。`)
     pullImageName.value = ''
     await loadDockerState()
@@ -971,7 +940,7 @@ async function submitCreateContainer() {
 
   creatingContainer.value = true
   try {
-    const sessionId = requireSession()
+    const connectionId = requireConnectionId()
     const payload: DockerCreateContainerPayload = {
       image: createForm.value.image.trim(),
       name: createForm.value.name?.trim() || undefined,
@@ -984,7 +953,7 @@ async function submitCreateContainer() {
       start: createForm.value.start === true,
     }
 
-    const result = await dockerApi.createContainer(sessionId, payload)
+    const result = await dockerApi.createContainer(connectionId, payload)
     createVisible.value = false
     getUiApi().message.success(`容器创建成功：${result.containerId.slice(0, 12)}`)
     await loadDockerState()
@@ -1004,8 +973,8 @@ async function batchStartSelected() {
 
   batchProcessing.value = true
   try {
-    const sessionId = requireSession()
-    const result = await dockerApi.batchStartContainers(sessionId, selectedStoppedIds.value)
+    const connectionId = requireConnectionId()
+    const result = await dockerApi.batchStartContainers(connectionId, selectedStoppedIds.value)
     getUiApi().message.success(`批量启动完成，共处理 ${result.processed} 个容器。`)
     await loadDockerState()
   } catch (error) {
@@ -1024,8 +993,8 @@ async function batchStopSelected() {
 
   batchProcessing.value = true
   try {
-    const sessionId = requireSession()
-    const result = await dockerApi.batchStopContainers(sessionId, selectedRunningIds.value)
+    const connectionId = requireConnectionId()
+    const result = await dockerApi.batchStopContainers(connectionId, selectedRunningIds.value)
     getUiApi().message.success(`批量停止完成，共处理 ${result.processed} 个容器。`)
     await loadDockerState()
   } catch (error) {
@@ -1038,8 +1007,8 @@ async function batchStopSelected() {
 
 async function removeStoppedContainers() {
   try {
-    const sessionId = requireSession()
-    const result = await dockerApi.removeStoppedContainers(sessionId)
+    const connectionId = requireConnectionId()
+    const result = await dockerApi.removeStoppedContainers(connectionId)
     getUiApi().message.success(`已删除 ${result.removedCount} 个已停止容器。`)
     await loadDockerState()
   } catch (error) {
@@ -1050,8 +1019,8 @@ async function removeStoppedContainers() {
 
 async function pruneImages(includeUnused: boolean) {
   try {
-    const sessionId = requireSession()
-    await dockerApi.pruneImages(sessionId, includeUnused)
+    const connectionId = requireConnectionId()
+    await dockerApi.pruneImages(connectionId, includeUnused)
     getUiApi().message.success(includeUnused ? '无引用镜像清理完成。' : 'Dangling 镜像清理完成。')
     await loadDockerState()
   } catch (error) {
@@ -1069,8 +1038,6 @@ onBeforeUnmount(() => {
     clearInterval(logsRefreshTimer)
     logsRefreshTimer = null
   }
-
-  void disposeSession()
 })
 
 watch([logsVisible, logsAutoRefresh], () => {
@@ -1153,7 +1120,7 @@ watch(logsTail, async (value, previous) => {
         v-if="dockerAvailable === false"
         status="warning"
         title="当前环境不可用"
-        description="该服务器未安装 Docker，或当前会话无法访问 Docker 服务。"
+        description="该服务器未安装 Docker，或当前连接无法访问 Docker 服务。"
       />
 
       <NTabs v-else v-model:value="activeTab" type="segment" animated class="docker-tabs">

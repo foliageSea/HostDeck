@@ -11,8 +11,8 @@ interface MediaPlaylistItem {
 }
 
 const props = defineProps<{
+  connectionId: string
   path: string
-  sessionId: string
   playlist?: MediaPlaylistItem[]
 }>()
 
@@ -56,7 +56,7 @@ const mediaType = computed<'image' | 'video' | 'unknown'>(() => {
 })
 
 const fileUrl = computed(
-  () => `/api/files/read?sessionId=${props.sessionId}&path=${encodeURIComponent(activePath.value)}`,
+  () => `/api/files/read?connectionId=${props.connectionId}&path=${encodeURIComponent(activePath.value)}`,
 )
 
 function changeFile(index: number) {
