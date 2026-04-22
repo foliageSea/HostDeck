@@ -248,7 +248,7 @@ function disconnect() {
         @update:show="handleTaskCenterVisibilityChange">
         <template #trigger>
           <NBadge :value="uploadCenterStore.activeTaskCount" :show="hasUnreadUploads" :max="99" processing>
-            <NButton quaternary circle title="任务中心">
+            <NButton quaternary circle>
               <template #icon>
                 <NIcon :size="16">
                   <Notification />
@@ -388,14 +388,14 @@ function disconnect() {
         </div>
       </NPopover>
 
-      <NButton quaternary circle title="断开连接" @click="disconnect">
+      <NButton quaternary circle @click="disconnect">
         <template #icon>
           <NIcon :size="16">
             <Logout />
           </NIcon>
         </template>
       </NButton>
-      <NButton quaternary circle :title="settingsStore.isDark ? '切换浅色模式' : '切换深色模式'" @click="settingsStore.toggleTheme">
+      <NButton quaternary circle @click="settingsStore.toggleTheme">
         <template #icon>
           <NIcon :size="16">
             <component :is="settingsStore.isDark ? Sun : Moon" />

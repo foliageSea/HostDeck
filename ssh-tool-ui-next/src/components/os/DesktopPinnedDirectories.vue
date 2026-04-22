@@ -560,7 +560,6 @@ onUnmounted(() => {
           left: `${directory.x}px`,
           top: `${directory.y}px`,
         }"
-        :title="directory.label"
         @click.stop="handleDirectoryClick(directory.path, $event)"
         @contextmenu.stop="handleDirectoryContextMenu(directory.path, $event)"
         @dblclick.stop="openDirectory(directory.path)"

@@ -149,12 +149,11 @@ onUnmounted(() => {
       @dblclick="maximizeWindow"
     >
       <div class="flex items-center gap-[8px]" @mousedown.stop>
-        <button class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#ff5f57] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer" type="button" title="关闭" @click="closeWindow" />
-        <button class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#febc2e] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer" type="button" title="最小化" @click="minimizeWindow" />
+        <button class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#ff5f57] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer" type="button" @click="closeWindow" />
+        <button class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#febc2e] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer" type="button" @click="minimizeWindow" />
         <button
           class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#28c840] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer"
           type="button"
-          :title="window.isMaximized ? '还原' : '最大化'"
           @click="maximizeWindow"
         />
       </div>
