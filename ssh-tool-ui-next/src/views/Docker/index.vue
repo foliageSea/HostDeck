@@ -1173,8 +1173,11 @@ watch(logsTail, async (value, previous) => {
                 <NButton quaternary @click="confirmRemoveStoppedContainers">清理已停止</NButton>
                 <NButton quaternary @click="confirmPruneImages(false)">清理悬空镜像</NButton>
                 <NButton quaternary @click="confirmPruneImages(true)">清理无引用镜像</NButton>
-                <NTag round size="small">已选 {{ selectedContainerIds.length }}</NTag>
-                <NTag round size="small">显示 {{ containerTotal }} / {{ containerSummary.total }}</NTag>
+                <div class="mt-1 flex gap-1">
+                  <NTag round size="small">已选 {{ selectedContainerIds.length }}</NTag>
+                  <NTag round size="small">显示 {{ containerTotal }} / {{ containerSummary.total }}</NTag>
+                </div>
+
               </NSpace>
             </div>
 
