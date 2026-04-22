@@ -30,6 +30,14 @@ const filename = computed(() => props.path.split('/').pop() || props.path)
 
 const language = computed(() => detectLanguage(props.path))
 
+const editorTheme = computed(() => (settingsStore.isDark ? 'vs-dark' : 'vs'))
+
+const surfaceClass = computed(() => (
+  settingsStore.isDark
+    ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(2,6,23,0.46)]'
+    : 'border-[rgba(148,163,184,0.2)] bg-[rgba(255,255,255,0.74)]'
+))
+
 function detectLanguage(path: string) {
   const lowerPath = path.toLowerCase()
 
@@ -160,7 +168,7 @@ async function initEditor() {
     scrollBeyondLastLine: false,
     wordWrap: 'off',
     tabSize: 2,
-    theme: 'vs-dark',
+    theme: editorTheme.value,
   })
 
   syncDisposable = editor.onDidChangeModelContent(() => {
@@ -244,32 +252,54 @@ watch(showSettings, (value) => {
     editorFontFamilyDraft.value = settingsStore.editorFontFamily
   }
 })
+
+watch(
+  () => settingsStore.isDark,
+  () => {
+    monaco.editor.setTheme(editorTheme.value)
+  },
+)
 </script>
 
 <template>
-  <div class="flex h-full flex-col bg-[rgba(15,23,42,0.2)]">
-    <div class="flex items-center justify-between gap-[12px] border-b border-[rgba(148,163,184,0.14)] px-[14px] py-[12px]">
+  <div
+    class="text-editor-view relative flex h-full flex-col gap-[12px] overflow-hidden p-[12px]"
+    :class="settingsStore.isDark ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.18),rgba(15,23,42,0.06))]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(226,232,240,0.36))]'"
+  >
+    <div
+      class="relative z-[1] flex shrink-0 items-center justify-between gap-[12px] rounded-[18px] border px-[14px] py-[12px] shadow-[0_14px_36px_rgba(15,23,42,0.12)] backdrop-blur-[12px]"
+      :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-transparent text-[#e2e8f0]' : 'border-[rgba(148,163,184,0.2)] bg-transparent text-[#1e293b]'"
+    >
       <div class="flex min-w-0 flex-col gap-[4px]">
         <strong>{{ filename }}</strong>
-        <span class="truncate-line text-[12px] text-[rgba(148,163,184,0.9)]">{{ props.path }}</span>
+        <span
+          class="truncate-line text-[12px]"
+          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(71,85,105,0.88)]'"
+        >{{ props.path }}</span>
       </div>
 
       <NSpace>
-        <NButton @click="showSettings = true">设置</NButton>
-        <NButton @click="loadFile">重新加载</NButton>
-        <NButton type="primary" :loading="saving" @click="saveFile">保存</NButton>
-        <NButton quaternary @click="closeWindow">关闭</NButton>
+        <NButton round @click="showSettings = true">设置</NButton>
+        <NButton round @click="loadFile">重新加载</NButton>
+        <NButton round type="primary" :loading="saving" @click="saveFile">保存</NButton>
+        <NButton round quaternary @click="closeWindow">关闭</NButton>
       </NSpace>
     </div>
 
-    <NSpin :show="loading" class="editor-body flex-1 min-h-0 p-[12px]">
+    <NSpin :show="loading" class="editor-body relative z-[1] flex-1 min-h-0">
       <NResult v-if="error" status="error" title="无法读取文件" :description="error">
         <template #footer>
-          <NButton @click="loadFile">重试</NButton>
+          <NButton round @click="loadFile">重试</NButton>
         </template>
       </NResult>
 
-      <div v-else ref="editorContainer" class="h-full min-h-0 overflow-hidden" />
+      <div
+        v-else
+        class="editor-surface h-full min-h-0 overflow-hidden rounded-[18px] border shadow-[0_20px_48px_rgba(15,23,42,0.16)]"
+        :class="surfaceClass"
+      >
+        <div ref="editorContainer" class="h-full min-h-0 overflow-hidden rounded-[inherit]" />
+      </div>
     </NSpin>
 
     <NModal
@@ -306,8 +336,8 @@ watch(showSettings, (value) => {
         </div>
 
         <NSpace justify="end">
-          <NButton @click="resetEditorSettings">恢复默认</NButton>
-          <NButton type="primary" @click="applyEditorSettings">完成</NButton>
+          <NButton round @click="resetEditorSettings">恢复默认</NButton>
+          <NButton round type="primary" @click="applyEditorSettings">完成</NButton>
         </NSpace>
       </NSpace>
     </NModal>
@@ -315,9 +345,32 @@ watch(showSettings, (value) => {
 </template>
 
 <style scoped>
+.text-editor-view::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% 16%, rgba(59, 130, 246, 0.14), transparent 26%),
+    radial-gradient(circle at 86% 12%, rgba(168, 85, 247, 0.1), transparent 20%);
+}
+
 .editor-body :deep(.n-spin-body),
 .editor-body :deep(.n-spin-content) {
   height: 100%;
   min-height: 0;
+}
+
+.editor-body :deep(.n-spin-content) {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-body :deep(.n-result) {
+  margin: auto;
+}
+
+.editor-surface {
+  backdrop-filter: blur(18px);
 }
 </style>
