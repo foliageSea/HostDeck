@@ -100,7 +100,16 @@ async function copySelection() {
       <NButton quaternary size="small" @click="showSettings = true">终端设置</NButton>
     </div>
 
-    <div ref="terminalContainer" class="min-h-0 flex-1 pl-2 pr-2" />
+    <div
+      class="terminal-surface min-h-0 flex-1 overflow-hidden rounded-[18px] border mx-[12px] mb-[12px] mt-[10px]"
+      :class="[
+        settingsStore.isDark
+          ? 'border-[rgba(148,163,184,0.14)] bg-[#050816] shadow-[0_20px_48px_rgba(2,6,23,0.32)]'
+          : 'border-[rgba(148,163,184,0.18)] bg-[#0f172a] shadow-[0_18px_42px_rgba(15,23,42,0.14)]',
+      ]"
+    >
+      <div ref="terminalContainer" class="terminal-host h-full min-h-0 overflow-hidden rounded-[inherit] px-2" />
+    </div>
 
     <Teleport to="body">
       <div v-if="showCopyButton" class="fixed z-[9999] translate-x-[-50%] translate-y-[calc(-100%_-_8px)]"
@@ -112,3 +121,15 @@ async function copySelection() {
     <TerminalSettingsModal v-model:show="showSettings" />
   </div>
 </template>
+
+<style scoped>
+.terminal-host :deep(.xterm),
+.terminal-host :deep(.xterm-viewport),
+.terminal-host :deep(.xterm-screen) {
+  border-radius: inherit;
+}
+
+.terminal-host :deep(.xterm-viewport) {
+  overflow: auto;
+}
+</style>
