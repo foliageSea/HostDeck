@@ -1,0 +1,27 @@
+<script setup lang="ts">
+import type { DockerViewController } from '../hooks/useDockerView'
+
+defineProps<{
+  controller: DockerViewController
+}>()
+</script>
+
+<template>
+  <NModal v-model:show="controller.logsVisible" preset="card" :title="controller.logsTitle" class="logs-modal" style="width: min(960px, 92vw)">
+    <div class="mb-[12px] flex flex-wrap items-center gap-[10px]">
+      <NInputNumber v-model:value="controller.logsTail" :min="20" :max="5000" :step="20" placeholder="Tail" />
+      <NInput v-model:value="controller.logsKeyword" placeholder="过滤日志关键字" clearable />
+      <NSwitch v-model:value="controller.logsAutoRefresh" />
+      <span class="text-[12px] text-[rgba(226,232,240,0.68)]">自动刷新</span>
+      <span class="text-[12px] text-[rgba(226,232,240,0.68)]">更新于 {{ controller.formatDateTime(controller.logsLastUpdatedAt) }}</span>
+      <NSpace>
+        <NButton quaternary :loading="controller.logsRefreshing" @click="controller.refreshLogs()">刷新日志</NButton>
+        <NButton quaternary @click="controller.copyLogs">复制</NButton>
+        <NButton quaternary @click="controller.downloadLogs">下载</NButton>
+      </NSpace>
+    </div>
+    <NSpin :show="controller.logsLoading">
+      <pre class="docker-console mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] bg-[rgba(2,6,23,0.9)] p-[14px] text-[12px] leading-[1.6] text-[#dbeafe] app-scrollbar app-scrollbar-dark">{{ controller.displayedLogs }}</pre>
+    </NSpin>
+  </NModal>
+</template>
