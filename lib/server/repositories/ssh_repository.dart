@@ -6,6 +6,33 @@ import '../models/ssh_session.dart';
 import '../models/file_item.dart';
 
 class SshRepository {
+  String _shellQuote(String value) {
+    return "'${value.replaceAll("'", "'\\''")}'";
+  }
+
+  Future<void> _runCheckedShellCommand(
+    SshSession session,
+    String command,
+  ) async {
+    final result = await session.client.runWithResult(
+      'sh -lc ${_shellQuote(command)}',
+    );
+    final stdout = utf8.decode(result.stdout).trim();
+    final stderr = utf8.decode(result.stderr).trim();
+    final output = [
+      stderr,
+      stdout,
+    ].where((value) => value.isNotEmpty).join('\n');
+
+    if (result.exitCode != null && result.exitCode != 0) {
+      throw Exception(
+        output.isNotEmpty
+            ? output
+            : 'Command failed with exit code ${result.exitCode}.',
+      );
+    }
+  }
+
   Future<String> exec(SshSession session, String command) async {
     final result = await execBytes(session, command);
     return utf8.decode(result);
@@ -107,10 +134,40 @@ class SshRepository {
 
   Future<void> copy(SshSession session, String source, String target) async {
     // 使用 cp -r 命令进行复制，这比 SFTP 读写更高效
-    // 需要对路径进行转义以防止注入，但在 dartssh2 中 run 只是简单的字符串
-    // 简单的转义：用单引号包围
-    final cmd = 'cp -r "$source" "$target"';
+    final cmd = 'cp -r ${_shellQuote(source)} ${_shellQuote(target)}';
     await session.client.run(cmd);
+  }
+
+  Future<void> extract(
+    SshSession session,
+    String archivePath,
+    String targetPath,
+  ) async {
+    final lowerPath = archivePath.toLowerCase();
+    final safeArchivePath = _shellQuote(archivePath);
+    final safeTargetPath = _shellQuote(targetPath);
+
+    late final String extractCommand;
+    if (lowerPath.endsWith('.zip')) {
+      extractCommand =
+          'mkdir -p $safeTargetPath && unzip -oq $safeArchivePath -d $safeTargetPath';
+    } else if (lowerPath.endsWith('.tar.gz') || lowerPath.endsWith('.tgz')) {
+      extractCommand =
+          'mkdir -p $safeTargetPath && tar -xzf $safeArchivePath -C $safeTargetPath';
+    } else if (lowerPath.endsWith('.tar.bz2') || lowerPath.endsWith('.tbz2')) {
+      extractCommand =
+          'mkdir -p $safeTargetPath && tar -xjf $safeArchivePath -C $safeTargetPath';
+    } else if (lowerPath.endsWith('.tar.xz') || lowerPath.endsWith('.txz')) {
+      extractCommand =
+          'mkdir -p $safeTargetPath && tar -xJf $safeArchivePath -C $safeTargetPath';
+    } else if (lowerPath.endsWith('.tar')) {
+      extractCommand =
+          'mkdir -p $safeTargetPath && tar -xf $safeArchivePath -C $safeTargetPath';
+    } else {
+      throw UnsupportedError('暂不支持该压缩格式。');
+    }
+
+    await _runCheckedShellCommand(session, extractCommand);
   }
 
   Future<Stream<Uint8List>> downloadBatch(
@@ -118,7 +175,7 @@ class SshRepository {
     List<String> paths,
   ) async {
     // 使用 tar -czf - ...paths 命令打包并输出到 stdout
-    final quotedPaths = paths.map((p) => '"$p"').join(' ');
+    final quotedPaths = paths.map(_shellQuote).join(' ');
     // 注意：这里假设路径是相对于当前工作目录或绝对路径。
     // 如果是绝对路径，tar 可能会报错 "removing leading /"。
     // 最好先 cd 到父目录，然后 tar 子项。这里为简化，直接 tar 绝对路径（通常 tar 会自动处理）
@@ -134,8 +191,7 @@ class SshRepository {
     // SFTP rmdir 在目录非空时会失败 (code 4)
     // 使用 rm -rf 命令通过 SSH 执行进行递归删除，更可靠且支持非空目录
     // 使用单引号包裹路径以避免 Shell 扩展，并转义路径中已有的单引号
-    final safePath = path.replaceAll("'", "'\\''");
-    final cmd = "rm -rf '$safePath'";
+    final cmd = 'rm -rf ${_shellQuote(path)}';
     final result = await session.client.run(cmd);
     if (result.isNotEmpty) {
       final output = utf8.decode(result);

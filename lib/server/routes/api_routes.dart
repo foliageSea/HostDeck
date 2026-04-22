@@ -60,6 +60,7 @@ class ApiRoutes {
     router.post('/api/files/rename', fileController.rename);
     router.post('/api/files/mkdir', fileController.mkdir);
     router.post('/api/files/copy', fileController.copy);
+    router.post('/api/files/extract', fileController.extract);
 
     // Terminal
     router.get('/socket.io', terminalController.handler);

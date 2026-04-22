@@ -248,6 +248,32 @@ class FileController {
     }
   }
 
+  Future<Response> extract(Request request) async {
+    final sessionId = request.url.queryParameters['sessionId'];
+    if (sessionId == null) return Result.fail(400, 'Missing sessionId');
+
+    final session = _sshService.getSession(sessionId);
+    if (session == null) return Result.fail(404, 'Session not found');
+
+    try {
+      final body = await request.readAsString();
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final archivePath = data['archivePath']?.toString().trim() ?? '';
+      final targetPath = data['targetPath']?.toString().trim() ?? '';
+
+      if (archivePath.isEmpty || targetPath.isEmpty) {
+        return Result.fail(400, 'Missing archivePath or targetPath');
+      }
+
+      await _fileService.extract(session, archivePath, targetPath);
+      return Result.ok('Extracted');
+    } on UnsupportedError catch (e) {
+      return Result.fail(400, e.message?.toString() ?? e.toString());
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
   Future<Response> deleteFile(Request request) async {
     final sessionId = request.url.queryParameters['sessionId'];
     final path = request.url.queryParameters['path'];

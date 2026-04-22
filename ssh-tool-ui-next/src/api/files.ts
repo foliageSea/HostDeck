@@ -50,6 +50,13 @@ export const filesApi = {
     return response.data
   },
 
+  extract: async (sessionId: string, archivePath: string, targetPath: string) => {
+    const response = await http.post('/api/files/extract', { archivePath, targetPath }, {
+      params: { sessionId },
+    })
+    return response.data
+  },
+
   delete: async (sessionId: string, path: string) => {
     const response = await http.post('/api/files/delete', {}, {
       params: { path, sessionId },

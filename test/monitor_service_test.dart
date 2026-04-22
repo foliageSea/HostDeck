@@ -69,6 +69,12 @@ Inter-|   Receive                                                |  Transmit
   Future<void> copy(SshSession session, String source, String target) =>
       throw UnimplementedError();
   @override
+  Future<void> extract(
+    SshSession session,
+    String archivePath,
+    String targetPath,
+  ) => throw UnimplementedError();
+  @override
   Future<Stream<Uint8List>> downloadBatch(
     SshSession session,
     List<String> paths,

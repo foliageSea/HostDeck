@@ -67,11 +67,14 @@ const currentPathInput = ref('/')
 const createDialogMode = ref<'directory' | 'file'>('directory')
 const newItemName = ref('')
 const renameValue = ref('')
+const extractTargetName = ref('')
 const editingPath = ref(false)
 const showCreateDialog = ref(false)
 const showRenameDialog = ref(false)
+const showExtractDialog = ref(false)
 const showDeleteDialog = ref(false)
 const deletingFiles = ref(false)
+const extractingArchive = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const contextMenu = ref<{ type: 'file' | 'blank'; x: number; y: number } | null>(null)
 const isFavoriteSidebarVisible = useLocalStorage('ssh-tool:files:favorite-sidebar-visible', true)
@@ -120,11 +123,17 @@ const canOpenSelectedFileInEditor = computed(() => {
   const file = selectedFile.value
   return selectedFiles.value.length === 1 && file !== null && !file.isDirectory
 })
+const archiveExtensions = ['.tar.gz', '.tar.bz2', '.tar.xz', '.tgz', '.tbz2', '.txz', '.tar', '.zip']
+const canExtractSelectedArchive = computed(() => {
+  const file = selectedFile.value
+  return selectedFiles.value.length === 1 && file !== null && !file.isDirectory && getArchiveExtension(file.filename) !== null
+})
 const contextMenuOptions = computed(() => {
   if (contextMenu.value?.type === 'file') {
     const options = [
       { label: '打开', key: 'open', disabled: selectedFiles.value.length !== 1 },
       { label: '使用文本编辑器打开', key: 'open-in-editor', disabled: !canOpenSelectedFileInEditor.value },
+      { label: '解压缩', key: 'extract', disabled: !canExtractSelectedArchive.value },
       { label: '下载', key: 'download', disabled: selectedFiles.value.length === 0 },
       { label: '复制', key: 'copy', disabled: selectedFiles.value.length === 0 },
       { label: '移动', key: 'move', disabled: selectedFiles.value.length === 0 },
@@ -215,6 +224,21 @@ const editableExtensions = new Set([
 
 const imageExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico'])
 const videoExtensions = new Set(['mp4', 'webm', 'ogg', 'mov', 'mkv', 'avi'])
+
+function getArchiveExtension(filename: string) {
+  const lowerName = filename.toLowerCase()
+  return archiveExtensions.find((extension) => lowerName.endsWith(extension)) ?? null
+}
+
+function getExtractDirectoryName(filename: string) {
+  const extension = getArchiveExtension(filename)
+  if (!extension) {
+    return filename
+  }
+
+  const baseName = filename.slice(0, filename.length - extension.length)
+  return baseName || filename
+}
 
 function syncPathInput() {
   currentPathInput.value = fileStore.currentPath
@@ -419,6 +443,11 @@ function handleContextMenuSelect(key: string | number) {
 
   if (key === 'download') {
     void downloadSelectedFiles()
+    return
+  }
+
+  if (key === 'extract') {
+    openExtractDialog()
     return
   }
 
@@ -651,6 +680,45 @@ function openRenameDialog() {
 
   renameValue.value = selectedFile.value.filename
   showRenameDialog.value = true
+}
+
+function openExtractDialog() {
+  if (!canExtractSelectedArchive.value || !selectedFile.value) {
+    return
+  }
+
+  extractTargetName.value = getExtractDirectoryName(selectedFile.value.filename)
+  showExtractDialog.value = true
+}
+
+async function confirmExtract() {
+  if (!fileStore.sessionId || !selectedFile.value || !canExtractSelectedArchive.value || extractingArchive.value) {
+    return
+  }
+
+  const targetName = extractTargetName.value.trim()
+  if (!targetName) {
+    getUiApi().message.error('请输入解压目录名称。')
+    return
+  }
+
+  extractingArchive.value = true
+  try {
+    await filesApi.extract(
+      fileStore.sessionId,
+      resolve(fileStore.currentPath, selectedFile.value.filename),
+      resolve(fileStore.currentPath, targetName),
+    )
+    showExtractDialog.value = false
+    await fileStore.fetchFiles()
+    fileStore.setSelectedNames([targetName])
+    getUiApi().message.success('解压成功。')
+  } catch (error) {
+    console.error('Failed to extract archive', error)
+    getUiApi().message.error(error instanceof Error ? error.message : '解压失败。')
+  } finally {
+    extractingArchive.value = false
+  }
 }
 
 async function confirmRename() {
@@ -1189,6 +1257,7 @@ watch(
             </template>
             上传
           </NButton>
+          <NButton round :disabled="!canExtractSelectedArchive" @click="openExtractDialog">解压缩</NButton>
           <NButton round :disabled="selectedFiles.length !== 1" @click="openRenameDialog">重命名</NButton>
           <NButton round :disabled="selectedFiles.length === 0" type="error" ghost @click="showDeleteDialog = true">删除</NButton>
           <NButton round :disabled="selectedFiles.length === 0" @click="downloadSelectedFiles">
@@ -1232,6 +1301,20 @@ watch(
 
     <FileNameDialog v-model:show="showRenameDialog" title="重命名" :value="renameValue"
       @update:value="(value) => (renameValue = value)" @confirm="confirmRename" />
+
+    <NModal v-model:show="showExtractDialog" preset="card" title="解压缩"
+      style="width: min(480px, calc(100vw - 24px))">
+      <NSpace vertical>
+        <div :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">
+          将 {{ selectedFile?.filename ?? '' }} 解压到当前目录下的新目录。
+        </div>
+        <NInput v-model:value="extractTargetName" placeholder="输入解压目录名称" @keyup.enter="confirmExtract" />
+        <NSpace justify="end">
+          <NButton round :disabled="extractingArchive" @click="showExtractDialog = false">取消</NButton>
+          <NButton round type="primary" :loading="extractingArchive" @click="confirmExtract">解压</NButton>
+        </NSpace>
+      </NSpace>
+    </NModal>
 
     <NModal v-model:show="showDeleteDialog" preset="dialog" title="确认删除" positive-text="删除" negative-text="取消"
       :positive-button-props="{ loading: deletingFiles }"

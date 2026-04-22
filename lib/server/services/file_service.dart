@@ -17,7 +17,11 @@ class FileService {
     return _repository.readFileStream(session, path);
   }
 
-  Future<void> writeFileStream(SshSession session, String path, Stream<List<int>> content) {
+  Future<void> writeFileStream(
+    SshSession session,
+    String path,
+    Stream<List<int>> content,
+  ) {
     return _repository.writeFileStream(session, path, content);
   }
 
@@ -37,7 +41,18 @@ class FileService {
     return _repository.copy(session, source, target);
   }
 
-  Future<Stream<Uint8List>> downloadBatch(SshSession session, List<String> paths) {
+  Future<void> extract(
+    SshSession session,
+    String archivePath,
+    String targetPath,
+  ) {
+    return _repository.extract(session, archivePath, targetPath);
+  }
+
+  Future<Stream<Uint8List>> downloadBatch(
+    SshSession session,
+    List<String> paths,
+  ) {
     return _repository.downloadBatch(session, paths);
   }
 }
