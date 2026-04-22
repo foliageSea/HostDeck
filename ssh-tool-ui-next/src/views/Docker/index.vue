@@ -285,6 +285,39 @@ function renderContainerActions(row: DockerContainer) {
   )
 }
 
+function renderImageActions(row: DockerImage) {
+  return h(
+    NPopover,
+    { trigger: 'click', placement: 'bottom-end' },
+    {
+      trigger: () => h(NButton, { size: 'small', quaternary: true }, { default: () => '查看详情' }),
+      default: () =>
+        h(NSpace, { class: 'container-action-popover', wrap: true, size: 4 }, () => [
+          h(
+            NButton,
+            { size: 'small', quaternary: true, onClick: () => openImageTagDialog(row) },
+            { icon: () => h(NIcon, null, { default: () => h(Edit) }), default: () => 'Tag' },
+          ),
+          h(
+            NButton,
+            { size: 'small', quaternary: true, onClick: () => viewImageHistory(row) },
+            { icon: () => h(NIcon, null, { default: () => h(List) }), default: () => '历史' },
+          ),
+          h(
+            NButton,
+            { size: 'small', quaternary: true, onClick: () => viewImageRefs(row) },
+            { icon: () => h(NIcon, null, { default: () => h(Information) }), default: () => '引用' },
+          ),
+          h(
+            NButton,
+            { size: 'small', quaternary: true, type: 'error', onClick: () => confirmRemoveImage(row) },
+            { icon: () => h(NIcon, null, { default: () => h(TrashCan) }), default: () => '删除' },
+          ),
+        ]),
+    },
+  )
+}
+
 const containerColumns: DataTableColumns<DockerContainer> = [
   { type: 'selection', width: 48 },
   { title: '名称', key: 'name' },
@@ -320,31 +353,17 @@ const imageColumns: DataTableColumns<DockerImage> = [
   {
     title: '操作',
     key: 'actions',
-    width: 260,
-    render: (row) =>
-      h(NSpace, { wrap: true, size: 4 }, () => [
-        h(
-          NButton,
-          { size: 'small', quaternary: true, onClick: () => openImageTagDialog(row) },
-          { icon: () => h(NIcon, null, { default: () => h(Edit) }), default: () => 'Tag' },
-        ),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, onClick: () => viewImageHistory(row) },
-          { icon: () => h(NIcon, null, { default: () => h(List) }), default: () => '历史' },
-        ),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, onClick: () => viewImageRefs(row) },
-          { icon: () => h(NIcon, null, { default: () => h(Information) }), default: () => '引用' },
-        ),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, type: 'error', onClick: () => confirmRemoveImage(row) },
-          { icon: () => h(NIcon, null, { default: () => h(TrashCan) }), default: () => '删除' },
-        ),
-      ]),
+    width: 108,
+    render: renderImageActions,
   },
+]
+
+const imageHistoryColumns: DataTableColumns<DockerImageHistoryItem> = [
+  { title: 'ID', key: 'id', width: 180 },
+  { title: '时间', key: 'createdSince', width: 140 },
+  { title: '大小', key: 'size', width: 120 },
+  { title: '命令', key: 'createdBy', width: 560 },
+  { title: '备注', key: 'comment', width: 260 },
 ]
 
 function requireSession() {
@@ -1343,14 +1362,9 @@ watch(logsTail, async (value, previous) => {
       <NSpin :show="imageHistoryLoading">
         <NDataTable
           :single-line="false"
-          :columns="[
-            { title: 'ID', key: 'id' },
-            { title: '时间', key: 'createdSince' },
-            { title: '大小', key: 'size' },
-            { title: '命令', key: 'createdBy' },
-            { title: '备注', key: 'comment' },
-          ]"
+          :columns="imageHistoryColumns"
           :data="imageHistoryItems"
+          :scroll-x="1260"
           size="small"
         />
       </NSpin>
