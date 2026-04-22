@@ -46,6 +46,7 @@ const sessionStatusMeta = computed(() => {
   }
 })
 const monitorData = computed(() => sshStore.monitorData)
+const monitorError = computed(() => sshStore.monitorError)
 const cpuUsage = computed(() => {
   if (typeof monitorData.value?.cpuUsage === 'number') {
     return `${monitorData.value.cpuUsage.toFixed(1)}%`
@@ -216,6 +217,19 @@ function disconnect() {
           </div>
         </template>
         {{ sshStore.host || '未连接主机' }}
+      </NTooltip>
+      <NTooltip v-if="monitorError" placement="bottom">
+        <template #trigger>
+          <div
+            class="flex items-center gap-[8px] rounded-[10px] border px-[10px] py-[4px] text-[12px]"
+            :class="settingsStore.isDark
+              ? 'border-[rgba(248,113,113,0.3)] bg-[rgba(127,29,29,0.28)] text-[rgba(254,202,202,0.96)]'
+              : 'border-[rgba(239,68,68,0.24)] bg-[rgba(254,242,242,0.9)] text-[rgba(185,28,28,0.92)]'">
+            <span class="h-[8px] w-[8px] shrink-0 rounded-full bg-[currentColor] opacity-90" />
+            <strong class="font-600">监控异常</strong>
+          </div>
+        </template>
+        {{ monitorError }}
       </NTooltip>
       <div class="hidden items-center gap-[8px] xl:flex">
         <div v-for="stat in performanceStats" :key="stat.label"

@@ -18,6 +18,7 @@ export const useSshStore = defineStore('ssh', () => {
   const username = ref('')
   const savedServers = ref<SavedServer[]>([])
   const monitorData = ref<MonitorResponse | null>(null)
+  const monitorError = ref<string | null>(null)
   const connectPayload = ref<ConnectParams | null>(null)
 
   let monitorWs: WebSocket | null = null
@@ -43,6 +44,7 @@ export const useSshStore = defineStore('ssh', () => {
     }
 
     monitorData.value = null
+    monitorError.value = null
   }
 
   function stopSessionWs() {
@@ -191,9 +193,16 @@ export const useSshStore = defineStore('ssh', () => {
       }
 
       try {
-        const payload = JSON.parse(event.data) as { code?: number; data?: MonitorResponse }
+        const payload = JSON.parse(event.data) as { code?: number; data?: MonitorResponse; message?: string }
         if (payload.code === 200 && payload.data) {
+          monitorError.value = null
           monitorData.value = payload.data
+          return
+        }
+
+        if (payload.code && payload.code !== 200) {
+          monitorData.value = null
+          monitorError.value = payload.message || '监控数据推送失败。'
         }
       } catch (error) {
         console.error('Failed to parse monitor WS message', error)
@@ -277,6 +286,7 @@ export const useSshStore = defineStore('ssh', () => {
     host,
     isConnected,
     monitorData,
+    monitorError,
     port,
     removeServer,
     savedServers,
