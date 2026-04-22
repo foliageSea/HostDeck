@@ -173,17 +173,17 @@ onBeforeUnmount(() => {
     <div class="media-content flex min-h-0 flex-1 overflow-hidden">
       <div
         class="media-stage flex min-h-0 min-w-0 flex-1 items-center justify-center"
-        :class="mediaType === 'video' && !hasError ? 'media-stage--video p-0' : 'p-[16px]'"
+        :class="mediaType === 'video' && !hasError ? 'media-stage--video p-[8px]' : 'p-[8px]'"
       >
         <img
           v-if="mediaType === 'image' && !hasError"
           :src="fileUrl"
           :alt="filename"
-          class="max-h-full max-w-full object-contain"
+          class="max-h-full max-w-full object-contain bg-black"
           @error="hasError = true"
         />
 
-        <div v-else-if="mediaType === 'video' && !hasError" ref="videoContainerRef" class="media-video-player h-full min-h-[260px] w-full overflow-hidden rounded-[16px] bg-black" />
+        <div v-else-if="mediaType === 'video' && !hasError" ref="videoContainerRef" class="media-video-player h-full min-h-[260px] w-full overflow-hidden rounded-[16px] bg-black"  />
 
         <NResult
           v-else
