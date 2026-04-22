@@ -1,9 +1,18 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
+import { NDataTable, type DataTableColumns } from 'naive-ui'
 import type { RuntimeClientSummary, RuntimeSessionSummary, RuntimeSnapshot } from '@/api/runtime'
 import { useSettingsStore } from '@/stores/settings'
 
 const settingsStore = useSettingsStore()
+
+interface RuntimeClientRow {
+  connectionId: string
+  isClosed: boolean
+  sessionCount: number
+  sessions: RuntimeSessionSummary[]
+  isSynthetic: boolean
+}
 
 const loading = ref(false)
 const refreshAt = ref<Date | null>(null)
@@ -16,6 +25,71 @@ let isIntentionalClose = false
 
 const clients = computed<RuntimeClientSummary[]>(() => snapshot.value?.clients ?? [])
 const sessions = computed<RuntimeSessionSummary[]>(() => snapshot.value?.sessions ?? [])
+const sessionColumns: DataTableColumns<RuntimeSessionSummary> = [
+  { title: 'Session ID', key: 'sessionId' },
+  { title: '类型', key: 'type' },
+  { title: 'Shell', key: 'hasShell', render: (row) => (row.hasShell ? '是' : '否') },
+  { title: 'Client 状态', key: 'clientClosed', render: (row) => (row.clientClosed ? '已关闭' : '活跃') },
+]
+const clientRows = computed<RuntimeClientRow[]>(() => {
+  const groupedSessions = new Map<string, RuntimeSessionSummary[]>()
+
+  for (const session of sessions.value) {
+    const currentSessions = groupedSessions.get(session.connectionId) ?? []
+    currentSessions.push(session)
+    groupedSessions.set(session.connectionId, currentSessions)
+  }
+
+  const rows = clients.value.map((client) => {
+    const clientSessions = groupedSessions.get(client.connectionId) ?? []
+    groupedSessions.delete(client.connectionId)
+
+    return {
+      connectionId: client.connectionId,
+      isClosed: client.isClosed,
+      sessionCount: clientSessions.length > 0 ? clientSessions.length : client.sessionCount,
+      sessions: clientSessions,
+      isSynthetic: false,
+    }
+  })
+
+  for (const [connectionId, orphanSessions] of groupedSessions.entries()) {
+    rows.push({
+      connectionId,
+      isClosed: orphanSessions.every((session) => session.clientClosed),
+      sessionCount: orphanSessions.length,
+      sessions: orphanSessions,
+      isSynthetic: true,
+    })
+  }
+
+  return rows.sort((left, right) => right.sessionCount - left.sessionCount || left.connectionId.localeCompare(right.connectionId))
+})
+const clientColumns: DataTableColumns<RuntimeClientRow> = [
+  {
+    type: 'expand',
+    expandable: (row) => row.sessions.length > 0,
+    renderExpand: (row) =>
+      h('div', { class: 'runtime-session-expand' }, [
+        h(NDataTable, {
+          bordered: false,
+          singleLine: false,
+          columns: sessionColumns,
+          data: row.sessions,
+          pagination: false,
+          size: 'small',
+        }),
+      ]),
+  },
+  { title: 'Connection ID', key: 'connectionId' },
+  { title: '状态', key: 'isClosed', render: (row) => (row.isClosed ? '已关闭' : '活跃') },
+  {
+    title: '数据来源',
+    key: 'isSynthetic',
+    render: (row) => (row.isSynthetic ? '仅 session 快照' : 'client 快照'),
+  },
+  { title: '关联 Session', key: 'sessionCount' },
+]
 
 function stopRuntimeWs() {
   if (reconnectTimer !== null) {
@@ -148,7 +222,7 @@ onBeforeUnmount(() => {
         <div class="text-[24px] font-700">运行态会话</div>
         <div class="mt-[6px] text-[13px]"
           :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">
-          查看后端当前持有的 clients 与 sessions 摘要
+          查看后端当前持有的 clients 与 sessions 摘要，并按 client 展开 session 明细
         </div>
       </div>
 
@@ -185,40 +259,24 @@ onBeforeUnmount(() => {
       </NCard>
     </div>
 
-    <div class="grid flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-[16px] lt-lg:grid-cols-1">
-      <NCard title="Clients" :bordered="false" class="rounded-[18px] min-h-0"
-        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'">
-        <NDataTable
-          :bordered="false"
-          :single-line="false"
-          :pagination="{ pageSize: 8 }"
-          :columns="[
-            { title: 'Connection ID', key: 'connectionId' },
-            { title: '状态', key: 'isClosed', render: (row: RuntimeClientSummary) => row.isClosed ? '已关闭' : '活跃' },
-            { title: '关联 Session', key: 'sessionCount' },
-          ]"
-          :data="clients"
-          :loading="loading"
-        />
-      </NCard>
-
-      <NCard title="Sessions" :bordered="false" class="rounded-[18px] min-h-0"
+    <div class="flex-1 min-h-0">
+      <NCard title="Clients / Sessions" :bordered="false" class="rounded-[18px] min-h-0"
         :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'">
         <NDataTable
           :bordered="false"
           :single-line="false"
           :pagination="{ pageSize: 10 }"
-          :columns="[
-            { title: 'Session ID', key: 'sessionId' },
-            { title: 'Connection ID', key: 'connectionId' },
-            { title: '类型', key: 'type' },
-            { title: 'Shell', key: 'hasShell', render: (row: RuntimeSessionSummary) => row.hasShell ? '是' : '否' },
-            { title: 'Client 状态', key: 'clientClosed', render: (row: RuntimeSessionSummary) => row.clientClosed ? '已关闭' : '活跃' },
-          ]"
-          :data="sessions"
+          :columns="clientColumns"
+          :data="clientRows"
           :loading="loading"
         />
       </NCard>
     </div>
   </div>
 </template>
+
+<style scoped>
+.runtime-session-expand {
+  padding: 8px 0 4px;
+}
+</style>
