@@ -195,7 +195,6 @@ function disconnect() {
 
     <div class="flex min-w-0 items-center justify-center gap-[12px] text-[0.92rem]"
       :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.8)]' : 'text-[rgba(51,65,85,0.82)]'">
-      <span>{{ sshStore.host || '未连接主机' }}</span>
       <NTooltip placement="bottom">
         <template #trigger>
           <span
@@ -204,6 +203,19 @@ function disconnect() {
             :aria-label="sessionStatusMeta.label" />
         </template>
         {{ sessionStatusMeta.label }}
+      </NTooltip>
+      <NTooltip placement="bottom">
+        <template #trigger>
+          <div
+            class="flex min-w-[120px] max-w-[320px] items-center justify-between gap-[8px] rounded-[10px] px-[10px] py-[4px] text-[12px]"
+            :class="settingsStore.isDark
+              ? 'bg-[rgba(15,23,42,0.46)] text-[rgba(226,232,240,0.88)]'
+              : 'bg-[rgba(255,255,255,0.58)] text-[rgba(30,41,59,0.88)]'">
+            <span class="shrink-0 text-[rgba(148,163,184,0.94)]">IP</span>
+            <strong class="truncate font-600">{{ sshStore.host || '未连接主机' }}</strong>
+          </div>
+        </template>
+        {{ sshStore.host || '未连接主机' }}
       </NTooltip>
       <div class="hidden items-center gap-[8px] xl:flex">
         <div v-for="stat in performanceStats" :key="stat.label"
