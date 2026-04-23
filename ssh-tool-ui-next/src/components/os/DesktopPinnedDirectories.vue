@@ -80,7 +80,7 @@ const pinnedDirectories = computed(() => {
     }
   })
 })
-const canvasStyle = computed(() => {
+const canvasBounds = computed(() => {
   const maxRight = pinnedDirectories.value.reduce(
     (value, directory) => Math.max(value, directory.x + DESKTOP_ICON_WIDTH + DESKTOP_ICON_PADDING),
     contentBounds.value.width,
@@ -91,10 +91,14 @@ const canvasStyle = computed(() => {
   )
 
   return {
-    height: `${Math.max(maxBottom, contentBounds.value.height)}px`,
-    width: `${Math.max(maxRight, contentBounds.value.width)}px`,
+    height: Math.max(maxBottom, contentBounds.value.height),
+    width: Math.max(maxRight, contentBounds.value.width),
   }
 })
+const canvasStyle = computed(() => ({
+  height: `${canvasBounds.value.height}px`,
+  width: `${canvasBounds.value.width}px`,
+}))
 const dragPreviewPosition = computed(() => {
   const state = dragState.value
   if (!state?.moved) {
@@ -134,16 +138,22 @@ const selectionBoxStyle = computed(() => {
   }
 
   const contentRect = content.getBoundingClientRect()
-  const left = Math.min(state.startX, state.currentX) - contentRect.left + content.scrollLeft
-  const top = Math.min(state.startY, state.currentY) - contentRect.top + content.scrollTop
-  const width = Math.abs(state.currentX - state.startX)
-  const height = Math.abs(state.currentY - state.startY)
+  const maxWidth = canvasBounds.value.width
+  const maxHeight = canvasBounds.value.height
+  const startLocalX = state.startX - contentRect.left + content.scrollLeft
+  const startLocalY = state.startY - contentRect.top + content.scrollTop
+  const currentLocalX = state.currentX - contentRect.left + content.scrollLeft
+  const currentLocalY = state.currentY - contentRect.top + content.scrollTop
+  const left = Math.max(0, Math.min(startLocalX, currentLocalX))
+  const top = Math.max(0, Math.min(startLocalY, currentLocalY))
+  const right = Math.min(maxWidth, Math.max(startLocalX, currentLocalX))
+  const bottom = Math.min(maxHeight, Math.max(startLocalY, currentLocalY))
 
   return {
-    height: `${height}px`,
+    height: `${Math.max(0, bottom - top)}px`,
     left: `${left}px`,
     top: `${top}px`,
-    width: `${width}px`,
+    width: `${Math.max(0, right - left)}px`,
   }
 })
 const showContextMenu = computed(() => Boolean(contextMenu.value) && contextMenuOptions.value.length > 0)
