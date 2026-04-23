@@ -6,7 +6,6 @@ import type { useWallpaperSettings } from '../hooks/useWallpaperSettings'
 const props = defineProps<{
   target: WallpaperTarget
   title: string
-  description: string
   defaultLabel: string
   presetLabel: string
   controller: ReturnType<typeof useWallpaperSettings>
@@ -81,7 +80,6 @@ function resetWallpaperEffects() {
     <div class="mb-[16px] flex items-start justify-between gap-[16px] lt-md:flex-col">
       <div>
         <h3 class="m-0 text-[1rem]">{{ title }}</h3>
-        <p class="mb-0 mt-[6px] text-[0.9rem]" :class="secondaryTextClass">{{ description }}</p>
       </div>
       <NSpace>
         <NButton secondary @click="controller.openWallpaperPicker(target)">上传图片</NButton>
@@ -156,7 +154,6 @@ function resetWallpaperEffects() {
       <div class="mb-[14px] flex items-start justify-between gap-[12px] lt-md:flex-col">
         <div>
           <h4 class="m-0 text-[0.96rem] font-600" :class="headingTextClass">背景效果</h4>
-          <p class="mb-0 mt-[6px] text-[0.84rem]" :class="secondaryTextClass">亮度和对比度会立即应用到桌面与登录背景，并在下次进入时保持。</p>
         </div>
         <NButton tertiary @click="resetWallpaperEffects">重置效果</NButton>
       </div>

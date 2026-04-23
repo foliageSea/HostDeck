@@ -27,7 +27,6 @@ const { settingsStore } = controller
         <WallpaperSection
           target="desktop"
           title="桌面壁纸"
-          description="登录页与桌面共用同一壁纸，支持预设背景或上传本地图片，上传图片会保存在当前浏览器。"
           default-label="跟随当前主题"
           preset-label="桌面预设"
           :controller="controller"
