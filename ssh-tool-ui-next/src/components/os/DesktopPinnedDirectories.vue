@@ -37,6 +37,11 @@ interface SelectionState {
   startY: number
 }
 
+interface GridPosition {
+  x: number
+  y: number
+}
+
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 
@@ -61,16 +66,19 @@ const selectionState = ref<SelectionState | null>(null)
 
 const pinnedDirectories = computed(() => {
   const storedPositions = desktopStore.getPinnedDirectoryPositions()
+  const paths = desktopStore.getPinnedDirectories()
+  const occupiedIndexes = new Set<number>()
+  const searchSpan = paths.length + getGridRowCount()
 
-  return desktopStore.getPinnedDirectories().map((path, index) => {
+  return paths.map((path, index) => {
     const defaultPosition = getDefaultPosition(index)
     const storedPosition = storedPositions[path]
     const activeDrag = dragState.value?.path === path ? dragState.value : null
     const position = activeDrag
       ? { x: activeDrag.currentX, y: activeDrag.currentY }
       : storedPosition
-        ? clampPosition(storedPosition.x, storedPosition.y)
-        : defaultPosition
+        ? resolveGridPosition(storedPosition, occupiedIndexes, searchSpan)
+        : resolveGridPosition(defaultPosition, occupiedIndexes, searchSpan)
 
     return {
       label: basename(path) || '根目录',
@@ -105,7 +113,16 @@ const dragPreviewPosition = computed(() => {
     return null
   }
 
-  return snapPosition(state.currentX, state.currentY)
+  const desiredPosition = snapPosition(state.currentX, state.currentY)
+  const occupiedIndexes = new Set(
+    pinnedDirectories.value
+      .filter((directory) => directory.path !== state.path)
+      .map((directory) => getGridIndex(directory.x, directory.y)),
+  )
+
+  return getGridPositionByIndex(
+    resolveGridIndex(getGridIndex(desiredPosition.x, desiredPosition.y), occupiedIndexes, pinnedDirectories.value.length + getGridRowCount()),
+  )
 })
 const contextMenuOptions = computed(() => {
   if (contextMenu.value?.scope === 'icon') {
@@ -181,6 +198,64 @@ function clampPosition(x: number, y: number) {
   }
 }
 
+function getGridRowCount() {
+  const availableHeight = Math.max(
+    DESKTOP_ICON_HEIGHT,
+    contentBounds.value.height - DESKTOP_ICON_PADDING * 2,
+  )
+
+  return Math.max(1, Math.floor(availableHeight / (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)))
+}
+
+function getGridIndex(x: number, y: number) {
+  const rowCount = getGridRowCount()
+  const column = Math.max(0, Math.round((x - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)))
+  const row = Math.min(
+    rowCount - 1,
+    Math.max(0, Math.round((y - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y))),
+  )
+
+  return column * rowCount + row
+}
+
+function getGridPositionByIndex(index: number): GridPosition {
+  const rowCount = getGridRowCount()
+  const column = Math.max(0, Math.floor(index / rowCount))
+  const row = Math.max(0, index % rowCount)
+
+  return {
+    x: DESKTOP_ICON_PADDING + column * (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X),
+    y: DESKTOP_ICON_PADDING + row * (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y),
+  }
+}
+
+function resolveGridIndex(preferredIndex: number, occupiedIndexes: Set<number>, searchSpan: number) {
+  if (!occupiedIndexes.has(preferredIndex)) {
+    return preferredIndex
+  }
+
+  const maxDistance = Math.max(searchSpan, occupiedIndexes.size + 1)
+  for (let distance = 1; distance <= maxDistance; distance += 1) {
+    const nextIndex = preferredIndex + distance
+    if (!occupiedIndexes.has(nextIndex)) {
+      return nextIndex
+    }
+
+    const previousIndex = preferredIndex - distance
+    if (previousIndex >= 0 && !occupiedIndexes.has(previousIndex)) {
+      return previousIndex
+    }
+  }
+
+  return preferredIndex + maxDistance + 1
+}
+
+function resolveGridPosition(position: GridPosition, occupiedIndexes: Set<number>, searchSpan: number): GridPosition {
+  const index = resolveGridIndex(getGridIndex(position.x, position.y), occupiedIndexes, searchSpan)
+  occupiedIndexes.add(index)
+  return getGridPositionByIndex(index)
+}
+
 function snapPosition(x: number, y: number) {
   const snappedX = DESKTOP_ICON_PADDING
     + Math.round((x - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)) * (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)
@@ -191,18 +266,7 @@ function snapPosition(x: number, y: number) {
 }
 
 function getDefaultPosition(index: number) {
-  const availableHeight = Math.max(
-    DESKTOP_ICON_HEIGHT,
-    contentBounds.value.height - DESKTOP_ICON_PADDING * 2,
-  )
-  const rowCount = Math.max(1, Math.floor(availableHeight / (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)))
-  const column = Math.floor(index / rowCount)
-  const row = index % rowCount
-
-  return {
-    x: DESKTOP_ICON_PADDING + column * (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X),
-    y: DESKTOP_ICON_PADDING + row * (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y),
-  }
+  return getGridPositionByIndex(index)
 }
 
 function suppressDirectoryInteraction(path: string) {
@@ -480,7 +544,7 @@ function finishDirectoryDrag(event: PointerEvent) {
   }
 
   if (state.moved) {
-    const snappedPosition = snapPosition(state.currentX, state.currentY)
+    const snappedPosition = dragPreviewPosition.value ?? snapPosition(state.currentX, state.currentY)
     desktopStore.setPinnedDirectoryPosition(state.path, snappedPosition.x, snappedPosition.y)
     suppressDirectoryInteraction(state.path)
   }
