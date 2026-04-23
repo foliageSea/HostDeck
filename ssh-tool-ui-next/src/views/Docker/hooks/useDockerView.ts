@@ -50,6 +50,8 @@ export function useDockerView(props: DockerViewProps) {
   const sshStore = useSshStore()
 
   const activeTab = ref<'containers' | 'images'>('containers')
+  const containerViewMode = ref<'card' | 'table'>('card')
+  const imageViewMode = ref<'card' | 'table'>('card')
   const loading = ref(false)
   const dockerAvailable = ref<boolean | null>(null)
   const containers = ref<DockerContainer[]>([])
@@ -226,6 +228,14 @@ export function useDockerView(props: DockerViewProps) {
 
   function setActiveTab(value: 'containers' | 'images') {
     activeTab.value = value
+  }
+
+  function setContainerViewMode(value: 'card' | 'table') {
+    containerViewMode.value = value
+  }
+
+  function setImageViewMode(value: 'card' | 'table') {
+    imageViewMode.value = value
   }
 
   function setContainerStatusFilter(value: DockerContainerStatusFilter) {
@@ -1109,6 +1119,8 @@ export function useDockerView(props: DockerViewProps) {
     batchStartSelected,
     batchStopSelected,
     confirmPruneImages,
+    confirmContainerAction,
+    confirmRemoveImage,
     confirmRemoveStoppedContainers,
     containerColumns,
     containerPage,
@@ -1119,6 +1131,7 @@ export function useDockerView(props: DockerViewProps) {
     containerStatusOptions,
     containerSummary,
     containerTotal,
+    containerViewMode,
     copyLogs,
     creatingContainer,
     createCmdText,
@@ -1133,7 +1146,11 @@ export function useDockerView(props: DockerViewProps) {
     displayedLogs,
     dockerAvailable,
     downloadLogs,
+    diagnosticsMap,
+    enterShell,
     formatDateTime,
+    formatTime,
+    handleContainerAdvancedAction,
     handleContainerPageChange,
     handleContainerPageSizeChange,
     handleImagePageChange,
@@ -1156,6 +1173,8 @@ export function useDockerView(props: DockerViewProps) {
     imageTagSource,
     imageTagTarget,
     imageTagVisible,
+    imageTotal,
+    imageViewMode,
     images,
     inspectContent,
     inspectLoading,
@@ -1171,24 +1190,34 @@ export function useDockerView(props: DockerViewProps) {
     logsTail,
     logsTitle,
     logsVisible,
+    openImageTagDialog,
     openCreateContainer,
+    openRenameDialog,
     pullImage,
     pullingImage,
     pullImageName,
     refresh,
     refreshLogs,
+    recreateContainer,
     renameVisible,
     renamingContainer,
     renamingContainerName,
     runningContainers,
     selectedContainerIds,
     setActiveTab,
+    setContainerViewMode,
+    setImageViewMode,
     setContainerStatusFilter,
+    statsMap,
     stoppedContainers,
     submitCreateContainer,
     submitRenameContainer,
     submitTagImage,
     updateSelectedContainerIds,
+    viewImageHistory,
+    viewImageRefs,
+    viewInspect,
+    viewLogs,
   }
 }
 
