@@ -161,12 +161,12 @@ onBeforeUnmount(() => {
       </div>
 
       <NSpace>
-        <NButton v-if="hasPlaylist" @click="toggleSidebar">
+        <NButton v-if="hasPlaylist" round @click="toggleSidebar">
           {{ isSidebarVisible ? '隐藏列表' : '显示列表' }}
         </NButton>
-        <NButton :disabled="!hasPrev" @click="openPrevious">上一项</NButton>
-        <NButton :disabled="!hasNext" @click="openNext">下一项</NButton>
-        <NButton tag="a" :href="`${fileUrl}&download=true`" target="_blank">下载</NButton>
+        <NButton round :disabled="!hasPrev" @click="openPrevious">上一项</NButton>
+        <NButton round :disabled="!hasNext" @click="openNext">下一项</NButton>
+        <NButton round tag="a" :href="`${fileUrl}&download=true`" target="_blank">下载</NButton>
       </NSpace>
     </div>
 
