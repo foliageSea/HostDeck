@@ -621,12 +621,12 @@ onUnmounted(() => {
         class="group absolute flex min-h-[108px] w-[96px] flex-col items-center justify-center gap-[10px] rounded-[18px] border px-[10px] py-[12px] text-center text-inherit transition-[background-color,border-color,transform,box-shadow] duration-[180ms] ease-in-out cursor-pointer"
         :class="[
           settingsStore.isDark
-            ? 'border-[rgba(148,163,184,0.12)] bg-[rgba(15,23,42,0.18)] text-[#e2e8f0] hover:border-[rgba(96,165,250,0.3)] hover:bg-[rgba(30,41,59,0.52)]'
-            : 'border-[rgba(148,163,184,0.18)] bg-[rgba(255,255,255,0.22)] text-[#0f172a] hover:border-[rgba(59,130,246,0.24)] hover:bg-[rgba(255,255,255,0.46)]',
+            ? 'border-transparent bg-transparent text-[#e2e8f0] hover:border-[rgba(148,163,184,0.12)] hover:bg-[rgba(15,23,42,0.28)] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]'
+            : 'border-transparent bg-transparent text-[#0f172a] hover:border-[rgba(148,163,184,0.16)] hover:bg-[rgba(255,255,255,0.3)] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.5)]',
           isDirectorySelected(directory.path)
             ? settingsStore.isDark
-              ? 'border-[rgba(96,165,250,0.56)] bg-[rgba(30,41,59,0.76)] shadow-[0_18px_36px_rgba(2,6,23,0.22)]'
-              : 'border-[rgba(59,130,246,0.34)] bg-[rgba(219,234,254,0.68)] shadow-[0_16px_32px_rgba(59,130,246,0.14)]'
+              ? 'border-[rgba(148,163,184,0.12)] bg-[rgba(15,23,42,0.28)] shadow-[inset_0_0_0_1px_rgba(147,197,253,0.18),0_10px_28px_rgba(2,6,23,0.16)]'
+              : 'border-[rgba(148,163,184,0.16)] bg-[rgba(255,255,255,0.3)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.72),0_10px_24px_rgba(59,130,246,0.1)]'
             : '',
           dragState?.path === directory.path ? 'z-[7] cursor-grabbing opacity-80 shadow-[0_20px_40px_rgba(15,23,42,0.18)] transition-none' : '',
         ]"
@@ -643,8 +643,15 @@ onUnmounted(() => {
         @pointercancel.stop="finishDirectoryDrag($event)"
       >
         <div
-          class="flex h-[52px] w-[52px] items-center justify-center rounded-[16px] transition-[transform,background-color] duration-[180ms] ease-in-out group-hover:scale-[1.03]"
-          :class="settingsStore.isDark ? 'bg-[rgba(30,41,59,0.84)]' : 'bg-[rgba(255,255,255,0.72)]'"
+          class="flex h-[52px] w-[52px] items-center justify-center rounded-[16px] transition-[transform,background-color,box-shadow] duration-[180ms] ease-in-out group-hover:scale-[1.04]"
+          :class="[
+            settingsStore.isDark ? 'bg-[rgba(30,41,59,0.72)] group-hover:bg-[rgba(51,65,85,0.82)]' : 'bg-[rgba(255,255,255,0.58)] group-hover:bg-[rgba(255,255,255,0.78)]',
+            isDirectorySelected(directory.path)
+              ? settingsStore.isDark
+                ? 'bg-[rgba(37,99,235,0.46)] shadow-[0_8px_20px_rgba(37,99,235,0.18)]'
+                : 'bg-[rgba(191,219,254,0.82)] shadow-[0_8px_18px_rgba(59,130,246,0.14)]'
+              : '',
+          ]"
         >
           <AppIcon name="folder" :size="28" />
         </div>
