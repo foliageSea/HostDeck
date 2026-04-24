@@ -15,6 +15,10 @@ const isDragging = ref(false)
 const isResizing = ref(false)
 let dragOffsetX = 0
 let dragOffsetY = 0
+let resizeStartWidth = 0
+let resizeStartHeight = 0
+let resizeStartClientX = 0
+let resizeStartClientY = 0
 
 const windowStyle = computed(() => {
   if (props.window.isMaximized) {
@@ -86,8 +90,8 @@ function handleResize(event: MouseEvent) {
     return
   }
 
-  const nextWidth = Math.max(320, event.clientX - props.window.x)
-  const nextHeight = Math.max(240, event.clientY - props.window.y)
+  const nextWidth = Math.max(320, resizeStartWidth + event.clientX - resizeStartClientX)
+  const nextHeight = Math.max(240, resizeStartHeight + event.clientY - resizeStartClientY)
   desktopStore.updateWindowSize(props.window.id, nextWidth, nextHeight)
 }
 
@@ -97,13 +101,17 @@ function stopResize() {
   window.removeEventListener('mouseup', stopResize)
 }
 
-function startResize() {
+function startResize(event: MouseEvent) {
   if (props.window.isMaximized) {
     return
   }
 
   focusWindow()
   isResizing.value = true
+  resizeStartWidth = props.window.width
+  resizeStartHeight = props.window.height
+  resizeStartClientX = event.clientX
+  resizeStartClientY = event.clientY
   window.addEventListener('mousemove', handleResize)
   window.addEventListener('mouseup', stopResize)
 }
