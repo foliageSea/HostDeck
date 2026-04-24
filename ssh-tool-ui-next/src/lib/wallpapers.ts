@@ -103,7 +103,7 @@ export function createWallpaperStyle(
       backgroundImage: background,
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
-      backgroundSize: 'cover',
+      backgroundSize: 'contain',
       filter,
     }
   }

@@ -138,14 +138,14 @@ function resetWallpaperEffects() {
           class="relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
           :class="wallpaperPreviewClass"
           :style="wallpaperSettings.customDataUrl
-            ? { backgroundImage: `url(${wallpaperSettings.customDataUrl})`, backgroundPosition: 'center', backgroundSize: 'cover' }
+            ? { backgroundColor: isDark ? '#020617' : '#e2e8f0', backgroundImage: `url(${wallpaperSettings.customDataUrl})`, backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundSize: 'contain' }
             : undefined"
         >
           <span v-if="!wallpaperSettings.customDataUrl" class="absolute inset-0 flex items-center justify-center text-[0.84rem]" :class="customEmptyMaskClass">未上传</span>
         </div>
         <div class="mt-[10px] grid gap-[4px]">
           <strong class="text-[0.94rem]" :class="headingTextClass">自定义图片</strong>
-          <span class="text-[0.84rem]" :class="secondaryTextClass">最大 10MB</span>
+          <span class="text-[0.84rem]" :class="secondaryTextClass">最大 20MB，原图显示</span>
         </div>
       </div>
     </div>

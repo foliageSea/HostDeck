@@ -3,7 +3,7 @@ import type { WallpaperSettings, WallpaperTarget } from '@/lib/wallpapers'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
 
-const MAX_WALLPAPER_SIZE = 10 * 1024 * 1024
+const MAX_WALLPAPER_SIZE = 20 * 1024 * 1024
 
 export function useWallpaperSettings() {
   const settingsStore = useSettingsStore()
@@ -74,7 +74,7 @@ export function useWallpaperSettings() {
     }
 
     if (file.size > MAX_WALLPAPER_SIZE) {
-      getUiApi().message.error('图片不能超过 10MB。')
+      getUiApi().message.error('图片不能超过 20MB。')
       return
     }
 
