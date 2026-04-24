@@ -76,6 +76,7 @@ const showDeleteDialog = ref(false)
 const deletingFiles = ref(false)
 const extractingArchive = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
+const directoryInputRef = ref<HTMLInputElement | null>(null)
 const contextMenu = ref<{ type: 'file' | 'blank'; x: number; y: number } | null>(null)
 const isFavoriteSidebarVisible = useLocalStorage('ssh-tool:files:favorite-sidebar-visible', true)
 
@@ -161,7 +162,8 @@ const contextMenuOptions = computed(() => {
   return [
     { label: '新建目录', key: 'new-directory' },
     { label: '新建文件', key: 'new-file' },
-    { label: '上传', key: 'upload', disabled: isUploading.value },
+    { label: '上传文件', key: 'upload', disabled: isUploading.value },
+    { label: '上传目录', key: 'upload-directory', disabled: isUploading.value },
     { label: clipboardPasteLabel.value, key: 'paste', disabled: !canPasteToCurrentPath.value },
     { type: 'divider', key: 'blank-divider-1' },
     { label: '刷新', key: 'refresh' },
@@ -483,6 +485,11 @@ function handleContextMenuSelect(key: string | number) {
 
   if (key === 'upload') {
     triggerUpload()
+    return
+  }
+
+  if (key === 'upload-directory') {
+    triggerDirectoryUpload()
     return
   }
 
@@ -808,6 +815,44 @@ function triggerUpload() {
   fileInputRef.value?.click()
 }
 
+function triggerDirectoryUpload() {
+  if (isUploading.value) {
+    return
+  }
+
+  directoryInputRef.value?.click()
+}
+
+function getUploadRelativePath(file: File) {
+  return 'webkitRelativePath' in file && typeof file.webkitRelativePath === 'string'
+    ? file.webkitRelativePath
+    : file.name
+}
+
+function getUploadDirectory(relativePath: string) {
+  const segments = relativePath.split('/').filter(Boolean)
+  segments.pop()
+  return segments.join('/')
+}
+
+function getUploadFilename(relativePath: string, file: File) {
+  const segments = relativePath.split('/').filter(Boolean)
+  return segments.at(-1) ?? file.name
+}
+
+async function ensureUploadDirectories(connectionId: string, relativePaths: string[]) {
+  const directories = Array.from(new Set(relativePaths.map(getUploadDirectory).filter(Boolean)))
+    .sort((left, right) => left.split('/').length - right.split('/').length)
+
+  for (const directory of directories) {
+    try {
+      await filesApi.mkdir(connectionId, resolve(fileStore.currentPath, directory))
+    } catch {
+      // Existing remote directories are fine; upload will still fail later if the path is unusable.
+    }
+  }
+}
+
 function isUploadCancelled(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ERR_CANCELED'
 }
@@ -823,7 +868,12 @@ async function handleUploadChange(event: Event) {
     return
   }
 
-  const selectedUploads = Array.from(files)
+  const selectedUploads = Array.from(files).map((file) => ({
+    file,
+    name: file.name,
+    path: fileStore.currentPath,
+    relativePath: file.name,
+  }))
   const batchId = uploadCenterStore.createBatch(fileStore.connectionId, fileStore.currentPath, selectedUploads)
   const controller = new AbortController()
   uploadCenterStore.clearBatchError(batchId)
@@ -832,7 +882,7 @@ async function handleUploadChange(event: Event) {
   let hasUploadedFiles = false
 
   try {
-    for (const [index, file] of selectedUploads.entries()) {
+    for (const [index, upload] of selectedUploads.entries()) {
       if (uploadCenterStore.isBatchCancelled(batchId)) {
         break
       }
@@ -847,13 +897,13 @@ async function handleUploadChange(event: Event) {
         loaded: 0,
         progress: 0,
         status: 'uploading',
-        total: file.size,
+        total: upload.file.size,
       })
-      
+
       const formData = new FormData()
-      formData.append('file', file, file.name)
+      formData.append('file', upload.file, upload.file.name)
       await filesApi.upload(fileStore.connectionId, fileStore.currentPath, formData, (progressEvent) => {
-        const total = progressEvent.total ?? file.size
+        const total = progressEvent.total ?? upload.file.size
         const loaded = Math.min(progressEvent.loaded, total)
 
         uploadCenterStore.updateTask(task.id, {
@@ -864,10 +914,10 @@ async function handleUploadChange(event: Event) {
       }, controller.signal)
 
       uploadCenterStore.updateTask(task.id, {
-        loaded: file.size,
+        loaded: upload.file.size,
         progress: 100,
         status: 'success',
-        total: file.size,
+        total: upload.file.size,
       })
       hasUploadedFiles = true
     }
@@ -904,6 +954,116 @@ async function handleUploadChange(event: Event) {
     uploadCenterStore.markBatchError(batchId, error instanceof Error ? error.message : '上传失败。')
     console.error('Failed to upload files', error)
     getUiApi().message.error('上传失败。')
+  } finally {
+    uploadCenterStore.clearBatchController(batchId)
+    input.value = ''
+  }
+}
+
+async function handleDirectoryUploadChange(event: Event) {
+  if (!fileStore.connectionId) {
+    return
+  }
+
+  const input = event.target as HTMLInputElement
+  const files = input.files
+  if (!files || files.length === 0) {
+    return
+  }
+
+  const selectedUploads = Array.from(files).map((file) => {
+    const relativePath = getUploadRelativePath(file)
+    const directory = getUploadDirectory(relativePath)
+
+    return {
+      file,
+      name: relativePath,
+      path: directory ? resolve(fileStore.currentPath, directory) : fileStore.currentPath,
+      relativePath,
+    }
+  })
+  const batchId = uploadCenterStore.createBatch(fileStore.connectionId, fileStore.currentPath, selectedUploads)
+  const controller = new AbortController()
+  uploadCenterStore.clearBatchError(batchId)
+  uploadCenterStore.registerBatchController(batchId, controller)
+
+  let hasUploadedFiles = false
+
+  try {
+    await ensureUploadDirectories(fileStore.connectionId, selectedUploads.map((item) => item.relativePath))
+
+    for (const [index, upload] of selectedUploads.entries()) {
+      if (uploadCenterStore.isBatchCancelled(batchId)) {
+        break
+      }
+
+      const batch = uploadCenterStore.batches.find((item) => item.id === batchId)
+      const task = batch?.tasks[index]
+      if (!task) {
+        continue
+      }
+
+      uploadCenterStore.updateTask(task.id, {
+        loaded: 0,
+        progress: 0,
+        status: 'uploading',
+        total: upload.file.size,
+      })
+
+      const formData = new FormData()
+      formData.append('file', upload.file, getUploadFilename(upload.relativePath, upload.file))
+      await filesApi.upload(fileStore.connectionId, upload.path, formData, (progressEvent) => {
+        const total = progressEvent.total ?? upload.file.size
+        const loaded = Math.min(progressEvent.loaded, total)
+
+        uploadCenterStore.updateTask(task.id, {
+          loaded,
+          progress: total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0,
+          total,
+        })
+      }, controller.signal)
+
+      uploadCenterStore.updateTask(task.id, {
+        loaded: upload.file.size,
+        progress: 100,
+        status: 'success',
+        total: upload.file.size,
+      })
+      hasUploadedFiles = true
+    }
+
+    if (uploadCenterStore.isBatchCancelled(batchId)) {
+      if (hasUploadedFiles) {
+        await fileStore.fetchFiles()
+      }
+      return
+    }
+
+    await fileStore.fetchFiles()
+    getUiApi().message.success(`已上传目录中的 ${files.length} 个文件。`)
+  } catch (error) {
+    if (isUploadCancelled(error) || uploadCenterStore.isBatchCancelled(batchId)) {
+      if (!uploadCenterStore.isBatchCancelled(batchId)) {
+        uploadCenterStore.cancelBatch(batchId)
+      }
+
+      if (hasUploadedFiles) {
+        await fileStore.fetchFiles()
+      }
+      return
+    }
+
+    const batch = uploadCenterStore.batches.find((item) => item.id === batchId)
+    const uploadingTask = batch?.tasks.find((task) => task.status === 'uploading' || task.status === 'pending')
+    if (uploadingTask) {
+      uploadCenterStore.updateTask(uploadingTask.id, {
+        status: 'error',
+      })
+    }
+
+    uploadCenterStore.markBatchError(batchId, error instanceof Error ? error.message : '上传目录失败。')
+    console.error('Failed to upload directory', error)
+    getUiApi().message.error('上传目录失败。')
   } finally {
     uploadCenterStore.clearBatchController(batchId)
     input.value = ''
@@ -1012,6 +1172,7 @@ watch(
     :class="settingsStore.isDark ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.14),rgba(15,23,42,0.04))]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.68),rgba(226,232,240,0.34))]'"
     tabindex="0" @keydown="handleKeydown" @click.self="fileStore.clearSelection()">
     <input ref="fileInputRef" type="file" multiple hidden @change="handleUploadChange" />
+    <input ref="directoryInputRef" type="file" multiple webkitdirectory="" hidden @change="handleDirectoryUploadChange" />
 
     <div class="flex flex-wrap items-center justify-between gap-[12px]">
       <NSpace align="center" wrap>
@@ -1251,7 +1412,15 @@ watch(
                 <Upload />
               </NIcon>
             </template>
-            上传
+            上传文件
+          </NButton>
+          <NButton round :disabled="isUploading" :loading="isUploading" @click="triggerDirectoryUpload">
+            <template #icon>
+              <NIcon>
+                <Upload />
+              </NIcon>
+            </template>
+            上传目录
           </NButton>
           <NButton round :disabled="!canExtractSelectedArchive" @click="openExtractDialog">解压缩</NButton>
           <NButton round :disabled="selectedFiles.length !== 1" @click="openRenameDialog">重命名</NButton>

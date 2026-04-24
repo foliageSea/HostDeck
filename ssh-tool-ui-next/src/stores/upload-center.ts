@@ -25,6 +25,12 @@ export interface UploadBatch {
   tasks: UploadTaskItem[]
 }
 
+export interface UploadBatchFile {
+  file: File
+  name?: string
+  path?: string
+}
+
 export const useUploadCenterStore = defineStore('upload-center', () => {
   const batches = ref<UploadBatch[]>([])
   const panelOpen = ref(false)
@@ -48,21 +54,27 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
 
   const hasTasks = computed(() => batches.value.length > 0)
 
-  function createBatch(connectionId: string, path: string, files: File[]) {
+  function createBatch(connectionId: string, path: string, files: Array<File | UploadBatchFile>) {
     const batchId = `upload-batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const createdAt = Date.now()
     cancelledBatchIds.delete(batchId)
-    const tasks = files.map((file, index) => ({
-      connectionId,
-      id: `${batchId}-${index}`,
-      loaded: 0,
-      name: file.name,
-      path,
-      progress: 0,
-      source: 'files' as const,
-      status: 'pending' as const,
-      total: file.size,
-    }))
+    const tasks = files.map((item, index) => {
+      const file = item instanceof File ? item : item.file
+      const taskName = item instanceof File ? file.name : (item.name ?? file.name)
+      const taskPath = item instanceof File ? path : (item.path ?? path)
+
+      return {
+        connectionId,
+        id: `${batchId}-${index}`,
+        loaded: 0,
+        name: taskName,
+        path: taskPath,
+        progress: 0,
+        source: 'files' as const,
+        status: 'pending' as const,
+        total: file.size,
+      }
+    })
 
     batches.value.unshift({
       connectionId,
