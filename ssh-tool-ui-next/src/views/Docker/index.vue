@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
 import { Add, Cube, Download, Upload } from '@vicons/carbon'
+import { useSettingsStore } from '@/stores/settings'
 import DockerContainersTab from './components/DockerContainersTab.vue'
 import DockerCreateContainerModal from './components/DockerCreateContainerModal.vue'
 import DockerImageHistoryModal from './components/DockerImageHistoryModal.vue'
@@ -20,11 +21,17 @@ const props = defineProps<{
   username?: string
 }>()
 
+const settingsStore = useSettingsStore()
 const controller: DockerViewController = reactive(useDockerView(props))
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-[16px] overflow-auto bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))] p-[18px] app-scrollbar app-scrollbar-dark">
+  <div
+    class="flex h-full flex-col gap-[16px] overflow-auto p-[18px] app-scrollbar"
+    :class="settingsStore.isDark
+      ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))] app-scrollbar-dark'
+      : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(226,232,240,0.38))] app-scrollbar-light'"
+  >
     <div class="flex flex-col gap-[16px]">
       <div class="flex flex-wrap items-start justify-between gap-[16px]">
         <div>
@@ -32,7 +39,9 @@ const controller: DockerViewController = reactive(useDockerView(props))
             <NIcon :size="20"><Cube /></NIcon>
             <h2 class="m-0 text-[20px]">Docker 管理</h2>
           </div>
-          <p class="m-0 text-[rgba(226,232,240,0.72)]">查看容器与镜像状态，并执行常见运维操作。</p>
+          <p class="m-0" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.72)]' : 'text-[rgba(71,85,105,0.88)]'">
+            查看容器与镜像状态，并执行常见运维操作。
+          </p>
         </div>
 
         <NSpace>

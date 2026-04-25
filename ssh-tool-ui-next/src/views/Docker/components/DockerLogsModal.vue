@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
 
 defineProps<{
   controller: DockerViewController
 }>()
+
+const settingsStore = useSettingsStore()
 </script>
 
 <template>
@@ -12,8 +15,8 @@ defineProps<{
       <NInputNumber v-model:value="controller.logsTail" :min="20" :max="5000" :step="20" placeholder="Tail" />
       <NInput v-model:value="controller.logsKeyword" placeholder="过滤日志关键字" clearable />
       <NSwitch v-model:value="controller.logsAutoRefresh" />
-      <span class="text-[12px] text-[rgba(226,232,240,0.68)]">自动刷新</span>
-      <span class="text-[12px] text-[rgba(226,232,240,0.68)]">更新于 {{ controller.formatDateTime(controller.logsLastUpdatedAt) }}</span>
+      <span class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">自动刷新</span>
+      <span class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">更新于 {{ controller.formatDateTime(controller.logsLastUpdatedAt) }}</span>
       <NSpace>
         <NButton quaternary :loading="controller.logsRefreshing" @click="controller.refreshLogs()">刷新日志</NButton>
         <NButton quaternary @click="controller.copyLogs">复制</NButton>
@@ -21,7 +24,12 @@ defineProps<{
       </NSpace>
     </div>
     <NSpin :show="controller.logsLoading">
-      <pre class="docker-console mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] bg-[rgba(2,6,23,0.9)] p-[14px] text-[12px] leading-[1.6] text-[#dbeafe] app-scrollbar app-scrollbar-dark">{{ controller.displayedLogs }}</pre>
+      <pre
+        class="docker-console mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] p-[14px] text-[12px] leading-[1.6] app-scrollbar"
+        :class="settingsStore.isDark
+          ? 'bg-[rgba(2,6,23,0.9)] text-[#dbeafe] app-scrollbar-dark'
+          : 'bg-[rgba(248,250,252,0.96)] text-[rgba(30,41,59,0.96)] app-scrollbar-light'"
+      >{{ controller.displayedLogs }}</pre>
     </NSpin>
   </NModal>
 </template>

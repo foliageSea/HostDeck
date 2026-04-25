@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { Grid, List } from '@vicons/carbon'
 import type { DockerImage } from '@/api/docker'
+import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
 
 defineProps<{
   controller: DockerViewController
 }>()
+
+const settingsStore = useSettingsStore()
 
 function getImageStatus(image: DockerImage) {
   if (image.dangling) {
@@ -37,9 +40,9 @@ function getImageName(image: DockerImage) {
 </script>
 
 <template>
-  <div class="flex flex-col">
+  <div class="flex flex-col" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <div class="mb-[12px] flex flex-wrap items-start justify-between gap-[12px]">
-      <div class="text-[13px] text-[rgba(226,232,240,0.68)]">支持镜像重新打标签、查看构建历史和引用容器。</div>
+      <div class="text-[13px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">支持镜像重新打标签、查看构建历史和引用容器。</div>
       <NButtonGroup size="small">
         <NButton
           :type="controller.imageViewMode === 'card' ? 'primary' : 'default'"
@@ -79,7 +82,7 @@ function getImageName(image: DockerImage) {
           <template #header>
             <div class="min-w-0">
               <div class="truncate text-[15px] font-600" :title="getImageName(image)">{{ getImageName(image) }}</div>
-              <div class="mt-[4px] truncate text-[12px] text-[rgba(226,232,240,0.58)]" :title="image.id">
+              <div class="mt-[4px] truncate text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'" :title="image.id">
                 {{ image.id.slice(0, 18) }}
               </div>
             </div>
@@ -149,6 +152,32 @@ function getImageName(image: DockerImage) {
 </template>
 
 <style scoped>
+.docker-theme-dark {
+  --docker-card-border: rgba(148, 163, 184, 0.16);
+  --docker-card-bg: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.46));
+  --docker-card-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
+  --docker-card-border-hover: rgba(96, 165, 250, 0.36);
+  --docker-card-bg-hover: linear-gradient(145deg, rgba(15, 23, 42, 0.84), rgba(30, 64, 175, 0.32));
+  --docker-card-field-bg: rgba(15, 23, 42, 0.38);
+  --docker-card-label-color: rgba(226, 232, 240, 0.52);
+  --docker-card-value-color: rgba(248, 250, 252, 0.9);
+  --docker-scrollbar-thumb: rgba(148, 163, 184, 0.34);
+  --docker-scrollbar-thumb-hover: rgba(96, 165, 250, 0.52);
+}
+
+.docker-theme-light {
+  --docker-card-border: rgba(148, 163, 184, 0.22);
+  --docker-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
+  --docker-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  --docker-card-border-hover: rgba(59, 130, 246, 0.3);
+  --docker-card-bg-hover: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(219, 234, 254, 0.9));
+  --docker-card-field-bg: rgba(241, 245, 249, 0.92);
+  --docker-card-label-color: rgba(100, 116, 139, 0.9);
+  --docker-card-value-color: rgba(30, 41, 59, 0.92);
+  --docker-scrollbar-thumb: rgba(100, 116, 139, 0.26);
+  --docker-scrollbar-thumb-hover: rgba(59, 130, 246, 0.42);
+}
+
 .docker-card-shell,
 .docker-table-shell {
   flex: none;
@@ -162,14 +191,14 @@ function getImageName(image: DockerImage) {
 }
 
 .docker-card {
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.46));
-  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
+  border: 1px solid var(--docker-card-border);
+  background: var(--docker-card-bg);
+  box-shadow: var(--docker-card-shadow);
 }
 
 .docker-card:hover {
-  border-color: rgba(96, 165, 250, 0.36);
-  background: linear-gradient(145deg, rgba(15, 23, 42, 0.84), rgba(30, 64, 175, 0.32));
+  border-color: var(--docker-card-border-hover);
+  background: var(--docker-card-bg-hover);
 }
 
 .docker-card :deep(.docker-card-content) {
@@ -187,7 +216,7 @@ function getImageName(image: DockerImage) {
 .docker-card-field {
   min-width: 0;
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.38);
+  background: var(--docker-card-field-bg);
   padding: 9px 10px;
 }
 
@@ -198,14 +227,14 @@ function getImageName(image: DockerImage) {
 .docker-card-field span {
   display: block;
   margin-bottom: 4px;
-  color: rgba(226, 232, 240, 0.52);
+  color: var(--docker-card-label-color);
   font-size: 12px;
 }
 
 .docker-card-field strong {
   display: block;
   overflow: hidden;
-  color: rgba(248, 250, 252, 0.9);
+  color: var(--docker-card-value-color);
   font-size: 13px;
   font-weight: 500;
   text-overflow: ellipsis;
@@ -230,7 +259,7 @@ function getImageName(image: DockerImage) {
 
 .docker-table-shell :deep(.n-data-table-base-table-body) {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.34) transparent;
+  scrollbar-color: var(--docker-scrollbar-thumb) transparent;
 }
 
 .docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar) {
@@ -247,11 +276,11 @@ function getImageName(image: DockerImage) {
   border: 3px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
-  background-color: rgba(148, 163, 184, 0.34);
+  background-color: var(--docker-scrollbar-thumb);
 }
 
 .docker-table-shell:hover :deep(.n-data-table-base-table-body::-webkit-scrollbar-thumb) {
-  background-color: rgba(96, 165, 250, 0.52);
+  background-color: var(--docker-scrollbar-thumb-hover);
 }
 
 .docker-table-shell :deep(.container-action-popover) {
