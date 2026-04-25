@@ -137,6 +137,7 @@ const contextMenuOptions = computed(() => {
       { label: '解压缩', key: 'extract', disabled: !canExtractSelectedArchive.value },
       { label: '下载', key: 'download', disabled: selectedFiles.value.length === 0 },
       { label: '复制', key: 'copy', disabled: selectedFiles.value.length === 0 },
+      { label: '复制路径', key: 'copy-path', disabled: selectedFiles.value.length !== 1 },
       { label: '移动', key: 'move', disabled: selectedFiles.value.length === 0 },
       { type: 'divider', key: 'file-divider-1' },
       { label: '重命名', key: 'rename', disabled: selectedFiles.value.length !== 1 },
@@ -165,6 +166,7 @@ const contextMenuOptions = computed(() => {
     { label: '上传文件', key: 'upload', disabled: isUploading.value },
     { label: '上传目录', key: 'upload-directory', disabled: isUploading.value },
     { label: clipboardPasteLabel.value, key: 'paste', disabled: !canPasteToCurrentPath.value },
+    { label: '复制当前路径', key: 'copy-current-path' },
     { type: 'divider', key: 'blank-divider-1' },
     { label: '刷新', key: 'refresh' },
     { label: '全选', key: 'select-all', disabled: fileStore.displayFiles.length === 0 },
@@ -430,6 +432,16 @@ async function pasteClipboardItems() {
   }
 }
 
+async function copyPathToClipboard(path: string, successMessage: string) {
+  try {
+    await navigator.clipboard.writeText(path)
+    getUiApi().message.success(successMessage)
+  } catch (error) {
+    console.error('Failed to copy file path', error)
+    getUiApi().message.error('复制路径失败。')
+  }
+}
+
 function handleContextMenuSelect(key: string | number) {
   closeContextMenu()
 
@@ -455,6 +467,11 @@ function handleContextMenuSelect(key: string | number) {
 
   if (key === 'copy') {
     saveClipboard('copy')
+    return
+  }
+
+  if (key === 'copy-path' && selectedFile.value) {
+    void copyPathToClipboard(resolve(fileStore.currentPath, selectedFile.value.filename), '已复制路径。')
     return
   }
 
@@ -495,6 +512,11 @@ function handleContextMenuSelect(key: string | number) {
 
   if (key === 'paste') {
     void pasteClipboardItems()
+    return
+  }
+
+  if (key === 'copy-current-path') {
+    void copyPathToClipboard(fileStore.currentPath, '已复制当前路径。')
     return
   }
 
