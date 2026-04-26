@@ -35,11 +35,15 @@ function getContainerStatusType(container: DockerContainer) {
 }
 
 function getContainerResource(container: DockerContainer) {
+  if (!props.controller.containerResourceLoadedMap[container.id]) {
+    return ''
+  }
+
   const stats = props.controller.statsMap[container.id]
   const diagnostics = props.controller.diagnosticsMap[container.id]
 
   if (!stats) {
-    return '-'
+    return '暂无数据'
   }
 
   return `${stats.cpuPercent} CPU / ${stats.memUsage}${diagnostics ? ` / 重启 ${diagnostics.restartCount}` : ''}`
@@ -139,7 +143,16 @@ function isPaused(container: DockerContainer) {
             </div>
             <div class="docker-card-field">
               <span>资源</span>
-              <strong>{{ getContainerResource(container) }}</strong>
+              <strong v-if="controller.containerResourceLoadedMap[container.id]">{{ getContainerResource(container) }}</strong>
+              <NButton
+                v-else
+                text
+                type="primary"
+                :loading="controller.containerResourceLoadingMap[container.id]"
+                @click="controller.refreshContainerResource(container.id)"
+              >
+                获取资源
+              </NButton>
             </div>
             <div class="docker-card-field">
               <span>创建时间</span>

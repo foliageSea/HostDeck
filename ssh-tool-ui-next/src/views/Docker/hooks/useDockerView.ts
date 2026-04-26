@@ -67,6 +67,8 @@ export function useDockerView(props: DockerViewProps) {
   const imageSummary = ref<DockerImageSummary>({ total: 0, dangling: 0 })
   const statsMap = ref<Record<string, DockerContainerStats>>({})
   const diagnosticsMap = ref<Record<string, DockerContainerDiagnostic>>({})
+  const containerResourceLoadingMap = ref<Record<string, boolean>>({})
+  const containerResourceLoadedMap = ref<Record<string, boolean>>({})
   const selectedContainerIds = ref<string[]>([])
   const batchProcessing = ref(false)
   const logsVisible = ref(false)
@@ -399,9 +401,23 @@ export function useDockerView(props: DockerViewProps) {
       render: (row) => {
         const stats = statsMap.value[row.id]
         const diagnostics = diagnosticsMap.value[row.id]
+        if (!containerResourceLoadedMap.value[row.id]) {
+          return h(
+            NButton,
+            {
+              size: 'tiny',
+              quaternary: true,
+              loading: containerResourceLoadingMap.value[row.id] === true,
+              onClick: () => {
+                void refreshContainerResource(row.id)
+              },
+            },
+            { default: () => '获取资源' },
+          )
+        }
         return stats
           ? `${stats.cpuPercent} CPU / ${stats.memUsage}${diagnostics ? ` / 重启 ${diagnostics.restartCount}` : ''}`
-          : '-'
+          : '暂无数据'
       },
     },
     { title: '端口', key: 'ports', width: 220, render: renderContainerPorts },
@@ -507,6 +523,8 @@ export function useDockerView(props: DockerViewProps) {
     selectedContainerIds.value = []
     statsMap.value = {}
     diagnosticsMap.value = {}
+    containerResourceLoadingMap.value = {}
+    containerResourceLoadedMap.value = {}
   }
 
   async function loadContainersPage(page = containerPage.value, pageSize = containerPageSize.value) {
@@ -529,9 +547,10 @@ export function useDockerView(props: DockerViewProps) {
       stopped: 0,
     }
     selectedContainerIds.value = selectedContainerIds.value.filter((id) => result.items.some((container) => container.id === id))
-
-    await refreshContainerDiagnostics()
-    await refreshContainerStats()
+    statsMap.value = {}
+    diagnosticsMap.value = {}
+    containerResourceLoadingMap.value = {}
+    containerResourceLoadedMap.value = {}
   }
 
   async function loadImagesPage(page = imagePage.value, pageSize = imagePageSize.value) {
@@ -573,48 +592,46 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
-  async function refreshContainerStats() {
-    if (!containers.value.length) {
-      statsMap.value = {}
-      return
+  async function refreshContainerResource(containerId: string) {
+    containerResourceLoadingMap.value = {
+      ...containerResourceLoadingMap.value,
+      [containerId]: true,
     }
 
     try {
       const connectionId = requireConnectionId()
-      const nextStats: Record<string, DockerContainerStats> = {}
+      const [stats, diagnostics] = await Promise.all([
+        queueDockerRequest(() => dockerApi.getContainerStats(connectionId, containerId)).catch(() => null),
+        queueDockerRequest(() => dockerApi.getContainerDiagnostics(connectionId, [containerId])).catch(() => []),
+      ])
 
-      for (const container of containers.value) {
-        try {
-          const stats = await queueDockerRequest(() => dockerApi.getContainerStats(connectionId, container.id))
-          nextStats[container.id] = stats
-        } catch {
-          // 单个容器 stats 获取失败时保留其他结果，避免整个列表失败。
+      if (stats) {
+        statsMap.value = {
+          ...statsMap.value,
+          [containerId]: stats,
         }
       }
 
-      statsMap.value = nextStats
-    } catch (error) {
-      console.error('Failed to refresh container stats', error)
-    }
-  }
+      const diagnostic = diagnostics[0]
+      if (diagnostic) {
+        diagnosticsMap.value = {
+          ...diagnosticsMap.value,
+          [containerId]: diagnostic,
+        }
+      }
 
-  async function refreshContainerDiagnostics() {
-    if (!containers.value.length) {
-      diagnosticsMap.value = {}
-      return
-    }
-
-    try {
-      const connectionId = requireConnectionId()
-      const diagnostics = await queueDockerRequest(() =>
-        dockerApi.getContainerDiagnostics(
-          connectionId,
-          containers.value.map((container) => container.id),
-        ),
-      )
-      diagnosticsMap.value = Object.fromEntries(diagnostics.map((item) => [item.containerId, item]))
+      containerResourceLoadedMap.value = {
+        ...containerResourceLoadedMap.value,
+        [containerId]: true,
+      }
     } catch (error) {
-      console.error('Failed to refresh container diagnostics', error)
+      console.error('Failed to refresh container resource', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '加载容器资源失败。')
+    } finally {
+      containerResourceLoadingMap.value = {
+        ...containerResourceLoadingMap.value,
+        [containerId]: false,
+      }
     }
   }
 
@@ -1125,6 +1142,8 @@ export function useDockerView(props: DockerViewProps) {
     containerColumns,
     containerPage,
     containerPagination,
+    containerResourceLoadedMap,
+    containerResourceLoadingMap,
     containers,
     containerRowKey,
     containerStatusFilter,
@@ -1197,6 +1216,7 @@ export function useDockerView(props: DockerViewProps) {
     pullingImage,
     pullImageName,
     refresh,
+    refreshContainerResource,
     refreshLogs,
     recreateContainer,
     renameVisible,
