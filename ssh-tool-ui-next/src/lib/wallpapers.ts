@@ -1,12 +1,14 @@
 import type { CSSProperties } from 'vue'
 
 export type WallpaperMode = 'default' | 'preset' | 'custom'
+export type WallpaperCustomType = 'image' | 'video'
 export type WallpaperTarget = 'desktop' | 'login'
 
 export interface WallpaperSettings {
   mode: WallpaperMode
   presetId: string | null
   customDataUrl: string | null
+  customType: WallpaperCustomType | null
   brightness: number
   contrast: number
 }
@@ -57,9 +59,14 @@ export function createDefaultWallpaperSettings(): WallpaperSettings {
     mode: 'default',
     presetId: null,
     customDataUrl: null,
+    customType: null,
     brightness: 100,
     contrast: 100,
   }
+}
+
+export function createWallpaperFilter(settings: WallpaperSettings): string {
+  return `brightness(${settings.brightness}%) contrast(${settings.contrast}%)`
 }
 
 export function getDefaultWallpaperBackground(target: WallpaperTarget, isDark: boolean): string {
@@ -95,7 +102,7 @@ export function createWallpaperStyle(
   settings: WallpaperSettings,
   isDark: boolean,
 ): CSSProperties {
-  const filter = `brightness(${settings.brightness}%) contrast(${settings.contrast}%)`
+  const filter = createWallpaperFilter(settings)
   const background = resolveWallpaperBackground(target, settings, isDark)
   if (settings.mode === 'custom' && settings.customDataUrl) {
     return {

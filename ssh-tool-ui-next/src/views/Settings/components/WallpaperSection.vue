@@ -82,7 +82,7 @@ function resetWallpaperEffects() {
         <h3 class="m-0 text-[1rem]">{{ title }}</h3>
       </div>
       <NSpace>
-        <NButton secondary @click="controller.openWallpaperPicker(target)">上传图片</NButton>
+        <NButton secondary @click="controller.openWallpaperPicker(target)">上传图片/视频</NButton>
         <NButton tertiary @click="controller.resetWallpaper(target)">恢复默认</NButton>
       </NSpace>
     </div>
@@ -97,7 +97,7 @@ function resetWallpaperEffects() {
       }"
       class="hidden"
       type="file"
-      accept="image/*"
+      accept="image/*,video/*"
       @change="controller.handleWallpaperUpload(target, $event)"
     >
 
@@ -137,15 +137,24 @@ function resetWallpaperEffects() {
         <div
           class="relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
           :class="wallpaperPreviewClass"
-          :style="wallpaperSettings.customDataUrl
+          :style="wallpaperSettings.customDataUrl && wallpaperSettings.customType !== 'video'
             ? { backgroundColor: isDark ? '#020617' : '#e2e8f0', backgroundImage: `url(${wallpaperSettings.customDataUrl})`, backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundSize: 'contain' }
             : undefined"
         >
+          <video
+            v-if="wallpaperSettings.customDataUrl && wallpaperSettings.customType === 'video'"
+            class="h-full w-full object-cover"
+            :src="wallpaperSettings.customDataUrl"
+            autoplay
+            muted
+            loop
+            playsinline
+          />
           <span v-if="!wallpaperSettings.customDataUrl" class="absolute inset-0 flex items-center justify-center text-[0.84rem]" :class="customEmptyMaskClass">未上传</span>
         </div>
         <div class="mt-[10px] grid gap-[4px]">
-          <strong class="text-[0.94rem]" :class="headingTextClass">自定义图片</strong>
-          <span class="text-[0.84rem]" :class="secondaryTextClass">最大 20MB，原图显示</span>
+          <strong class="text-[0.94rem]" :class="headingTextClass">自定义媒体</strong>
+          <span class="text-[0.84rem]" :class="secondaryTextClass">最大 100MB，图片或视频</span>
         </div>
       </div>
     </div>

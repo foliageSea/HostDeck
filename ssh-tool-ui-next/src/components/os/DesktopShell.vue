@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { createWallpaperStyle } from '@/lib/wallpapers'
+import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import DesktopDock from '@/components/os/DesktopDock.vue'
@@ -18,6 +18,12 @@ const switcherWindows = ref<typeof desktopStore.windows>([])
 const windows = computed(() => desktopStore.windows)
 const desktopWallpaperStyle = computed(() =>
   createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
+)
+const desktopWallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
+const isVideoWallpaper = computed(() =>
+  settingsStore.desktopWallpaper.mode === 'custom'
+  && settingsStore.desktopWallpaper.customType === 'video'
+  && Boolean(settingsStore.desktopWallpaper.customDataUrl),
 )
 
 function selectWindow(index: number) {
@@ -84,7 +90,17 @@ onUnmounted(() => {
 <template>
   <div
     class="relative min-h-screen overflow-hidden [--desktop-topbar-height:48px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:24px] [--desktop-dock-height:72px] [--desktop-dock-safe-area:calc(var(--desktop-dock-bottom-gap)_+_var(--desktop-dock-height)_+_16px)]">
-    <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="desktopWallpaperStyle" />
+    <video
+      v-if="isVideoWallpaper"
+      class="absolute inset-0 h-full w-full object-cover"
+      :src="settingsStore.desktopWallpaper.customDataUrl ?? undefined"
+      :style="{ filter: desktopWallpaperFilter }"
+      autoplay
+      muted
+      loop
+      playsinline
+    />
+    <div v-else class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="desktopWallpaperStyle" />
     <div class="absolute inset-0 [backdrop-filter:saturate(108%)]" />
 
     <DesktopTopBar />

@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
 import { authApi, type ConnectParams, type ConnectResponse } from '@/api/auth'
 import type { SavedServer } from '@/api/server'
-import { createWallpaperStyle } from '@/lib/wallpapers'
+import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
@@ -49,7 +49,13 @@ const selectedServer = computed(() =>
   sshStore.savedServers.find((server) => server.id === selectedServerId.value) ?? null,
 )
 const loginWallpaperStyle = computed(() =>
-  createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
+  createWallpaperStyle('login', settingsStore.desktopWallpaper, settingsStore.isDark),
+)
+const loginWallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
+const isVideoWallpaper = computed(() =>
+  settingsStore.desktopWallpaper.mode === 'custom'
+  && settingsStore.desktopWallpaper.customType === 'video'
+  && Boolean(settingsStore.desktopWallpaper.customDataUrl),
 )
 const serverEditorTitle = computed(() => (serverEditorMode.value === 'create' ? '新建服务器' : '编辑服务器'))
 
@@ -234,7 +240,17 @@ onMounted(() => {
 
 <template>
   <div class="relative min-h-screen overflow-hidden">
-    <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="loginWallpaperStyle" />
+    <video
+      v-if="isVideoWallpaper"
+      class="absolute inset-0 h-full w-full object-cover"
+      :src="settingsStore.desktopWallpaper.customDataUrl ?? undefined"
+      :style="{ filter: loginWallpaperFilter }"
+      autoplay
+      muted
+      loop
+      playsinline
+    />
+    <div v-else class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="loginWallpaperStyle" />
     <div class="relative z-1 grid min-h-screen place-items-center p-[40px] lt-lg:p-[20px]">
       <section
         class="w-full max-w-[520px] rounded-[24px] p-[24px] backdrop-blur-[18px]"

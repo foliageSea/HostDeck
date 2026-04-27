@@ -1,9 +1,9 @@
 import { ref } from 'vue'
-import type { WallpaperSettings, WallpaperTarget } from '@/lib/wallpapers'
+import type { WallpaperCustomType, WallpaperSettings, WallpaperTarget } from '@/lib/wallpapers'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
 
-const MAX_WALLPAPER_SIZE = 20 * 1024 * 1024
+const MAX_WALLPAPER_SIZE = 100 * 1024 * 1024
 
 export function useWallpaperSettings() {
   const settingsStore = useSettingsStore()
@@ -48,12 +48,13 @@ export function useWallpaperSettings() {
     input?.click()
   }
 
-  function applyCustomWallpaper(target: WallpaperTarget, dataUrl: string) {
+  function applyCustomWallpaper(target: WallpaperTarget, dataUrl: string, customType: WallpaperCustomType) {
     const nextValue: WallpaperSettings = {
       ...getWallpaperSettings(target),
       mode: 'custom',
       presetId: null,
       customDataUrl: dataUrl,
+      customType,
     }
 
     updateWallpaperSettings(target, nextValue)
@@ -68,13 +69,19 @@ export function useWallpaperSettings() {
       return
     }
 
-    if (!file.type.startsWith('image/')) {
-      getUiApi().message.error('仅支持上传图片文件。')
+    const customType: WallpaperCustomType | null = file.type.startsWith('image/')
+      ? 'image'
+      : file.type.startsWith('video/')
+        ? 'video'
+        : null
+
+    if (!customType) {
+      getUiApi().message.error('仅支持上传图片或视频文件。')
       return
     }
 
     if (file.size > MAX_WALLPAPER_SIZE) {
-      getUiApi().message.error('图片不能超过 20MB。')
+      getUiApi().message.error('文件不能超过 100MB。')
       return
     }
 
@@ -82,15 +89,15 @@ export function useWallpaperSettings() {
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? reader.result : ''
       if (!result) {
-        getUiApi().message.error('读取图片失败。')
+        getUiApi().message.error('读取文件失败。')
         return
       }
 
-      applyCustomWallpaper(target, result)
+      applyCustomWallpaper(target, result, customType)
       getUiApi().message.success(target === 'desktop' ? '桌面壁纸已更新。' : '登录页壁纸已更新。')
     }
     reader.onerror = () => {
-      getUiApi().message.error('读取图片失败。')
+      getUiApi().message.error('读取文件失败。')
     }
     reader.readAsDataURL(file)
   }

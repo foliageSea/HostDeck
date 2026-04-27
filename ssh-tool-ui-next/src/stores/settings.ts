@@ -92,6 +92,11 @@ function normalizeWallpaperSettings(value: unknown): WallpaperSettings {
   const customDataUrl = typeof candidate.customDataUrl === 'string' && candidate.customDataUrl.trim()
     ? candidate.customDataUrl
     : null
+  const customType = candidate.customType === 'image' || candidate.customType === 'video'
+    ? candidate.customType
+    : customDataUrl
+      ? 'image'
+      : null
   const brightness = normalizeWallpaperEffectValue(candidate.brightness)
   const contrast = normalizeWallpaperEffectValue(candidate.contrast)
 
@@ -99,6 +104,7 @@ function normalizeWallpaperSettings(value: unknown): WallpaperSettings {
     mode,
     presetId,
     customDataUrl,
+    customType,
     brightness,
     contrast,
   }
