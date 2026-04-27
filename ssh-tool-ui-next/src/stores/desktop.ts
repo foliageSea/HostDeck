@@ -162,6 +162,9 @@ export interface AppConfig {
   component: Component
   width?: number
   height?: number
+  minWidth?: number
+  minHeight?: number
+  minimizable?: boolean
   hide?: boolean
 }
 
@@ -175,6 +178,9 @@ export interface WindowState {
   y: number
   width: number
   height: number
+  minWidth: number
+  minHeight: number
+  minimizable: boolean
   isMinimized: boolean
   isMaximized: boolean
   zIndex: number
@@ -196,6 +202,8 @@ export const useDesktopStore = defineStore('desktop', {
         height: 560,
         icon: 'terminal',
         id: 'terminal',
+        minHeight: 360,
+        minWidth: 640,
         title: '终端',
         width: 920,
       },
@@ -204,6 +212,8 @@ export const useDesktopStore = defineStore('desktop', {
         height: 540,
         icon: 'dashboard',
         id: 'dashboard',
+        minHeight: 420,
+        minWidth: 360,
         title: '系统监控',
         width: 420,
         hide: true,
@@ -213,6 +223,8 @@ export const useDesktopStore = defineStore('desktop', {
         height: 720,
         icon: 'folder',
         id: 'files',
+        minHeight: 560,
+        minWidth: 900,
         title: '文件管理',
         width: 1280,
       },
@@ -221,6 +233,8 @@ export const useDesktopStore = defineStore('desktop', {
         height: 760,
         icon: 'docker',
         id: 'docker',
+        minHeight: 560,
+        minWidth: 900,
         title: 'Docker 管理',
         width: 1180,
         hide: false,
@@ -230,6 +244,8 @@ export const useDesktopStore = defineStore('desktop', {
         height: 720,
         icon: 'runtime',
         id: 'runtime-sessions',
+        minHeight: 520,
+        minWidth: 860,
         title: '运行态会话',
         width: 1120,
       },
@@ -239,6 +255,9 @@ export const useDesktopStore = defineStore('desktop', {
         hide: true,
         icon: 'editor',
         id: 'editor',
+        minimizable: false,
+        minHeight: 480,
+        minWidth: 720,
         title: '文本编辑器',
         width: 980,
       },
@@ -257,6 +276,9 @@ export const useDesktopStore = defineStore('desktop', {
         hide: true,
         icon: 'media',
         id: 'media-viewer',
+        minimizable: false,
+        minHeight: 480,
+        minWidth: 720,
         title: '媒体预览',
         width: 1080,
       },
@@ -265,6 +287,8 @@ export const useDesktopStore = defineStore('desktop', {
         height: 600,
         icon: 'settings',
         id: 'settings',
+        minHeight: 460,
+        minWidth: 420,
         title: '设置',
         width: 480,
       },
@@ -445,7 +469,7 @@ export const useDesktopStore = defineStore('desktop', {
 
     minimizeWindow(id: string) {
       const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow) {
+      if (!targetWindow || !targetWindow.minimizable) {
         return
       }
 
@@ -475,17 +499,22 @@ export const useDesktopStore = defineStore('desktop', {
       }
 
       const windowId = `${appId}-${Date.now()}`
+      const minWidth = app.minWidth ?? 320
+      const minHeight = app.minHeight ?? 240
       const windowState: WindowState = {
         appId,
         component: app.component,
-        height: app.height ?? 600,
+        height: Math.max(app.height ?? 600, minHeight),
         icon: app.icon,
         id: windowId,
         isMaximized: false,
         isMinimized: false,
+        minimizable: app.minimizable ?? true,
+        minHeight,
+        minWidth,
         props,
         title: typeof props?.title === 'string' ? props.title : app.title,
-        width: app.width ?? 800,
+        width: Math.max(app.width ?? 800, minWidth),
         x: 80 + this.windows.length * 24,
         y: 72 + this.windows.length * 24,
         zIndex: this.nextZIndex++,
@@ -531,8 +560,8 @@ export const useDesktopStore = defineStore('desktop', {
         return
       }
 
-      targetWindow.width = width
-      targetWindow.height = height
+      targetWindow.width = Math.max(targetWindow.minWidth, width)
+      targetWindow.height = Math.max(targetWindow.minHeight, height)
     },
   },
 })
