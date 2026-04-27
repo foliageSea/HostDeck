@@ -186,11 +186,13 @@ function getImageName(image: DockerImage) {
 
 .docker-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, 340px);
   gap: 12px;
+  justify-content: start;
 }
 
 .docker-card {
+  width: 340px;
   border: 1px solid var(--docker-card-border);
   background: var(--docker-card-bg);
   box-shadow: var(--docker-card-shadow);
@@ -288,7 +290,14 @@ function getImageName(image: DockerImage) {
 }
 
 @media (max-width: 640px) {
-  .docker-card-grid,
+  .docker-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .docker-card {
+    width: 100%;
+  }
+
   .docker-card-fields {
     grid-template-columns: 1fr;
   }
