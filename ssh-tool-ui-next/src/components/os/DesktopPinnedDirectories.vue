@@ -625,8 +625,8 @@ onUnmounted(() => {
             : 'border-transparent bg-transparent text-[#0f172a]',
           isDirectorySelected(directory.path)
             ? settingsStore.isDark
-              ? 'border-[rgba(148,163,184,0.12)] bg-[rgba(15,23,42,0.28)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),0_0_0_1px_rgba(0,0,0,0.24)]'
-              : 'border-[rgba(148,163,184,0.16)] bg-[rgba(255,255,255,0.3)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.5),0_0_0_1px_rgba(0,0,0,0.24)]'
+              ? 'border-[rgba(148,163,184,0.26)] bg-[rgba(15,23,42,0.46)] outline outline-1 outline-offset-2 outline-[rgba(96,165,250,0.58)]'
+              : 'border-[rgba(100,116,139,0.36)] bg-[rgba(148,163,184,0.24)] outline outline-1 outline-offset-2 outline-[rgba(37,99,235,0.48)]'
             : '',
           dragState?.path === directory.path ? 'z-[7] cursor-grabbing opacity-80 shadow-[0_20px_40px_rgba(15,23,42,0.18)] transition-none' : '',
         ]"
