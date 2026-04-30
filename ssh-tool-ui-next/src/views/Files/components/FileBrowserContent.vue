@@ -201,7 +201,7 @@ onBeforeUnmount(() => {
       <NEmpty v-if="files.length === 0" description="当前目录没有文件" class="flex h-full min-h-[260px] items-center justify-center" />
 
       <div v-else-if="viewMode === 'grid'" class="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-[12px]">
-        <button
+        <div
           v-for="file in files"
           :key="file.filename"
           :data-file-name="file.filename"
@@ -226,11 +226,11 @@ onBeforeUnmount(() => {
           </NIcon>
           <div class="max-w-full truncate-line">{{ file.filename }}</div>
           <div class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ file.isDirectory ? '目录' : formatFileSize(file.size) }}</div>
-        </button>
+        </div>
       </div>
 
       <div v-else class="flex flex-col gap-[8px]">
-        <button
+        <div
           v-for="file in files"
           :key="file.filename"
           :data-file-name="file.filename"
@@ -258,7 +258,7 @@ onBeforeUnmount(() => {
           </div>
           <span class="file-row-size text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ file.isDirectory ? '-' : formatFileSize(file.size) }}</span>
           <span class="file-row-time text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ formatModifyTime(file.modifyTime) }}</span>
-        </button>
+        </div>
       </div>
     </template>
 
