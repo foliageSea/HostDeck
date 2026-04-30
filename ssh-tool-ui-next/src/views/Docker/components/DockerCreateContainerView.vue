@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { Cube } from '@vicons/carbon'
+import { LogoDocker } from '@vicons/ionicons5'
 import {
   dockerApi,
   type DockerCreateContainerPayload,
@@ -176,7 +176,7 @@ watch(selectedImage, (image) => {
     >
       <div class="min-w-0">
         <div class="mb-[4px] flex items-center gap-[8px]">
-          <NIcon :size="20"><Cube /></NIcon>
+          <NIcon :size="20"><LogoDocker /></NIcon>
           <h2 class="m-0 text-[18px]">新建容器</h2>
         </div>
         <p class="m-0 text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(71,85,105,0.88)]'">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
-import { Add, Cube, Download, Upload } from '@vicons/carbon'
+import { Add, Download, Upload } from '@vicons/carbon'
+import { LogoDocker } from '@vicons/ionicons5'
 import { useSettingsStore } from '@/stores/settings'
 import DockerContainersTab from './components/DockerContainersTab.vue'
 import DockerImageHistoryModal from './components/DockerImageHistoryModal.vue'
@@ -35,7 +36,7 @@ const controller: DockerViewController = reactive(useDockerView(props))
       <div class="flex flex-wrap items-start justify-between gap-[16px]">
         <div>
           <div class="mb-[6px] flex items-center gap-[8px]">
-            <NIcon :size="20"><Cube /></NIcon>
+            <NIcon :size="20"><LogoDocker /></NIcon>
             <h2 class="m-0 text-[20px]">Docker 管理</h2>
           </div>
           <p class="m-0" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.72)]' : 'text-[rgba(71,85,105,0.88)]'">
