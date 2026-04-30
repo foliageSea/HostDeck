@@ -140,10 +140,9 @@ const contextMenuOptions = computed(() => {
 
   return []
 })
+const primaryRgb = computed(() => `var(--app-primary-rgb, ${settingsStore.isDark ? '96, 165, 250' : '37, 99, 235'})`)
 const gridOverlayStyle = computed(() => ({
-  backgroundImage: settingsStore.isDark
-    ? 'radial-gradient(circle, rgba(191,219,254,0.18) 1.5px, transparent 1.5px)'
-    : 'radial-gradient(circle, rgba(37,99,235,0.16) 1.5px, transparent 1.5px)',
+  backgroundImage: `radial-gradient(circle, rgba(${primaryRgb.value}, ${settingsStore.isDark ? '0.18' : '0.16'}) 1.5px, transparent 1.5px)`,
   backgroundPosition: `${DESKTOP_ICON_PADDING + DESKTOP_ICON_WIDTH / 2}px ${DESKTOP_ICON_PADDING + DESKTOP_ICON_HEIGHT / 2}px`,
   backgroundSize: `${DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X}px ${DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y}px`,
 }))
@@ -604,7 +603,7 @@ onUnmounted(() => {
 
       <div
         v-if="dragPreviewPosition"
-        class="pointer-events-none absolute z-[6] rounded-[18px] border border-dashed border-[rgba(96,165,250,0.72)] bg-[rgba(96,165,250,0.12)] shadow-[0_0_0_1px_rgba(96,165,250,0.12)]"
+        class="pointer-events-none absolute z-[6] rounded-[18px] border border-dashed border-[var(--app-primary-border-strong)] bg-[rgba(var(--app-primary-rgb),0.12)] shadow-[0_0_0_1px_rgba(var(--app-primary-rgb),0.12)]"
         :style="{
           left: `${dragPreviewPosition.x}px`,
           top: `${dragPreviewPosition.y}px`,
@@ -625,8 +624,8 @@ onUnmounted(() => {
             : 'border-transparent bg-transparent text-[#0f172a]',
           isDirectorySelected(directory.path)
             ? settingsStore.isDark
-              ? 'border-[rgba(148,163,184,0.26)] bg-[rgba(15,23,42,0.46)] outline outline-1 outline-offset-2 outline-[rgba(96,165,250,0.58)]'
-              : 'border-[rgba(100,116,139,0.36)] bg-[rgba(148,163,184,0.24)] outline outline-1 outline-offset-2 outline-[rgba(37,99,235,0.48)]'
+              ? 'border-[rgba(148,163,184,0.26)] bg-[rgba(15,23,42,0.46)] outline outline-1 outline-offset-2 outline-[var(--app-primary-border)]'
+              : 'border-[rgba(100,116,139,0.36)] bg-[var(--app-primary-soft-strong)] outline outline-1 outline-offset-2 outline-[var(--app-primary-border)]'
             : '',
           dragState?.path === directory.path ? 'z-[7] cursor-grabbing opacity-80 shadow-[0_20px_40px_rgba(15,23,42,0.18)] transition-none' : '',
         ]"
@@ -662,7 +661,7 @@ onUnmounted(() => {
 
       <div
         v-if="selectionState?.active"
-        class="pointer-events-none absolute z-[6] rounded-[10px] border border-[rgba(96,165,250,0.72)] bg-[rgba(96,165,250,0.16)] shadow-[inset_0_0_0_1px_rgba(96,165,250,0.16)]"
+        class="pointer-events-none absolute z-[6] rounded-[10px] border border-[var(--app-primary-border-strong)] bg-[var(--app-primary-soft)] shadow-[inset_0_0_0_1px_var(--app-primary-soft)]"
         :style="selectionBoxStyle"
       />
     </div>

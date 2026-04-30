@@ -213,7 +213,7 @@ function handleContextMenuSelect(key: string | number) {
         @click="handleOpen($event, app.id)"
         @contextmenu="handleContextMenu($event, app.id)" @keydown="handleTriggerKeydown($event, app.id)">
         <AppIcon :name="app.icon" :size="24" />
-        <span v-if="isAppOpen(app.id)" class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[#60a5fa]" aria-hidden="true" />
+        <span v-if="isAppOpen(app.id)" class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]" aria-hidden="true" />
       </button>
 
     </div>
@@ -246,7 +246,7 @@ function handleContextMenuSelect(key: string | number) {
           ]"
           @click="activateWindow(window.id)">
           <span>{{ window.title }}</span>
-          <span v-if="desktopStore.activeWindowId === window.id" class="h-[8px] w-[8px] rounded-full bg-[#60a5fa]" />
+          <span v-if="desktopStore.activeWindowId === window.id" class="h-[8px] w-[8px] rounded-full bg-[var(--app-primary-color)]" />
         </button>
         <div class="mt-[8px] flex gap-[8px]">
           <NButton secondary size="small" :disabled="!desktopStore.canOpenWindow(selectorAppId)" @click="openNewWindow(selectorAppId)">新建窗口</NButton>

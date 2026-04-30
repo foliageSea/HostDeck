@@ -209,12 +209,12 @@ onBeforeUnmount(() => {
           class="flex min-h-[130px] flex-col items-center justify-center gap-[10px] rounded-[16px] border p-[14px] text-center text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
           :class="[
             settingsStore.isDark
-              ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.62)] hover:border-[rgba(96,165,250,0.55)] hover:bg-[rgba(30,41,59,0.86)]'
-              : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.84)] hover:border-[rgba(59,130,246,0.34)] hover:bg-[rgba(219,234,254,0.68)]',
+              ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.62)] hover:border-[var(--app-primary-border)] hover:bg-[rgba(30,41,59,0.86)]'
+              : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.84)] hover:border-[var(--app-primary-border)] hover:bg-[var(--app-primary-soft)]',
             selectedNames.includes(file.filename)
               ? settingsStore.isDark
-                ? 'border-[rgba(96,165,250,0.55)] bg-[rgba(30,41,59,0.86)]'
-                : 'border-[rgba(59,130,246,0.34)] bg-[rgba(219,234,254,0.68)]'
+                ? 'border-[var(--app-primary-border)] bg-[rgba(30,41,59,0.86)]'
+                : 'border-[var(--app-primary-border)] bg-[var(--app-primary-soft)]'
               : '',
           ]"
           @click="emit('clickFile', file, $event)"
@@ -238,12 +238,12 @@ onBeforeUnmount(() => {
           class="file-row grid grid-cols-[minmax(0,1fr)_120px_180px] items-center gap-[12px] rounded-[14px] border px-[14px] py-[12px] text-left text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
           :class="[
             settingsStore.isDark
-              ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.62)] hover:border-[rgba(96,165,250,0.55)] hover:bg-[rgba(30,41,59,0.86)]'
-              : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.84)] hover:border-[rgba(59,130,246,0.34)] hover:bg-[rgba(219,234,254,0.68)]',
+              ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.62)] hover:border-[var(--app-primary-border)] hover:bg-[rgba(30,41,59,0.86)]'
+              : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.84)] hover:border-[var(--app-primary-border)] hover:bg-[var(--app-primary-soft)]',
             selectedNames.includes(file.filename)
               ? settingsStore.isDark
-                ? 'border-[rgba(96,165,250,0.55)] bg-[rgba(30,41,59,0.86)]'
-                : 'border-[rgba(59,130,246,0.34)] bg-[rgba(219,234,254,0.68)]'
+                ? 'border-[var(--app-primary-border)] bg-[rgba(30,41,59,0.86)]'
+                : 'border-[var(--app-primary-border)] bg-[var(--app-primary-soft)]'
               : '',
           ]"
           @click="emit('clickFile', file, $event)"
@@ -262,89 +262,22 @@ onBeforeUnmount(() => {
       </div>
     </template>
 
-    <div v-if="selectionState?.active" class="pointer-events-none absolute z-5 rounded-[8px] border border-[rgba(96,165,250,0.72)] bg-[rgba(96,165,250,0.16)] shadow-[inset_0_0_0_1px_rgba(96,165,250,0.16)]" :style="selectionBoxStyle" />
+    <div v-if="selectionState?.active" class="pointer-events-none absolute z-5 rounded-[8px] border border-[var(--app-primary-border-strong)] bg-[var(--app-primary-soft)] shadow-[inset_0_0_0_1px_var(--app-primary-soft)]" :style="selectionBoxStyle" />
   </div>
 </template>
 
 <style scoped>
-.file-icon-folder {
-  color: rgba(96, 165, 250, 0.96);
-}
-
-.file-icon-image {
-  color: rgba(192, 132, 252, 0.96);
-}
-
-.file-icon-video {
-  color: rgba(251, 113, 133, 0.96);
-}
-
-.file-icon-audio {
-  color: rgba(52, 211, 153, 0.96);
-}
-
-.file-icon-code {
-  color: rgba(34, 211, 238, 0.96);
-}
-
-.file-icon-document {
-  color: rgba(165, 180, 252, 0.96);
-}
-
-.file-icon-archive {
-  color: rgba(251, 146, 60, 0.96);
-}
-
-.file-icon-data {
-  color: rgba(250, 204, 21, 0.96);
-}
-
-.file-icon-secure {
-  color: rgba(251, 191, 36, 0.96);
-}
-
+.file-icon-folder,
+.file-icon-image,
+.file-icon-video,
+.file-icon-audio,
+.file-icon-code,
+.file-icon-document,
+.file-icon-archive,
+.file-icon-data,
+.file-icon-secure,
 .file-icon-default {
-  color: rgba(148, 163, 184, 0.96);
-}
-
-.files-content-light .file-icon-folder {
-  color: rgba(37, 99, 235, 0.94);
-}
-
-.files-content-light .file-icon-image {
-  color: rgba(147, 51, 234, 0.94);
-}
-
-.files-content-light .file-icon-video {
-  color: rgba(225, 29, 72, 0.94);
-}
-
-.files-content-light .file-icon-audio {
-  color: rgba(5, 150, 105, 0.94);
-}
-
-.files-content-light .file-icon-code {
-  color: rgba(8, 145, 178, 0.94);
-}
-
-.files-content-light .file-icon-document {
-  color: rgba(79, 70, 229, 0.94);
-}
-
-.files-content-light .file-icon-archive {
-  color: rgba(234, 88, 12, 0.94);
-}
-
-.files-content-light .file-icon-data {
-  color: rgba(202, 138, 4, 0.94);
-}
-
-.files-content-light .file-icon-secure {
-  color: rgba(180, 83, 9, 0.94);
-}
-
-.files-content-light .file-icon-default {
-  color: rgba(100, 116, 139, 0.94);
+  color: var(--app-primary-color);
 }
 
 @media (max-width: 860px) {

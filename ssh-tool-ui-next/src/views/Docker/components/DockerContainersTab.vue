@@ -245,26 +245,26 @@ function isPaused(container: DockerContainer) {
   --docker-card-border: rgba(148, 163, 184, 0.16);
   --docker-card-bg: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.46));
   --docker-card-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
-  --docker-card-border-hover: rgba(96, 165, 250, 0.36);
-  --docker-card-bg-hover: linear-gradient(145deg, rgba(15, 23, 42, 0.84), rgba(30, 64, 175, 0.32));
+  --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.42);
+  --docker-card-bg-hover: linear-gradient(145deg, rgba(15, 23, 42, 0.84), rgba(var(--app-primary-rgb), 0.28));
   --docker-card-field-bg: rgba(15, 23, 42, 0.38);
   --docker-card-label-color: rgba(226, 232, 240, 0.52);
   --docker-card-value-color: rgba(248, 250, 252, 0.9);
   --docker-scrollbar-thumb: rgba(148, 163, 184, 0.34);
-  --docker-scrollbar-thumb-hover: rgba(96, 165, 250, 0.52);
+  --docker-scrollbar-thumb-hover: rgba(var(--app-primary-rgb), 0.52);
 }
 
 .docker-theme-light {
   --docker-card-border: rgba(148, 163, 184, 0.22);
   --docker-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
   --docker-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-  --docker-card-border-hover: rgba(59, 130, 246, 0.3);
-  --docker-card-bg-hover: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(219, 234, 254, 0.9));
+  --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.34);
+  --docker-card-bg-hover: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(var(--app-primary-rgb), 0.14));
   --docker-card-field-bg: rgba(241, 245, 249, 0.92);
   --docker-card-label-color: rgba(100, 116, 139, 0.9);
   --docker-card-value-color: rgba(30, 41, 59, 0.92);
   --docker-scrollbar-thumb: rgba(100, 116, 139, 0.26);
-  --docker-scrollbar-thumb-hover: rgba(59, 130, 246, 0.42);
+  --docker-scrollbar-thumb-hover: rgba(var(--app-primary-rgb), 0.42);
 }
 
 .docker-card-shell,
