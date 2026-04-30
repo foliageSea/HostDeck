@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import * as monaco from 'monaco-editor'
+import { computed, ref, watch } from 'vue'
+import CodeEditor from '@/components/editor/CodeEditor.vue'
 import { filesApi } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
@@ -18,13 +18,8 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const content = ref('')
-const editorContainer = ref<HTMLElement | null>(null)
 const showSettings = ref(false)
 const editorFontFamilyDraft = ref(settingsStore.editorFontFamily)
-
-let editor: monaco.editor.IStandaloneCodeEditor | null = null
-let model: monaco.editor.ITextModel | null = null
-let syncDisposable: monaco.IDisposable | null = null
 
 const filename = computed(() => props.path.split('/').pop() || props.path)
 
@@ -101,14 +96,6 @@ const languageByExtension: Record<string, string> = {
   zsh: 'shell',
 }
 
-const editorTheme = computed(() => (settingsStore.isDark ? 'vs-dark' : 'vs'))
-
-const surfaceClass = computed(() => (
-  settingsStore.isDark
-    ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(2,6,23,0.46)]'
-    : 'border-[rgba(148,163,184,0.2)] bg-[rgba(255,255,255,0.74)]'
-))
-
 function detectLanguage(path: string) {
   const lowerPath = path.toLowerCase()
   const name = lowerPath.split('/').pop() || lowerPath
@@ -134,28 +121,6 @@ function detectLanguage(path: string) {
   return 'plaintext'
 }
 
-function syncEditorContent(nextContent: string) {
-  if (!model || model.getValue() === nextContent) {
-    return
-  }
-
-  model.setValue(nextContent)
-}
-
-function updateEditorFontOptions(options: { fontFamily?: string, fontSize?: number }) {
-  if (!editor) {
-    return
-  }
-
-  editor.updateOptions(options)
-
-  if (options.fontFamily !== undefined) {
-    monaco.editor.remeasureFonts()
-  }
-
-  editor.layout()
-}
-
 function applyEditorSettings() {
   const nextFontFamily = editorFontFamilyDraft.value.trim()
 
@@ -173,51 +138,12 @@ function resetEditorSettings() {
   editorFontFamilyDraft.value = settingsStore.editorFontFamily
 }
 
-async function initEditor() {
-  await nextTick()
-
-  if (!editorContainer.value || editor) {
-    return
-  }
-
-  model = monaco.editor.createModel(content.value, language.value)
-  editor = monaco.editor.create(editorContainer.value, {
-    model,
-    automaticLayout: true,
-    minimap: { enabled: false },
-    fontSize: settingsStore.editorFontSize,
-    fontFamily: settingsStore.editorFontFamily,
-    scrollBeyondLastLine: false,
-    wordWrap: 'off',
-    tabSize: 2,
-    theme: editorTheme.value,
-  })
-
-  syncDisposable = editor.onDidChangeModelContent(() => {
-    content.value = editor?.getValue() ?? ''
-  })
-}
-
-function disposeEditor() {
-  syncDisposable?.dispose()
-  syncDisposable = null
-  editor?.dispose()
-  editor = null
-  model?.dispose()
-  model = null
-}
-
 async function loadFile() {
   loading.value = true
   error.value = ''
 
   try {
     content.value = await filesApi.readFile(props.connectionId, props.path)
-    syncEditorContent(content.value)
-
-    if (model) {
-      monaco.editor.setModelLanguage(model, language.value)
-    }
   } catch (loadError) {
     console.error('Failed to read file', loadError)
     error.value = '文件读取失败。'
@@ -245,27 +171,12 @@ function closeWindow() {
   }
 }
 
-onMounted(() => {
-  void initEditor()
-  void loadFile()
-})
-
-onBeforeUnmount(() => {
-  disposeEditor()
-})
-
-watch(
-  () => settingsStore.editorFontSize,
-  (value) => {
-    updateEditorFontOptions({ fontSize: value })
-  },
-)
+void loadFile()
 
 watch(
   () => settingsStore.editorFontFamily,
   (value) => {
     editorFontFamilyDraft.value = value
-    updateEditorFontOptions({ fontFamily: value })
   },
 )
 
@@ -275,12 +186,6 @@ watch(showSettings, (value) => {
   }
 })
 
-watch(
-  () => settingsStore.isDark,
-  () => {
-    monaco.editor.setTheme(editorTheme.value)
-  },
-)
 </script>
 
 <template>
@@ -315,13 +220,7 @@ watch(
         </template>
       </NResult>
 
-      <div
-        v-else
-        class="editor-surface h-full min-h-0 overflow-hidden rounded-[18px] border shadow-[0_20px_48px_rgba(15,23,42,0.16)]"
-        :class="surfaceClass"
-      >
-        <div ref="editorContainer" class="h-full min-h-0 overflow-hidden rounded-[inherit]" />
-      </div>
+      <CodeEditor v-else v-model="content" :language="language" class="h-full min-h-0" />
     </NSpin>
 
     <NModal
@@ -393,7 +292,4 @@ watch(
   margin: auto;
 }
 
-.editor-surface {
-  backdrop-filter: blur(18px);
-}
 </style>

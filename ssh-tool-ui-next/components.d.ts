@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppIcon: typeof import('./src/components/common/AppIcon.vue')['default']
+    CodeEditor: typeof import('./src/components/editor/CodeEditor.vue')['default']
     DesktopDock: typeof import('./src/components/os/DesktopDock.vue')['default']
     DesktopPinnedDirectories: typeof import('./src/components/os/DesktopPinnedDirectories.vue')['default']
     DesktopShell: typeof import('./src/components/os/DesktopShell.vue')['default']
