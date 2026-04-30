@@ -89,7 +89,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="relative min-h-screen overflow-hidden [--desktop-topbar-height:48px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:24px] [--desktop-dock-height:72px] [--desktop-dock-safe-area:calc(var(--desktop-dock-bottom-gap)_+_var(--desktop-dock-height)_+_16px)]">
+    class="relative min-h-screen overflow-hidden [--desktop-topbar-height:48px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:24px] [--desktop-dock-height:72px] [--desktop-dock-safe-area:calc(var(--desktop-dock-bottom-gap)_+_var(--desktop-dock-height))]">
     <video
       v-if="isVideoWallpaper"
       class="absolute inset-0 h-full w-full object-cover"
