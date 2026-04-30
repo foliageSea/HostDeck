@@ -437,6 +437,21 @@ class DockerController {
     });
   }
 
+  /// 获取镜像创建容器默认配置
+  Future<Response> getImageCreateDefaults(Request request, String id) async {
+    return _withSession(request, (session) async {
+      try {
+        final defaults = await _dockerService.getImageCreateDefaults(
+          session,
+          id,
+        );
+        return Result.ok(defaults);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
   /// 获取镜像引用容器
   Future<Response> getImageContainers(Request request, String id) async {
     return _withSession(request, (session) async {

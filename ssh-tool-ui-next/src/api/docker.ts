@@ -92,6 +92,11 @@ export interface DockerImageContainerRef {
   status: string
 }
 
+export interface DockerImageCreateDefaults {
+  ports: string[]
+  volumes: string[]
+}
+
 export interface DockerCreateContainerPayload {
   image: string
   name?: string
@@ -306,6 +311,13 @@ export const dockerApi = {
 
   async getImageHistory(connectionId: string, imageId: string) {
     const response = await http.get<DockerImageHistoryItem[]>(`/api/docker/images/${imageId}/history`, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async getImageCreateDefaults(connectionId: string, imageId: string) {
+    const response = await http.get<DockerImageCreateDefaults>(`/api/docker/images/${imageId}/create-defaults`, {
       params: { connectionId },
     })
     return response.data

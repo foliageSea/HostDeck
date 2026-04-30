@@ -147,6 +147,10 @@ class ApiRoutes {
       dockerController.getImageHistory,
     );
     router.get(
+      '/api/docker/images/<id>/create-defaults',
+      dockerController.getImageCreateDefaults,
+    );
+    router.get(
       '/api/docker/images/<id>/containers',
       dockerController.getImageContainers,
     );

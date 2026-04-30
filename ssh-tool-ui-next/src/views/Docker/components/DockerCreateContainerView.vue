@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Cube } from '@vicons/carbon'
 import {
   dockerApi,
@@ -20,6 +20,7 @@ const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const loadingImages = ref(false)
+const loadingImageDefaults = ref(false)
 const creatingContainer = ref(false)
 const images = ref<DockerImage[]>([])
 const createForm = ref<DockerCreateContainerPayload>({
@@ -33,6 +34,7 @@ const createEnvText = ref('')
 const createVolumesText = ref('')
 const createCmdText = ref('')
 const createEntrypointText = ref('')
+let imageDefaultsRequestId = 0
 
 const activeConnectionId = computed(() => props.connectionId ?? sshStore.connectionId)
 const createImageOptions = computed(() =>
@@ -46,6 +48,7 @@ const createImageOptions = computed(() =>
       }
     }),
 )
+const selectedImage = computed(() => images.value.find((item) => `${item.repository}:${item.tag}` === createForm.value.image))
 
 function requireConnectionId() {
   const connectionId = activeConnectionId.value
@@ -61,6 +64,13 @@ function toLineList(value: string) {
     .split(/\r?\n/)
     .map((item) => item.trim())
     .filter(Boolean)
+}
+
+function setTextIfChanged(target: { value: string }, lines: string[]) {
+  const nextValue = lines.join('\n')
+  if (target.value !== nextValue) {
+    target.value = nextValue
+  }
 }
 
 function closeWindow() {
@@ -80,6 +90,36 @@ async function loadImages() {
     getUiApi().message.error(error instanceof Error ? error.message : '加载镜像列表失败。')
   } finally {
     loadingImages.value = false
+  }
+}
+
+async function loadImageDefaults(image: DockerImage | undefined) {
+  const requestId = ++imageDefaultsRequestId
+  if (!image || !image.id) {
+    setTextIfChanged(createPortsText, [])
+    setTextIfChanged(createVolumesText, [])
+    return
+  }
+
+  loadingImageDefaults.value = true
+  try {
+    const connectionId = requireConnectionId()
+    const defaults = await dockerApi.getImageCreateDefaults(connectionId, image.id)
+    if (requestId !== imageDefaultsRequestId) {
+      return
+    }
+
+    setTextIfChanged(createPortsText, defaults.ports)
+    setTextIfChanged(createVolumesText, defaults.volumes)
+  } catch (error) {
+    if (requestId === imageDefaultsRequestId) {
+      console.error('Failed to load Docker image create defaults', error)
+      getUiApi().message.warning(error instanceof Error ? error.message : '提取镜像端口和目录失败。')
+    }
+  } finally {
+    if (requestId === imageDefaultsRequestId) {
+      loadingImageDefaults.value = false
+    }
   }
 }
 
@@ -118,6 +158,10 @@ async function submitCreateContainer() {
 
 onMounted(() => {
   void loadImages()
+})
+
+watch(selectedImage, (image) => {
+  void loadImageDefaults(image)
 })
 </script>
 
@@ -182,7 +226,13 @@ onMounted(() => {
           </NGrid>
 
           <NFormItem label="端口映射">
-            <NInput v-model:value="createPortsText" type="textarea" :rows="3" placeholder="每行一条，例如 8080:80" />
+            <NInput
+              v-model:value="createPortsText"
+              type="textarea"
+              :rows="3"
+              :loading="loadingImageDefaults"
+              placeholder="每行一条，例如 8080:80"
+            />
           </NFormItem>
 
           <NFormItem label="环境变量">
@@ -190,7 +240,13 @@ onMounted(() => {
           </NFormItem>
 
           <NFormItem label="卷挂载">
-            <NInput v-model:value="createVolumesText" type="textarea" :rows="3" placeholder="每行一条，例如 /host/data:/data" />
+            <NInput
+              v-model:value="createVolumesText"
+              type="textarea"
+              :rows="3"
+              :loading="loadingImageDefaults"
+              placeholder="每行一条，例如 /host/data:/data；单独路径将创建匿名卷"
+            />
           </NFormItem>
 
           <NFormItem label="启动命令 CMD">

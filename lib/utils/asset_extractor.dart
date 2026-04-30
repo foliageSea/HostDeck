@@ -20,7 +20,10 @@ Future<String> extractWebAssets() async {
   try {
     // Load the asset manifest to find all files in assets/web/
     final assetManifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final webAssets = assetManifest.listAssets().where((string) => string.startsWith('assets/web/')).toList();
+    final webAssets = assetManifest
+        .listAssets()
+        .where((string) => string.startsWith('assets/web/'))
+        .toList();
 
     if (webAssets.isEmpty) {
       _log.info('No web assets found in bundle.');
@@ -34,16 +37,16 @@ Future<String> extractWebAssets() async {
       if (relativePath.isEmpty) continue;
 
       final file = File(path.join(webDir.path, relativePath));
-      
+
       // Create parent directories if needed
       if (!await file.parent.exists()) {
         await file.parent.create(recursive: true);
       }
-      
+
       final byteData = await rootBundle.load(assetPath);
       await file.writeAsBytes(byteData.buffer.asUint8List());
     }
-    
+
     _log.info('Web assets extracted to ${webDir.path}');
   } catch (e) {
     _log.severe('Error extracting web assets: $e');

@@ -85,7 +85,7 @@ void main() {
         'image': 'nginx:latest',
         'ports': ['127.0.0.1:8080:80', '443:443/tcp'],
         'env': ['NODE_ENV=production'],
-        'volumes': ['/host/data:/data:ro'],
+        'volumes': ['/host/data:/data:ro', '/cache'],
         'restartPolicy': 'always',
         'entrypoint': ['/docker-entrypoint.sh'],
         'cmd': ['nginx', '-g', 'daemon off;'],
@@ -95,6 +95,7 @@ void main() {
       expect(request['Env'], ['NODE_ENV=production']);
       expect(request['Entrypoint'], ['/docker-entrypoint.sh']);
       expect(request['Cmd'], ['nginx', '-g', 'daemon off;']);
+      expect(request['Volumes'], {'/cache': <String, dynamic>{}});
       expect(request['ExposedPorts'], {
         '80/tcp': <String, dynamic>{},
         '443/tcp': <String, dynamic>{},
@@ -111,6 +112,18 @@ void main() {
         'Binds': ['/host/data:/data:ro'],
         'RestartPolicy': {'Name': 'always'},
       });
+    });
+
+    test('maps image create defaults from inspect payload', () {
+      final defaults = mapper.mapImageCreateDefaults({
+        'Config': {
+          'ExposedPorts': {'80/tcp': {}, '443/tcp': {}, '53/udp': {}},
+          'Volumes': {'/data': {}, '/var/lib/app': {}},
+        },
+      });
+
+      expect(defaults['ports'], ['443:443/tcp', '53:53/udp', '80:80/tcp']);
+      expect(defaults['volumes'], ['/data', '/var/lib/app']);
     });
   });
 

@@ -9,10 +9,10 @@ class Result<T> {
   Result({required this.code, required this.message, this.data});
 
   Map<String, dynamic> toJson() => {
-        'code': code,
-        'message': message,
-        'data': data,
-      };
+    'code': code,
+    'message': message,
+    'data': data,
+  };
 
   static Result<T> success<T>(T? data, {String message = 'Success'}) {
     return Result(code: 200, message: message, data: data);

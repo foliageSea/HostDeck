@@ -98,6 +98,27 @@ class DockerEngineMapper {
     };
   }
 
+  Map<String, dynamic> mapImageCreateDefaults(Map<String, dynamic> json) {
+    final config = _asMap(json['Config']);
+    final exposedPorts = _asMap(config['ExposedPorts']);
+    final volumes = _asMap(config['Volumes']);
+
+    final ports =
+        exposedPorts.keys
+            .map(_formatImagePortMapping)
+            .where((port) => port.isNotEmpty)
+            .toList()
+          ..sort();
+    final volumePaths =
+        volumes.keys
+            .map((volume) => volume.toString().trim())
+            .where((volume) => volume.isNotEmpty)
+            .toList()
+          ..sort();
+
+    return {'ports': ports, 'volumes': volumePaths};
+  }
+
   Map<String, dynamic> mapContainerStats(Map<String, dynamic> json) {
     final cpuStats = _asMap(json['cpu_stats']);
     final preCpuStats = _asMap(json['precpu_stats']);
@@ -207,8 +228,20 @@ class DockerEngineMapper {
     }
 
     final volumes = _toStringList(payload['volumes']);
-    if (volumes.isNotEmpty) {
-      hostConfig['Binds'] = volumes;
+    final binds = <String>[];
+    final anonymousVolumes = <String, dynamic>{};
+    for (final volume in volumes) {
+      if (volume.contains(':')) {
+        binds.add(volume);
+      } else {
+        anonymousVolumes[volume] = <String, dynamic>{};
+      }
+    }
+    if (binds.isNotEmpty) {
+      hostConfig['Binds'] = binds;
+    }
+    if (anonymousVolumes.isNotEmpty) {
+      request['Volumes'] = anonymousVolumes;
     }
 
     final restartPolicy = payload['restartPolicy']?.toString().trim() ?? '';
@@ -378,6 +411,24 @@ class DockerEngineMapper {
 
     final digits = unitIndex == 0 || size >= 10 ? 0 : 1;
     return '${size.toStringAsFixed(digits)} ${units[unitIndex]}';
+  }
+
+  String _formatImagePortMapping(String value) {
+    final raw = value.trim();
+    if (raw.isEmpty) {
+      return '';
+    }
+
+    final segments = raw.split('/');
+    final containerPort = segments.first.trim();
+    final protocol = segments.length > 1 && segments.last.trim().isNotEmpty
+        ? segments.last.trim()
+        : 'tcp';
+    if (containerPort.isEmpty) {
+      return '';
+    }
+
+    return '$containerPort:$containerPort/$protocol';
   }
 
   String _formatRelativeTime(DateTime value) {

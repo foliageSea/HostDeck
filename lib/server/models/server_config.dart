@@ -37,7 +37,9 @@ class ServerConfig {
       id: json['id'] as int?,
       name: json['name'] as String? ?? '',
       host: json['host'] as String? ?? '',
-      port: json['port'] is int ? json['port'] : int.tryParse(json['port']?.toString() ?? '22') ?? 22,
+      port: json['port'] is int
+          ? json['port']
+          : int.tryParse(json['port']?.toString() ?? '22') ?? 22,
       username: json['username'] as String? ?? '',
       password: json['password'] as String?,
       privateKey: json['privateKey'] as String?,

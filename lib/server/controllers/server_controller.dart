@@ -36,11 +36,11 @@ class ServerController {
       if (id == null) {
         return Result.fail(400, 'Invalid ID');
       }
-      
+
       final payload = await request.readAsString();
       final data = jsonDecode(payload);
       final server = ServerConfig.fromJson(data);
-      
+
       final success = _serverRepository.updateServer(id, server);
       if (success) {
         return Result.ok({'success': true});
@@ -58,7 +58,7 @@ class ServerController {
       if (id == null) {
         return Result.fail(400, 'Invalid ID');
       }
-      
+
       final success = _serverRepository.deleteServer(id);
       if (success) {
         return Result.ok({'success': true});

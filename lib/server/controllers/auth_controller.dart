@@ -23,9 +23,7 @@ class AuthController {
         privateKey: data['privateKey'],
       );
 
-      return Result.ok({
-        'connectionId': connectionId,
-      });
+      return Result.ok({'connectionId': connectionId});
     } catch (e) {
       _log.severe('Connect Error: $e');
       return Result.fail(500, e.toString());

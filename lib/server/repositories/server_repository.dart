@@ -7,21 +7,29 @@ class ServerRepository {
   ServerRepository(this._dbService);
 
   List<ServerConfig> getAllServers() {
-    final result = _dbService.db.select('SELECT * FROM servers ORDER BY createdAt DESC');
-    return result.map((row) => ServerConfig(
-      id: row['id'] as int,
-      name: row['name'] as String,
-      host: row['host'] as String,
-      port: row['port'] as int,
-      username: row['username'] as String,
-      password: row['password'] as String?,
-      privateKey: row['privateKey'] as String?,
-      createdAt: row['createdAt'] as int?,
-    )).toList();
+    final result = _dbService.db.select(
+      'SELECT * FROM servers ORDER BY createdAt DESC',
+    );
+    return result
+        .map(
+          (row) => ServerConfig(
+            id: row['id'] as int,
+            name: row['name'] as String,
+            host: row['host'] as String,
+            port: row['port'] as int,
+            username: row['username'] as String,
+            password: row['password'] as String?,
+            privateKey: row['privateKey'] as String?,
+            createdAt: row['createdAt'] as int?,
+          ),
+        )
+        .toList();
   }
 
   ServerConfig? getServer(int id) {
-    final result = _dbService.db.select('SELECT * FROM servers WHERE id = ?', [id]);
+    final result = _dbService.db.select('SELECT * FROM servers WHERE id = ?', [
+      id,
+    ]);
     if (result.isEmpty) return null;
     final row = result.first;
     return ServerConfig(
@@ -38,7 +46,7 @@ class ServerRepository {
 
   ServerConfig addServer(ServerConfig server) {
     final stmt = _dbService.db.prepare(
-      'INSERT INTO servers (name, host, port, username, password, privateKey, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO servers (name, host, port, username, password, privateKey, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
     );
     final now = DateTime.now().millisecondsSinceEpoch;
     try {
@@ -49,7 +57,7 @@ class ServerRepository {
         server.username,
         server.password,
         server.privateKey,
-        now
+        now,
       ]);
       final id = _dbService.db.lastInsertRowId;
       return ServerConfig(
@@ -69,7 +77,7 @@ class ServerRepository {
 
   bool updateServer(int id, ServerConfig server) {
     final stmt = _dbService.db.prepare(
-      'UPDATE servers SET name = ?, host = ?, port = ?, username = ?, password = ?, privateKey = ? WHERE id = ?'
+      'UPDATE servers SET name = ?, host = ?, port = ?, username = ?, password = ?, privateKey = ? WHERE id = ?',
     );
     try {
       stmt.execute([
@@ -79,7 +87,7 @@ class ServerRepository {
         server.username,
         server.password,
         server.privateKey,
-        id
+        id,
       ]);
       return _dbService.db.updatedRows > 0;
     } finally {

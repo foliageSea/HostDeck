@@ -40,11 +40,7 @@ class RuntimeController {
             );
           } catch (e) {
             channel.sink.add(
-              jsonEncode({
-                'code': 500,
-                'data': null,
-                'message': e.toString(),
-              }),
+              jsonEncode({'code': 500, 'data': null, 'message': e.toString()}),
             );
           }
         }

@@ -228,6 +228,20 @@ class DockerService {
         .toList();
   }
 
+  /// 获取镜像创建容器时可预填的配置
+  Future<Map<String, dynamic>> getImageCreateDefaults(
+    SshSession session,
+    String imageId,
+  ) async {
+    final detail = await _engineRepository.requestJsonObject(
+      session,
+      method: 'GET',
+      path: '/images/${Uri.encodeComponent(imageId)}/json',
+    );
+
+    return _mapper.mapImageCreateDefaults(detail);
+  }
+
   /// 获取引用镜像的容器
   Future<List<Map<String, dynamic>>> getImageContainers(
     SshSession session,
