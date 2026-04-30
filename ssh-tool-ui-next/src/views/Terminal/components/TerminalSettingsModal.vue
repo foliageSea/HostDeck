@@ -27,6 +27,7 @@ const settingsStore = useSettingsStore()
           :value="settingsStore.terminalFontSize"
           :min="8"
           :max="32"
+          :tooltip="false"
           @update:value="(value: number) => settingsStore.setTerminalFontSize(value)"
         />
       </div>

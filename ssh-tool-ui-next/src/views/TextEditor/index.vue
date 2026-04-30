@@ -338,6 +338,7 @@ watch(
             :value="settingsStore.editorFontSize"
             :min="8"
             :max="32"
+            :tooltip="false"
             @update:value="(value: number) => settingsStore.setEditorFontSize(value)"
           />
         </div>
