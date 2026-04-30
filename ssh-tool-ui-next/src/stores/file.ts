@@ -4,6 +4,13 @@ import { filesApi, type FileItem } from '@/api/files'
 import { dirname, resolve } from '@/utils/path'
 
 export type FileViewMode = 'grid' | 'list'
+export type FileSortKey = 'name' | 'size' | 'modifyTime'
+export type FileSortDirection = 'asc' | 'desc'
+
+interface FileSortState {
+  direction: FileSortDirection
+  key: FileSortKey
+}
 
 type FavoritePathsByConnection = Record<string, string[]>
 
@@ -14,9 +21,41 @@ interface FileStoreConnection {
   username: string
 }
 
-function compareFiles(left: FileItem, right: FileItem) {
+function compareFileValue(left: FileItem, right: FileItem, key: FileSortKey) {
+  if (key === 'size') {
+    return left.size - right.size
+  }
+
+  if (key === 'modifyTime') {
+    const leftTime = left.modifyTime ? new Date(left.modifyTime).getTime() : Number.NaN
+    const rightTime = right.modifyTime ? new Date(right.modifyTime).getTime() : Number.NaN
+
+    if (Number.isNaN(leftTime) && Number.isNaN(rightTime)) {
+      return 0
+    }
+
+    if (Number.isNaN(leftTime)) {
+      return 1
+    }
+
+    if (Number.isNaN(rightTime)) {
+      return -1
+    }
+
+    return leftTime - rightTime
+  }
+
+  return left.filename.localeCompare(right.filename)
+}
+
+function compareFiles(left: FileItem, right: FileItem, sortState: FileSortState) {
   if (left.isDirectory !== right.isDirectory) {
     return left.isDirectory ? -1 : 1
+  }
+
+  const result = compareFileValue(left, right, sortState.key)
+  if (result !== 0) {
+    return sortState.direction === 'asc' ? result : -result
   }
 
   return left.filename.localeCompare(right.filename)
@@ -28,6 +67,7 @@ export function createFileStore(connection: FileStoreConnection) {
   const currentConnectionId = computed(() => connection.connectionId)
   const loading = ref(false)
   const viewMode = useLocalStorage<FileViewMode>('ssh-tool:files:view-mode', 'list')
+  const sortState = useLocalStorage<FileSortState>('ssh-tool:files:sort', { direction: 'asc', key: 'name' })
   const favoritePathsByConnection = useLocalStorage<FavoritePathsByConnection>('ssh-tool:files:favorite-paths', {})
   const selectedNames = ref<string[]>([])
   const lastSelectedName = ref<string | null>(null)
@@ -40,7 +80,7 @@ export function createFileStore(connection: FileStoreConnection) {
     return [...files.value]
       .filter((file) => file.filename !== '.' && file.filename !== '..')
       .filter((file) => !keyword || file.filename.toLowerCase().includes(keyword))
-      .sort(compareFiles)
+      .sort((left, right) => compareFiles(left, right, sortState.value))
   })
 
   const selectedFile = computed(() => {
@@ -249,6 +289,20 @@ export function createFileStore(connection: FileStoreConnection) {
     lastSelectedName.value = selectedNames.value[selectedNames.value.length - 1] ?? null
   }
 
+  function setSortKey(key: FileSortKey) {
+    sortState.value = {
+      direction: sortState.value.key === key ? sortState.value.direction : 'asc',
+      key,
+    }
+  }
+
+  function toggleSortDirection() {
+    sortState.value = {
+      ...sortState.value,
+      direction: sortState.value.direction === 'asc' ? 'desc' : 'asc',
+    }
+  }
+
   return reactive({
     backHistory,
     clearSelection,
@@ -274,7 +328,11 @@ export function createFileStore(connection: FileStoreConnection) {
     selectedFile,
     selectedNames,
     setSelectedNames,
+    setSortKey,
+    sortDirection: computed(() => sortState.value.direction),
+    sortKey: computed(() => sortState.value.key),
     toggleFavoritePath,
+    toggleSortDirection,
     viewMode,
   })
 }

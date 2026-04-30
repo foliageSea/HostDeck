@@ -24,7 +24,7 @@ import { filesApi, type FileItem } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useFileClipboardStore } from '@/stores/file-clipboard'
-import { createFileStore } from '@/stores/file'
+import { createFileStore, type FileSortKey } from '@/stores/file'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import { useUploadCenterStore } from '@/stores/upload-center'
@@ -125,6 +125,11 @@ const canOpenSelectedFileInEditor = computed(() => {
   return selectedFiles.value.length === 1 && file !== null && !file.isDirectory
 })
 const archiveExtensions = ['.tar.gz', '.tar.bz2', '.tar.xz', '.tgz', '.tbz2', '.txz', '.tar', '.zip']
+const sortOptions: { label: string; value: FileSortKey }[] = [
+  { label: '名称', value: 'name' },
+  { label: '大小', value: 'size' },
+  { label: '修改时间', value: 'modifyTime' },
+]
 const canExtractSelectedArchive = computed(() => {
   const file = selectedFile.value
   return selectedFiles.value.length === 1 && file !== null && !file.isDirectory && getArchiveExtension(file.filename) !== null
@@ -656,6 +661,10 @@ function removeFavoritePath(path: string) {
 
 function toggleFavoriteSidebar() {
   isFavoriteSidebarVisible.value = !isFavoriteSidebarVisible.value
+}
+
+function updateSortKey(value: string) {
+  fileStore.setSortKey(value as FileSortKey)
 }
 
 async function navigateBack() {
@@ -1250,6 +1259,10 @@ watch(
 
       <div class="flex items-center gap-[8px] ">
         <NInput v-model:value="fileStore.search" placeholder="搜索当前目录" clearable class="w-[min(240px,60vw)]" />
+        <NSelect :value="fileStore.sortKey" :options="sortOptions" size="small" class="w-[116px] flex-none" @update:value="updateSortKey" />
+        <NButton round size="small" @click="fileStore.toggleSortDirection()">
+          {{ fileStore.sortDirection === 'asc' ? '升序' : '降序' }}
+        </NButton>
         <div class="flex items-center gap-[8px] ">
           <NPopover trigger="hover" placement="bottom-end">
             <template #trigger>
