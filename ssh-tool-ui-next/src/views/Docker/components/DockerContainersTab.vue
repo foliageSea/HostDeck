@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Grid, List } from '@vicons/carbon'
+import { Grid, List, Pin, PinFilled } from '@vicons/carbon'
 import type { DockerContainer } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
@@ -160,11 +160,37 @@ function isPaused(container: DockerContainer) {
             </div>
             <div class="docker-card-field wide">
               <span>端口</span>
-              <strong :title="getPortsTitle(container)">
-                <template v-if="container.ports.length">{{ container.ports.slice(0, 2).join(', ') }}</template>
+              <div class="docker-card-port-list" :title="getPortsTitle(container)">
+                <template v-if="container.ports.length">
+                  <span v-for="port in container.ports.slice(0, 2)" :key="port" class="docker-card-port-item">
+                    <NButton
+                      text
+                      type="primary"
+                      size="tiny"
+                      :disabled="!controller.getContainerPortUrl(port)"
+                      :title="controller.getContainerPortUrl(port) ? `打开 ${controller.getContainerPortUrl(port)}` : `${port} 未映射宿主机端口`"
+                      @click.stop="controller.openContainerPort(port)"
+                    >
+                      {{ port }}
+                    </NButton>
+                    <NButton
+                      text
+                      size="tiny"
+                      :disabled="!controller.getContainerPortUrl(port)"
+                      :aria-label="controller.isContainerPortPinned(port) ? '从桌面移除端口链接' : '添加端口链接到桌面'"
+                      :title="controller.isContainerPortPinned(port) ? '从桌面移除端口链接' : '添加端口链接到桌面'"
+                      :type="controller.isContainerPortPinned(port) ? 'success' : 'default'"
+                      @click.stop="controller.toggleContainerPortDesktopPin(container, port)"
+                    >
+                      <template #icon>
+                        <NIcon><component :is="controller.isContainerPortPinned(port) ? PinFilled : Pin" /></NIcon>
+                      </template>
+                    </NButton>
+                  </span>
+                </template>
                 <template v-else>-</template>
                 <span v-if="container.ports.length > 2"> 等 {{ container.ports.length }} 项</span>
-              </strong>
+              </div>
             </div>
           </div>
 
@@ -328,6 +354,33 @@ function isPaused(container: DockerContainer) {
   color: var(--docker-card-value-color);
   font-size: 13px;
   font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-card-port-list {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--docker-card-value-color);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.docker-card-port-item {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.docker-card-port-list :deep(.n-button__content) {
+  display: block;
+  max-width: 136px;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

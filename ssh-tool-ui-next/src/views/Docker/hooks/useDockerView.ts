@@ -8,6 +8,8 @@ import {
   Launch,
   List,
   Pause,
+  Pin,
+  PinFilled,
   PlayFilledAlt,
   Restart,
   StopFilledAlt,
@@ -216,6 +218,141 @@ export function useDockerView(props: DockerViewProps) {
     selectedContainerIds.value = keys.map((key) => String(key))
   }
 
+  function parseContainerHostPort(portText: string) {
+    const hostSide = portText.split('->')[0]?.trim() ?? ''
+    if (!hostSide || hostSide.includes('/')) {
+      return null
+    }
+
+    const hostPort = hostSide.includes(':') ? hostSide.slice(hostSide.lastIndexOf(':') + 1) : hostSide
+    const portNumber = Number(hostPort)
+    if (!Number.isInteger(portNumber) || portNumber < 1 || portNumber > 65535) {
+      return null
+    }
+
+    return hostPort
+  }
+
+  function getContainerPortLink(container: DockerContainer, portText: string) {
+    const host = (props.host ?? sshStore.host).trim()
+    const port = parseContainerHostPort(portText)
+    const url = getContainerPortUrl(portText)
+
+    if (!host || !port || !url) {
+      return null
+    }
+
+    return {
+      host,
+      id: `${host}:${port}`,
+      label: `${container.name}:${port}`,
+      port,
+      portText,
+      url,
+    }
+  }
+
+  function getContainerPortUrl(portText: string) {
+    const host = (props.host ?? sshStore.host).trim()
+    const hostPort = parseContainerHostPort(portText)
+
+    if (!host || !hostPort) {
+      return null
+    }
+
+    return `http://${host}:${hostPort}`
+  }
+
+  function openContainerPort(portText: string) {
+    const url = getContainerPortUrl(portText)
+    if (!url) {
+      getUiApi().message.warning('该端口未映射宿主机端口，无法直接打开。')
+      return
+    }
+
+    window.open(url, '_blank', 'noopener')
+  }
+
+  function isContainerPortPinned(portText: string) {
+    const url = getContainerPortUrl(portText)
+    return Boolean(url && desktopStore.isPortLinkPinned(url))
+  }
+
+  function toggleContainerPortDesktopPin(container: DockerContainer, portText: string) {
+    const link = getContainerPortLink(container, portText)
+    if (!link) {
+      getUiApi().message.warning('该端口未映射宿主机端口，无法添加到桌面。')
+      return
+    }
+
+    const pinned = desktopStore.togglePortLinkPin(link)
+    getUiApi().message.success(pinned ? '已将端口链接添加到桌面。' : '已从桌面移除端口链接。')
+  }
+
+  function renderContainerPortLink(container: DockerContainer, portText: string) {
+    const url = getContainerPortUrl(portText)
+
+    return h(
+      NSpace,
+      { align: 'center', size: 4, wrap: false },
+      {
+        default: () => [
+          h(
+            NButton,
+            {
+              disabled: !url,
+              size: 'tiny',
+              text: true,
+              title: url ? `打开 ${url}` : `${portText} 未映射宿主机端口`,
+              type: 'primary',
+              onClick: (event: MouseEvent) => {
+                event.stopPropagation()
+                openContainerPort(portText)
+              },
+            },
+            { default: () => portText },
+          ),
+          h(
+            NButton,
+            {
+              disabled: !url,
+              'aria-label': isContainerPortPinned(portText) ? '从桌面移除端口链接' : '添加端口链接到桌面',
+              size: 'tiny',
+              text: true,
+              title: isContainerPortPinned(portText) ? '从桌面移除端口链接' : '添加端口链接到桌面',
+              type: isContainerPortPinned(portText) ? 'success' : 'default',
+              onClick: (event: MouseEvent) => {
+                event.stopPropagation()
+                toggleContainerPortDesktopPin(container, portText)
+              },
+            },
+            { icon: () => h(NIcon, null, { default: () => h(isContainerPortPinned(portText) ? PinFilled : Pin) }) },
+          ),
+        ],
+      },
+    )
+  }
+
+  function renderContainerPortTextLink(container: DockerContainer, portText: string) {
+    const url = getContainerPortUrl(portText)
+
+    return h(
+      NButton,
+      {
+        disabled: !url,
+        size: 'tiny',
+        text: true,
+        title: url ? `打开 ${url}` : `${portText} 未映射宿主机端口`,
+        type: 'primary',
+        onClick: (event: MouseEvent) => {
+          event.stopPropagation()
+          openContainerPort(portText)
+        },
+      },
+      { default: () => portText },
+    )
+  }
+
   function renderContainerPorts(row: DockerContainer) {
     const ports = row.ports ?? []
 
@@ -224,7 +361,7 @@ export function useDockerView(props: DockerViewProps) {
     }
 
     if (ports.length === 1) {
-      return h('span', { class: 'container-port-summary', title: ports[0] }, ports[0])
+      return h('span', { class: 'container-port-summary', title: ports[0] }, [renderContainerPortLink(row, ports[0])])
     }
 
     return h(
@@ -232,13 +369,13 @@ export function useDockerView(props: DockerViewProps) {
       { align: 'center', size: 6, wrap: false },
       {
         default: () => [
-          h('span', { class: 'container-port-summary', title: ports.join(', ') }, `${ports[0]} 等 ${ports.length} 项`),
+          h('span', { class: 'container-port-summary', title: ports.join(', ') }, [renderContainerPortTextLink(row, ports[0]), ` 等 ${ports.length} 项`]),
           h(
             NPopover,
             { trigger: 'click', placement: 'bottom-start' },
             {
               trigger: () => h(NButton, { size: 'tiny', quaternary: true }, { default: () => '查看详情' }),
-              default: () => h('div', { class: 'container-port-popover' }, ports.map((port) => h('div', { class: 'container-port-item' }, port))),
+              default: () => h('div', { class: 'container-port-popover' }, ports.map((port) => h('div', { class: 'container-port-item' }, [renderContainerPortLink(row, port)]))),
             },
           ),
         ],
@@ -1106,6 +1243,7 @@ export function useDockerView(props: DockerViewProps) {
     enterShell,
     formatDateTime,
     formatTime,
+    getContainerPortUrl,
     handleContainerAdvancedAction,
     handleContainerPageChange,
     handleContainerPageSizeChange,
@@ -1136,6 +1274,7 @@ export function useDockerView(props: DockerViewProps) {
     inspectLoading,
     inspectTitle,
     inspectVisible,
+    isContainerPortPinned,
     loading,
     logsAutoRefresh,
     logsContainerName,
@@ -1147,6 +1286,7 @@ export function useDockerView(props: DockerViewProps) {
     logsTitle,
     logsVisible,
     openImageTagDialog,
+    openContainerPort,
     openCreateContainer,
     openRenameDialog,
     pullImage,
@@ -1169,6 +1309,7 @@ export function useDockerView(props: DockerViewProps) {
     stoppedContainers,
     submitRenameContainer,
     submitTagImage,
+    toggleContainerPortDesktopPin,
     updateSelectedContainerIds,
     viewImageHistory,
     viewImageRefs,

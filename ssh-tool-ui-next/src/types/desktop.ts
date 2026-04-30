@@ -8,6 +8,7 @@ export type AppIconKey =
   | 'logout'
   | 'editor'
   | 'media'
+  | 'link'
 
 export type DesktopAppId =
   | 'terminal'

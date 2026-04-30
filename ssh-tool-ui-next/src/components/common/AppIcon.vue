@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Settings, ChartLine, Cube, Document, Image, Folder, Logout, Terminal, ApplicationWeb } from '@vicons/carbon'
+import { Settings, ChartLine, Cube, Document, Image, Folder, Launch, Logout, Terminal, ApplicationWeb } from '@vicons/carbon'
 import type { Component } from 'vue'
 import type { AppIconKey } from '@/types/desktop'
 
@@ -19,6 +19,7 @@ const iconMap: Record<AppIconKey, Component> = {
   docker: Cube,
   editor: Document,
   folder: Folder,
+  link: Launch,
   logout: Logout,
   media: Image,
   runtime: ApplicationWeb,

@@ -19,6 +19,8 @@ export const maxSessionWindows = 8
 
 const PINNED_DIRECTORIES_STORAGE_KEY = 'ssh-tool:desktop:pinned-directories'
 const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'ssh-tool:desktop:pinned-directory-positions'
+const PINNED_PORT_LINKS_STORAGE_KEY = 'ssh-tool:desktop:pinned-port-links'
+const PINNED_PORT_LINK_POSITIONS_STORAGE_KEY = 'ssh-tool:desktop:pinned-port-link-positions'
 
 const sessionWindowAppIds = new Set<DesktopAppId>(['terminal'])
 
@@ -28,6 +30,18 @@ type PinnedDirectoryPositions = Record<string, {
   y: number
 }>
 type PinnedDirectoryPositionsByConnection = Record<string, PinnedDirectoryPositions>
+
+export interface PinnedPortLink {
+  host: string
+  id: string
+  label: string
+  port: string
+  portText: string
+  url: string
+}
+
+type PinnedPortLinksByConnection = Record<string, PinnedPortLink[]>
+type PinnedPortLinkPositionsByConnection = Record<string, PinnedDirectoryPositions>
 
 function normalizePinnedDirectoriesRecord(value: unknown): PinnedDirectoriesByConnection {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -56,6 +70,54 @@ function loadPinnedDirectories(): PinnedDirectoriesByConnection {
     }
 
     return normalizePinnedDirectoriesRecord(JSON.parse(rawValue))
+  } catch {
+    return {}
+  }
+}
+
+function normalizePinnedPortLinksRecord(value: unknown): PinnedPortLinksByConnection {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, links]) => [
+      key,
+      Array.isArray(links)
+        ? links
+            .filter((link): link is PinnedPortLink => {
+              if (!link || typeof link !== 'object' || Array.isArray(link)) {
+                return false
+              }
+
+              const candidate = link as Partial<PinnedPortLink>
+              return typeof candidate.id === 'string' && typeof candidate.label === 'string' && typeof candidate.url === 'string'
+            })
+            .map((link) => ({
+              host: typeof link.host === 'string' ? link.host : '',
+              id: link.id,
+              label: link.label,
+              port: typeof link.port === 'string' ? link.port : '',
+              portText: typeof link.portText === 'string' ? link.portText : link.url,
+              url: link.url,
+            }))
+        : [],
+    ]),
+  )
+}
+
+function loadPinnedPortLinks(): PinnedPortLinksByConnection {
+  if (typeof window === 'undefined') {
+    return {}
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(PINNED_PORT_LINKS_STORAGE_KEY)
+    if (!rawValue) {
+      return {}
+    }
+
+    return normalizePinnedPortLinksRecord(JSON.parse(rawValue))
   } catch {
     return {}
   }
@@ -119,6 +181,23 @@ function loadPinnedDirectoryPositions(): PinnedDirectoryPositionsByConnection {
   }
 }
 
+function loadPinnedPortLinkPositions(): PinnedPortLinkPositionsByConnection {
+  if (typeof window === 'undefined') {
+    return {}
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(PINNED_PORT_LINK_POSITIONS_STORAGE_KEY)
+    if (!rawValue) {
+      return {}
+    }
+
+    return normalizePinnedDirectoryPositionsRecord(JSON.parse(rawValue))
+  } catch {
+    return {}
+  }
+}
+
 function persistPinnedDirectories(value: PinnedDirectoriesByConnection) {
   if (typeof window === 'undefined') {
     return
@@ -133,6 +212,22 @@ function persistPinnedDirectoryPositions(value: PinnedDirectoryPositionsByConnec
   }
 
   window.localStorage.setItem(PINNED_DIRECTORY_POSITIONS_STORAGE_KEY, JSON.stringify(value))
+}
+
+function persistPinnedPortLinks(value: PinnedPortLinksByConnection) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(PINNED_PORT_LINKS_STORAGE_KEY, JSON.stringify(value))
+}
+
+function persistPinnedPortLinkPositions(value: PinnedPortLinkPositionsByConnection) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(PINNED_PORT_LINK_POSITIONS_STORAGE_KEY, JSON.stringify(value))
 }
 
 function getPinnedDirectoryConnectionKey() {
@@ -310,6 +405,8 @@ export const useDesktopStore = defineStore('desktop', {
     nextZIndex: 100,
     pinnedDirectoriesByConnection: loadPinnedDirectories() as PinnedDirectoriesByConnection,
     pinnedDirectoryPositionsByConnection: loadPinnedDirectoryPositions() as PinnedDirectoryPositionsByConnection,
+    pinnedPortLinkPositionsByConnection: loadPinnedPortLinkPositions() as PinnedPortLinkPositionsByConnection,
+    pinnedPortLinksByConnection: loadPinnedPortLinks() as PinnedPortLinksByConnection,
     windows: [] as WindowState[],
   }),
 
@@ -332,8 +429,22 @@ export const useDesktopStore = defineStore('desktop', {
       return connectionKey ? this.pinnedDirectoryPositionsByConnection[connectionKey] ?? {} : {}
     },
 
+    getPinnedPortLinkPositions() {
+      const connectionKey = getPinnedDirectoryConnectionKey()
+      return connectionKey ? this.pinnedPortLinkPositionsByConnection[connectionKey] ?? {} : {}
+    },
+
+    getPinnedPortLinks() {
+      const connectionKey = getPinnedDirectoryConnectionKey()
+      return connectionKey ? this.pinnedPortLinksByConnection[connectionKey] ?? [] : []
+    },
+
     isDirectoryPinned(path: string) {
       return this.getPinnedDirectories().includes(normalize(path))
+    },
+
+    isPortLinkPinned(url: string) {
+      return this.getPinnedPortLinks().some((link) => link.url === url)
     },
 
     openPinnedDirectory(path: string) {
@@ -344,6 +455,15 @@ export const useDesktopStore = defineStore('desktop', {
       })
     },
 
+    openPinnedPortLink(id: string) {
+      const link = this.getPinnedPortLinks().find((item) => item.id === id)
+      if (!link) {
+        return
+      }
+
+      window.open(link.url, '_blank', 'noopener')
+    },
+
     pinDirectoryToDesktop(path: string) {
       const targetPath = normalize(path)
       if (this.isDirectoryPinned(targetPath)) {
@@ -351,6 +471,26 @@ export const useDesktopStore = defineStore('desktop', {
       }
 
       this.setPinnedDirectories([...this.getPinnedDirectories(), targetPath])
+      return true
+    },
+
+    pinPortLinkToDesktop(link: PinnedPortLink) {
+      const connectionKey = getPinnedDirectoryConnectionKey()
+      if (!connectionKey) {
+        return false
+      }
+
+      const currentLinks = this.pinnedPortLinksByConnection[connectionKey] ?? []
+      if (currentLinks.some((item) => item.url === link.url)) {
+        return false
+      }
+
+      const nextPinnedPortLinks = {
+        ...this.pinnedPortLinksByConnection,
+        [connectionKey]: [...currentLinks, link],
+      }
+      this.pinnedPortLinksByConnection = nextPinnedPortLinks
+      persistPinnedPortLinks(nextPinnedPortLinks)
       return true
     },
 
@@ -410,6 +550,27 @@ export const useDesktopStore = defineStore('desktop', {
       persistPinnedDirectoryPositions(nextPinnedDirectoryPositions)
     },
 
+    setPinnedPortLinkPosition(id: string, x: number, y: number) {
+      const connectionKey = getPinnedDirectoryConnectionKey()
+      if (!connectionKey || !this.getPinnedPortLinks().some((link) => link.id === id)) {
+        return
+      }
+
+      const nextPinnedPortLinkPositions = {
+        ...this.pinnedPortLinkPositionsByConnection,
+        [connectionKey]: {
+          ...(this.pinnedPortLinkPositionsByConnection[connectionKey] ?? {}),
+          [id]: {
+            x: Math.round(x),
+            y: Math.round(y),
+          },
+        },
+      }
+
+      this.pinnedPortLinkPositionsByConnection = nextPinnedPortLinkPositions
+      persistPinnedPortLinkPositions(nextPinnedPortLinkPositions)
+    },
+
     toggleDirectoryPin(path: string) {
       const targetPath = normalize(path)
       if (this.isDirectoryPinned(targetPath)) {
@@ -421,9 +582,51 @@ export const useDesktopStore = defineStore('desktop', {
       return true
     },
 
+    togglePortLinkPin(link: PinnedPortLink) {
+      if (this.isPortLinkPinned(link.url)) {
+        this.unpinPortLinkFromDesktop(this.getPinnedPortLinks().filter((item) => item.url === link.url).map((item) => item.id))
+        return false
+      }
+
+      this.pinPortLinkToDesktop(link)
+      return true
+    },
+
     unpinDirectoryFromDesktop(paths: string | string[]) {
       const targetPaths = new Set((Array.isArray(paths) ? paths : [paths]).map((path) => normalize(path)))
       this.setPinnedDirectories(this.getPinnedDirectories().filter((path) => !targetPaths.has(path)))
+    },
+
+    unpinPortLinkFromDesktop(ids: string | string[]) {
+      const connectionKey = getPinnedDirectoryConnectionKey()
+      if (!connectionKey) {
+        return
+      }
+
+      const targetIds = new Set(Array.isArray(ids) ? ids : [ids])
+      const nextLinks = this.getPinnedPortLinks().filter((link) => !targetIds.has(link.id))
+      const nextPinnedPortLinks = { ...this.pinnedPortLinksByConnection }
+      const nextPinnedPortLinkPositions = { ...this.pinnedPortLinkPositionsByConnection }
+      const retainedPositions = Object.fromEntries(
+        Object.entries(nextPinnedPortLinkPositions[connectionKey] ?? {}).filter(([id]) => !targetIds.has(id)),
+      )
+
+      if (nextLinks.length === 0) {
+        delete nextPinnedPortLinks[connectionKey]
+        delete nextPinnedPortLinkPositions[connectionKey]
+      } else {
+        nextPinnedPortLinks[connectionKey] = nextLinks
+        if (Object.keys(retainedPositions).length > 0) {
+          nextPinnedPortLinkPositions[connectionKey] = retainedPositions
+        } else {
+          delete nextPinnedPortLinkPositions[connectionKey]
+        }
+      }
+
+      this.pinnedPortLinksByConnection = nextPinnedPortLinks
+      this.pinnedPortLinkPositionsByConnection = nextPinnedPortLinkPositions
+      persistPinnedPortLinks(nextPinnedPortLinks)
+      persistPinnedPortLinkPositions(nextPinnedPortLinkPositions)
     },
 
     closeAppWindows(appId: DesktopAppId) {

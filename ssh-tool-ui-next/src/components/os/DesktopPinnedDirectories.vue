@@ -17,6 +17,7 @@ const DRAG_SUPPRESSION_WINDOW = 240
 interface DragState {
   currentX: number
   currentY: number
+  id: string
   moved: boolean
   path: string
   pointerId: number
@@ -38,6 +39,19 @@ interface SelectionState {
 }
 
 interface GridPosition {
+  x: number
+  y: number
+}
+
+type DesktopItemType = 'directory' | 'port-link'
+
+interface DesktopItem {
+  icon: 'folder' | 'link'
+  id: string
+  label: string
+  path: string
+  title: string
+  type: DesktopItemType
   x: number
   y: number
 }
@@ -64,16 +78,18 @@ const dragSuppression = ref<{
 const selectedPaths = ref<string[]>([])
 const selectionState = ref<SelectionState | null>(null)
 
-const pinnedDirectories = computed(() => {
-  const storedPositions = desktopStore.getPinnedDirectoryPositions()
+const desktopItems = computed<DesktopItem[]>(() => {
+  const storedDirectoryPositions = desktopStore.getPinnedDirectoryPositions()
+  const storedPortLinkPositions = desktopStore.getPinnedPortLinkPositions()
   const paths = desktopStore.getPinnedDirectories()
+  const portLinks = desktopStore.getPinnedPortLinks()
   const occupiedIndexes = new Set<number>()
-  const searchSpan = paths.length + getGridRowCount()
+  const searchSpan = paths.length + portLinks.length + getGridRowCount()
 
-  return paths.map((path, index) => {
+  const directoryItems = paths.map((path, index) => {
     const defaultPosition = getDefaultPosition(index)
-    const storedPosition = storedPositions[path]
-    const activeDrag = dragState.value?.path === path ? dragState.value : null
+    const storedPosition = storedDirectoryPositions[path]
+    const activeDrag = dragState.value?.id === getDesktopItemId('directory', path) ? dragState.value : null
     const position = activeDrag
       ? { x: activeDrag.currentX, y: activeDrag.currentY }
       : storedPosition
@@ -81,20 +97,48 @@ const pinnedDirectories = computed(() => {
         : resolveGridPosition(defaultPosition, occupiedIndexes, searchSpan)
 
     return {
+      icon: 'folder' as const,
+      id: getDesktopItemId('directory', path),
       label: basename(path) || '根目录',
       path,
+      title: path,
+      type: 'directory' as const,
       x: position.x,
       y: position.y,
     }
   })
+
+  const portLinkItems = portLinks.map((link, index) => {
+    const defaultPosition = getDefaultPosition(paths.length + index)
+    const storedPosition = storedPortLinkPositions[link.id]
+    const activeDrag = dragState.value?.id === getDesktopItemId('port-link', link.id) ? dragState.value : null
+    const position = activeDrag
+      ? { x: activeDrag.currentX, y: activeDrag.currentY }
+      : storedPosition
+        ? resolveGridPosition(storedPosition, occupiedIndexes, searchSpan)
+        : resolveGridPosition(defaultPosition, occupiedIndexes, searchSpan)
+
+    return {
+      icon: 'link' as const,
+      id: getDesktopItemId('port-link', link.id),
+      label: link.label,
+      path: link.id,
+      title: link.url,
+      type: 'port-link' as const,
+      x: position.x,
+      y: position.y,
+    }
+  })
+
+  return [...directoryItems, ...portLinkItems]
 })
 const canvasBounds = computed(() => {
-  const maxRight = pinnedDirectories.value.reduce(
-    (value, directory) => Math.max(value, directory.x + DESKTOP_ICON_WIDTH + DESKTOP_ICON_PADDING),
+  const maxRight = desktopItems.value.reduce(
+    (value, item) => Math.max(value, item.x + DESKTOP_ICON_WIDTH + DESKTOP_ICON_PADDING),
     contentBounds.value.width,
   )
-  const maxBottom = pinnedDirectories.value.reduce(
-    (value, directory) => Math.max(value, directory.y + DESKTOP_ICON_HEIGHT + DESKTOP_ICON_PADDING),
+  const maxBottom = desktopItems.value.reduce(
+    (value, item) => Math.max(value, item.y + DESKTOP_ICON_HEIGHT + DESKTOP_ICON_PADDING),
     contentBounds.value.height,
   )
 
@@ -115,13 +159,13 @@ const dragPreviewPosition = computed(() => {
 
   const desiredPosition = snapPosition(state.currentX, state.currentY)
   const occupiedIndexes = new Set(
-    pinnedDirectories.value
-      .filter((directory) => directory.path !== state.path)
-      .map((directory) => getGridIndex(directory.x, directory.y)),
+    desktopItems.value
+      .filter((item) => item.id !== state.id)
+      .map((item) => getGridIndex(item.x, item.y)),
   )
 
   return getGridPositionByIndex(
-    resolveGridIndex(getGridIndex(desiredPosition.x, desiredPosition.y), occupiedIndexes, pinnedDirectories.value.length + getGridRowCount()),
+    resolveGridIndex(getGridIndex(desiredPosition.x, desiredPosition.y), occupiedIndexes, desktopItems.value.length + getGridRowCount()),
   )
 })
 const contextMenuOptions = computed(() => {
@@ -174,8 +218,8 @@ const selectionBoxStyle = computed(() => {
 })
 const showContextMenu = computed(() => Boolean(contextMenu.value) && contextMenuOptions.value.length > 0)
 
-watch(pinnedDirectories, (directories) => {
-  const availablePaths = new Set(directories.map((directory) => directory.path))
+watch(desktopItems, (items) => {
+  const availablePaths = new Set(items.map((item) => item.id))
   selectedPaths.value = selectedPaths.value.filter((path) => availablePaths.has(path))
 
   if (contextMenu.value?.path && !availablePaths.has(contextMenu.value.path)) {
@@ -268,6 +312,14 @@ function getDefaultPosition(index: number) {
   return getGridPositionByIndex(index)
 }
 
+function getDesktopItemId(type: DesktopItemType, value: string) {
+  return `${type}:${value}`
+}
+
+function getDesktopItemById(id: string) {
+  return desktopItems.value.find((item) => item.id === id)
+}
+
 function suppressDirectoryInteraction(path: string) {
   dragSuppression.value = {
     expiresAt: Date.now() + DRAG_SUPPRESSION_WINDOW,
@@ -293,7 +345,7 @@ function isDirectorySelected(path: string) {
 }
 
 function isDirectoryTarget(target: EventTarget | null) {
-  return target instanceof Element && Boolean(target.closest('[data-directory-path]'))
+  return target instanceof Element && Boolean(target.closest('[data-desktop-item-id]'))
 }
 
 function isRectIntersecting(left: DOMRect, right: DOMRect) {
@@ -314,12 +366,12 @@ function getPathsInsideSelection(state: SelectionState) {
   )
   const nextPaths: string[] = []
 
-  content.querySelectorAll<HTMLElement>('[data-directory-path]').forEach((element) => {
+  content.querySelectorAll<HTMLElement>('[data-desktop-item-id]').forEach((element) => {
     if (!isRectIntersecting(selectionRect, element.getBoundingClientRect())) {
       return
     }
 
-    const path = element.dataset.directoryPath
+    const path = element.dataset.desktopItemId
     if (path) {
       nextPaths.push(path)
     }
@@ -409,13 +461,17 @@ function handleDirectoryClick(path: string, event: MouseEvent) {
   selectedPaths.value = [path]
 }
 
-function openDirectory(path: string) {
-  if (shouldIgnoreDirectoryInteraction(path)) {
+function openDesktopItem(item: DesktopItem) {
+  if (shouldIgnoreDirectoryInteraction(item.id)) {
     return
   }
 
-  selectedPaths.value = [path]
-  desktopStore.openPinnedDirectory(path)
+  selectedPaths.value = [item.id]
+  if (item.type === 'directory') {
+    desktopStore.openPinnedDirectory(item.path)
+  } else {
+    desktopStore.openPinnedPortLink(item.path)
+  }
   closeContextMenu()
 }
 
@@ -425,18 +481,31 @@ function openSelectedDirectory(path?: string) {
     return
   }
 
-  openDirectory(targetPath)
+  const item = getDesktopItemById(targetPath)
+  if (item) {
+    openDesktopItem(item)
+  }
 }
 
-function removeDirectories(paths: string[]) {
+function removeDesktopItems(paths: string[]) {
   if (paths.length === 0) {
     return
   }
 
-  desktopStore.unpinDirectoryFromDesktop(paths)
+  const items = paths.map((path) => getDesktopItemById(path)).filter((item): item is DesktopItem => Boolean(item))
+  const directoryPaths = items.filter((item) => item.type === 'directory').map((item) => item.path)
+  const portLinkIds = items.filter((item) => item.type === 'port-link').map((item) => item.path)
+
+  if (directoryPaths.length > 0) {
+    desktopStore.unpinDirectoryFromDesktop(directoryPaths)
+  }
+  if (portLinkIds.length > 0) {
+    desktopStore.unpinPortLinkFromDesktop(portLinkIds)
+  }
+
   selectedPaths.value = selectedPaths.value.filter((path) => !paths.includes(path))
   closeContextMenu()
-  getUiApi().message.success(paths.length === 1 ? '已从桌面移除该目录。' : `已从桌面移除 ${paths.length} 个目录。`)
+  getUiApi().message.success(paths.length === 1 ? '已从桌面移除该项目。' : `已从桌面移除 ${paths.length} 个项目。`)
 }
 
 function handleDirectoryContextMenu(path: string, event: MouseEvent) {
@@ -452,6 +521,10 @@ function handleDirectoryContextMenu(path: string, event: MouseEvent) {
     x: event.clientX,
     y: event.clientY,
   }
+}
+
+function handleDesktopItemContextMenu(item: DesktopItem, event: MouseEvent) {
+  handleDirectoryContextMenu(item.id, event)
 }
 
 function handleBlankContextMenu(event: MouseEvent) {
@@ -485,13 +558,13 @@ function updateContentBounds() {
   }
 }
 
-function handleDirectoryPointerDown(directory: { path: string; x: number; y: number }, event: PointerEvent) {
+function handleDirectoryPointerDown(directory: DesktopItem, event: PointerEvent) {
   if (event.button !== 0 || event.ctrlKey || event.metaKey) {
     return
   }
 
   closeContextMenu()
-  selectedPaths.value = [directory.path]
+  selectedPaths.value = [directory.id]
 
   const target = event.currentTarget
   if (!(target instanceof HTMLElement)) {
@@ -502,6 +575,7 @@ function handleDirectoryPointerDown(directory: { path: string; x: number; y: num
   dragState.value = {
     currentX: directory.x,
     currentY: directory.y,
+    id: directory.id,
     moved: false,
     path: directory.path,
     pointerId: event.pointerId,
@@ -544,8 +618,13 @@ function finishDirectoryDrag(event: PointerEvent) {
 
   if (state.moved) {
     const snappedPosition = dragPreviewPosition.value ?? snapPosition(state.currentX, state.currentY)
-    desktopStore.setPinnedDirectoryPosition(state.path, snappedPosition.x, snappedPosition.y)
-    suppressDirectoryInteraction(state.path)
+    const item = getDesktopItemById(state.id)
+    if (item?.type === 'directory') {
+      desktopStore.setPinnedDirectoryPosition(item.path, snappedPosition.x, snappedPosition.y)
+    } else if (item?.type === 'port-link') {
+      desktopStore.setPinnedPortLinkPosition(item.path, snappedPosition.x, snappedPosition.y)
+    }
+    suppressDirectoryInteraction(state.id)
   }
 
   dragState.value = null
@@ -558,14 +637,14 @@ function handleContextMenuSelect(key: string | number) {
   }
 
   if (key === 'remove') {
-    removeDirectories(contextMenu.value?.path && isDirectorySelected(contextMenu.value.path)
+    removeDesktopItems(contextMenu.value?.path && isDirectorySelected(contextMenu.value.path)
       ? [...selectedPaths.value]
       : contextMenu.value?.path ? [contextMenu.value.path] : [])
     return
   }
 
   if (key === 'remove-selected') {
-    removeDirectories([...selectedPaths.value])
+    removeDesktopItems([...selectedPaths.value])
     return
   }
 
@@ -613,30 +692,31 @@ onUnmounted(() => {
       />
 
       <button
-        v-for="directory in pinnedDirectories"
-        :key="directory.path"
-        :data-directory-path="directory.path"
+        v-for="item in desktopItems"
+        :key="item.id"
+        :data-desktop-item-id="item.id"
+        :title="item.title"
         type="button"
         class="group absolute flex min-h-[108px] w-[96px] flex-col items-center justify-center gap-[10px] rounded-[18px] border px-[10px] py-[12px] text-center text-inherit transition-[background-color,border-color,transform,box-shadow] duration-[180ms] ease-in-out cursor-pointer"
         :class="[
           settingsStore.isDark
             ? 'border-transparent bg-transparent text-[#e2e8f0]'
             : 'border-transparent bg-transparent text-[#0f172a]',
-          isDirectorySelected(directory.path)
+          isDirectorySelected(item.id)
             ? settingsStore.isDark
               ? 'border-[rgba(148,163,184,0.26)] bg-[rgba(15,23,42,0.46)] outline outline-1 outline-offset-2 outline-[var(--app-primary-border)]'
               : 'border-[rgba(100,116,139,0.36)] bg-[var(--app-primary-soft-strong)] outline outline-1 outline-offset-2 outline-[var(--app-primary-border)]'
             : '',
-          dragState?.path === directory.path ? 'z-[7] cursor-grabbing opacity-80 shadow-[0_20px_40px_rgba(15,23,42,0.18)] transition-none' : '',
+          dragState?.id === item.id ? 'z-[7] cursor-grabbing opacity-80 shadow-[0_20px_40px_rgba(15,23,42,0.18)] transition-none' : '',
         ]"
         :style="{
-          left: `${directory.x}px`,
-          top: `${directory.y}px`,
+          left: `${item.x}px`,
+          top: `${item.y}px`,
         }"
-        @click.stop="handleDirectoryClick(directory.path, $event)"
-        @contextmenu.stop="handleDirectoryContextMenu(directory.path, $event)"
-        @dblclick.stop="openDirectory(directory.path)"
-        @pointerdown.stop="handleDirectoryPointerDown(directory, $event)"
+        @click.stop="handleDirectoryClick(item.id, $event)"
+        @contextmenu.stop="handleDesktopItemContextMenu(item, $event)"
+        @dblclick.stop="openDesktopItem(item)"
+        @pointerdown.stop="handleDirectoryPointerDown(item, $event)"
         @pointermove.stop="handleDirectoryPointerMove($event)"
         @pointerup.stop="finishDirectoryDrag($event)"
         @pointercancel.stop="finishDirectoryDrag($event)"
@@ -645,17 +725,17 @@ onUnmounted(() => {
           class="flex h-[52px] w-[52px] items-center justify-center rounded-[16px] transition-[transform,background-color,box-shadow] duration-[180ms] ease-in-out"
           :class="[
             settingsStore.isDark ? 'bg-[rgba(30,41,59,0.72)]' : 'bg-[rgba(255,255,255,0.58)]',
-            isDirectorySelected(directory.path)
+            isDirectorySelected(item.id)
               ? settingsStore.isDark
                 ? 'scale-[1.04] bg-[rgba(51,65,85,0.82)]'
                 : 'scale-[1.04] bg-[rgba(255,255,255,0.78)]'
               : '',
           ]"
         >
-          <AppIcon name="folder" :size="28" />
+          <AppIcon :name="item.icon" :size="28" />
         </div>
         <div class="w-full">
-          <div class="truncate-line text-[13px] font-600">{{ directory.label }}</div>
+          <div class="truncate-line text-[13px] font-600">{{ item.label }}</div>
         </div>
       </button>
 
