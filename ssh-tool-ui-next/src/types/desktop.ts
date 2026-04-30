@@ -17,6 +17,7 @@ export type DesktopAppId =
   | 'runtime-sessions'
   | 'docker'
   | 'docker-create-container'
+  | 'docker-create-compose'
   | 'settings'
   | 'logout'
   | 'editor'

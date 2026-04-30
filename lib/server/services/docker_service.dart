@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -11,6 +12,7 @@ import '../repositories/ssh_repository.dart';
 import 'docker_engine_mapper.dart';
 
 class DockerService {
+  final SshRepository _sshRepository;
   final DockerEngineRepository _engineRepository;
   final DockerEngineMapper _mapper;
   final _log = Logger('DockerService');
@@ -19,7 +21,8 @@ class DockerService {
     SshRepository repository, {
     DockerEngineRepository? engineRepository,
     DockerEngineMapper? mapper,
-  }) : _engineRepository =
+  }) : _sshRepository = repository,
+       _engineRepository =
            engineRepository ?? DockerEngineRepository(repository),
        _mapper = mapper ?? DockerEngineMapper();
 
@@ -408,6 +411,238 @@ class DockerService {
     return _engineRepository.ping(session);
   }
 
+  /// 检查 Docker Compose 是否可用
+  Future<bool> isComposeAvailable(SshSession session) async {
+    try {
+      final output = await _runComposeCommand(session, ['version']);
+      return output.trim().isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 获取 Compose 项目列表
+  Future<List<Map<String, dynamic>>> listComposeProjects(
+    SshSession session,
+  ) async {
+    late final List<Map<String, dynamic>> items;
+    try {
+      final output = await _runComposeCommand(session, [
+        'compose',
+        'ls',
+        '--all',
+        '--format',
+        'json',
+      ]);
+
+      items = _decodeComposeJsonItems(output);
+    } catch (e) {
+      return <Map<String, dynamic>>[];
+    }
+
+    return items
+        .map((item) {
+          final name = _firstString(item, ['Name', 'name']);
+          final status = _firstString(item, ['Status', 'status']);
+          final configFiles = _firstString(item, [
+            'ConfigFiles',
+            'configFiles',
+            'ConfigFilesText',
+          ]);
+          final workingDir = _firstString(item, [
+            'WorkingDir',
+            'workingDir',
+            'Workdir',
+          ]);
+
+          return <String, dynamic>{
+            'name': name,
+            'status': status,
+            'configFiles': configFiles,
+            'workingDir': workingDir,
+          };
+        })
+        .where((item) => item['name'].toString().isNotEmpty)
+        .toList();
+  }
+
+  /// 创建 Compose 项目文件，并按需启动
+  Future<Map<String, dynamic>> createComposeProject(
+    SshSession session,
+    Map<String, dynamic> payload,
+  ) async {
+    final projectName = payload['projectName']?.toString().trim() ?? '';
+    final workingDir = payload['workingDir']?.toString().trim() ?? '';
+    final fileName = payload['fileName']?.toString().trim().isNotEmpty == true
+        ? payload['fileName'].toString().trim()
+        : 'docker-compose.yml';
+    final content = payload['content']?.toString() ?? '';
+    final startAfterCreate = payload['startAfterCreate'] == true;
+
+    if (projectName.isEmpty) {
+      throw ArgumentError('projectName is required');
+    }
+    if (workingDir.isEmpty) {
+      throw ArgumentError('workingDir is required');
+    }
+    if (content.trim().isEmpty) {
+      throw ArgumentError('content is required');
+    }
+    if (!_isSafeComposeFileName(fileName)) {
+      throw ArgumentError('fileName must be a .yml or .yaml file name');
+    }
+
+    await _runShellCommand(session, ['mkdir', '-p', workingDir]);
+    final composePath = _joinPath(workingDir, fileName);
+    await _sshRepository.writeFileStream(
+      session,
+      composePath,
+      Stream.value(Uint8List.fromList(utf8.encode(content))),
+    );
+
+    var output = '';
+    String? startError;
+    if (startAfterCreate) {
+      try {
+        output = await upComposeProject(
+          session,
+          projectName: projectName,
+          configFiles: [composePath],
+          workingDir: workingDir,
+        );
+      } catch (e) {
+        startError = e.toString();
+      }
+    }
+
+    return {
+      'projectName': projectName,
+      'workingDir': workingDir,
+      'configFiles': [composePath],
+      'started': startAfterCreate && startError == null,
+      'startError': startError,
+      'output': output,
+    };
+  }
+
+  /// 获取 Compose 项目服务状态
+  Future<List<Map<String, dynamic>>> listComposeServices(
+    SshSession session, {
+    required String projectName,
+    required List<String> configFiles,
+    String? workingDir,
+  }) async {
+    late final List<Map<String, dynamic>> items;
+    try {
+      final output = await _runComposeProjectCommand(
+        session,
+        projectName: projectName,
+        configFiles: configFiles,
+        workingDir: workingDir,
+        args: ['ps', '--format', 'json'],
+      );
+      items = _decodeComposeJsonItems(output);
+    } catch (_) {
+      final output = await _runComposeProjectCommand(
+        session,
+        projectName: projectName,
+        configFiles: configFiles,
+        workingDir: workingDir,
+        args: ['ps'],
+      );
+      items = _parseComposeServicesTable(output);
+    }
+
+    return items.map((item) {
+      return <String, dynamic>{
+        'id': _firstString(item, ['ID', 'Id', 'id']),
+        'name': _firstString(item, ['Name', 'name']),
+        'service': _firstString(item, ['Service', 'service']),
+        'project': _firstString(item, ['Project', 'project']),
+        'image': _firstString(item, ['Image', 'image']),
+        'state': _firstString(item, ['State', 'state']),
+        'status': _firstString(item, ['Status', 'status']),
+        'ports': _firstString(item, ['Publishers', 'Ports', 'ports']),
+      };
+    }).toList();
+  }
+
+  Future<String> upComposeProject(
+    SshSession session, {
+    required String projectName,
+    required List<String> configFiles,
+    String? workingDir,
+  }) {
+    return _runComposeProjectCommand(
+      session,
+      projectName: projectName,
+      configFiles: configFiles,
+      workingDir: workingDir,
+      args: ['up', '-d'],
+    );
+  }
+
+  Future<String> stopComposeProject(
+    SshSession session, {
+    required String projectName,
+    required List<String> configFiles,
+    String? workingDir,
+  }) {
+    return _runComposeProjectCommand(
+      session,
+      projectName: projectName,
+      configFiles: configFiles,
+      workingDir: workingDir,
+      args: ['stop'],
+    );
+  }
+
+  Future<String> restartComposeProject(
+    SshSession session, {
+    required String projectName,
+    required List<String> configFiles,
+    String? workingDir,
+  }) {
+    return _runComposeProjectCommand(
+      session,
+      projectName: projectName,
+      configFiles: configFiles,
+      workingDir: workingDir,
+      args: ['restart'],
+    );
+  }
+
+  Future<String> downComposeProject(
+    SshSession session, {
+    required String projectName,
+    required List<String> configFiles,
+    String? workingDir,
+  }) {
+    return _runComposeProjectCommand(
+      session,
+      projectName: projectName,
+      configFiles: configFiles,
+      workingDir: workingDir,
+      args: ['down'],
+    );
+  }
+
+  Future<String> getComposeLogs(
+    SshSession session, {
+    required String projectName,
+    required List<String> configFiles,
+    String? workingDir,
+    int tail = 200,
+  }) {
+    return _runComposeProjectCommand(
+      session,
+      projectName: projectName,
+      configFiles: configFiles,
+      workingDir: workingDir,
+      args: ['logs', '--no-color', '--tail', tail.toString()],
+    );
+  }
+
   /// 获取容器 inspect 详情
   Future<Map<String, dynamic>> inspectContainer(
     SshSession session,
@@ -473,6 +708,216 @@ class DockerService {
         .where((id) => id.isNotEmpty)
         .toSet()
         .toList();
+  }
+
+  List<String> _normalizeComposeFiles(List<String> files) {
+    return files
+        .map((file) => file.trim())
+        .where((file) => file.isNotEmpty)
+        .toSet()
+        .toList();
+  }
+
+  bool _isSafeComposeFileName(String fileName) {
+    if (fileName.contains('/') || fileName.contains('\\')) {
+      return false;
+    }
+
+    final lower = fileName.toLowerCase();
+    return lower.endsWith('.yml') || lower.endsWith('.yaml');
+  }
+
+  String _joinPath(String directory, String fileName) {
+    final normalizedDirectory = directory.endsWith('/')
+        ? directory.substring(0, directory.length - 1)
+        : directory;
+    return '$normalizedDirectory/$fileName';
+  }
+
+  Future<String> _runComposeProjectCommand(
+    SshSession session, {
+    required String projectName,
+    required List<String> configFiles,
+    String? workingDir,
+    required List<String> args,
+  }) {
+    final files = _normalizeComposeFiles(configFiles);
+    if (files.isEmpty) {
+      throw ArgumentError('configFiles is required');
+    }
+
+    final commandArgs = <String>['compose'];
+    final normalizedProjectName = projectName.trim();
+    if (normalizedProjectName.isNotEmpty) {
+      commandArgs.addAll(['-p', normalizedProjectName]);
+    }
+    for (final file in files) {
+      commandArgs.addAll(['-f', file]);
+    }
+    commandArgs.addAll(args);
+
+    return _runComposeCommand(session, commandArgs, workingDir: workingDir);
+  }
+
+  Future<String> _runComposeCommand(
+    SshSession session,
+    List<String> args, {
+    String? workingDir,
+  }) async {
+    try {
+      return await _runShellCommand(session, [
+        'docker',
+        ...args,
+      ], workingDir: workingDir);
+    } catch (error) {
+      if (args.isEmpty || args.first != 'compose') {
+        rethrow;
+      }
+
+      try {
+        return await _runShellCommand(session, [
+          'docker-compose',
+          ...args.skip(1),
+        ], workingDir: workingDir);
+      } catch (_) {
+        throw error;
+      }
+    }
+  }
+
+  Future<String> _runShellCommand(
+    SshSession session,
+    List<String> args, {
+    String? workingDir,
+  }) async {
+    const statusMarker = '__SSH_TOOL_COMPOSE_STATUS__';
+    final dockerCommand = args.map(_shellQuote).join(' ');
+    final directory = workingDir?.trim();
+    final command = [
+      if (directory != null && directory.isNotEmpty)
+        'cd ${_shellQuote(directory)}',
+      dockerCommand,
+    ].join(' && ');
+    final wrappedCommand =
+        'sh -lc ${_shellQuote('$command; code=\$?; printf "\\n$statusMarker:%s" "\$code"; exit 0')}';
+    final output = await _sshRepository.exec(session, wrappedCommand);
+    final markerIndex = output.lastIndexOf('\n$statusMarker:');
+    if (markerIndex < 0) {
+      throw Exception(
+        output.trim().isEmpty ? 'Compose command failed' : output.trim(),
+      );
+    }
+
+    final body = output.substring(0, markerIndex);
+    final statusText = output
+        .substring(markerIndex + statusMarker.length + 2)
+        .trim();
+    final statusCode = int.tryParse(statusText);
+    if (statusCode == null || statusCode != 0) {
+      throw Exception(
+        body.trim().isEmpty ? 'Compose command failed' : body.trim(),
+      );
+    }
+
+    return body.trim();
+  }
+
+  List<Map<String, dynamic>> _parseComposeProjectsTable(String output) {
+    return output
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .where((line) => !line.toLowerCase().startsWith('name'))
+        .map((line) {
+          final parts = line.split(RegExp(r'\s{2,}'));
+          if (parts.isEmpty) {
+            return <String, dynamic>{};
+          }
+
+          return <String, dynamic>{
+            'Name': parts[0],
+            'Status': parts.length > 1 ? parts[1] : '',
+            'ConfigFiles': parts.length > 2 ? parts.sublist(2).join(', ') : '',
+            'WorkingDir': '',
+          };
+        })
+        .where((item) => item['Name']?.toString().isNotEmpty == true)
+        .toList();
+  }
+
+  List<Map<String, dynamic>> _parseComposeServicesTable(String output) {
+    return output
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .where((line) => !line.toLowerCase().startsWith('name'))
+        .map((line) {
+          final parts = line.split(RegExp(r'\s{2,}'));
+          if (parts.isEmpty) {
+            return <String, dynamic>{};
+          }
+
+          return <String, dynamic>{
+            'Name': parts[0],
+            'Service': parts[0],
+            'Image': parts.length > 1 ? parts[1] : '',
+            'State': parts.length > 2 ? parts[2] : '',
+            'Status': parts.length > 2 ? parts.sublist(2).join(' ') : '',
+            'Ports': parts.length > 3 ? parts.sublist(3).join(', ') : '',
+          };
+        })
+        .where((item) => item['Name']?.toString().isNotEmpty == true)
+        .toList();
+  }
+
+  List<Map<String, dynamic>> _decodeComposeJsonItems(String output) {
+    final trimmed = output.trim();
+    if (trimmed.isEmpty) {
+      return <Map<String, dynamic>>[];
+    }
+
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is List) {
+        return decoded
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+      }
+      if (decoded is Map) {
+        return [Map<String, dynamic>.from(decoded)];
+      }
+    } catch (_) {
+      // Some compose versions output one JSON object per line.
+    }
+
+    return trimmed
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .map((line) => jsonDecode(line))
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  String _firstString(Map<String, dynamic> item, List<String> keys) {
+    for (final key in keys) {
+      final value = item[key];
+      if (value == null) {
+        continue;
+      }
+      if (value is List) {
+        return value.map((entry) => entry.toString()).join(', ');
+      }
+      return value.toString();
+    }
+
+    return '';
+  }
+
+  String _shellQuote(String value) {
+    return "'${value.replaceAll("'", "'\\''")}'";
   }
 
   Future<Set<String>> _getUsedImageIds(SshSession session) async {

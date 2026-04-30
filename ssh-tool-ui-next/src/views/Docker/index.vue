@@ -4,6 +4,7 @@ import { Add, Download, Upload } from '@vicons/carbon'
 import { LogoDocker } from '@vicons/ionicons5'
 import { useSettingsStore } from '@/stores/settings'
 import DockerContainersTab from './components/DockerContainersTab.vue'
+import DockerComposeTab from './components/DockerComposeTab.vue'
 import DockerImageHistoryModal from './components/DockerImageHistoryModal.vue'
 import DockerImageRefsModal from './components/DockerImageRefsModal.vue'
 import DockerImageTagModal from './components/DockerImageTagModal.vue'
@@ -97,6 +98,10 @@ const controller: DockerViewController = reactive(useDockerView(props))
 
         <NTabPane name="images" tab="镜像">
           <DockerImagesTab :controller="controller" />
+        </NTabPane>
+
+        <NTabPane name="compose" tab="编排">
+          <DockerComposeTab :controller="controller" />
         </NTabPane>
       </NTabs>
     </NSpin>

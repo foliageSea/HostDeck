@@ -97,6 +97,38 @@ export interface DockerImageCreateDefaults {
   volumes: string[]
 }
 
+export interface DockerComposeProject {
+  name: string
+  status: string
+  configFiles: string
+  workingDir: string
+}
+
+export interface DockerComposeService {
+  id: string
+  name: string
+  service: string
+  project: string
+  image: string
+  state: string
+  status: string
+  ports: string
+}
+
+export interface DockerComposeProjectPayload {
+  projectName: string
+  configFiles: string[]
+  workingDir?: string
+}
+
+export interface DockerComposeCreatePayload {
+  projectName: string
+  workingDir: string
+  fileName: string
+  content: string
+  startAfterCreate?: boolean
+}
+
 export interface DockerCreateContainerPayload {
   image: string
   name?: string
@@ -160,6 +192,76 @@ export const dockerApi = {
   async checkDocker(connectionId: string) {
     const response = await http.get<{ available: boolean }>('/api/docker/check', {
       params: { connectionId },
+    })
+    return response.data
+  },
+
+  async checkCompose(connectionId: string) {
+    const response = await http.get<{ available: boolean }>('/api/docker/compose/check', {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async listComposeProjects(connectionId: string) {
+    const response = await http.get<DockerComposeProject[]>('/api/docker/compose/projects', {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async createComposeProject(connectionId: string, payload: DockerComposeCreatePayload) {
+    const response = await http.post<{
+      projectName: string
+      workingDir: string
+      configFiles: string[]
+      started: boolean
+      startError?: string
+      output: string
+    }>('/api/docker/compose/project', payload, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async listComposeServices(connectionId: string, payload: DockerComposeProjectPayload) {
+    const response = await http.post<DockerComposeService[]>('/api/docker/compose/project/services', payload, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async upComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
+    const response = await http.post<{ success: boolean; output: string }>('/api/docker/compose/project/up', payload, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async stopComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
+    const response = await http.post<{ success: boolean; output: string }>('/api/docker/compose/project/stop', payload, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async restartComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
+    const response = await http.post<{ success: boolean; output: string }>('/api/docker/compose/project/restart', payload, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async downComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
+    const response = await http.post<{ success: boolean; output: string }>('/api/docker/compose/project/down', payload, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async getComposeLogs(connectionId: string, payload: DockerComposeProjectPayload, tail = 200) {
+    const response = await http.post<{ logs: string }>('/api/docker/compose/project/logs', payload, {
+      params: { connectionId, tail },
     })
     return response.data
   },

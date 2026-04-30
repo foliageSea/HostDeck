@@ -188,6 +188,117 @@ class DockerController {
     });
   }
 
+  /// 检查 Docker Compose 可用性
+  Future<Response> checkCompose(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final available = await _dockerService.isComposeAvailable(session);
+        return Result.ok({'available': available});
+      } catch (e) {
+        return Result.ok({'available': false});
+      }
+    });
+  }
+
+  /// 获取 Compose 项目列表
+  Future<Response> listComposeProjects(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final projects = await _dockerService.listComposeProjects(session);
+        return Result.ok(projects);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 创建 Compose 项目
+  Future<Response> createComposeProject(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final body = await request.readAsString();
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final result = await _dockerService.createComposeProject(session, data);
+        return Result.ok(result);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 获取 Compose 项目服务
+  Future<Response> listComposeServices(Request request) async {
+    final payload = await _parseComposeProjectPayload(request);
+    if (payload == null) {
+      return Result.fail(400, 'Missing or invalid compose project payload');
+    }
+
+    return _withSession(request, (session) async {
+      try {
+        final services = await _dockerService.listComposeServices(
+          session,
+          projectName: payload.projectName,
+          configFiles: payload.configFiles,
+          workingDir: payload.workingDir,
+        );
+        return Result.ok(services);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  Future<Response> upComposeProject(Request request) async {
+    return _handleComposeProjectAction(
+      request,
+      _dockerService.upComposeProject,
+    );
+  }
+
+  Future<Response> stopComposeProject(Request request) async {
+    return _handleComposeProjectAction(
+      request,
+      _dockerService.stopComposeProject,
+    );
+  }
+
+  Future<Response> restartComposeProject(Request request) async {
+    return _handleComposeProjectAction(
+      request,
+      _dockerService.restartComposeProject,
+    );
+  }
+
+  Future<Response> downComposeProject(Request request) async {
+    return _handleComposeProjectAction(
+      request,
+      _dockerService.downComposeProject,
+    );
+  }
+
+  Future<Response> getComposeLogs(Request request) async {
+    final tail = _parseTail(request.url.queryParameters['tail']);
+    final payload = await _parseComposeProjectPayload(request);
+    if (payload == null) {
+      return Result.fail(400, 'Missing or invalid compose project payload');
+    }
+
+    return _withSession(request, (session) async {
+      try {
+        final logs = await _dockerService.getComposeLogs(
+          session,
+          projectName: payload.projectName,
+          configFiles: payload.configFiles,
+          workingDir: payload.workingDir,
+          tail: tail,
+        );
+        return Result.ok({'logs': logs});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
   /// 获取容器列表
   Future<Response> listContainers(Request request) async {
     final pagination = _parsePagination(request);
@@ -591,6 +702,36 @@ class DockerController {
     });
   }
 
+  Future<Response> _handleComposeProjectAction(
+    Request request,
+    Future<String> Function(
+      SshSession, {
+      required String projectName,
+      required List<String> configFiles,
+      String? workingDir,
+    })
+    action,
+  ) async {
+    final payload = await _parseComposeProjectPayload(request);
+    if (payload == null) {
+      return Result.fail(400, 'Missing or invalid compose project payload');
+    }
+
+    return _withSession(request, (session) async {
+      try {
+        final output = await action(
+          session,
+          projectName: payload.projectName,
+          configFiles: payload.configFiles,
+          workingDir: payload.workingDir,
+        );
+        return Result.ok({'success': true, 'output': output});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
   Future<List<String>?> _parseIds(Request request) async {
     try {
       final body = await request.readAsString();
@@ -604,6 +745,38 @@ class DockerController {
           .map((id) => id.toString().trim())
           .where((id) => id.isNotEmpty)
           .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<_ComposeProjectPayload?> _parseComposeProjectPayload(
+    Request request,
+  ) async {
+    try {
+      final body = await request.readAsString();
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final projectName = data['projectName']?.toString().trim() ?? '';
+      final workingDir = data['workingDir']?.toString().trim();
+      final configFilesValue = data['configFiles'];
+      final configFiles = configFilesValue is List
+          ? configFilesValue
+                .map((item) => item.toString().trim())
+                .where((item) => item.isNotEmpty)
+                .toList()
+          : <String>[];
+
+      if (projectName.isEmpty || configFiles.isEmpty) {
+        return null;
+      }
+
+      return _ComposeProjectPayload(
+        projectName: projectName,
+        configFiles: configFiles,
+        workingDir: workingDir == null || workingDir.isEmpty
+            ? null
+            : workingDir,
+      );
     } catch (_) {
       return null;
     }
@@ -688,4 +861,16 @@ class _PaginationParams {
   final int pageSize;
 
   const _PaginationParams({required this.page, required this.pageSize});
+}
+
+class _ComposeProjectPayload {
+  final String projectName;
+  final List<String> configFiles;
+  final String? workingDir;
+
+  const _ComposeProjectPayload({
+    required this.projectName,
+    required this.configFiles,
+    this.workingDir,
+  });
 }

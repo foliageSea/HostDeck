@@ -71,6 +71,39 @@ class ApiRoutes {
     router.post('/api/docker/session', dockerController.createSession);
     router.delete('/api/docker/session', dockerController.closeSession);
     router.get('/api/docker/check', dockerController.checkDocker);
+    router.get('/api/docker/compose/check', dockerController.checkCompose);
+    router.get(
+      '/api/docker/compose/projects',
+      dockerController.listComposeProjects,
+    );
+    router.post(
+      '/api/docker/compose/project',
+      dockerController.createComposeProject,
+    );
+    router.post(
+      '/api/docker/compose/project/services',
+      dockerController.listComposeServices,
+    );
+    router.post(
+      '/api/docker/compose/project/up',
+      dockerController.upComposeProject,
+    );
+    router.post(
+      '/api/docker/compose/project/stop',
+      dockerController.stopComposeProject,
+    );
+    router.post(
+      '/api/docker/compose/project/restart',
+      dockerController.restartComposeProject,
+    );
+    router.post(
+      '/api/docker/compose/project/down',
+      dockerController.downComposeProject,
+    );
+    router.post(
+      '/api/docker/compose/project/logs',
+      dockerController.getComposeLogs,
+    );
     router.get('/api/docker/containers', dockerController.listContainers);
     router.get(
       '/api/docker/containers/<id>/inspect',
