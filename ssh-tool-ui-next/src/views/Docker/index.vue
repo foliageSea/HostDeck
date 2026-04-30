@@ -3,7 +3,6 @@ import { reactive } from 'vue'
 import { Add, Cube, Download, Upload } from '@vicons/carbon'
 import { useSettingsStore } from '@/stores/settings'
 import DockerContainersTab from './components/DockerContainersTab.vue'
-import DockerCreateContainerModal from './components/DockerCreateContainerModal.vue'
 import DockerImageHistoryModal from './components/DockerImageHistoryModal.vue'
 import DockerImageRefsModal from './components/DockerImageRefsModal.vue'
 import DockerImageTagModal from './components/DockerImageTagModal.vue'
@@ -103,7 +102,6 @@ const controller: DockerViewController = reactive(useDockerView(props))
 
     <DockerLogsModal :controller="controller" />
     <DockerInspectModal :controller="controller" />
-    <DockerCreateContainerModal :controller="controller" />
     <DockerRenameContainerModal :controller="controller" />
     <DockerImageTagModal :controller="controller" />
     <DockerImageHistoryModal :controller="controller" />

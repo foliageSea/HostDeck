@@ -6,6 +6,7 @@ import { useWindowSessionStore } from '@/stores/window-session'
 import type { AppIconKey, DesktopAppId } from '@/types/desktop'
 import { basename, normalize } from '@/utils/path'
 import DashboardView from '@/views/Dashboard/index.vue'
+import DockerCreateContainerView from '@/views/Docker/components/DockerCreateContainerView.vue'
 import DockerView from '@/views/Docker/index.vue'
 import FilesView from '@/views/Files/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
@@ -238,6 +239,18 @@ export const useDesktopStore = defineStore('desktop', {
         title: 'Docker 管理',
         width: 1180,
         hide: false,
+      },
+      'docker-create-container': {
+        component: markRaw(DockerCreateContainerView),
+        height: 700,
+        hide: true,
+        icon: 'docker',
+        id: 'docker-create-container',
+        minimizable: false,
+        minHeight: 560,
+        minWidth: 720,
+        title: '新建容器',
+        width: 820,
       },
       'runtime-sessions': {
         component: markRaw(RuntimeSessionsView),

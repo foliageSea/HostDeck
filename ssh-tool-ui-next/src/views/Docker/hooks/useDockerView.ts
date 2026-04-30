@@ -21,7 +21,6 @@ import {
   type DockerContainerStatusFilter,
   type DockerContainerSummary,
   type DockerContainerStats,
-  type DockerCreateContainerPayload,
   type DockerImageContainerRef,
   type DockerImageHistoryItem,
   type DockerImageSummary,
@@ -88,19 +87,6 @@ export function useDockerView(props: DockerViewProps) {
   const inspectContent = ref<DockerContainerInspect | null>(null)
   const pullingImage = ref(false)
   const pullImageName = ref('')
-  const createVisible = ref(false)
-  const creatingContainer = ref(false)
-  const createForm = ref<DockerCreateContainerPayload>({
-    image: '',
-    name: '',
-    restartPolicy: 'no',
-    start: true,
-  })
-  const createPortsText = ref('')
-  const createEnvText = ref('')
-  const createVolumesText = ref('')
-  const createCmdText = ref('')
-  const createEntrypointText = ref('')
   const imageTagVisible = ref(false)
   const imageTagging = ref(false)
   const imageTagSource = ref('')
@@ -127,17 +113,6 @@ export function useDockerView(props: DockerViewProps) {
   const runningContainers = computed(() => containerSummary.value.running)
   const stoppedContainers = computed(() => containerSummary.value.stopped)
   const danglingImages = computed(() => imageSummary.value.dangling)
-  const createImageOptions = computed(() =>
-    images.value
-      .filter((item) => item.repository && item.tag && !item.dangling)
-      .map((item) => {
-        const imageName = `${item.repository}:${item.tag}`
-        return {
-          label: item.inUse ? `${imageName} (使用中)` : imageName,
-          value: imageName,
-        }
-      }),
-  )
   const containerPagination = computed(() => ({
     page: containerPage.value,
     pageSize: containerPageSize.value,
@@ -207,13 +182,6 @@ export function useDockerView(props: DockerViewProps) {
     }
 
     return date.toLocaleString('zh-CN')
-  }
-
-  function toLineList(value: string) {
-    return value
-      .split(/\r?\n/)
-      .map((item) => item.trim())
-      .filter(Boolean)
   }
 
   function formatDateTime(value: Date | null) {
@@ -993,50 +961,17 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   function openCreateContainer() {
-    createForm.value = {
-      image: '',
-      name: '',
-      restartPolicy: 'no',
-      start: true,
-    }
-    createPortsText.value = ''
-    createEnvText.value = ''
-    createVolumesText.value = ''
-    createCmdText.value = ''
-    createEntrypointText.value = ''
-    createVisible.value = true
-  }
-
-  async function submitCreateContainer() {
-    if (!createForm.value.image?.trim()) {
-      getUiApi().message.error('镜像名称不能为空。')
-      return
-    }
-
-    creatingContainer.value = true
     try {
       const connectionId = requireConnectionId()
-      const payload: DockerCreateContainerPayload = {
-        image: createForm.value.image.trim(),
-        name: createForm.value.name?.trim() || undefined,
-        ports: toLineList(createPortsText.value),
-        env: toLineList(createEnvText.value),
-        volumes: toLineList(createVolumesText.value),
-        restartPolicy: createForm.value.restartPolicy || 'no',
-        cmd: toLineList(createCmdText.value),
-        entrypoint: toLineList(createEntrypointText.value),
-        start: createForm.value.start === true,
-      }
-
-      const result = await queueDockerRequest(() => dockerApi.createContainer(connectionId, payload))
-      createVisible.value = false
-      getUiApi().message.success(`容器创建成功：${result.containerId.slice(0, 12)}`)
-      await loadDockerState()
+      desktopStore.openWindow('docker-create-container', {
+        connectionId,
+        host: props.host ?? sshStore.host,
+        title: '新建容器',
+        username: props.username ?? sshStore.username,
+      })
     } catch (error) {
-      console.error('Failed to create container', error)
-      getUiApi().message.error(error instanceof Error ? error.message : '创建容器失败。')
-    } finally {
-      creatingContainer.value = false
+      console.error('Failed to open create container window', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '打开新建容器窗口失败。')
     }
   }
 
@@ -1104,8 +1039,18 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
+  function handleContainerCreated(event: Event) {
+    const detail = (event as CustomEvent<{ connectionId?: string }>).detail
+    if (detail?.connectionId && detail.connectionId !== activeConnectionId.value) {
+      return
+    }
+
+    void loadDockerState()
+  }
+
   onMounted(() => {
     void loadDockerState()
+    window.addEventListener('docker:container-created', handleContainerCreated)
   })
 
   onBeforeUnmount(() => {
@@ -1113,6 +1058,7 @@ export function useDockerView(props: DockerViewProps) {
       clearInterval(logsRefreshTimer)
       logsRefreshTimer = null
     }
+    window.removeEventListener('docker:container-created', handleContainerCreated)
   })
 
   watch([logsVisible, logsAutoRefresh], () => {
@@ -1152,15 +1098,6 @@ export function useDockerView(props: DockerViewProps) {
     containerTotal,
     containerViewMode,
     copyLogs,
-    creatingContainer,
-    createCmdText,
-    createEntrypointText,
-    createEnvText,
-    createForm,
-    createImageOptions,
-    createPortsText,
-    createVisible,
-    createVolumesText,
     danglingImages,
     displayedLogs,
     dockerAvailable,
@@ -1230,7 +1167,6 @@ export function useDockerView(props: DockerViewProps) {
     setContainerStatusFilter,
     statsMap,
     stoppedContainers,
-    submitCreateContainer,
     submitRenameContainer,
     submitTagImage,
     updateSelectedContainerIds,
