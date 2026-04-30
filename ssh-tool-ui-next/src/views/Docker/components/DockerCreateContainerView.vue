@@ -14,6 +14,7 @@ import { useSshStore } from '@/stores/ssh'
 const props = defineProps<{
   windowId?: string
   connectionId?: string
+  host?: string
 }>()
 
 const desktopStore = useDesktopStore()
@@ -73,6 +74,31 @@ function setTextIfChanged(target: { value: string }, lines: string[]) {
   }
 }
 
+function sanitizePathSegment(value: string) {
+  return value
+    .trim()
+    .replace(/^[a-z]+:\/\//i, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'container'
+}
+
+function getImageVolumeDefaults(image: DockerImage, volumes: string[]) {
+  const imageName = `${image.repository}:${image.tag}`
+  const imageSegment = sanitizePathSegment(imageName)
+  const basePath = `/opt/docker-volumes/${imageSegment}`
+
+  return volumes.map((volume) => {
+    if (volume.includes(':')) {
+      return volume
+    }
+
+    const containerPath = volume.startsWith('/') ? volume : `/${volume}`
+    const hostPath = `${basePath}${containerPath}`.replace(/\/+/g, '/')
+    return `${hostPath}:${containerPath}`
+  })
+}
+
 function closeWindow() {
   if (props.windowId) {
     desktopStore.closeWindow(props.windowId)
@@ -110,7 +136,7 @@ async function loadImageDefaults(image: DockerImage | undefined) {
     }
 
     setTextIfChanged(createPortsText, defaults.ports)
-    setTextIfChanged(createVolumesText, defaults.volumes)
+    setTextIfChanged(createVolumesText, getImageVolumeDefaults(image, defaults.volumes))
   } catch (error) {
     if (requestId === imageDefaultsRequestId) {
       console.error('Failed to load Docker image create defaults', error)
@@ -245,7 +271,7 @@ watch(selectedImage, (image) => {
               type="textarea"
               :rows="3"
               :loading="loadingImageDefaults"
-              placeholder="每行一条，例如 /host/data:/data；单独路径将创建匿名卷"
+              placeholder="每行一条，例如 /opt/docker-volumes/app/data:/data；单独路径将创建匿名卷"
             />
           </NFormItem>
 
