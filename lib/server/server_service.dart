@@ -9,6 +9,7 @@ import 'package:logging/logging.dart';
 import 'repositories/ssh_repository.dart';
 import 'repositories/server_repository.dart';
 import 'services/ssh_service.dart';
+import 'services/monitor_history_service.dart';
 import 'services/monitor_service.dart';
 import 'services/file_service.dart';
 import 'services/docker_service.dart';
@@ -65,13 +66,18 @@ class ServerService {
     final sshRepository = SshRepository();
     final serverRepository = ServerRepository(_dbService!);
     final sshService = SshService(); // Manages connections
+    final monitorHistoryService = MonitorHistoryService();
     final monitorService = MonitorService(sshRepository);
     final fileService = FileService(sshRepository);
     final dockerService = DockerService(sshRepository);
 
     // 2. Initialize Controllers
-    final authController = AuthController(sshService);
-    final systemController = SystemController(sshService, monitorService);
+    final authController = AuthController(sshService, monitorHistoryService);
+    final systemController = SystemController(
+      sshService,
+      monitorService,
+      monitorHistoryService,
+    );
     final fileController = FileController(sshService, fileService);
     final terminalController = TerminalController(sshService);
     final serverController = ServerController(serverRepository);

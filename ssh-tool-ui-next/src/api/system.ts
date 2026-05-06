@@ -1,4 +1,9 @@
+import type { AxiosResponse } from 'axios'
+
+import { http } from '@/lib/http'
+
 export interface MonitorResponse {
+  timestamp: number
   cpu: string
   cpuUsage?: number
   ram: {
@@ -11,4 +16,16 @@ export interface MonitorResponse {
     uploadSpeed: number
     downloadSpeed: number
   }
+}
+
+export const systemApi = {
+  getMonitorHistory: (connectionId: string, limit = 200) =>
+    http
+      .get<MonitorResponse[]>('/api/system/monitor/history', {
+        params: {
+          connectionId,
+          limit,
+        },
+      })
+      .then((res: AxiosResponse<MonitorResponse[]>) => res.data),
 }

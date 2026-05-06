@@ -6,14 +6,20 @@ import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../models/ssh_session.dart';
+import '../../services/monitor_history_service.dart';
 import '../../services/monitor_service.dart';
 import '../../services/ssh_service.dart';
 
 class SystemMonitorWsHandler {
+  final MonitorHistoryService _monitorHistoryService;
   final SshService _sshService;
   final MonitorService _monitorService;
 
-  SystemMonitorWsHandler(this._sshService, this._monitorService);
+  SystemMonitorWsHandler(
+    this._sshService,
+    this._monitorService,
+    this._monitorHistoryService,
+  );
 
   Handler get handler {
     return (Request request) {
@@ -69,6 +75,7 @@ class SystemMonitorWsHandler {
               try {
                 final session = await resolveMonitorSession();
                 final status = await _monitorService.getSystemStatus(session);
+                _monitorHistoryService.addSample(connectionId, status);
                 if (isMonitoring) {
                   channel.sink.add(
                     jsonEncode({

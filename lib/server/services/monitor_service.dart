@@ -159,6 +159,7 @@ class MonitorService {
     }
 
     return SystemStatus(
+      timestamp: DateTime.now().millisecondsSinceEpoch,
       cpu: loadAvg,
       cpuUsage: cpuUsage ?? 0.0,
       ram: RamStatus(total: totalRam, used: usedRam),

@@ -1,14 +1,18 @@
 import 'dart:convert';
-import 'package:shelf/shelf.dart';
+
 import 'package:logging/logging.dart';
+import 'package:shelf/shelf.dart';
+
 import '../services/ssh_service.dart';
 import '../models/result.dart';
+import '../services/monitor_history_service.dart';
 
 class AuthController {
   final _log = Logger('AuthController');
+  final MonitorHistoryService _monitorHistoryService;
   final SshService _sshService;
 
-  AuthController(this._sshService);
+  AuthController(this._sshService, this._monitorHistoryService);
 
   Future<Response> connect(Request request) async {
     try {
@@ -38,6 +42,7 @@ class AuthController {
       }
 
       await _sshService.disconnect(connectionId);
+      _monitorHistoryService.clearConnection(connectionId);
       return Result.ok({'success': true});
     } catch (e) {
       _log.severe('Disconnect Error: $e');

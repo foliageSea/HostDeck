@@ -1,4 +1,5 @@
 class SystemStatus {
+  final int timestamp;
   final String cpu;
   final double? cpuUsage;
   final RamStatus ram;
@@ -6,6 +7,7 @@ class SystemStatus {
   final NetworkStatus? network;
 
   SystemStatus({
+    required this.timestamp,
     required this.cpu,
     this.cpuUsage,
     required this.ram,
@@ -14,6 +16,7 @@ class SystemStatus {
   });
 
   Map<String, dynamic> toJson() => {
+    'timestamp': timestamp,
     'cpu': cpu,
     'cpuUsage': cpuUsage,
     'ram': ram.toJson(),

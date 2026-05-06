@@ -45,6 +45,7 @@ class ApiRoutes {
 
     // System
     router.get('/api/status', systemController.status);
+    router.get('/api/system/monitor/history', systemController.history);
     router.get('/api/ws/monitor', systemController.wsMonitor);
     router.get('/api/ws/session', systemController.wsSessionStatus);
 
