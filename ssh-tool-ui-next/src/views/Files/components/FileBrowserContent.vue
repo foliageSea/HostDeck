@@ -206,7 +206,7 @@ onBeforeUnmount(() => {
           :key="file.filename"
           :data-file-name="file.filename"
           type="button"
-          class="flex min-h-[130px] flex-col items-center justify-center gap-[10px] rounded-[16px] border p-[14px] text-center text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
+          class="flex min-h-[130px] select-none flex-col items-center justify-center gap-[10px] rounded-[16px] border p-[14px] text-center text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
           :class="[
             settingsStore.isDark
               ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.62)] hover:border-[var(--app-primary-border)] hover:bg-[rgba(30,41,59,0.86)]'
@@ -235,7 +235,7 @@ onBeforeUnmount(() => {
           :key="file.filename"
           :data-file-name="file.filename"
           type="button"
-          class="file-row grid grid-cols-[minmax(0,1fr)_120px_180px] items-center gap-[12px] rounded-[14px] border px-[14px] py-[12px] text-left text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
+          class="file-row grid grid-cols-[minmax(0,1fr)_120px_180px] select-none items-center gap-[12px] rounded-[14px] border px-[14px] py-[12px] text-left text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
           :class="[
             settingsStore.isDark
               ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.62)] hover:border-[var(--app-primary-border)] hover:bg-[rgba(30,41,59,0.86)]'
