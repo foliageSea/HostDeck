@@ -125,6 +125,91 @@ void main() {
       expect(defaults['ports'], ['443:443/tcp', '53:53/udp', '80:80/tcp']);
       expect(defaults['volumes'], ['/data', '/var/lib/app']);
     });
+
+    test('maps network summaries into ui rows', () {
+      final networks = mapper.mapNetworkSummaries([
+        {
+          'Id': 'network-1',
+          'Name': 'app-network',
+          'Driver': 'bridge',
+          'Scope': 'local',
+          'Created': '2024-03-01T10:20:30.000000000Z',
+          'Internal': true,
+          'Attachable': false,
+          'Ingress': false,
+          'Containers': {
+            'container-1': {'Name': 'web'},
+            'container-2': {'Name': 'api'},
+          },
+        },
+      ]);
+
+      expect(networks, hasLength(1));
+      expect(networks.first.name, 'app-network');
+      expect(networks.first.driver, 'bridge');
+      expect(networks.first.scope, 'local');
+      expect(networks.first.internal, isTrue);
+      expect(networks.first.connectedContainers, 2);
+      expect(networks.first.connectedContainerNames, ['api', 'web']);
+    });
+
+    test('maps volume summaries into ui rows', () {
+      final volumes = mapper.mapVolumeSummaries([
+        {
+          'Name': 'app-data',
+          'Driver': 'local',
+          'Scope': 'local',
+          'Mountpoint': '/var/lib/docker/volumes/app-data/_data',
+          'CreatedAt': '2024-03-01T10:20:30Z',
+          'UsageData': {'RefCount': 3},
+        },
+      ]);
+
+      expect(volumes, hasLength(1));
+      expect(volumes.first.name, 'app-data');
+      expect(
+        volumes.first.mountpoint,
+        '/var/lib/docker/volumes/app-data/_data',
+      );
+      expect(volumes.first.refCount, 3);
+    });
+
+    test('builds create network request body from ui payload', () {
+      final request = mapper.buildCreateNetworkRequest({
+        'name': 'edge-network',
+        'driver': 'bridge',
+        'internal': true,
+        'attachable': true,
+        'options': {'com.docker.network.bridge.enable_icc': 'true'},
+        'labels': {'app': 'ssh-tool'},
+      });
+
+      expect(request, {
+        'Name': 'edge-network',
+        'Driver': 'bridge',
+        'CheckDuplicate': true,
+        'Internal': true,
+        'Attachable': true,
+        'Options': {'com.docker.network.bridge.enable_icc': 'true'},
+        'Labels': {'app': 'ssh-tool'},
+      });
+    });
+
+    test('builds create volume request body from ui payload', () {
+      final request = mapper.buildCreateVolumeRequest({
+        'name': 'cache-data',
+        'driver': 'local',
+        'options': {'type': 'nfs'},
+        'labels': {'app': 'ssh-tool'},
+      });
+
+      expect(request, {
+        'Name': 'cache-data',
+        'Driver': 'local',
+        'DriverOpts': {'type': 'nfs'},
+        'Labels': {'app': 'ssh-tool'},
+      });
+    });
   });
 
   dockerLogTests();

@@ -1,5 +1,7 @@
 import '../models/docker_container.dart';
 import '../models/docker_image.dart';
+import '../models/docker_network.dart';
+import '../models/docker_volume.dart';
 
 class DockerEngineMapper {
   DockerContainer mapContainerSummary(Map<String, dynamic> json) {
@@ -187,6 +189,97 @@ class DockerEngineMapper {
     };
   }
 
+  List<DockerNetwork> mapNetworkSummaries(List<dynamic> networks) {
+    return networks
+        .whereType<Map>()
+        .map((item) => mapNetworkSummary(Map<String, dynamic>.from(item)))
+        .where((item) => item.name.isNotEmpty)
+        .toList();
+  }
+
+  DockerNetwork mapNetworkSummary(Map<String, dynamic> json) {
+    final containers = _asMap(json['Containers']);
+    final connectedContainerNames =
+        containers.values
+            .map((value) => _asMap(value)['Name']?.toString().trim() ?? '')
+            .where((name) => name.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+
+    return DockerNetwork(
+      id: (json['Id'] ?? '').toString(),
+      name: (json['Name'] ?? '').toString(),
+      driver: (json['Driver'] ?? '').toString(),
+      scope: (json['Scope'] ?? '').toString(),
+      createdAt: _parseDateTime(json['Created']),
+      internal: json['Internal'] == true,
+      attachable: json['Attachable'] == true,
+      ingress: json['Ingress'] == true,
+      connectedContainers: containers.length,
+      connectedContainerNames: connectedContainerNames,
+    );
+  }
+
+  List<DockerVolume> mapVolumeSummaries(List<dynamic> volumes) {
+    return volumes
+        .whereType<Map>()
+        .map((item) => mapVolumeSummary(Map<String, dynamic>.from(item)))
+        .where((item) => item.name.isNotEmpty)
+        .toList();
+  }
+
+  DockerVolume mapVolumeSummary(Map<String, dynamic> json) {
+    final usageData = _asMap(json['UsageData']);
+
+    return DockerVolume(
+      name: (json['Name'] ?? '').toString(),
+      driver: (json['Driver'] ?? '').toString(),
+      scope: (json['Scope'] ?? '').toString(),
+      mountpoint: (json['Mountpoint'] ?? '').toString(),
+      createdAt: _parseDateTime(json['CreatedAt']),
+      refCount: _toInt(usageData['RefCount']),
+    );
+  }
+
+  Map<String, dynamic> buildCreateNetworkRequest(Map<String, dynamic> payload) {
+    final name = payload['name']?.toString().trim() ?? '';
+    if (name.isEmpty) {
+      throw Exception('name is required');
+    }
+
+    final driver = payload['driver']?.toString().trim() ?? 'bridge';
+    return {
+      'Name': name,
+      'Driver': driver.isEmpty ? 'bridge' : driver,
+      'CheckDuplicate': true,
+      if (payload['internal'] == true) 'Internal': true,
+      if (payload['attachable'] == true) 'Attachable': true,
+      if (payload['ingress'] == true) 'Ingress': true,
+      if (_toStringMap(payload['options']).isNotEmpty)
+        'Options': _toStringMap(payload['options']),
+      if (_toStringMap(payload['labels']).isNotEmpty)
+        'Labels': _toStringMap(payload['labels']),
+    };
+  }
+
+  Map<String, dynamic> buildCreateVolumeRequest(Map<String, dynamic> payload) {
+    final name = payload['name']?.toString().trim() ?? '';
+    if (name.isEmpty) {
+      throw Exception('name is required');
+    }
+
+    final driver = payload['driver']?.toString().trim() ?? 'local';
+    return {
+      'Name': name,
+      'Driver': driver.isEmpty ? 'local' : driver,
+      if (_toStringMap(payload['options']).isNotEmpty)
+        'DriverOpts': _toStringMap(payload['options']),
+      if (_toStringMap(payload['labels']).isNotEmpty)
+        'Labels': _toStringMap(payload['labels']),
+    };
+  }
+
   Map<String, dynamic> buildCreateRequest(Map<String, dynamic> payload) {
     final image = payload['image']?.toString().trim() ?? '';
     if (image.isEmpty) {
@@ -281,6 +374,24 @@ class DockerEngineMapper {
         .toList();
   }
 
+  Map<String, String> _toStringMap(dynamic value) {
+    if (value is! Map) {
+      return <String, String>{};
+    }
+
+    final result = <String, String>{};
+    value.forEach((key, item) {
+      final normalizedKey = key.toString().trim();
+      final normalizedValue = item?.toString().trim() ?? '';
+      if (normalizedKey.isEmpty || normalizedValue.isEmpty) {
+        return;
+      }
+
+      result[normalizedKey] = normalizedValue;
+    });
+    return result;
+  }
+
   _RepositoryTag _splitRepositoryAndTag(String raw) {
     final lastSlash = raw.lastIndexOf('/');
     final lastColon = raw.lastIndexOf(':');
@@ -301,6 +412,15 @@ class DockerEngineMapper {
     }
 
     return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000, isUtc: true);
+  }
+
+  DateTime? _parseDateTime(dynamic value) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty) {
+      return null;
+    }
+
+    return DateTime.tryParse(text);
   }
 
   List<String> _formatContainerPorts(List<Map<String, dynamic>> ports) {

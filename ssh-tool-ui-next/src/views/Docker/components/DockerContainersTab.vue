@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Grid, List, Pin, PinFilled } from '@vicons/carbon'
+import { Add, Pin, PinFilled } from '@vicons/carbon'
 import type { DockerContainer } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
@@ -59,7 +59,7 @@ function isPaused(container: DockerContainer) {
 </script>
 
 <template>
-  <div class="flex flex-col" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+  <div class="flex h-full min-h-0 flex-col overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <div class="mb-[12px] flex flex-wrap items-start justify-between gap-[12px]">
       <NSpace>
         <NSelect
@@ -80,34 +80,18 @@ function isPaused(container: DockerContainer) {
         </div>
       </NSpace>
 
-      <NButtonGroup size="small">
-        <NButton
-          :type="controller.containerViewMode === 'card' ? 'primary' : 'default'"
-          title="卡片视图"
-          aria-label="卡片视图"
-          @click="controller.setContainerViewMode('card')"
-        >
-          <template #icon>
-            <NIcon><Grid /></NIcon>
-          </template>
-        </NButton>
-        <NButton
-          :type="controller.containerViewMode === 'table' ? 'primary' : 'default'"
-          title="表格视图"
-          aria-label="表格视图"
-          @click="controller.setContainerViewMode('table')"
-        >
-          <template #icon>
-            <NIcon><List /></NIcon>
-          </template>
-        </NButton>
-      </NButtonGroup>
+      <NButton quaternary @click="controller.openCreateContainer">
+        <template #icon>
+          <NIcon><Add /></NIcon>
+        </template>
+        新建容器
+      </NButton>
     </div>
 
-    <div v-if="controller.containerViewMode === 'card'" class="docker-card-shell">
+    <div class="docker-card-shell">
       <NEmpty v-if="controller.containers.length === 0" description="暂无容器" />
 
-      <div v-else class="docker-card-grid">
+      <div v-else class="docker-card-list">
         <NCard
           v-for="container in controller.containers"
           :key="container.id"
@@ -162,7 +146,7 @@ function isPaused(container: DockerContainer) {
               <span>端口</span>
               <div class="docker-card-port-list" :title="getPortsTitle(container)">
                 <template v-if="container.ports.length">
-                  <span v-for="port in container.ports.slice(0, 2)" :key="port" class="docker-card-port-item">
+                  <span v-for="port in container.ports.slice(0, 3)" :key="port" class="docker-card-port-item">
                     <NButton
                       text
                       type="primary"
@@ -189,7 +173,7 @@ function isPaused(container: DockerContainer) {
                   </span>
                 </template>
                 <template v-else>-</template>
-                <span v-if="container.ports.length > 2"> 等 {{ container.ports.length }} 项</span>
+                <span v-if="container.ports.length > 3">等 {{ container.ports.length }} 项</span>
               </div>
             </div>
           </div>
@@ -246,23 +230,6 @@ function isPaused(container: DockerContainer) {
         />
       </div>
     </div>
-
-    <div v-else class="docker-table-shell">
-      <NDataTable
-        :checked-row-keys="controller.selectedContainerIds"
-        class="docker-table"
-        :single-line="false"
-        :columns="controller.containerColumns"
-        :data="controller.containers"
-        :pagination="controller.containerPagination"
-        :row-key="controller.containerRowKey"
-        remote
-        size="small"
-        @update:checked-row-keys="controller.updateSelectedContainerIds"
-        @update:page="controller.handleContainerPageChange"
-        @update:page-size="controller.handleContainerPageSizeChange"
-      />
-    </div>
   </div>
 </template>
 
@@ -276,8 +243,8 @@ function isPaused(container: DockerContainer) {
   --docker-card-field-bg: rgba(15, 23, 42, 0.38);
   --docker-card-label-color: rgba(226, 232, 240, 0.52);
   --docker-card-value-color: rgba(248, 250, 252, 0.9);
-  --docker-scrollbar-thumb: rgba(148, 163, 184, 0.34);
-  --docker-scrollbar-thumb-hover: rgba(var(--app-primary-rgb), 0.52);
+  --docker-pager-bg: rgba(15, 23, 42, 0.9);
+  --docker-pager-border: rgba(148, 163, 184, 0.14);
 }
 
 .docker-theme-light {
@@ -289,25 +256,31 @@ function isPaused(container: DockerContainer) {
   --docker-card-field-bg: rgba(241, 245, 249, 0.92);
   --docker-card-label-color: rgba(100, 116, 139, 0.9);
   --docker-card-value-color: rgba(30, 41, 59, 0.92);
-  --docker-scrollbar-thumb: rgba(100, 116, 139, 0.26);
-  --docker-scrollbar-thumb-hover: rgba(var(--app-primary-rgb), 0.42);
+  --docker-pager-bg: rgba(255, 255, 255, 0.94);
+  --docker-pager-border: rgba(148, 163, 184, 0.18);
 }
 
-.docker-card-shell,
-.docker-table-shell {
-  flex: none;
-  overflow: visible;
+.docker-card-shell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.docker-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 360px);
+.docker-card-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   gap: 12px;
-  justify-content: start;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .docker-card {
-  width: 360px;
+  width: 100%;
   border: 1px solid var(--docker-card-border);
   background: var(--docker-card-bg);
   box-shadow: var(--docker-card-shadow);
@@ -361,13 +334,12 @@ function isPaused(container: DockerContainer) {
 .docker-card-port-list {
   display: flex;
   min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  overflow: hidden;
   color: var(--docker-card-value-color);
   font-size: 13px;
   font-weight: 500;
-  white-space: nowrap;
 }
 
 .docker-card-port-item {
@@ -379,7 +351,7 @@ function isPaused(container: DockerContainer) {
 
 .docker-card-port-list :deep(.n-button__content) {
   display: block;
-  max-width: 136px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -394,75 +366,18 @@ function isPaused(container: DockerContainer) {
 .docker-card-pagination {
   display: flex;
   justify-content: flex-end;
-  margin-top: 14px;
-}
-
-.docker-table {
-  min-width: 100%;
-}
-
-.docker-table-shell :deep(.n-data-table-base-table-body) {
-  scrollbar-width: thin;
-  scrollbar-color: var(--docker-scrollbar-thumb) transparent;
-}
-
-.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar) {
-  width: 10px;
-  height: 10px;
-}
-
-.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar-track),
-.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar-corner) {
-  background: transparent;
-}
-
-.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar-thumb) {
-  border: 3px solid transparent;
-  border-radius: 999px;
-  background-clip: padding-box;
-  background-color: var(--docker-scrollbar-thumb);
-}
-
-.docker-table-shell:hover :deep(.n-data-table-base-table-body::-webkit-scrollbar-thumb) {
-  background-color: var(--docker-scrollbar-thumb-hover);
-}
-
-.docker-table-shell :deep(.container-port-summary) {
-  display: inline-block;
-  max-width: 130px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-.docker-table-shell :deep(.container-port-popover) {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 360px;
-}
-
-.docker-table-shell :deep(.container-port-item) {
-  font-family: Consolas, 'Cascadia Mono', 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  word-break: break-all;
-}
-
-.docker-table-shell :deep(.container-action-popover) {
-  max-width: 260px;
+  flex: none;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: auto;
+  border-top: 1px solid var(--docker-pager-border);
+  background: var(--docker-pager-bg);
+  padding-top: 10px;
+  backdrop-filter: blur(10px);
 }
 
 @media (max-width: 640px) {
-  .docker-card-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .docker-card {
-    width: 100%;
-  }
-
   .docker-card-fields {
     grid-template-columns: 1fr;
   }

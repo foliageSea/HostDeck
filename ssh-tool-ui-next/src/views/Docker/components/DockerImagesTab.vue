@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Grid, List } from '@vicons/carbon'
 import type { DockerImage } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
@@ -40,37 +39,15 @@ function getImageName(image: DockerImage) {
 </script>
 
 <template>
-  <div class="flex flex-col" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
-    <div class="mb-[12px] flex flex-wrap items-start justify-between gap-[12px]">
-      <div class="text-[13px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">支持镜像重新打标签、查看构建历史和引用容器。</div>
-      <NButtonGroup size="small">
-        <NButton
-          :type="controller.imageViewMode === 'card' ? 'primary' : 'default'"
-          title="卡片视图"
-          aria-label="卡片视图"
-          @click="controller.setImageViewMode('card')"
-        >
-          <template #icon>
-            <NIcon><Grid /></NIcon>
-          </template>
-        </NButton>
-        <NButton
-          :type="controller.imageViewMode === 'table' ? 'primary' : 'default'"
-          title="表格视图"
-          aria-label="表格视图"
-          @click="controller.setImageViewMode('table')"
-        >
-          <template #icon>
-            <NIcon><List /></NIcon>
-          </template>
-        </NButton>
-      </NButtonGroup>
+  <div class="flex h-full min-h-0 flex-col overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+    <div class="mb-[12px] text-[13px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">
+      支持镜像重新打标签、查看构建历史和引用容器。
     </div>
 
-    <div v-if="controller.imageViewMode === 'card'" class="docker-card-shell">
+    <div class="docker-card-shell">
       <NEmpty v-if="controller.images.length === 0" description="暂无镜像" />
 
-      <div v-else class="docker-card-grid">
+      <div v-else class="docker-card-list">
         <NCard
           v-for="image in controller.images"
           :key="image.id"
@@ -134,20 +111,6 @@ function getImageName(image: DockerImage) {
         />
       </div>
     </div>
-
-    <div v-else class="docker-table-shell">
-      <NDataTable
-        class="docker-table"
-        :single-line="false"
-        :columns="controller.imageColumns"
-        :data="controller.images"
-        :pagination="controller.imagePagination"
-        remote
-        size="small"
-        @update:page="controller.handleImagePageChange"
-        @update:page-size="controller.handleImagePageSizeChange"
-      />
-    </div>
   </div>
 </template>
 
@@ -161,8 +124,8 @@ function getImageName(image: DockerImage) {
   --docker-card-field-bg: rgba(15, 23, 42, 0.38);
   --docker-card-label-color: rgba(226, 232, 240, 0.52);
   --docker-card-value-color: rgba(248, 250, 252, 0.9);
-  --docker-scrollbar-thumb: rgba(148, 163, 184, 0.34);
-  --docker-scrollbar-thumb-hover: rgba(var(--app-primary-rgb), 0.52);
+  --docker-pager-bg: rgba(15, 23, 42, 0.9);
+  --docker-pager-border: rgba(148, 163, 184, 0.14);
 }
 
 .docker-theme-light {
@@ -174,25 +137,31 @@ function getImageName(image: DockerImage) {
   --docker-card-field-bg: rgba(241, 245, 249, 0.92);
   --docker-card-label-color: rgba(100, 116, 139, 0.9);
   --docker-card-value-color: rgba(30, 41, 59, 0.92);
-  --docker-scrollbar-thumb: rgba(100, 116, 139, 0.26);
-  --docker-scrollbar-thumb-hover: rgba(var(--app-primary-rgb), 0.42);
+  --docker-pager-bg: rgba(255, 255, 255, 0.94);
+  --docker-pager-border: rgba(148, 163, 184, 0.18);
 }
 
-.docker-card-shell,
-.docker-table-shell {
-  flex: none;
-  overflow: visible;
+.docker-card-shell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.docker-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 340px);
+.docker-card-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   gap: 12px;
-  justify-content: start;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .docker-card {
-  width: 340px;
+  width: 100%;
   border: 1px solid var(--docker-card-border);
   background: var(--docker-card-bg);
   box-shadow: var(--docker-card-shadow);
@@ -252,52 +221,18 @@ function getImageName(image: DockerImage) {
 .docker-card-pagination {
   display: flex;
   justify-content: flex-end;
-  margin-top: 14px;
-}
-
-.docker-table {
-  min-width: 100%;
-}
-
-.docker-table-shell :deep(.n-data-table-base-table-body) {
-  scrollbar-width: thin;
-  scrollbar-color: var(--docker-scrollbar-thumb) transparent;
-}
-
-.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar) {
-  width: 10px;
-  height: 10px;
-}
-
-.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar-track),
-.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar-corner) {
-  background: transparent;
-}
-
-.docker-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar-thumb) {
-  border: 3px solid transparent;
-  border-radius: 999px;
-  background-clip: padding-box;
-  background-color: var(--docker-scrollbar-thumb);
-}
-
-.docker-table-shell:hover :deep(.n-data-table-base-table-body::-webkit-scrollbar-thumb) {
-  background-color: var(--docker-scrollbar-thumb-hover);
-}
-
-.docker-table-shell :deep(.container-action-popover) {
-  max-width: 260px;
+  flex: none;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: auto;
+  border-top: 1px solid var(--docker-pager-border);
+  background: var(--docker-pager-bg);
+  padding-top: 10px;
+  backdrop-filter: blur(10px);
 }
 
 @media (max-width: 640px) {
-  .docker-card-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .docker-card {
-    width: 100%;
-  }
-
   .docker-card-fields {
     grid-template-columns: 1fr;
   }

@@ -6,6 +6,8 @@ import 'package:logging/logging.dart';
 
 import '../models/docker_container.dart';
 import '../models/docker_image.dart';
+import '../models/docker_network.dart';
+import '../models/docker_volume.dart';
 import '../models/ssh_session.dart';
 import '../repositories/docker_engine_repository.dart';
 import '../repositories/ssh_repository.dart';
@@ -68,6 +70,39 @@ class DockerService {
     } catch (e) {
       _log.severe('Failed to list images: $e');
       throw Exception('Failed to list images: $e');
+    }
+  }
+
+  /// 获取网络列表
+  Future<List<DockerNetwork>> listNetworks(SshSession session) async {
+    try {
+      final networks = await _engineRepository.requestJsonList(
+        session,
+        method: 'GET',
+        path: '/networks',
+      );
+
+      return _mapper.mapNetworkSummaries(networks);
+    } catch (e) {
+      _log.severe('Failed to list networks: $e');
+      throw Exception('Failed to list networks: $e');
+    }
+  }
+
+  /// 获取存储卷列表
+  Future<List<DockerVolume>> listVolumes(SshSession session) async {
+    try {
+      final result = await _engineRepository.requestJsonObject(
+        session,
+        method: 'GET',
+        path: '/volumes',
+      );
+
+      final volumes = result['Volumes'] as List? ?? <dynamic>[];
+      return _mapper.mapVolumeSummaries(volumes);
+    } catch (e) {
+      _log.severe('Failed to list volumes: $e');
+      throw Exception('Failed to list volumes: $e');
     }
   }
 
@@ -177,6 +212,144 @@ class DockerService {
       path: '/images/${Uri.encodeComponent(imageId)}',
       queryParameters: {'force': force.toString()},
     );
+  }
+
+  /// 获取网络 inspect 详情
+  Future<Map<String, dynamic>> inspectNetwork(
+    SshSession session,
+    String networkId,
+  ) async {
+    return await _engineRepository.requestJsonObject(
+      session,
+      method: 'GET',
+      path: '/networks/${Uri.encodeComponent(networkId)}',
+    );
+  }
+
+  /// 获取存储卷 inspect 详情
+  Future<Map<String, dynamic>> inspectVolume(
+    SshSession session,
+    String volumeName,
+  ) async {
+    return await _engineRepository.requestJsonObject(
+      session,
+      method: 'GET',
+      path: '/volumes/${Uri.encodeComponent(volumeName)}',
+    );
+  }
+
+  /// 创建网络
+  Future<Map<String, dynamic>> createNetwork(
+    SshSession session,
+    Map<String, dynamic> payload,
+  ) async {
+    final requestBody = _mapper.buildCreateNetworkRequest(payload);
+    final result = await _engineRepository.requestJsonObject(
+      session,
+      method: 'POST',
+      path: '/networks/create',
+      body: requestBody,
+    );
+
+    return {
+      'id': (result['Id'] ?? '').toString(),
+      'warning': (result['Warning'] ?? '').toString(),
+    };
+  }
+
+  /// 创建存储卷
+  Future<Map<String, dynamic>> createVolume(
+    SshSession session,
+    Map<String, dynamic> payload,
+  ) async {
+    final requestBody = _mapper.buildCreateVolumeRequest(payload);
+    final result = await _engineRepository.requestJsonObject(
+      session,
+      method: 'POST',
+      path: '/volumes/create',
+      body: requestBody,
+    );
+
+    return {
+      'name': (result['Name'] ?? '').toString(),
+      'mountpoint': (result['Mountpoint'] ?? '').toString(),
+      'warning': (result['Warning'] ?? '').toString(),
+    };
+  }
+
+  /// 删除网络
+  Future<void> removeNetwork(SshSession session, String networkId) async {
+    await _engineRepository.request(
+      session,
+      method: 'DELETE',
+      path: '/networks/${Uri.encodeComponent(networkId)}',
+    );
+  }
+
+  /// 删除存储卷
+  Future<void> removeVolume(SshSession session, String volumeName) async {
+    await _engineRepository.request(
+      session,
+      method: 'DELETE',
+      path: '/volumes/${Uri.encodeComponent(volumeName)}',
+    );
+  }
+
+  /// 连接容器到网络
+  Future<void> connectNetwork(
+    SshSession session,
+    String networkId,
+    String container,
+  ) async {
+    await _engineRepository.request(
+      session,
+      method: 'POST',
+      path: '/networks/${Uri.encodeComponent(networkId)}/connect',
+      body: {'Container': container},
+    );
+  }
+
+  /// 从网络断开容器
+  Future<void> disconnectNetwork(
+    SshSession session,
+    String networkId,
+    String container, {
+    bool force = false,
+  }) async {
+    await _engineRepository.request(
+      session,
+      method: 'POST',
+      path: '/networks/${Uri.encodeComponent(networkId)}/disconnect',
+      body: {'Container': container, 'Force': force},
+    );
+  }
+
+  /// 清理未使用网络
+  Future<List<String>> pruneNetworks(SshSession session) async {
+    final result = await _engineRepository.requestJsonObject(
+      session,
+      method: 'POST',
+      path: '/networks/prune',
+    );
+    return (result['NetworksDeleted'] as List?)
+            ?.map((item) => item.toString())
+            .where((item) => item.isNotEmpty)
+            .toList() ??
+        <String>[];
+  }
+
+  /// 清理未使用存储卷
+  Future<List<String>> pruneVolumes(SshSession session) async {
+    final result = await _engineRepository.requestJsonObject(
+      session,
+      method: 'POST',
+      path: '/volumes/prune',
+    );
+    return (result['VolumesDeleted'] as List?)
+            ?.map((item) => item.toString())
+            .where((item) => item.isNotEmpty)
+            .toList() ??
+        <String>[];
   }
 
   /// 拉取镜像

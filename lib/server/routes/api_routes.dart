@@ -119,6 +119,30 @@ class ApiRoutes {
       dockerController.createContainerShellSession,
     );
     router.get('/api/docker/images', dockerController.listImages);
+    router.get('/api/docker/networks', dockerController.listNetworks);
+    router.post('/api/docker/networks', dockerController.createNetwork);
+    router.get(
+      '/api/docker/networks/<id>/inspect',
+      dockerController.inspectNetwork,
+    );
+    router.post(
+      '/api/docker/networks/<id>/connect',
+      dockerController.connectNetwork,
+    );
+    router.post(
+      '/api/docker/networks/<id>/disconnect',
+      dockerController.disconnectNetwork,
+    );
+    router.delete('/api/docker/networks/<id>', dockerController.removeNetwork);
+    router.post('/api/docker/networks/prune', dockerController.pruneNetworks);
+    router.get('/api/docker/volumes', dockerController.listVolumes);
+    router.post('/api/docker/volumes', dockerController.createVolume);
+    router.get(
+      '/api/docker/volumes/<name>/inspect',
+      dockerController.inspectVolume,
+    );
+    router.delete('/api/docker/volumes/<name>', dockerController.removeVolume);
+    router.post('/api/docker/volumes/prune', dockerController.pruneVolumes);
     router.post(
       '/api/docker/containers/<id>/start',
       dockerController.startContainer,

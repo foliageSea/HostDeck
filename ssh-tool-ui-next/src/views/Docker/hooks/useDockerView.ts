@@ -1,35 +1,23 @@
-import { computed, h, onBeforeUnmount, onMounted, ref, watch, type UnwrapNestedRefs } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, type UnwrapNestedRefs } from 'vue'
 import type { DataTableColumns } from 'naive-ui'
-import { NButton, NIcon, NPopover, NSpace } from 'naive-ui'
-import {
-  Catalog,
-  Edit,
-  Information,
-  Launch,
-  List,
-  Pause,
-  Pin,
-  PinFilled,
-  PlayFilledAlt,
-  Restart,
-  StopFilledAlt,
-  TrashCan,
-} from '@vicons/carbon'
 import {
   dockerApi,
   type DockerContainer,
   type DockerContainerDiagnostic,
-  type DockerContainerInspect,
   type DockerContainerStatusFilter,
   type DockerContainerSummary,
   type DockerContainerStats,
   type DockerComposeProject,
   type DockerComposeProjectPayload,
   type DockerComposeService,
+  type DockerCreateNetworkPayload,
+  type DockerCreateVolumePayload,
   type DockerImageContainerRef,
   type DockerImageHistoryItem,
   type DockerImageSummary,
   type DockerImage,
+  type DockerNetwork,
+  type DockerVolume,
 } from '@/api/docker'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
@@ -53,9 +41,7 @@ export function useDockerView(props: DockerViewProps) {
   const desktopStore = useDesktopStore()
   const sshStore = useSshStore()
 
-  const activeTab = ref<'containers' | 'images' | 'compose'>('containers')
-  const containerViewMode = ref<'card' | 'table'>('card')
-  const imageViewMode = ref<'card' | 'table'>('card')
+  const activeTab = ref<'overview' | 'containers' | 'images' | 'networks' | 'volumes' | 'compose'>('overview')
   const loading = ref(false)
   const dockerAvailable = ref<boolean | null>(null)
   const containers = ref<DockerContainer[]>([])
@@ -69,6 +55,8 @@ export function useDockerView(props: DockerViewProps) {
   const imagePageSize = ref(8)
   const imageTotal = ref(0)
   const imageSummary = ref<DockerImageSummary>({ total: 0, dangling: 0 })
+  const networks = ref<DockerNetwork[]>([])
+  const volumes = ref<DockerVolume[]>([])
   const composeAvailable = ref<boolean | null>(null)
   const composeProjects = ref<DockerComposeProject[]>([])
   const composeServicesMap = ref<Record<string, DockerComposeService[]>>({})
@@ -96,7 +84,7 @@ export function useDockerView(props: DockerViewProps) {
   const inspectVisible = ref(false)
   const inspectLoading = ref(false)
   const inspectTitle = ref('')
-  const inspectContent = ref<DockerContainerInspect | null>(null)
+  const inspectContent = ref<unknown | null>(null)
   const pullingImage = ref(false)
   const pullImageName = ref('')
   const imageTagVisible = ref(false)
@@ -204,20 +192,8 @@ export function useDockerView(props: DockerViewProps) {
     return value.toLocaleString('zh-CN')
   }
 
-  function containerRowKey(row: DockerContainer) {
-    return row.id
-  }
-
-  function setActiveTab(value: 'containers' | 'images' | 'compose') {
+  function setActiveTab(value: 'overview' | 'containers' | 'images' | 'networks' | 'volumes' | 'compose') {
     activeTab.value = value
-  }
-
-  function setContainerViewMode(value: 'card' | 'table') {
-    containerViewMode.value = value
-  }
-
-  function setImageViewMode(value: 'card' | 'table') {
-    imageViewMode.value = value
   }
 
   function setContainerStatusFilter(value: DockerContainerStatusFilter) {
@@ -341,266 +317,6 @@ export function useDockerView(props: DockerViewProps) {
     getUiApi().message.success(pinned ? '已将端口链接添加到桌面。' : '已从桌面移除端口链接。')
   }
 
-  function renderContainerPortLink(container: DockerContainer, portText: string) {
-    const url = getContainerPortUrl(portText)
-
-    return h(
-      NSpace,
-      { align: 'center', size: 4, wrap: false },
-      {
-        default: () => [
-          h(
-            NButton,
-            {
-              disabled: !url,
-              size: 'tiny',
-              text: true,
-              title: url ? `打开 ${url}` : `${portText} 未映射宿主机端口`,
-              type: 'primary',
-              onClick: (event: MouseEvent) => {
-                event.stopPropagation()
-                openContainerPort(portText)
-              },
-            },
-            { default: () => portText },
-          ),
-          h(
-            NButton,
-            {
-              disabled: !url,
-              'aria-label': isContainerPortPinned(portText) ? '从桌面移除端口链接' : '添加端口链接到桌面',
-              size: 'tiny',
-              text: true,
-              title: isContainerPortPinned(portText) ? '从桌面移除端口链接' : '添加端口链接到桌面',
-              type: isContainerPortPinned(portText) ? 'success' : 'default',
-              onClick: (event: MouseEvent) => {
-                event.stopPropagation()
-                toggleContainerPortDesktopPin(container, portText)
-              },
-            },
-            { icon: () => h(NIcon, null, { default: () => h(isContainerPortPinned(portText) ? PinFilled : Pin) }) },
-          ),
-        ],
-      },
-    )
-  }
-
-  function renderContainerPortTextLink(portText: string) {
-    const url = getContainerPortUrl(portText)
-
-    return h(
-      NButton,
-      {
-        disabled: !url,
-        size: 'tiny',
-        text: true,
-        title: url ? `打开 ${url}` : `${portText} 未映射宿主机端口`,
-        type: 'primary',
-        onClick: (event: MouseEvent) => {
-          event.stopPropagation()
-          openContainerPort(portText)
-        },
-      },
-      { default: () => portText },
-    )
-  }
-
-  function renderContainerPorts(row: DockerContainer) {
-    const ports = row.ports ?? []
-
-    if (ports.length === 0) {
-      return '-'
-    }
-
-    if (ports.length === 1) {
-      return h('span', { class: 'container-port-summary', title: ports[0] }, [renderContainerPortLink(row, ports[0])])
-    }
-
-    return h(
-      NSpace,
-      { align: 'center', size: 6, wrap: false },
-      {
-        default: () => [
-          h('span', { class: 'container-port-summary', title: ports.join(', ') }, [renderContainerPortTextLink(ports[0]), ` 等 ${ports.length} 项`]),
-          h(
-            NPopover,
-            { trigger: 'click', placement: 'bottom-start' },
-            {
-              trigger: () => h(NButton, { size: 'tiny', quaternary: true }, { default: () => '查看详情' }),
-              default: () => h('div', { class: 'container-port-popover' }, ports.map((port) => h('div', { class: 'container-port-item' }, [renderContainerPortLink(row, port)]))),
-            },
-          ),
-        ],
-      },
-    )
-  }
-
-  function renderContainerActions(row: DockerContainer) {
-    const paused = row.status.toLowerCase().includes('paused')
-
-    return h(
-      NPopover,
-      { trigger: 'click', placement: 'bottom-end' },
-      {
-        trigger: () => h(NButton, { size: 'small', quaternary: true }, { default: () => '查看详情' }),
-        default: () =>
-          h(NSpace, { class: 'container-action-popover', wrap: true, size: 4 }, () => [
-            row.state === 'running'
-              ? h(
-                  NButton,
-                  { size: 'small', quaternary: true, onClick: () => confirmContainerAction(row, 'stop') },
-                  { icon: () => h(NIcon, null, { default: () => h(StopFilledAlt) }), default: () => '停止' },
-                )
-              : h(
-                  NButton,
-                  { size: 'small', quaternary: true, onClick: () => confirmContainerAction(row, 'start') },
-                  { icon: () => h(NIcon, null, { default: () => h(PlayFilledAlt) }), default: () => '启动' },
-                ),
-            h(
-              NButton,
-              { size: 'small', quaternary: true, onClick: () => confirmContainerAction(row, 'restart') },
-              { icon: () => h(NIcon, null, { default: () => h(Restart) }), default: () => '重启' },
-            ),
-            h(
-              NButton,
-              {
-                size: 'small',
-                quaternary: true,
-                disabled: row.state !== 'running',
-                onClick: () => handleContainerAdvancedAction(row, paused ? 'unpause' : 'pause'),
-              },
-              {
-                icon: () => h(NIcon, null, { default: () => h(Pause) }),
-                default: () => (paused ? '恢复' : '暂停'),
-              },
-            ),
-            h(
-              NButton,
-              { size: 'small', quaternary: true, onClick: () => viewLogs(row) },
-              { icon: () => h(NIcon, null, { default: () => h(Catalog) }), default: () => '日志' },
-            ),
-            h(
-              NButton,
-              { size: 'small', quaternary: true, onClick: () => viewInspect(row) },
-              { icon: () => h(NIcon, null, { default: () => h(Information) }), default: () => 'Inspect' },
-            ),
-            h(
-              NButton,
-              { size: 'small', quaternary: true, onClick: () => openRenameDialog(row) },
-              { icon: () => h(NIcon, null, { default: () => h(Edit) }), default: () => '重命名' },
-            ),
-            h(
-              NButton,
-              { size: 'small', quaternary: true, onClick: () => recreateContainer(row) },
-              { icon: () => h(NIcon, null, { default: () => h(Restart) }), default: () => '重建' },
-            ),
-            h(
-              NButton,
-              {
-                size: 'small',
-                quaternary: true,
-                disabled: row.state !== 'running',
-                onClick: () => enterShell(row),
-              },
-              { icon: () => h(NIcon, null, { default: () => h(Launch) }), default: () => 'Shell' },
-            ),
-            h(
-              NButton,
-              { size: 'small', quaternary: true, type: 'error', onClick: () => confirmContainerAction(row, 'remove') },
-              { icon: () => h(NIcon, null, { default: () => h(TrashCan) }), default: () => '删除' },
-            ),
-          ]),
-      },
-    )
-  }
-
-  function renderImageActions(row: DockerImage) {
-    return h(
-      NPopover,
-      { trigger: 'click', placement: 'bottom-end' },
-      {
-        trigger: () => h(NButton, { size: 'small', quaternary: true }, { default: () => '查看详情' }),
-        default: () =>
-          h(NSpace, { class: 'container-action-popover', wrap: true, size: 4 }, () => [
-            h(
-              NButton,
-              { size: 'small', quaternary: true, onClick: () => openImageTagDialog(row) },
-              { icon: () => h(NIcon, null, { default: () => h(Edit) }), default: () => 'Tag' },
-            ),
-            h(
-              NButton,
-              { size: 'small', quaternary: true, onClick: () => viewImageHistory(row) },
-              { icon: () => h(NIcon, null, { default: () => h(List) }), default: () => '历史' },
-            ),
-            h(
-              NButton,
-              { size: 'small', quaternary: true, onClick: () => viewImageRefs(row) },
-              { icon: () => h(NIcon, null, { default: () => h(Information) }), default: () => '引用' },
-            ),
-            h(
-              NButton,
-              { size: 'small', quaternary: true, type: 'error', onClick: () => confirmRemoveImage(row) },
-              { icon: () => h(NIcon, null, { default: () => h(TrashCan) }), default: () => '删除' },
-            ),
-          ]),
-      },
-    )
-  }
-
-  const containerColumns: DataTableColumns<DockerContainer> = [
-    { type: 'selection', width: 48 },
-    { title: '名称', key: 'name' },
-    { title: '镜像', key: 'image' },
-    { title: '状态', key: 'status' },
-    {
-      title: '资源',
-      key: 'stats',
-      render: (row) => {
-        const stats = statsMap.value[row.id]
-        const diagnostics = diagnosticsMap.value[row.id]
-        if (!containerResourceLoadedMap.value[row.id]) {
-          return h(
-            NButton,
-            {
-              size: 'tiny',
-              quaternary: true,
-              loading: containerResourceLoadingMap.value[row.id] === true,
-              onClick: () => {
-                void refreshContainerResource(row.id)
-              },
-            },
-            { default: () => '获取资源' },
-          )
-        }
-        return stats
-          ? `${stats.cpuPercent} CPU / ${stats.memUsage}${diagnostics ? ` / 重启 ${diagnostics.restartCount}` : ''}`
-          : '暂无数据'
-      },
-    },
-    { title: '端口', key: 'ports', width: 220, render: renderContainerPorts },
-    { title: '创建时间', key: 'createdAt', render: (row) => formatTime(row.createdAt) },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 108,
-      render: renderContainerActions,
-    },
-  ]
-
-  const imageColumns: DataTableColumns<DockerImage> = [
-    { title: '仓库', key: 'repository' },
-    { title: '标签', key: 'tag' },
-    { title: '大小', key: 'size' },
-    { title: '创建时间', key: 'createdAt', render: (row) => formatTime(row.createdAt) },
-    { title: '状态', key: 'dangling', render: (row) => (row.dangling ? '悬空' : row.inUse ? '使用中' : '普通') },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 108,
-      render: renderImageActions,
-    },
-  ]
-
   const imageHistoryColumns: DataTableColumns<DockerImageHistoryItem> = [
     { title: 'ID', key: 'id', width: 180 },
     { title: '时间', key: 'createdSince', width: 140 },
@@ -676,6 +392,8 @@ export function useDockerView(props: DockerViewProps) {
   function resetDockerLists() {
     containers.value = []
     images.value = []
+    networks.value = []
+    volumes.value = []
     containerTotal.value = 0
     imageTotal.value = 0
     containerSummary.value = { total: 0, running: 0, stopped: 0 }
@@ -730,6 +448,16 @@ export function useDockerView(props: DockerViewProps) {
       total: result.total,
       dangling: result.items.filter((image) => image.dangling).length,
     }
+  }
+
+  async function loadNetworks() {
+    const connectionId = requireConnectionId()
+    networks.value = await queueDockerRequest(() => dockerApi.listNetworks(connectionId))
+  }
+
+  async function loadVolumes() {
+    const connectionId = requireConnectionId()
+    volumes.value = await queueDockerRequest(() => dockerApi.listVolumes(connectionId))
   }
 
   async function loadDockerSection(action: () => Promise<void>, fallbackMessage: string) {
@@ -820,6 +548,8 @@ export function useDockerView(props: DockerViewProps) {
 
         await loadContainersPage()
         await loadImagesPage()
+        await loadNetworks()
+        await loadVolumes()
         await loadComposeProjects()
       } catch (error) {
         console.error('Failed to load Docker state', error)
@@ -844,6 +574,14 @@ export function useDockerView(props: DockerViewProps) {
 
   async function refreshCompose() {
     await loadDockerSection(loadComposeProjects, '加载 Docker 编排失败。')
+  }
+
+  async function refreshNetworks() {
+    await loadDockerSection(loadNetworks, '加载 Docker 网络失败。')
+  }
+
+  async function refreshVolumes() {
+    await loadDockerSection(loadVolumes, '加载 Docker 存储卷失败。')
   }
 
   async function handleContainerPageChange(page: number) {
@@ -1380,6 +1118,178 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
+  async function createNetwork(payload: DockerCreateNetworkPayload) {
+    try {
+      const connectionId = requireConnectionId()
+      const result = await queueDockerRequest(() => dockerApi.createNetwork(connectionId, payload))
+      getUiApi().message.success(result.warning ? `网络已创建，返回警告：${result.warning}` : 'Docker 网络创建成功。')
+      await loadNetworks()
+      return true
+    } catch (error) {
+      console.error('Failed to create network', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '创建 Docker 网络失败。')
+      return false
+    }
+  }
+
+  async function createVolume(payload: DockerCreateVolumePayload) {
+    try {
+      const connectionId = requireConnectionId()
+      const result = await queueDockerRequest(() => dockerApi.createVolume(connectionId, payload))
+      getUiApi().message.success(result.warning ? `存储卷已创建，返回警告：${result.warning}` : 'Docker 存储卷创建成功。')
+      await loadVolumes()
+      return true
+    } catch (error) {
+      console.error('Failed to create volume', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '创建 Docker 存储卷失败。')
+      return false
+    }
+  }
+
+  async function viewNetworkInspect(network: DockerNetwork) {
+    inspectVisible.value = true
+    inspectLoading.value = true
+    inspectTitle.value = `Network Inspect · ${network.name}`
+    inspectContent.value = null
+
+    try {
+      const connectionId = requireConnectionId()
+      inspectContent.value = await queueDockerRequest(() => dockerApi.inspectNetwork(connectionId, network.id))
+    } catch (error) {
+      console.error('Failed to inspect network', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '网络 Inspect 加载失败。')
+    } finally {
+      inspectLoading.value = false
+    }
+  }
+
+  async function viewVolumeInspect(volume: DockerVolume) {
+    inspectVisible.value = true
+    inspectLoading.value = true
+    inspectTitle.value = `Volume Inspect · ${volume.name}`
+    inspectContent.value = null
+
+    try {
+      const connectionId = requireConnectionId()
+      inspectContent.value = await queueDockerRequest(() => dockerApi.inspectVolume(connectionId, volume.name))
+    } catch (error) {
+      console.error('Failed to inspect volume', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '存储卷 Inspect 加载失败。')
+    } finally {
+      inspectLoading.value = false
+    }
+  }
+
+  async function removeNetwork(network: DockerNetwork) {
+    try {
+      const connectionId = requireConnectionId()
+      await queueDockerRequest(() => dockerApi.removeNetwork(connectionId, network.id))
+      getUiApi().message.success(`已删除网络 ${network.name}。`)
+      await loadNetworks()
+    } catch (error) {
+      console.error('Failed to remove network', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '删除 Docker 网络失败。')
+    }
+  }
+
+  async function removeVolume(volume: DockerVolume) {
+    try {
+      const connectionId = requireConnectionId()
+      await queueDockerRequest(() => dockerApi.removeVolume(connectionId, volume.name))
+      getUiApi().message.success(`已删除存储卷 ${volume.name}。`)
+      await loadVolumes()
+    } catch (error) {
+      console.error('Failed to remove volume', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '删除 Docker 存储卷失败。')
+    }
+  }
+
+  function confirmRemoveNetwork(network: DockerNetwork) {
+    confirmDangerAction({
+      title: '删除网络',
+      content: `确认删除网络 ${network.name}？若仍有容器连接到该网络，操作将失败。`,
+      positiveText: '删除',
+      action: () => removeNetwork(network),
+    })
+  }
+
+  function confirmRemoveVolume(volume: DockerVolume) {
+    confirmDangerAction({
+      title: '删除存储卷',
+      content: `确认删除存储卷 ${volume.name}？若仍被容器使用，操作将失败。`,
+      positiveText: '删除',
+      action: () => removeVolume(volume),
+    })
+  }
+
+  async function updateNetworkConnection(network: DockerNetwork, container: string, disconnect = false, force = false) {
+    try {
+      const connectionId = requireConnectionId()
+      const trimmedContainer = container.trim()
+      if (!trimmedContainer) {
+        getUiApi().message.warning('请输入容器 ID 或容器名称。')
+        return false
+      }
+
+      if (disconnect) {
+        await queueDockerRequest(() => dockerApi.disconnectNetwork(connectionId, network.id, { container: trimmedContainer, force }))
+        getUiApi().message.success(`已将容器 ${trimmedContainer} 从网络 ${network.name} 断开。`)
+      } else {
+        await queueDockerRequest(() => dockerApi.connectNetwork(connectionId, network.id, { container: trimmedContainer }))
+        getUiApi().message.success(`已将容器 ${trimmedContainer} 连接到网络 ${network.name}。`)
+      }
+
+      await loadNetworks()
+      return true
+    } catch (error) {
+      console.error('Failed to update network connection', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '更新 Docker 网络连接失败。')
+      return false
+    }
+  }
+
+  async function pruneNetworks() {
+    try {
+      const connectionId = requireConnectionId()
+      const result = await queueDockerRequest(() => dockerApi.pruneNetworks(connectionId))
+      getUiApi().message.success(`网络清理完成，共删除 ${result.deletedCount} 个未使用网络。`)
+      await loadNetworks()
+    } catch (error) {
+      console.error('Failed to prune networks', error)
+      getUiApi().message.error(error instanceof Error ? error.message : 'Docker 网络清理失败。')
+    }
+  }
+
+  async function pruneVolumes() {
+    try {
+      const connectionId = requireConnectionId()
+      const result = await queueDockerRequest(() => dockerApi.pruneVolumes(connectionId))
+      getUiApi().message.success(`存储卷清理完成，共删除 ${result.deletedCount} 个未使用存储卷。`)
+      await loadVolumes()
+    } catch (error) {
+      console.error('Failed to prune volumes', error)
+      getUiApi().message.error(error instanceof Error ? error.message : 'Docker 存储卷清理失败。')
+    }
+  }
+
+  function confirmPruneNetworks() {
+    confirmDangerAction({
+      title: '清理未使用网络',
+      content: '确认清理当前连接中的所有未使用 Docker 网络？该操作不可撤销。',
+      positiveText: '清理',
+      action: () => pruneNetworks(),
+    })
+  }
+
+  function confirmPruneVolumes() {
+    confirmDangerAction({
+      title: '清理未使用存储卷',
+      content: '确认清理当前连接中的所有未使用 Docker 存储卷？该操作不可撤销。',
+      positiveText: '清理',
+      action: () => pruneVolumes(),
+    })
+  }
+
   function handleContainerCreated(event: Event) {
     const detail = (event as CustomEvent<{ connectionId?: string }>).detail
     if (detail?.connectionId && detail.connectionId !== activeConnectionId.value) {
@@ -1447,22 +1357,25 @@ export function useDockerView(props: DockerViewProps) {
     composeServicesMap,
     confirmComposeProjectAction,
     confirmPruneImages,
+    confirmPruneNetworks,
+    confirmPruneVolumes,
     confirmContainerAction,
     confirmRemoveImage,
+    confirmRemoveNetwork,
     confirmRemoveStoppedContainers,
-    containerColumns,
+    confirmRemoveVolume,
     containerPage,
     containerPagination,
     containerResourceLoadedMap,
     containerResourceLoadingMap,
     containers,
-    containerRowKey,
     containerStatusFilter,
     containerStatusOptions,
     containerSummary,
     containerTotal,
-    containerViewMode,
     copyLogs,
+    createNetwork,
+    createVolume,
     danglingImages,
     displayedLogs,
     dockerAvailable,
@@ -1480,7 +1393,6 @@ export function useDockerView(props: DockerViewProps) {
     handleContainerPageSizeChange,
     handleImagePageChange,
     handleImagePageSizeChange,
-    imageColumns,
     imageHistoryColumns,
     imageHistoryItems,
     imageHistoryLoading,
@@ -1499,7 +1411,6 @@ export function useDockerView(props: DockerViewProps) {
     imageTagTarget,
     imageTagVisible,
     imageTotal,
-    imageViewMode,
     images,
     inspectContent,
     inspectLoading,
@@ -1516,6 +1427,7 @@ export function useDockerView(props: DockerViewProps) {
     logsTail,
     logsTitle,
     logsVisible,
+    networks,
     openImageTagDialog,
     openContainerPort,
     openCreateComposeProject,
@@ -1529,6 +1441,8 @@ export function useDockerView(props: DockerViewProps) {
     refreshComposeServices,
     refreshContainerResource,
     refreshLogs,
+    refreshNetworks,
+    refreshVolumes,
     recreateContainer,
     renameVisible,
     renamingContainer,
@@ -1537,20 +1451,22 @@ export function useDockerView(props: DockerViewProps) {
     selectedComposeProjectName,
     selectedContainerIds,
     setActiveTab,
-    setContainerViewMode,
-    setImageViewMode,
     setContainerStatusFilter,
     statsMap,
     stoppedContainers,
     submitRenameContainer,
     submitTagImage,
     toggleContainerPortDesktopPin,
+    updateNetworkConnection,
     updateSelectedContainerIds,
     viewImageHistory,
     viewImageRefs,
     viewComposeLogs,
     viewInspect,
     viewLogs,
+    viewNetworkInspect,
+    viewVolumeInspect,
+    volumes,
   }
 }
 

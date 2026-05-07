@@ -356,6 +356,30 @@ class DockerController {
     });
   }
 
+  /// 获取网络列表
+  Future<Response> listNetworks(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final networks = await _dockerService.listNetworks(session);
+        return Result.ok(networks.map((item) => item.toJson()).toList());
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 获取存储卷列表
+  Future<Response> listVolumes(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final volumes = await _dockerService.listVolumes(session);
+        return Result.ok(volumes.map((item) => item.toJson()).toList());
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
   /// 启动容器
   Future<Response> startContainer(Request request, String id) async {
     return _handleContainerAction(request, id, _dockerService.startContainer);
@@ -463,6 +487,30 @@ class DockerController {
     });
   }
 
+  /// 获取网络 inspect 详情
+  Future<Response> inspectNetwork(Request request, String id) async {
+    return _withSession(request, (session) async {
+      try {
+        final detail = await _dockerService.inspectNetwork(session, id);
+        return Result.ok(detail);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 获取存储卷 inspect 详情
+  Future<Response> inspectVolume(Request request, String name) async {
+    return _withSession(request, (session) async {
+      try {
+        final detail = await _dockerService.inspectVolume(session, name);
+        return Result.ok(detail);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
   /// 批量获取容器诊断信息
   Future<Response> getContainerDiagnostics(Request request) async {
     final ids = await _parseIds(request);
@@ -491,6 +539,129 @@ class DockerController {
       try {
         await _dockerService.removeImage(session, id, force: force);
         return Result.ok({'success': true});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 创建网络
+  Future<Response> createNetwork(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final body = await request.readAsString();
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final result = await _dockerService.createNetwork(session, data);
+        return Result.ok(result);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 创建存储卷
+  Future<Response> createVolume(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final body = await request.readAsString();
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final result = await _dockerService.createVolume(session, data);
+        return Result.ok(result);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 删除网络
+  Future<Response> removeNetwork(Request request, String id) async {
+    return _withSession(request, (session) async {
+      try {
+        await _dockerService.removeNetwork(session, id);
+        return Result.ok({'success': true});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 删除存储卷
+  Future<Response> removeVolume(Request request, String name) async {
+    return _withSession(request, (session) async {
+      try {
+        await _dockerService.removeVolume(session, name);
+        return Result.ok({'success': true});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 连接容器到网络
+  Future<Response> connectNetwork(Request request, String id) async {
+    final payload = await _parseNetworkContainerPayload(request);
+    if (payload == null) {
+      return Result.fail(400, 'Missing or invalid network container payload');
+    }
+
+    return _withSession(request, (session) async {
+      try {
+        await _dockerService.connectNetwork(session, id, payload.container);
+        return Result.ok({'success': true});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 从网络断开容器
+  Future<Response> disconnectNetwork(Request request, String id) async {
+    final payload = await _parseNetworkContainerPayload(request);
+    if (payload == null) {
+      return Result.fail(400, 'Missing or invalid network container payload');
+    }
+
+    return _withSession(request, (session) async {
+      try {
+        await _dockerService.disconnectNetwork(
+          session,
+          id,
+          payload.container,
+          force: payload.force,
+        );
+        return Result.ok({'success': true});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 清理未使用网络
+  Future<Response> pruneNetworks(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final deleted = await _dockerService.pruneNetworks(session);
+        return Result.ok({
+          'success': true,
+          'deleted': deleted,
+          'deletedCount': deleted.length,
+        });
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 清理未使用存储卷
+  Future<Response> pruneVolumes(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final deleted = await _dockerService.pruneVolumes(session);
+        return Result.ok({
+          'success': true,
+          'deleted': deleted,
+          'deletedCount': deleted.length,
+        });
       } catch (e) {
         return Result.fail(500, e.toString());
       }
@@ -782,6 +953,26 @@ class DockerController {
     }
   }
 
+  Future<_NetworkContainerPayload?> _parseNetworkContainerPayload(
+    Request request,
+  ) async {
+    try {
+      final body = await request.readAsString();
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final container = data['container']?.toString().trim() ?? '';
+      if (container.isEmpty) {
+        return null;
+      }
+
+      return _NetworkContainerPayload(
+        container: container,
+        force: data['force'] == true,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   int _parseTail(String? value) {
     final parsed = int.tryParse(value ?? '200') ?? 200;
     if (parsed < 1) return 100;
@@ -872,5 +1063,15 @@ class _ComposeProjectPayload {
     required this.projectName,
     required this.configFiles,
     this.workingDir,
+  });
+}
+
+class _NetworkContainerPayload {
+  final String container;
+  final bool force;
+
+  const _NetworkContainerPayload({
+    required this.container,
+    required this.force,
   });
 }

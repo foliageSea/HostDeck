@@ -121,6 +121,50 @@ export interface DockerComposeProjectPayload {
   workingDir?: string
 }
 
+export interface DockerNetwork {
+  id: string
+  name: string
+  driver: string
+  scope: string
+  createdAt?: string
+  internal: boolean
+  attachable: boolean
+  ingress: boolean
+  connectedContainers: number
+  connectedContainerNames: string[]
+}
+
+export interface DockerVolume {
+  name: string
+  driver: string
+  scope: string
+  mountpoint: string
+  createdAt?: string
+  refCount: number
+}
+
+export interface DockerCreateNetworkPayload {
+  name: string
+  driver?: string
+  internal?: boolean
+  attachable?: boolean
+  ingress?: boolean
+  options?: Record<string, string>
+  labels?: Record<string, string>
+}
+
+export interface DockerCreateVolumePayload {
+  name: string
+  driver?: string
+  options?: Record<string, string>
+  labels?: Record<string, string>
+}
+
+export interface DockerNetworkContainerPayload {
+  container: string
+  force?: boolean
+}
+
 export interface DockerComposeCreatePayload {
   projectName: string
   workingDir: string
@@ -277,6 +321,94 @@ export const dockerApi = {
     const response = await http.get<PagedResponse<DockerImage, DockerImageSummary>>('/api/docker/images', {
       params: { ...params, connectionId },
     })
+    return response.data
+  },
+
+  async listNetworks(connectionId: string) {
+    const response = await http.get<DockerNetwork[]>('/api/docker/networks', {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async createNetwork(connectionId: string, payload: DockerCreateNetworkPayload) {
+    const response = await http.post<{ id: string; warning?: string }>('/api/docker/networks', payload, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async inspectNetwork(connectionId: string, networkId: string) {
+    const response = await http.get<Record<string, unknown>>(`/api/docker/networks/${encodeURIComponent(networkId)}/inspect`, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async connectNetwork(connectionId: string, networkId: string, payload: DockerNetworkContainerPayload) {
+    const response = await http.post<{ success: boolean }>(`/api/docker/networks/${encodeURIComponent(networkId)}/connect`, payload, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async disconnectNetwork(connectionId: string, networkId: string, payload: DockerNetworkContainerPayload) {
+    const response = await http.post<{ success: boolean }>(`/api/docker/networks/${encodeURIComponent(networkId)}/disconnect`, payload, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async removeNetwork(connectionId: string, networkId: string) {
+    const response = await http.delete<{ success: boolean }>(`/api/docker/networks/${encodeURIComponent(networkId)}`, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async pruneNetworks(connectionId: string) {
+    const response = await http.post<{ success: boolean; deleted: string[]; deletedCount: number }>(
+      '/api/docker/networks/prune',
+      null,
+      { params: { connectionId } },
+    )
+    return response.data
+  },
+
+  async listVolumes(connectionId: string) {
+    const response = await http.get<DockerVolume[]>('/api/docker/volumes', {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async createVolume(connectionId: string, payload: DockerCreateVolumePayload) {
+    const response = await http.post<{ name: string; mountpoint?: string; warning?: string }>('/api/docker/volumes', payload, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async inspectVolume(connectionId: string, volumeName: string) {
+    const response = await http.get<Record<string, unknown>>(`/api/docker/volumes/${encodeURIComponent(volumeName)}/inspect`, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async removeVolume(connectionId: string, volumeName: string) {
+    const response = await http.delete<{ success: boolean }>(`/api/docker/volumes/${encodeURIComponent(volumeName)}`, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async pruneVolumes(connectionId: string) {
+    const response = await http.post<{ success: boolean; deleted: string[]; deletedCount: number }>(
+      '/api/docker/volumes/prune',
+      null,
+      { params: { connectionId } },
+    )
     return response.data
   },
 
