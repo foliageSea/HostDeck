@@ -59,16 +59,13 @@ function isPaused(container: DockerContainer) {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+  <div class="flex h-full min-h-0 flex-col overflow-hidden"
+    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <div class="mb-[12px] flex flex-wrap items-start justify-between gap-[12px]">
       <NSpace>
-        <NSelect
-          :value="controller.containerStatusFilter"
-          class="w-[128px]"
-          :options="controller.containerStatusOptions"
-          size="small"
-          @update:value="controller.setContainerStatusFilter"
-        />
+        <NSelect :value="controller.containerStatusFilter" class="w-[128px]"
+          :options="controller.containerStatusOptions" size="small"
+          @update:value="controller.setContainerStatusFilter" />
         <NButton quaternary :loading="controller.batchProcessing" @click="controller.batchStartSelected">批量启动</NButton>
         <NButton quaternary :loading="controller.batchProcessing" @click="controller.batchStopSelected">批量停止</NButton>
         <NButton quaternary @click="controller.confirmRemoveStoppedContainers">清理已停止</NButton>
@@ -82,7 +79,9 @@ function isPaused(container: DockerContainer) {
 
       <NButton quaternary @click="controller.openCreateContainer">
         <template #icon>
-          <NIcon><Add /></NIcon>
+          <NIcon>
+            <Add />
+          </NIcon>
         </template>
         新建容器
       </NButton>
@@ -92,24 +91,17 @@ function isPaused(container: DockerContainer) {
       <NEmpty v-if="controller.containers.length === 0" description="暂无容器" />
 
       <div v-else class="docker-card-list">
-        <NCard
-          v-for="container in controller.containers"
-          :key="container.id"
-          class="docker-card"
-          content-class="docker-card-content"
-          size="small"
-          :bordered="false"
-        >
+        <NCard v-for="container in controller.containers" :key="container.id" class="docker-card"
+          content-class="docker-card-content" size="small" :bordered="false">
           <template #header>
             <div class="min-w-0 flex items-start gap-[10px]">
-              <NCheckbox
-                :checked="isContainerSelected(container.id)"
-                class="mt-[2px]"
-                @update:checked="toggleContainerSelection(container.id, $event)"
-              />
+              <NCheckbox :checked="isContainerSelected(container.id)" class="mt-[2px]"
+                @update:checked="toggleContainerSelection(container.id, $event)" />
               <div class="min-w-0 flex-1">
                 <div class="truncate text-[15px] font-600" :title="container.name">{{ container.name }}</div>
-                <div class="mt-[4px] truncate text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'" :title="container.id">
+                <div class="mt-[4px] truncate text-[12px]"
+                  :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'"
+                  :title="container.id">
                   {{ container.id.slice(0, 12) }}
                 </div>
               </div>
@@ -127,14 +119,10 @@ function isPaused(container: DockerContainer) {
             </div>
             <div class="docker-card-field">
               <span>资源</span>
-              <strong v-if="controller.containerResourceLoadedMap[container.id]">{{ getContainerResource(container) }}</strong>
-              <NButton
-                v-else
-                text
-                type="primary"
-                :loading="controller.containerResourceLoadingMap[container.id]"
-                @click="controller.refreshContainerResource(container.id)"
-              >
+              <strong v-if="controller.containerResourceLoadedMap[container.id]">{{ getContainerResource(container)
+                }}</strong>
+              <NButton v-else text type="primary" :loading="controller.containerResourceLoadingMap[container.id]"
+                @click="controller.refreshContainerResource(container.id)">
                 获取资源
               </NButton>
             </div>
@@ -147,27 +135,20 @@ function isPaused(container: DockerContainer) {
               <div class="docker-card-port-list" :title="getPortsTitle(container)">
                 <template v-if="container.ports.length">
                   <span v-for="port in container.ports.slice(0, 3)" :key="port" class="docker-card-port-item">
-                    <NButton
-                      text
-                      type="primary"
-                      size="tiny"
-                      :disabled="!controller.getContainerPortUrl(port)"
+                    <NButton text type="primary" size="tiny" :disabled="!controller.getContainerPortUrl(port)"
                       :title="controller.getContainerPortUrl(port) ? `打开 ${controller.getContainerPortUrl(port)}` : `${port} 未映射宿主机端口`"
-                      @click.stop="controller.openContainerPort(port)"
-                    >
+                      @click.stop="controller.openContainerPort(port)">
                       {{ port }}
                     </NButton>
-                    <NButton
-                      text
-                      size="tiny"
-                      :disabled="!controller.getContainerPortUrl(port)"
+                    <NButton text size="tiny" :disabled="!controller.getContainerPortUrl(port)"
                       :aria-label="controller.isContainerPortPinned(port) ? '从桌面移除端口链接' : '添加端口链接到桌面'"
                       :title="controller.isContainerPortPinned(port) ? '从桌面移除端口链接' : '添加端口链接到桌面'"
                       :type="controller.isContainerPortPinned(port) ? 'success' : 'default'"
-                      @click.stop="controller.toggleContainerPortDesktopPin(container, port)"
-                    >
+                      @click.stop="controller.toggleContainerPortDesktopPin(container, port)">
                       <template #icon>
-                        <NIcon><component :is="controller.isContainerPortPinned(port) ? PinFilled : Pin" /></NIcon>
+                        <NIcon>
+                          <component :is="controller.isContainerPortPinned(port) ? PinFilled : Pin" />
+                        </NIcon>
                       </template>
                     </NButton>
                   </span>
@@ -180,37 +161,28 @@ function isPaused(container: DockerContainer) {
 
           <template #footer>
             <div class="docker-card-actions">
-              <NButton
-                v-if="container.state === 'running'"
-                size="tiny"
-                quaternary
-                @click="controller.confirmContainerAction(container, 'stop')"
-              >
+              <NButton v-if="container.state === 'running'" size="tiny" quaternary
+                @click="controller.confirmContainerAction(container, 'stop')">
                 停止
               </NButton>
-              <NButton v-else size="tiny" quaternary @click="controller.confirmContainerAction(container, 'start')">启动</NButton>
-              <NButton size="tiny" quaternary @click="controller.confirmContainerAction(container, 'restart')">重启</NButton>
-              <NButton
-                size="tiny"
-                quaternary
-                :disabled="container.state !== 'running'"
-                @click="controller.handleContainerAdvancedAction(container, isPaused(container) ? 'unpause' : 'pause')"
-              >
+              <NButton v-else size="tiny" quaternary @click="controller.confirmContainerAction(container, 'start')">启动
+              </NButton>
+              <NButton size="tiny" quaternary @click="controller.confirmContainerAction(container, 'restart')">重启
+              </NButton>
+              <NButton size="tiny" quaternary :disabled="container.state !== 'running'"
+                @click="controller.handleContainerAdvancedAction(container, isPaused(container) ? 'unpause' : 'pause')">
                 {{ isPaused(container) ? '恢复' : '暂停' }}
               </NButton>
               <NButton size="tiny" quaternary @click="controller.viewLogs(container)">日志</NButton>
               <NButton size="tiny" quaternary @click="controller.viewInspect(container)">Inspect</NButton>
               <NButton size="tiny" quaternary @click="controller.openRenameDialog(container)">重命名</NButton>
               <NButton size="tiny" quaternary @click="controller.recreateContainer(container)">重建</NButton>
-              <NButton
-                size="tiny"
-                quaternary
-                :disabled="container.state !== 'running'"
-                @click="controller.enterShell(container)"
-              >
+              <NButton size="tiny" quaternary :disabled="container.state !== 'running'"
+                @click="controller.enterShell(container)">
                 Shell
               </NButton>
-              <NButton size="tiny" quaternary type="error" @click="controller.confirmContainerAction(container, 'remove')">
+              <NButton size="tiny" quaternary type="error"
+                @click="controller.confirmContainerAction(container, 'remove')">
                 删除
               </NButton>
             </div>
@@ -219,15 +191,10 @@ function isPaused(container: DockerContainer) {
       </div>
 
       <div v-if="controller.containerTotal > 0" class="docker-card-pagination">
-        <NPagination
-          :page="controller.containerPagination.page"
-          :page-size="controller.containerPagination.pageSize"
-          :item-count="controller.containerPagination.itemCount"
-          :page-sizes="controller.containerPagination.pageSizes"
-          show-size-picker
-          @update:page="controller.handleContainerPageChange"
-          @update:page-size="controller.handleContainerPageSizeChange"
-        />
+        <NPagination :page="controller.containerPagination.page" :page-size="controller.containerPagination.pageSize"
+          :item-count="controller.containerPagination.itemCount" :page-sizes="controller.containerPagination.pageSizes"
+          show-size-picker @update:page="controller.handleContainerPageChange"
+          @update:page-size="controller.handleContainerPageSizeChange" />
       </div>
     </div>
   </div>
@@ -375,6 +342,7 @@ function isPaused(container: DockerContainer) {
   background: var(--docker-pager-bg);
   padding-top: 10px;
   backdrop-filter: blur(10px);
+  padding: 8px;
 }
 
 @media (max-width: 640px) {

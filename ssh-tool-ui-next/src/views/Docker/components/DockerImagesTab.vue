@@ -39,8 +39,10 @@ function getImageName(image: DockerImage) {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
-    <div class="mb-[12px] text-[13px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">
+  <div class="flex h-full min-h-0 flex-col overflow-hidden"
+    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+    <div class="mb-[12px] text-[13px]"
+      :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">
       支持镜像重新打标签、查看构建历史和引用容器。
     </div>
 
@@ -48,18 +50,14 @@ function getImageName(image: DockerImage) {
       <NEmpty v-if="controller.images.length === 0" description="暂无镜像" />
 
       <div v-else class="docker-card-list">
-        <NCard
-          v-for="image in controller.images"
-          :key="image.id"
-          class="docker-card"
-          content-class="docker-card-content"
-          size="small"
-          :bordered="false"
-        >
+        <NCard v-for="image in controller.images" :key="image.id" class="docker-card"
+          content-class="docker-card-content" size="small" :bordered="false">
           <template #header>
             <div class="min-w-0">
               <div class="truncate text-[15px] font-600" :title="getImageName(image)">{{ getImageName(image) }}</div>
-              <div class="mt-[4px] truncate text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'" :title="image.id">
+              <div class="mt-[4px] truncate text-[12px]"
+                :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'"
+                :title="image.id">
                 {{ image.id.slice(0, 18) }}
               </div>
             </div>
@@ -100,15 +98,10 @@ function getImageName(image: DockerImage) {
       </div>
 
       <div v-if="controller.imageTotal > 0" class="docker-card-pagination">
-        <NPagination
-          :page="controller.imagePagination.page"
-          :page-size="controller.imagePagination.pageSize"
-          :item-count="controller.imagePagination.itemCount"
-          :page-sizes="controller.imagePagination.pageSizes"
-          show-size-picker
-          @update:page="controller.handleImagePageChange"
-          @update:page-size="controller.handleImagePageSizeChange"
-        />
+        <NPagination :page="controller.imagePagination.page" :page-size="controller.imagePagination.pageSize"
+          :item-count="controller.imagePagination.itemCount" :page-sizes="controller.imagePagination.pageSizes"
+          show-size-picker @update:page="controller.handleImagePageChange"
+          @update:page-size="controller.handleImagePageSizeChange" />
       </div>
     </div>
   </div>
@@ -230,6 +223,7 @@ function getImageName(image: DockerImage) {
   background: var(--docker-pager-bg);
   padding-top: 10px;
   backdrop-filter: blur(10px);
+  padding: 8px;
 }
 
 @media (max-width: 640px) {
