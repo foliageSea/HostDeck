@@ -103,10 +103,6 @@ async function submitCreateComposeProject() {
           </NIcon>
           <h2 class="m-0 text-[18px]">新建编排</h2>
         </div>
-        <p class="m-0 text-[12px]"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(71,85,105,0.88)]'">
-          在远端自动创建工作目录，写入 Compose 文件，并可立即启动项目。
-        </p>
       </div>
 
       <NSpace>

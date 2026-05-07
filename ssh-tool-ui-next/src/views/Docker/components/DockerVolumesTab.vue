@@ -12,6 +12,9 @@ const createVisible = ref(false)
 const createSubmitting = ref(false)
 const createOptionsText = ref('')
 const createLabelsText = ref('')
+const volumeDriverOptions = [
+  { label: 'local', value: 'local' },
+]
 const createForm = reactive({
   name: '',
   driver: 'local',
@@ -68,9 +71,6 @@ async function submitCreate() {
 <template>
   <div class="flex flex-col gap-[12px]" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <div class="flex flex-wrap items-center justify-between gap-[12px]">
-      <div class="text-[13px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">
-        管理 Docker volumes，支持创建、Inspect、删除与清理未使用存储卷。
-      </div>
       <NSpace>
         <NButton type="primary" @click="openCreateDialog">新建存储卷</NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshVolumes">刷新存储卷</NButton>
@@ -80,10 +80,9 @@ async function submitCreate() {
 
     <div class="flex items-center gap-[8px] text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.82)]'">
       <NTag round size="small">存储卷 {{ controller.volumes.length }}</NTag>
-      <span>删除仍被容器引用的存储卷时，Docker 会直接返回错误。</span>
     </div>
 
-    <NEmpty v-if="controller.volumes.length === 0" description="暂无 Docker 存储卷" />
+    <NEmpty v-if="controller.volumes.length === 0" />
 
     <div v-else class="docker-card-list">
       <NCard
@@ -143,7 +142,7 @@ async function submitCreate() {
           <NInput v-model:value="createForm.name" placeholder="例如 app-data" />
         </NFormItem>
         <NFormItem label="驱动">
-          <NInput v-model:value="createForm.driver" placeholder="默认 local" />
+          <NSelect v-model:value="createForm.driver" :options="volumeDriverOptions" />
         </NFormItem>
         <NFormItem label="Driver Options">
           <NInput

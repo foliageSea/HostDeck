@@ -220,10 +220,6 @@ onBeforeUnmount(() => {
     <div class="flex items-start justify-between gap-[12px] lt-md:flex-col lt-md:items-stretch">
       <div>
         <div class="text-[24px] font-700">运行态会话</div>
-        <div class="mt-[6px] text-[13px]"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">
-          查看后端当前持有的 clients 与 sessions 摘要，并按 client 展开 session 明细
-        </div>
       </div>
 
       <div class="flex items-center gap-[12px] lt-md:justify-between">

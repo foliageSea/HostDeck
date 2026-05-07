@@ -59,9 +59,6 @@ const composeStatusType = computed(() => {
       <div class="flex flex-wrap items-start justify-between gap-[12px]">
         <div>
           <div class="text-[16px] font-600">Docker 概览</div>
-          <p class="m-0 mt-[6px] text-[13px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">
-            集中查看当前连接的容器、镜像、网络、存储卷与编排统计数据。
-          </p>
         </div>
 
         <div class="flex flex-wrap gap-[8px]">

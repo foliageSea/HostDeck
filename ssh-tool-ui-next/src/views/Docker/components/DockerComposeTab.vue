@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, Information } from '@vicons/carbon'
+import { ChevronDown } from '@vicons/carbon'
 import type { DockerComposeProject } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
@@ -62,10 +62,9 @@ function formatComposePorts(ports: string) {
       v-if="controller.composeAvailable === false"
       status="warning"
       title="Docker Compose 不可用"
-      description="远端服务器未安装 docker compose 插件，或当前用户无法执行 docker compose。"
     />
 
-    <NEmpty v-else-if="controller.composeProjects.length === 0" description="暂无编排项目">
+    <NEmpty v-else-if="controller.composeProjects.length === 0">
     </NEmpty>
 
     <NCollapse v-else accordion :default-expanded-names="controller.selectedComposeProjectName">
@@ -103,11 +102,7 @@ function formatComposePorts(ports: string) {
             </div>
           </div>
 
-          <div class="mt-[12px] flex flex-wrap items-center justify-between gap-[8px]">
-            <div class="flex items-center gap-[6px] text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'">
-              <NIcon><Information /></NIcon>
-              服务详情按需加载，避免刷新项目列表时阻塞。
-            </div>
+          <div class="mt-[12px] flex flex-wrap items-center justify-end gap-[8px]">
             <NButton size="small" quaternary :loading="controller.composeServiceLoadingMap[project.name]" @click="controller.refreshComposeServices(project)">加载服务</NButton>
           </div>
 

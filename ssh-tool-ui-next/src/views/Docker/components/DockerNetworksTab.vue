@@ -16,6 +16,14 @@ const connectSubmitting = ref(false)
 const selectedNetwork = ref<DockerNetwork | null>(null)
 const createOptionsText = ref('')
 const createLabelsText = ref('')
+const networkDriverOptions = [
+  { label: 'bridge', value: 'bridge' },
+  { label: 'overlay', value: 'overlay' },
+  { label: 'macvlan', value: 'macvlan' },
+  { label: 'ipvlan', value: 'ipvlan' },
+  { label: 'host', value: 'host' },
+  { label: 'none', value: 'none' },
+]
 const createForm = reactive({
   name: '',
   driver: 'bridge',
@@ -120,9 +128,6 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 <template>
   <div class="flex flex-col gap-[12px]" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <div class="flex flex-wrap items-center justify-between gap-[12px]">
-      <div class="text-[13px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">
-        管理自定义网络，支持创建、Inspect、连接/断开容器与清理未使用网络。
-      </div>
       <NSpace>
         <NButton type="primary" @click="openCreateDialog">新建网络</NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks">刷新网络</NButton>
@@ -132,10 +137,9 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 
     <div class="flex items-center gap-[8px] text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.82)]'">
       <NTag round size="small">网络 {{ controller.networks.length }}</NTag>
-      <span>连接或断开容器时可输入容器 ID 或容器名称。</span>
     </div>
 
-    <NEmpty v-if="controller.networks.length === 0" description="暂无 Docker 网络" />
+    <NEmpty v-if="controller.networks.length === 0" />
 
     <div v-else class="docker-card-list">
       <NCard
@@ -208,7 +212,7 @@ function getConnectedContainersTitle(network: DockerNetwork) {
           <NInput v-model:value="createForm.name" placeholder="例如 app-network" />
         </NFormItem>
         <NFormItem label="驱动">
-          <NInput v-model:value="createForm.driver" placeholder="默认 bridge" />
+          <NSelect v-model:value="createForm.driver" :options="networkDriverOptions" />
         </NFormItem>
         <NFormItem label="Driver Options">
           <NInput

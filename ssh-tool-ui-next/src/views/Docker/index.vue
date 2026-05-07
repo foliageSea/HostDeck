@@ -44,9 +44,6 @@ const controller: DockerViewController = reactive(useDockerView(props))
             <NIcon :size="20"><LogoDocker /></NIcon>
             <h2 class="m-0 text-[20px]">Docker 管理</h2>
           </div>
-          <p class="m-0" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.72)]' : 'text-[rgba(71,85,105,0.88)]'">
-            查看容器与镜像状态，并执行常见运维操作。
-          </p>
         </div>
 
         <NSpace>
@@ -78,7 +75,6 @@ const controller: DockerViewController = reactive(useDockerView(props))
         v-if="controller.dockerAvailable === false"
         status="warning"
         title="当前环境不可用"
-        description="该服务器未安装 Docker，或当前连接无法访问 Docker 服务。"
       />
 
       <NTabs

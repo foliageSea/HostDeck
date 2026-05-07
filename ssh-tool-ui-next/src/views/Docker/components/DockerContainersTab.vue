@@ -88,7 +88,7 @@ function isPaused(container: DockerContainer) {
     </div>
 
     <div class="docker-card-shell">
-      <NEmpty v-if="controller.containers.length === 0" description="暂无容器" />
+      <NEmpty v-if="controller.containers.length === 0" />
 
       <div v-else class="docker-card-list">
         <NCard v-for="container in controller.containers" :key="container.id" class="docker-card"

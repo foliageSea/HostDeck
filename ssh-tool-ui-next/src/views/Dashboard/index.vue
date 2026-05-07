@@ -406,9 +406,6 @@ function createChartOption(config: {
           Performance Monitor
         </div>
         <h2 class="mb-[6px] mt-[10px] text-[26px] font-700">性能监控</h2>
-        <p class="m-0 text-[14px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.7)]' : 'text-[rgba(51,65,85,0.82)]'">
-          CPU、内存与网络吞吐会先载入缓存历史，再持续接收实时监控推送。
-        </p>
       </div>
 
       <div class="rounded-[18px] px-[16px] py-[14px] backdrop-blur-[16px]"
@@ -509,14 +506,10 @@ function createChartOption(config: {
       :class="settingsStore.isDark
         ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
         : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'">
-      <NSpin size="large">
-        <template #description>
-          载入监控历史中...
-        </template>
-      </NSpin>
+      <NSpin size="large" />
     </div>
 
-    <NEmpty v-else-if="!hasSamples" size="large" description="等待监控数据推送中..."
+    <NEmpty v-else-if="!hasSamples" size="large"
       class="min-h-[420px] rounded-[24px] backdrop-blur-[16px]"
       :class="settingsStore.isDark
         ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'

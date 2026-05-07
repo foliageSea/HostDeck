@@ -41,13 +41,8 @@ function getImageName(image: DockerImage) {
 <template>
   <div class="flex h-full min-h-0 flex-col overflow-hidden"
     :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
-    <div class="mb-[12px] text-[13px]"
-      :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'">
-      支持镜像重新打标签、查看构建历史和引用容器。
-    </div>
-
     <div class="docker-card-shell">
-      <NEmpty v-if="controller.images.length === 0" description="暂无镜像" />
+      <NEmpty v-if="controller.images.length === 0" />
 
       <div v-else class="docker-card-list">
         <NCard v-for="image in controller.images" :key="image.id" class="docker-card"

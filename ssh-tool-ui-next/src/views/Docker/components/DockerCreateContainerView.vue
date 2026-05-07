@@ -205,9 +205,6 @@ watch(selectedImage, (image) => {
           <NIcon :size="20"><LogoDocker /></NIcon>
           <h2 class="m-0 text-[18px]">新建容器</h2>
         </div>
-        <p class="m-0 text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(71,85,105,0.88)]'">
-          选择镜像并配置端口、环境变量、卷挂载和启动参数。
-        </p>
       </div>
 
       <NSpace>
