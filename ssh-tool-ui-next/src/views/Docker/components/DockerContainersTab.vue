@@ -181,7 +181,9 @@ function isPaused(container: DockerContainer) {
               <div class="docker-card-port-list" :title="getPortsTitle(container)">
                 <template v-if="container.ports.length">
                   <span v-for="port in container.ports.slice(0, 3)" :key="port" class="docker-card-port-item">
-                    <NButton text type="primary" size="tiny" :disabled="!controller.getContainerPortUrl(port)"
+                    <NButton
+                    class="mr-1"
+                    text type="primary" size="tiny" :disabled="!controller.getContainerPortUrl(port)"
                       :title="controller.getContainerPortUrl(port) ? `打开 ${controller.getContainerPortUrl(port)}` : `${port} 未映射宿主机端口`"
                       @click.stop="controller.openContainerPort(port)">
                       {{ port }}
