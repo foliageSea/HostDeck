@@ -300,6 +300,7 @@ function isPaused(container: DockerContainer) {
 }
 
 .docker-card {
+  flex: none;
   width: 100%;
   border: 1px solid var(--docker-card-border);
   border-radius: 14px;
