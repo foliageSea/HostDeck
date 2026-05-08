@@ -17,6 +17,8 @@ class DockerEngineMapper {
             .map((item) => Map<String, dynamic>.from(item))
             .toList() ??
         <Map<String, dynamic>>[];
+    final networkSettings = _asMap(json['NetworkSettings']);
+    final networks = _asMap(networkSettings['Networks']);
 
     return DockerContainer(
       id: (json['Id'] ?? '').toString(),
@@ -25,8 +27,29 @@ class DockerEngineMapper {
       status: (json['Status'] ?? '').toString(),
       state: (json['State'] ?? '').toString(),
       ports: _formatContainerPorts(ports),
+      networks: _mapContainerNetworks(networks),
       createdAt: _parseUnixTimestamp(json['Created']),
     );
+  }
+
+  List<DockerContainerNetwork> _mapContainerNetworks(
+    Map<String, dynamic> networks,
+  ) {
+    final result = <DockerContainerNetwork>[];
+
+    networks.forEach((key, value) {
+      final network = _asMap(value);
+      final name = key.toString().trim();
+      final ipAddress = (network['IPAddress'] ?? '').toString().trim();
+      if (name.isEmpty) {
+        return;
+      }
+
+      result.add(DockerContainerNetwork(name: name, ipAddress: ipAddress));
+    });
+
+    result.sort((a, b) => a.name.compareTo(b.name));
+    return result;
   }
 
   List<DockerImage> mapImageSummaries(

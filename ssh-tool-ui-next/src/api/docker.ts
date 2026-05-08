@@ -1,5 +1,10 @@
 import { http } from '@/lib/http'
 
+export interface DockerContainerNetwork {
+  name: string
+  ipAddress: string
+}
+
 export interface DockerContainer {
   id: string
   name: string
@@ -7,6 +12,7 @@ export interface DockerContainer {
   status: string
   state: string
   ports: string[]
+  networks: DockerContainerNetwork[]
   createdAt?: string
 }
 

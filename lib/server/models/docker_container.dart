@@ -5,6 +5,7 @@ class DockerContainer {
   final String status;
   final String state;
   final List<String> ports;
+  final List<DockerContainerNetwork> networks;
   final DateTime? createdAt;
 
   DockerContainer({
@@ -14,6 +15,7 @@ class DockerContainer {
     required this.status,
     required this.state,
     this.ports = const [],
+    this.networks = const [],
     this.createdAt,
   });
 
@@ -24,6 +26,7 @@ class DockerContainer {
     'status': status,
     'state': state,
     'ports': ports,
+    'networks': networks.map((item) => item.toJson()).toList(),
     'createdAt': createdAt?.toIso8601String(),
   };
 
@@ -35,9 +38,35 @@ class DockerContainer {
       status: json['status'] as String? ?? '',
       state: json['state'] as String? ?? '',
       ports: (json['ports'] as List?)?.cast<String>() ?? [],
+      networks:
+          (json['networks'] as List?)
+              ?.whereType<Map>()
+              .map(
+                (item) => DockerContainerNetwork.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .toList() ??
+          const [],
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,
+    );
+  }
+}
+
+class DockerContainerNetwork {
+  final String name;
+  final String ipAddress;
+
+  DockerContainerNetwork({required this.name, required this.ipAddress});
+
+  Map<String, dynamic> toJson() => {'name': name, 'ipAddress': ipAddress};
+
+  factory DockerContainerNetwork.fromJson(Map<String, dynamic> json) {
+    return DockerContainerNetwork(
+      name: json['name'] as String? ?? '',
+      ipAddress: json['ipAddress'] as String? ?? '',
     );
   }
 }

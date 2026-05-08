@@ -53,6 +53,20 @@ function getPortsTitle(container: DockerContainer) {
   return container.ports.length ? container.ports.join('\n') : '无端口映射'
 }
 
+function getContainerNetworksTitle(container: DockerContainer) {
+  return container.networks.length
+    ? container.networks.map((item) => `${item.name}${item.ipAddress ? ` (${item.ipAddress})` : ''}`).join('\n')
+    : '无网络信息'
+}
+
+function getContainerNetworkIpsTitle(container: DockerContainer) {
+  const ipItems = container.networks
+    .filter((item) => item.ipAddress)
+    .map((item) => `${item.name}: ${item.ipAddress}`)
+
+  return ipItems.length ? ipItems.join('\n') : '无 IP 地址'
+}
+
 function isPaused(container: DockerContainer) {
   return container.status.toLowerCase().includes('paused')
 }
@@ -129,6 +143,38 @@ function isPaused(container: DockerContainer) {
             <div class="docker-card-field">
               <span>创建时间</span>
               <strong>{{ controller.formatTime(container.createdAt) }}</strong>
+            </div>
+            <div class="docker-card-field wide">
+              <span>网络</span>
+              <div class="docker-card-chip-list" :title="getContainerNetworksTitle(container)">
+                <template v-if="container.networks.length">
+                  <NTag v-for="network in container.networks.slice(0, 3)" :key="network.name" size="small" round>
+                    {{ network.name }}
+                  </NTag>
+                  <span v-if="container.networks.length > 3">等 {{ container.networks.length }} 项</span>
+                </template>
+                <template v-else>-</template>
+              </div>
+            </div>
+            <div class="docker-card-field wide">
+              <span>IP</span>
+              <div class="docker-card-chip-list" :title="getContainerNetworkIpsTitle(container)">
+                <template v-if="container.networks.some((item) => item.ipAddress)">
+                  <NTag
+                    v-for="network in container.networks.filter((item) => item.ipAddress).slice(0, 3)"
+                    :key="`${network.name}-${network.ipAddress}`"
+                    size="small"
+                    round
+                    type="info"
+                  >
+                    {{ network.ipAddress }}
+                  </NTag>
+                  <span v-if="container.networks.filter((item) => item.ipAddress).length > 3">
+                    等 {{ container.networks.filter((item) => item.ipAddress).length }} 项
+                  </span>
+                </template>
+                <template v-else>-</template>
+              </div>
             </div>
             <div class="docker-card-field wide">
               <span>端口</span>
@@ -299,6 +345,17 @@ function isPaused(container: DockerContainer) {
 }
 
 .docker-card-port-list {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--docker-card-value-color);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.docker-card-chip-list {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
