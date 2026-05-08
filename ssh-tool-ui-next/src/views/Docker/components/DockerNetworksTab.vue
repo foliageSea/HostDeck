@@ -400,9 +400,9 @@ function getConnectedContainersTitle(network: DockerNetwork) {
   flex-direction: column;
   gap: 12px;
   border-bottom: 1px solid var(--docker-toolbar-border);
-  background: var(--docker-toolbar-bg);
+  background: transparent;
   padding: 2px 0 12px;
-  backdrop-filter: blur(12px);
+  backdrop-filter: none;
   padding: 8px;
 }
 
@@ -440,6 +440,7 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 
 .docker-card :deep(.n-card__footer) {
   padding: 6px 12px 10px;
+  background: transparent;
 }
 
 .docker-card-fields {

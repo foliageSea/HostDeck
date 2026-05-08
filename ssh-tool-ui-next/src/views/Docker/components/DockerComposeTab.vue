@@ -171,16 +171,16 @@ function formatComposePorts(ports: string) {
   top: 0;
   z-index: 2;
   border-bottom: 1px solid var(--compose-toolbar-border);
-  background: var(--compose-toolbar-bg);
+  background: transparent;
   padding: 2px 0 12px;
-  backdrop-filter: blur(12px);
+  backdrop-filter: none;
   padding: 8px;
 }
 
 .compose-project-card {
   border: 1px solid var(--compose-card-border);
   border-radius: 14px;
-  background: var(--compose-card-bg);
+  background: transparent;
   padding: 10px;
 }
 
@@ -231,8 +231,9 @@ function formatComposePorts(ports: string) {
 
 .compose-service-card {
   width: 100%;
+  --n-color: transparent;
   border: 1px solid var(--compose-card-border);
-  background: var(--compose-card-bg);
+  background: transparent;
 }
 
 .compose-service-card :deep(.n-card-header) {

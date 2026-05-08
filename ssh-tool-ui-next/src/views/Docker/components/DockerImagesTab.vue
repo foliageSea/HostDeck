@@ -176,6 +176,7 @@ function getImageName(image: DockerImage) {
 
 .docker-card :deep(.n-card__footer) {
   padding: 6px 12px 10px;
+  background: transparent;
 }
 
 .docker-card-fields {
@@ -227,9 +228,9 @@ function getImageName(image: DockerImage) {
   z-index: 1;
   margin-top: auto;
   border-top: 1px solid var(--docker-pager-border);
-  background: var(--docker-pager-bg);
+  background: transparent;
   padding-top: 10px;
-  backdrop-filter: blur(10px);
+  backdrop-filter: none;
   padding: 8px;
 }
 
