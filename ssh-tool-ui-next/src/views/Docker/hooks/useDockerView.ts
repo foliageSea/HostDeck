@@ -1,5 +1,4 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type UnwrapNestedRefs } from 'vue'
-import type { DataTableColumns } from 'naive-ui'
 import {
   dockerApi,
   type DockerContainer,
@@ -8,7 +7,6 @@ import {
   type DockerContainerSummary,
   type DockerContainerStats,
   type DockerComposeProject,
-  type DockerComposeProjectPayload,
   type DockerComposeService,
   type DockerCreateNetworkPayload,
   type DockerCreateVolumePayload,
@@ -23,27 +21,29 @@ import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSshStore } from '@/stores/ssh'
 
-export interface DockerViewProps {
-  windowId?: string
-  connectionId?: string
-  host?: string
-  username?: string
-}
+import { imageHistoryColumns, imageRefsColumns } from './dockerViewColumns'
+import {
+  createLoadedTabs,
+  formatDateTime,
+  formatTime,
+  getComposeConfigFiles,
+  getComposeProjectPayload,
+  getComposeServiceStatusType,
+  getComposeStatusType,
+  parseContainerHostPort,
+} from './dockerViewHelpers'
+import type { DangerActionConfirmOptions, DockerTabName, DockerViewProps } from './dockerViewTypes'
 
-interface DangerActionConfirmOptions {
-  title: string
-  content: string
-  positiveText: string
-  action: () => Promise<void> | void
-}
+export type { DockerViewProps } from './dockerViewTypes'
 
 export function useDockerView(props: DockerViewProps) {
   const desktopStore = useDesktopStore()
   const sshStore = useSshStore()
 
-  const activeTab = ref<'overview' | 'containers' | 'images' | 'networks' | 'volumes' | 'compose'>('overview')
+  const activeTab = ref<DockerTabName>('overview')
   const loading = ref(false)
   const dockerAvailable = ref<boolean | null>(null)
+  const loadedTabs = ref<Record<DockerTabName, boolean>>(createLoadedTabs())
   const containers = ref<DockerContainer[]>([])
   const containerStatusFilter = ref<DockerContainerStatusFilter>('all')
   const containerPage = ref(1)
@@ -106,7 +106,8 @@ export function useDockerView(props: DockerViewProps) {
 
   let logsRefreshTimer: number | null = null
   let requestQueue = Promise.resolve()
-  let pendingDockerStateLoad: Promise<void> | null = null
+  let pendingDockerCheck: Promise<boolean> | null = null
+  const pendingTabLoads: Partial<Record<DockerTabName, Promise<void>>> = {}
 
   const dockerPageSizes = [8, 16, 32, 50]
   const activeConnectionId = computed(() => props.connectionId ?? sshStore.connectionId)
@@ -171,29 +172,9 @@ export function useDockerView(props: DockerViewProps) {
     return nextTask
   }
 
-  function formatTime(value?: string) {
-    if (!value) {
-      return '-'
-    }
-
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) {
-      return value
-    }
-
-    return date.toLocaleString('zh-CN')
-  }
-
-  function formatDateTime(value: Date | null) {
-    if (!value) {
-      return '-'
-    }
-
-    return value.toLocaleString('zh-CN')
-  }
-
-  function setActiveTab(value: 'overview' | 'containers' | 'images' | 'networks' | 'volumes' | 'compose') {
+  function setActiveTab(value: DockerTabName) {
     activeTab.value = value
+    void loadTabData(value)
   }
 
   function setContainerStatusFilter(value: DockerContainerStatusFilter) {
@@ -202,63 +183,6 @@ export function useDockerView(props: DockerViewProps) {
 
   function updateSelectedContainerIds(keys: Array<string | number>) {
     selectedContainerIds.value = keys.map((key) => String(key))
-  }
-
-  function getComposeConfigFiles(project: DockerComposeProject) {
-    return project.configFiles
-      .split(',')
-      .map((file) => file.trim())
-      .filter(Boolean)
-  }
-
-  function getComposeProjectPayload(project: DockerComposeProject): DockerComposeProjectPayload | null {
-    const configFiles = getComposeConfigFiles(project)
-    if (!project.name || configFiles.length === 0) {
-      return null
-    }
-
-    return {
-      configFiles,
-      projectName: project.name,
-      workingDir: project.workingDir || undefined,
-    }
-  }
-
-  function getComposeStatusType(project: DockerComposeProject) {
-    const status = project.status.toLowerCase()
-    if (status.includes('running')) {
-      return 'success'
-    }
-    if (status.includes('exited') || status.includes('stopped')) {
-      return 'warning'
-    }
-    return 'default'
-  }
-
-  function getComposeServiceStatusType(service: DockerComposeService) {
-    const state = `${service.state} ${service.status}`.toLowerCase()
-    if (state.includes('running')) {
-      return 'success'
-    }
-    if (state.includes('exit') || state.includes('stop')) {
-      return 'warning'
-    }
-    return 'default'
-  }
-
-  function parseContainerHostPort(portText: string) {
-    const hostSide = portText.split('->')[0]?.trim() ?? ''
-    if (!hostSide || hostSide.includes('/')) {
-      return null
-    }
-
-    const hostPort = hostSide.includes(':') ? hostSide.slice(hostSide.lastIndexOf(':') + 1) : hostSide
-    const portNumber = Number(hostPort)
-    if (!Number.isInteger(portNumber) || portNumber < 1 || portNumber > 65535) {
-      return null
-    }
-
-    return hostPort
   }
 
   function getContainerPortLink(container: DockerContainer, portText: string) {
@@ -316,21 +240,6 @@ export function useDockerView(props: DockerViewProps) {
     const pinned = desktopStore.togglePortLinkPin(link)
     getUiApi().message.success(pinned ? '已将端口链接添加到桌面。' : '已从桌面移除端口链接。')
   }
-
-  const imageHistoryColumns: DataTableColumns<DockerImageHistoryItem> = [
-    { title: 'ID', key: 'id', width: 180 },
-    { title: '时间', key: 'createdSince', width: 140 },
-    { title: '大小', key: 'size', width: 120 },
-    { title: '命令', key: 'createdBy', width: 560 },
-    { title: '备注', key: 'comment', width: 260 },
-  ]
-
-  const imageRefsColumns: DataTableColumns<DockerImageContainerRef> = [
-    { title: '容器名', key: 'name' },
-    { title: '镜像', key: 'image' },
-    { title: '状态', key: 'status' },
-    { title: 'State', key: 'state' },
-  ]
 
   async function copyLogs() {
     try {
@@ -408,6 +317,7 @@ export function useDockerView(props: DockerViewProps) {
     composeServiceLoadingMap.value = {}
     composeActionLoadingMap.value = {}
     selectedComposeProjectName.value = ''
+    loadedTabs.value = createLoadedTabs()
   }
 
   async function loadContainersPage(page = containerPage.value, pageSize = containerPageSize.value) {
@@ -472,6 +382,119 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
+  function markTabsStale(...tabs: DockerTabName[]) {
+    loadedTabs.value = tabs.reduce(
+      (result, tab) => ({ ...result, [tab]: false }),
+      loadedTabs.value,
+    )
+  }
+
+  function getTabLoadMessage(tab: DockerTabName) {
+    if (tab === 'containers') {
+      return '加载容器列表失败。'
+    }
+    if (tab === 'images') {
+      return '加载镜像列表失败。'
+    }
+    if (tab === 'networks') {
+      return '加载 Docker 网络失败。'
+    }
+    if (tab === 'volumes') {
+      return '加载 Docker 存储卷失败。'
+    }
+    if (tab === 'compose') {
+      return '加载 Docker 编排失败。'
+    }
+    return '加载 Docker 数据失败。'
+  }
+
+  async function checkDockerAvailability() {
+    if (pendingDockerCheck) {
+      return pendingDockerCheck
+    }
+
+    const task = (async () => {
+      try {
+        const connectionId = requireConnectionId()
+        const result = await queueDockerRequest(() => dockerApi.checkDocker(connectionId))
+        dockerAvailable.value = result.available
+
+        if (!result.available) {
+          resetDockerLists()
+        }
+
+        return result.available
+      } catch (error) {
+        console.error('Failed to check Docker availability', error)
+        dockerAvailable.value = false
+        resetDockerLists()
+        getUiApi().message.error(error instanceof Error ? error.message : '加载 Docker 数据失败。')
+        return false
+      }
+    })()
+
+    pendingDockerCheck = task.finally(() => {
+      pendingDockerCheck = null
+    })
+
+    return pendingDockerCheck
+  }
+
+  async function loadTabData(tab: DockerTabName, force = false) {
+    if (!force && loadedTabs.value[tab]) {
+      return
+    }
+
+    if (pendingTabLoads[tab]) {
+      return pendingTabLoads[tab]
+    }
+
+    const task = (async () => {
+      loading.value = true
+
+      try {
+        const available = dockerAvailable.value === true ? true : await checkDockerAvailability()
+        if (!available) {
+          return
+        }
+
+        if (tab === 'containers') {
+          await loadContainersPage(containerPage.value, containerPageSize.value)
+        } else if (tab === 'images') {
+          await loadImagesPage(imagePage.value, imagePageSize.value)
+        } else if (tab === 'networks') {
+          await loadNetworks()
+        } else if (tab === 'volumes') {
+          await loadVolumes()
+        } else if (tab === 'compose') {
+          await loadComposeProjects()
+        } else {
+          await loadContainersPage()
+          await loadImagesPage()
+          await loadNetworks()
+          await loadVolumes()
+          await loadComposeProjects()
+        }
+
+        loadedTabs.value = {
+          ...loadedTabs.value,
+          [tab]: true,
+        }
+      } catch (error) {
+        console.error(getTabLoadMessage(tab), error)
+        getUiApi().message.error(error instanceof Error ? error.message : getTabLoadMessage(tab))
+      } finally {
+        loading.value = false
+      }
+    })()
+
+    pendingTabLoads[tab] = task.finally(() => {
+      delete pendingTabLoads[tab]
+    })
+
+    return pendingTabLoads[tab]
+  }
+
   function syncLogsRefreshTimer() {
     if (logsRefreshTimer) {
       clearInterval(logsRefreshTimer)
@@ -529,59 +552,43 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   async function loadDockerState() {
-    if (pendingDockerStateLoad) {
-      return pendingDockerStateLoad
-    }
-
-    const task = (async () => {
-      loading.value = true
-
-      try {
-        const connectionId = requireConnectionId()
-        const result = await queueDockerRequest(() => dockerApi.checkDocker(connectionId))
-        dockerAvailable.value = result.available
-
-        if (!result.available) {
-          resetDockerLists()
-          return
-        }
-
-        await loadContainersPage()
-        await loadImagesPage()
-        await loadNetworks()
-        await loadVolumes()
-        await loadComposeProjects()
-      } catch (error) {
-        console.error('Failed to load Docker state', error)
-        dockerAvailable.value = false
-        resetDockerLists()
-        getUiApi().message.error(error instanceof Error ? error.message : '加载 Docker 数据失败。')
-      } finally {
-        loading.value = false
-      }
-    })()
-
-    pendingDockerStateLoad = task.finally(() => {
-      pendingDockerStateLoad = null
-    })
-
-    return pendingDockerStateLoad
+    await loadTabData('overview', true)
   }
 
   async function refresh() {
     await loadDockerState()
   }
 
+  async function refreshContainers() {
+    await loadTabData('containers', true)
+  }
+
+  async function refreshImages() {
+    await loadTabData('images', true)
+  }
+
+  async function refreshActiveTab() {
+    await loadTabData(activeTab.value, true)
+  }
+
+  async function refreshTabsAfterChange(...tabs: DockerTabName[]) {
+    markTabsStale('overview', ...tabs)
+
+    if (activeTab.value === 'overview' || tabs.includes(activeTab.value)) {
+      await loadTabData(activeTab.value, true)
+    }
+  }
+
   async function refreshCompose() {
-    await loadDockerSection(loadComposeProjects, '加载 Docker 编排失败。')
+    await loadTabData('compose', true)
   }
 
   async function refreshNetworks() {
-    await loadDockerSection(loadNetworks, '加载 Docker 网络失败。')
+    await loadTabData('networks', true)
   }
 
   async function refreshVolumes() {
-    await loadDockerSection(loadVolumes, '加载 Docker 存储卷失败。')
+    await loadTabData('volumes', true)
   }
 
   async function handleContainerPageChange(page: number) {
@@ -627,7 +634,7 @@ export function useDockerView(props: DockerViewProps) {
         getUiApi().message.success(`已删除容器 ${container.name}。`)
       }
 
-      await loadDockerState()
+      await refreshTabsAfterChange('containers')
     } catch (error) {
       console.error(`Failed to ${action} container`, error)
       getUiApi().message.error(error instanceof Error ? error.message : '容器操作失败。')
@@ -648,7 +655,7 @@ export function useDockerView(props: DockerViewProps) {
         getUiApi().message.success(`已恢复容器 ${container.name}。`)
       }
 
-      await loadDockerState()
+      await refreshTabsAfterChange('containers')
     } catch (error) {
       console.error(`Failed to ${action} container`, error)
       getUiApi().message.error(error instanceof Error ? error.message : '容器高级操作失败。')
@@ -775,7 +782,7 @@ export function useDockerView(props: DockerViewProps) {
       )
       renameVisible.value = false
       getUiApi().message.success('容器重命名成功。')
-      await loadDockerState()
+      await refreshTabsAfterChange('containers')
     } catch (error) {
       console.error('Failed to rename container', error)
       getUiApi().message.error(error instanceof Error ? error.message : '容器重命名失败。')
@@ -789,7 +796,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       const result = await queueDockerRequest(() => dockerApi.recreateContainer(connectionId, container.id))
       getUiApi().message.success(`容器 ${result.name} 重建完成。`)
-      await loadDockerState()
+      await refreshTabsAfterChange('containers')
     } catch (error) {
       console.error('Failed to recreate container', error)
       getUiApi().message.error(error instanceof Error ? error.message : '容器重建失败。')
@@ -801,7 +808,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       await queueDockerRequest(() => dockerApi.removeImage(connectionId, image.id, true))
       getUiApi().message.success(`已删除镜像 ${image.repository}:${image.tag}。`)
-      await loadDockerState()
+      await refreshTabsAfterChange('images')
     } catch (error) {
       console.error('Failed to remove image', error)
       getUiApi().message.error(error instanceof Error ? error.message : '删除镜像失败。')
@@ -826,7 +833,7 @@ export function useDockerView(props: DockerViewProps) {
       await queueDockerRequest(() => dockerApi.tagImage(connectionId, imageTagSource.value.trim(), imageTagTarget.value.trim()))
       imageTagVisible.value = false
       getUiApi().message.success('镜像重新打标签成功。')
-      await loadDockerState()
+      await refreshTabsAfterChange('images')
     } catch (error) {
       console.error('Failed to tag image', error)
       getUiApi().message.error(error instanceof Error ? error.message : '镜像重新打标签失败。')
@@ -909,7 +916,7 @@ export function useDockerView(props: DockerViewProps) {
       await queueDockerRequest(() => dockerApi.pullImage(connectionId, pullImageName.value.trim()))
       getUiApi().message.success(`已开始拉取镜像 ${pullImageName.value.trim()}。`)
       pullImageName.value = ''
-      await loadDockerState()
+      await refreshTabsAfterChange('images')
     } catch (error) {
       console.error('Failed to pull image', error)
       getUiApi().message.error(error instanceof Error ? error.message : '拉取镜像失败。')
@@ -949,7 +956,7 @@ export function useDockerView(props: DockerViewProps) {
         getUiApi().message.success(`已下线编排项目 ${project.name}。`)
       }
 
-      await loadDockerState()
+      await refreshTabsAfterChange('containers', 'compose')
     } catch (error) {
       console.error(`Failed to ${action} compose project`, error)
       getUiApi().message.error(error instanceof Error ? error.message : '编排操作失败。')
@@ -1065,7 +1072,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       const result = await queueDockerRequest(() => dockerApi.batchStartContainers(connectionId, selectedStoppedIds.value))
       getUiApi().message.success(`批量启动完成，共处理 ${result.processed} 个容器。`)
-      await loadDockerState()
+      await refreshTabsAfterChange('containers')
     } catch (error) {
       console.error('Failed to batch start containers', error)
       getUiApi().message.error(error instanceof Error ? error.message : '批量启动失败。')
@@ -1085,7 +1092,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       const result = await queueDockerRequest(() => dockerApi.batchStopContainers(connectionId, selectedRunningIds.value))
       getUiApi().message.success(`批量停止完成，共处理 ${result.processed} 个容器。`)
-      await loadDockerState()
+      await refreshTabsAfterChange('containers')
     } catch (error) {
       console.error('Failed to batch stop containers', error)
       getUiApi().message.error(error instanceof Error ? error.message : '批量停止失败。')
@@ -1099,7 +1106,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       const result = await queueDockerRequest(() => dockerApi.removeStoppedContainers(connectionId))
       getUiApi().message.success(`已删除 ${result.removedCount} 个已停止容器。`)
-      await loadDockerState()
+      await refreshTabsAfterChange('containers')
     } catch (error) {
       console.error('Failed to remove stopped containers', error)
       getUiApi().message.error(error instanceof Error ? error.message : '删除已停止容器失败。')
@@ -1111,7 +1118,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       await queueDockerRequest(() => dockerApi.pruneImages(connectionId, includeUnused))
       getUiApi().message.success(includeUnused ? '无引用镜像清理完成。' : 'Dangling 镜像清理完成。')
-      await loadDockerState()
+      await refreshTabsAfterChange('images')
     } catch (error) {
       console.error('Failed to prune images', error)
       getUiApi().message.error(error instanceof Error ? error.message : '镜像清理失败。')
@@ -1123,7 +1130,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       const result = await queueDockerRequest(() => dockerApi.createNetwork(connectionId, payload))
       getUiApi().message.success(result.warning ? `网络已创建，返回警告：${result.warning}` : 'Docker 网络创建成功。')
-      await loadNetworks()
+      await refreshTabsAfterChange('networks')
       return true
     } catch (error) {
       console.error('Failed to create network', error)
@@ -1137,7 +1144,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       const result = await queueDockerRequest(() => dockerApi.createVolume(connectionId, payload))
       getUiApi().message.success(result.warning ? `存储卷已创建，返回警告：${result.warning}` : 'Docker 存储卷创建成功。')
-      await loadVolumes()
+      await refreshTabsAfterChange('volumes')
       return true
     } catch (error) {
       console.error('Failed to create volume', error)
@@ -1185,7 +1192,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       await queueDockerRequest(() => dockerApi.removeNetwork(connectionId, network.id))
       getUiApi().message.success(`已删除网络 ${network.name}。`)
-      await loadNetworks()
+      await refreshTabsAfterChange('networks')
     } catch (error) {
       console.error('Failed to remove network', error)
       getUiApi().message.error(error instanceof Error ? error.message : '删除 Docker 网络失败。')
@@ -1197,7 +1204,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       await queueDockerRequest(() => dockerApi.removeVolume(connectionId, volume.name))
       getUiApi().message.success(`已删除存储卷 ${volume.name}。`)
-      await loadVolumes()
+      await refreshTabsAfterChange('volumes')
     } catch (error) {
       console.error('Failed to remove volume', error)
       getUiApi().message.error(error instanceof Error ? error.message : '删除 Docker 存储卷失败。')
@@ -1239,7 +1246,7 @@ export function useDockerView(props: DockerViewProps) {
         getUiApi().message.success(`已将容器 ${trimmedContainer} 连接到网络 ${network.name}。`)
       }
 
-      await loadNetworks()
+      await refreshTabsAfterChange('networks')
       return true
     } catch (error) {
       console.error('Failed to update network connection', error)
@@ -1253,7 +1260,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       const result = await queueDockerRequest(() => dockerApi.pruneNetworks(connectionId))
       getUiApi().message.success(`网络清理完成，共删除 ${result.deletedCount} 个未使用网络。`)
-      await loadNetworks()
+      await refreshTabsAfterChange('networks')
     } catch (error) {
       console.error('Failed to prune networks', error)
       getUiApi().message.error(error instanceof Error ? error.message : 'Docker 网络清理失败。')
@@ -1265,7 +1272,7 @@ export function useDockerView(props: DockerViewProps) {
       const connectionId = requireConnectionId()
       const result = await queueDockerRequest(() => dockerApi.pruneVolumes(connectionId))
       getUiApi().message.success(`存储卷清理完成，共删除 ${result.deletedCount} 个未使用存储卷。`)
-      await loadVolumes()
+      await refreshTabsAfterChange('volumes')
     } catch (error) {
       console.error('Failed to prune volumes', error)
       getUiApi().message.error(error instanceof Error ? error.message : 'Docker 存储卷清理失败。')
@@ -1296,7 +1303,7 @@ export function useDockerView(props: DockerViewProps) {
       return
     }
 
-    void loadDockerState()
+    void refreshTabsAfterChange('containers')
   }
 
   function handleComposeCreated(event: Event) {
@@ -1312,11 +1319,11 @@ export function useDockerView(props: DockerViewProps) {
       composeAvailable.value = true
     }
 
-    void loadDockerState()
+    void refreshTabsAfterChange('compose')
   }
 
   onMounted(() => {
-    void loadDockerState()
+    void loadTabData(activeTab.value)
     window.addEventListener('docker:container-created', handleContainerCreated)
     window.addEventListener('docker:compose-created', handleComposeCreated)
   })
@@ -1438,7 +1445,10 @@ export function useDockerView(props: DockerViewProps) {
     pullImageName,
     requireConnectionId,
     refresh,
+    refreshActiveTab,
     refreshCompose,
+    refreshContainers,
+    refreshImages,
     refreshComposeServices,
     refreshContainerResource,
     refreshLogs,
