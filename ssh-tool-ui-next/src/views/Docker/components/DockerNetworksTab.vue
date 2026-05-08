@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { SelectOption } from 'naive-ui'
 import { reactive, ref } from 'vue'
-import type { DockerNetwork } from '@/api/docker'
+import { dockerApi, type DockerContainer, type DockerNetwork } from '@/api/docker'
+import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
 
@@ -13,9 +15,12 @@ const createVisible = ref(false)
 const createSubmitting = ref(false)
 const connectVisible = ref(false)
 const connectSubmitting = ref(false)
+const containerOptions = ref<SelectOption[]>([])
+const containerOptionsLoading = ref(false)
 const selectedNetwork = ref<DockerNetwork | null>(null)
 const createOptionsText = ref('')
 const createLabelsText = ref('')
+let containerOptionsRequestId = 0
 const networkDriverOptions = [
   { label: 'bridge', value: 'bridge' },
   { label: 'overlay', value: 'overlay' },
@@ -48,12 +53,14 @@ function openCreateDialog() {
   createVisible.value = true
 }
 
-function openConnectDialog(network: DockerNetwork, disconnect = false) {
+async function openConnectDialog(network: DockerNetwork, disconnect = false) {
   selectedNetwork.value = network
   connectForm.container = ''
   connectForm.disconnect = disconnect
   connectForm.force = false
+  containerOptions.value = []
   connectVisible.value = true
+  await loadContainerOptions(network, disconnect)
 }
 
 async function submitCreate() {
@@ -119,6 +126,78 @@ async function submitConnection() {
   }
 }
 
+async function loadContainerOptions(network: DockerNetwork, disconnect: boolean) {
+  const requestId = ++containerOptionsRequestId
+
+  if (disconnect) {
+    containerOptionsLoading.value = false
+    containerOptions.value = (network.connectedContainerNames ?? []).map((name) => ({
+      label: name,
+      value: name,
+    }))
+    return
+  }
+
+  containerOptionsLoading.value = true
+  try {
+    const containers = await loadAllContainers()
+    if (requestId !== containerOptionsRequestId || selectedNetwork.value?.id !== network.id || connectForm.disconnect !== disconnect) {
+      return
+    }
+
+    const connectedNames = new Set(network.connectedContainerNames ?? [])
+    containerOptions.value = containers
+      .filter((container) => container.name && !connectedNames.has(container.name))
+      .sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
+      .map((container) => ({
+        label: `${container.name} (${container.state || 'unknown'})`,
+        value: container.name,
+      }))
+  } catch (error) {
+    console.error('Failed to load container options', error)
+    getUiApi().message.error(error instanceof Error ? error.message : '加载容器列表失败。')
+  } finally {
+    if (requestId === containerOptionsRequestId) {
+      containerOptionsLoading.value = false
+    }
+  }
+}
+
+async function loadAllContainers() {
+  const connectionId = props.controller.requireConnectionId()
+  const pageSize = 100
+  let page = 1
+  let totalPages = 1
+  const containerMap = new Map<string, DockerContainer>()
+
+  while (page <= totalPages) {
+    const result = await dockerApi.listContainers(connectionId, {
+      page,
+      pageSize,
+      status: 'all',
+    })
+    totalPages = result.totalPages
+    result.items.forEach((container) => {
+      containerMap.set(container.id, container)
+    })
+    page += 1
+  }
+
+  return Array.from(containerMap.values())
+}
+
+function getContainerSelectPlaceholder() {
+  if (connectForm.disconnect) {
+    return containerOptions.value.length ? '请选择要断开的容器' : '当前网络暂无已连接容器'
+  }
+
+  if (containerOptionsLoading.value) {
+    return '正在加载容器列表'
+  }
+
+  return containerOptions.value.length ? '请选择要连接的容器' : '当前没有可连接的容器'
+}
+
 function getConnectedContainersTitle(network: DockerNetwork) {
   const names = network.connectedContainerNames ?? []
   return names.length ? names.join('\n') : '暂无已连接容器'
@@ -127,16 +206,18 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 
 <template>
   <div class="flex flex-col gap-[12px]" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
-    <div class="flex flex-wrap items-center justify-between gap-[12px]">
-      <NSpace>
-        <NButton type="primary" @click="openCreateDialog">新建网络</NButton>
-        <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks">刷新网络</NButton>
-        <NButton quaternary @click="controller.confirmPruneNetworks">清理未使用</NButton>
-      </NSpace>
-    </div>
+    <div class="docker-toolbar">
+      <div class="flex flex-wrap items-center justify-between gap-[12px]">
+        <NSpace>
+          <NButton type="primary" @click="openCreateDialog">新建网络</NButton>
+          <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks">刷新网络</NButton>
+          <NButton quaternary @click="controller.confirmPruneNetworks">清理未使用</NButton>
+        </NSpace>
+      </div>
 
-    <div class="flex items-center gap-[8px] text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.82)]'">
-      <NTag round size="small">网络 {{ controller.networks.length }}</NTag>
+      <div class="flex items-center gap-[8px] text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.82)]'">
+        <NTag round size="small">网络 {{ controller.networks.length }}</NTag>
+      </div>
     </div>
 
     <NEmpty v-if="controller.networks.length === 0" />
@@ -257,8 +338,16 @@ function getConnectedContainersTitle(network: DockerNetwork) {
       style="width: min(560px, 92vw)"
     >
       <NForm label-placement="top">
-        <NFormItem label="容器 ID 或名称">
-          <NInput v-model:value="connectForm.container" :placeholder="connectForm.disconnect ? '例如 web 或 9f12ab34cd56' : '例如 api 或 9f12ab34cd56'" />
+        <NFormItem label="容器">
+          <NSelect
+            v-model:value="connectForm.container"
+            :options="containerOptions"
+            :loading="containerOptionsLoading"
+            :placeholder="getContainerSelectPlaceholder()"
+            :disabled="containerOptionsLoading || containerOptions.length === 0"
+            clearable
+            filterable
+          />
         </NFormItem>
         <NFormItem v-if="connectForm.disconnect" label="强制断开">
           <NSwitch v-model:value="connectForm.force" />
@@ -267,7 +356,7 @@ function getConnectedContainersTitle(network: DockerNetwork) {
       <template #action>
         <NSpace justify="end">
           <NButton @click="connectVisible = false">取消</NButton>
-          <NButton type="primary" :loading="connectSubmitting" @click="submitConnection">
+          <NButton type="primary" :loading="connectSubmitting" :disabled="containerOptionsLoading || !connectForm.container" @click="submitConnection">
             {{ connectForm.disconnect ? '断开' : '连接' }}
           </NButton>
         </NSpace>
@@ -286,6 +375,8 @@ function getConnectedContainersTitle(network: DockerNetwork) {
   --docker-card-field-bg: rgba(15, 23, 42, 0.38);
   --docker-card-label-color: rgba(226, 232, 240, 0.52);
   --docker-card-value-color: rgba(248, 250, 252, 0.9);
+  --docker-toolbar-bg: rgba(15, 23, 42, 0.76);
+  --docker-toolbar-border: rgba(148, 163, 184, 0.14);
 }
 
 .docker-theme-light {
@@ -297,6 +388,21 @@ function getConnectedContainersTitle(network: DockerNetwork) {
   --docker-card-field-bg: rgba(241, 245, 249, 0.92);
   --docker-card-label-color: rgba(100, 116, 139, 0.9);
   --docker-card-value-color: rgba(30, 41, 59, 0.92);
+  --docker-toolbar-bg: rgba(255, 255, 255, 0.8);
+  --docker-toolbar-border: rgba(148, 163, 184, 0.18);
+}
+
+.docker-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-bottom: 1px solid var(--docker-toolbar-border);
+  background: var(--docker-toolbar-bg);
+  padding: 2px 0 12px;
+  backdrop-filter: blur(12px);
 }
 
 .docker-card-list {

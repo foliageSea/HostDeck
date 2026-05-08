@@ -1436,6 +1436,7 @@ export function useDockerView(props: DockerViewProps) {
     pullImage,
     pullingImage,
     pullImageName,
+    requireConnectionId,
     refresh,
     refreshCompose,
     refreshComposeServices,
