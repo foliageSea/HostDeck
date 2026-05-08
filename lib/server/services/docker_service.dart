@@ -82,7 +82,29 @@ class DockerService {
         path: '/networks',
       );
 
-      return _mapper.mapNetworkSummaries(networks);
+      final enrichedNetworks = await Future.wait(
+        networks.whereType<Map>().map((item) async {
+          final network = Map<String, dynamic>.from(item);
+          final networkId = (network['Id'] ?? '').toString();
+          if (networkId.isEmpty || network.containsKey('Containers')) {
+            return network;
+          }
+
+          try {
+            final details = await _engineRepository.requestJsonObject(
+              session,
+              method: 'GET',
+              path: '/networks/${Uri.encodeComponent(networkId)}',
+            );
+            return {...network, ...details};
+          } catch (e) {
+            _log.warning('Failed to inspect network $networkId: $e');
+            return network;
+          }
+        }),
+      );
+
+      return _mapper.mapNetworkSummaries(enrichedNetworks);
     } catch (e) {
       _log.severe('Failed to list networks: $e');
       throw Exception('Failed to list networks: $e');

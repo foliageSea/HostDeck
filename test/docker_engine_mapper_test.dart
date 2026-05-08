@@ -1,8 +1,12 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:ssh_tool/server/services/docker_engine_mapper.dart';
+import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:dartssh2/dartssh2.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:ssh_tool/server/models/ssh_session.dart';
+import 'package:ssh_tool/server/repositories/docker_engine_repository.dart';
 import 'package:ssh_tool/server/repositories/ssh_repository.dart';
+import 'package:ssh_tool/server/services/docker_engine_mapper.dart';
 import 'package:ssh_tool/server/services/docker_service.dart';
 
 void main() {
@@ -213,9 +217,80 @@ void main() {
   });
 
   dockerLogTests();
+  dockerServiceNetworkTests();
 }
 
 class _FakeSshRepository extends SshRepository {}
+
+class _FakeSshSession implements SshSession {
+  @override
+  final String id = 'session-1';
+
+  @override
+  final String connectionId = 'connection-1';
+
+  @override
+  SSHClient get client => throw UnimplementedError();
+
+  @override
+  SSHSession? get shell => null;
+
+  @override
+  Stream<String> get output => const Stream.empty();
+
+  @override
+  StreamController<String> get outputController => StreamController.broadcast();
+
+  @override
+  Future<SftpClient> sftp() => throw UnimplementedError();
+
+  @override
+  Future<void> close() async {}
+}
+
+class _FakeDockerEngineRepository extends DockerEngineRepository {
+  _FakeDockerEngineRepository({
+    required this.jsonLists,
+    required this.jsonObjects,
+  }) : super(_FakeSshRepository());
+
+  final Map<String, List<dynamic>> jsonLists;
+  final Map<String, Map<String, dynamic>> jsonObjects;
+  final requestedObjects = <String>[];
+
+  @override
+  Future<List<dynamic>> requestJsonList(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+  }) async {
+    final result = jsonLists[path];
+    if (result == null) {
+      throw Exception('Unexpected JSON list request: $path');
+    }
+    return result;
+  }
+
+  @override
+  Future<Map<String, dynamic>> requestJsonObject(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+  }) async {
+    requestedObjects.add(path);
+    final result = jsonObjects[path];
+    if (result == null) {
+      throw Exception('Unexpected JSON object request: $path');
+    }
+    return result;
+  }
+}
 
 void dockerLogTests() {
   group('DockerService logs decoding', () {
@@ -253,6 +328,48 @@ void dockerLogTests() {
 
       final result = service.debugDecodeDockerLogs(bytes);
       expect(result, 'hello\nerror\n');
+    });
+  });
+}
+
+void dockerServiceNetworkTests() {
+  group('DockerService networks', () {
+    test('uses inspected network details for connected containers', () async {
+      final engineRepository = _FakeDockerEngineRepository(
+        jsonLists: {
+          '/networks': [
+            {
+              'Id': 'network-1',
+              'Name': 'app-network',
+              'Driver': 'bridge',
+              'Scope': 'local',
+            },
+          ],
+        },
+        jsonObjects: {
+          '/networks/network-1': {
+            'Id': 'network-1',
+            'Name': 'app-network',
+            'Driver': 'bridge',
+            'Scope': 'local',
+            'Containers': {
+              'container-1': {'Name': 'web'},
+              'container-2': {'Name': 'api'},
+            },
+          },
+        },
+      );
+      final service = DockerService(
+        _FakeSshRepository(),
+        engineRepository: engineRepository,
+      );
+
+      final networks = await service.listNetworks(_FakeSshSession());
+
+      expect(engineRepository.requestedObjects, ['/networks/network-1']);
+      expect(networks, hasLength(1));
+      expect(networks.first.connectedContainers, 2);
+      expect(networks.first.connectedContainerNames, ['api', 'web']);
     });
   });
 }
