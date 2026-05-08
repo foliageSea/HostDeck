@@ -142,7 +142,7 @@ function getImageName(image: DockerImage) {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   min-height: 0;
   overflow: auto;
   padding-right: 4px;
@@ -163,38 +163,50 @@ function getImageName(image: DockerImage) {
 .docker-card :deep(.docker-card-content) {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+}
+
+.docker-card :deep(.n-card-header) {
+  padding: 10px 12px 8px;
+}
+
+.docker-card :deep(.n-card__content) {
+  padding: 0 12px 8px;
+}
+
+.docker-card :deep(.n-card__footer) {
+  padding: 6px 12px 10px;
 }
 
 .docker-card-fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 7px;
 }
 
 .docker-card-field {
   min-width: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--docker-card-field-bg);
-  padding: 9px 10px;
+  padding: 6px 8px;
 }
 
 .docker-card-field.wide {
-  grid-column: 1 / -1;
+  grid-column: auto;
 }
 
 .docker-card-field span {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   color: var(--docker-card-label-color);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .docker-card-field strong {
   display: block;
   overflow: hidden;
   color: var(--docker-card-value-color);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;

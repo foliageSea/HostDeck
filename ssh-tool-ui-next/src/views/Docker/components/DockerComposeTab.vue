@@ -178,36 +178,36 @@ function formatComposePorts(ports: string) {
 
 .compose-project-card {
   border: 1px solid var(--compose-card-border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--compose-card-bg);
-  padding: 12px;
+  padding: 10px;
 }
 
 .compose-project-meta,
 .compose-service-fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 7px;
 }
 
 .compose-project-field,
 .compose-service-field {
   min-width: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--compose-field-bg);
-  padding: 9px 10px;
+  padding: 6px 8px;
 }
 
 .compose-service-field.wide {
-  grid-column: 1 / -1;
+  grid-column: auto;
 }
 
 .compose-project-field span,
 .compose-service-field span {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   color: var(--compose-label-color);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .compose-project-field strong,
@@ -215,7 +215,7 @@ function formatComposePorts(ports: string) {
   display: block;
   overflow: hidden;
   color: var(--compose-value-color);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -223,15 +223,23 @@ function formatComposePorts(ports: string) {
 
 .compose-service-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 320px);
-  gap: 12px;
-  margin-top: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .compose-service-card {
-  width: 320px;
+  width: 100%;
   border: 1px solid var(--compose-card-border);
   background: var(--compose-card-bg);
+}
+
+.compose-service-card :deep(.n-card-header) {
+  padding: 10px 12px 8px;
+}
+
+.compose-service-card :deep(.n-card__content) {
+  padding: 0 12px 10px;
 }
 
 @media (max-width: 640px) {
