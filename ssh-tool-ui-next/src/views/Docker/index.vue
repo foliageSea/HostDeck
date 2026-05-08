@@ -98,15 +98,15 @@ const controller: DockerViewController = reactive(useDockerView(props))
           <DockerImagesTab :controller="controller" />
         </NTabPane>
 
-        <NTabPane name="networks" tab="网络">
+        <NTabPane name="networks" tab="网络" class="docker-internal-scroll-pane">
           <DockerNetworksTab :controller="controller" />
         </NTabPane>
 
-        <NTabPane name="volumes" tab="存储">
+        <NTabPane name="volumes" tab="存储" class="docker-internal-scroll-pane">
           <DockerVolumesTab :controller="controller" />
         </NTabPane>
 
-        <NTabPane name="compose" tab="编排">
+        <NTabPane name="compose" tab="编排" class="docker-internal-scroll-pane">
           <DockerComposeTab :controller="controller" />
         </NTabPane>
       </NTabs>
@@ -160,7 +160,18 @@ const controller: DockerViewController = reactive(useDockerView(props))
   width: 100%;
   min-width: 0;
   min-height: 0;
+}
+
+.docker-tabs :deep(.n-tabs-pane-wrapper) {
+  overflow: hidden;
+}
+
+.docker-tabs :deep(.n-tab-pane) {
   overflow: auto;
+}
+
+.docker-tabs :deep(.docker-internal-scroll-pane) {
+  overflow: hidden;
 }
 
 @media (min-width: 768px) {

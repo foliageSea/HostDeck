@@ -69,7 +69,7 @@ async function submitCreate() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-[12px]" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+  <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <div class="docker-toolbar">
       <div class="flex flex-wrap items-center justify-between gap-[12px]">
         <NSpace>
@@ -209,6 +209,7 @@ async function submitCreate() {
   top: 0;
   z-index: 2;
   display: flex;
+  flex: none;
   flex-direction: column;
   gap: 12px;
   border-bottom: 1px solid var(--docker-toolbar-border);
@@ -220,15 +221,22 @@ async function submitCreate() {
 
 .docker-card-list {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .docker-card {
+  flex: none;
   width: 100%;
   border: 1px solid var(--docker-card-border);
+  border-radius: 14px;
   background: var(--docker-card-bg);
   box-shadow: var(--docker-card-shadow);
+  overflow: hidden;
 }
 
 .docker-card:hover {

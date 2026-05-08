@@ -50,7 +50,7 @@ function formatComposePorts(ports: string) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-[12px]" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+  <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <div class="docker-toolbar">
       <div class="flex flex-wrap items-center justify-end gap-[12px]">
         <NSpace>
@@ -69,7 +69,7 @@ function formatComposePorts(ports: string) {
     <NEmpty v-else-if="controller.composeProjects.length === 0">
     </NEmpty>
 
-    <NCollapse v-else accordion :default-expanded-names="controller.selectedComposeProjectName">
+    <NCollapse v-else accordion :default-expanded-names="controller.selectedComposeProjectName" class="compose-project-list">
       <NCollapseItem v-for="project in controller.composeProjects" :key="getProjectKey(project)" :name="project.name">
         <template #header>
           <div class="min-w-0 flex flex-1 items-center gap-[10px]">
@@ -170,11 +170,23 @@ function formatComposePorts(ports: string) {
   position: sticky;
   top: 0;
   z-index: 2;
+  flex: none;
   border-bottom: 1px solid var(--compose-toolbar-border);
   background: transparent;
   padding: 2px 0 12px;
   backdrop-filter: none;
   padding: 8px;
+}
+
+.compose-project-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.compose-project-list :deep(.n-collapse-item) {
+  flex: none;
 }
 
 .compose-project-card {

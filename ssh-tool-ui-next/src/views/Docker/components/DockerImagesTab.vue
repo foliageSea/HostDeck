@@ -151,8 +151,10 @@ function getImageName(image: DockerImage) {
 .docker-card {
   width: 100%;
   border: 1px solid var(--docker-card-border);
+  border-radius: 14px;
   background: var(--docker-card-bg);
   box-shadow: var(--docker-card-shadow);
+  overflow: hidden;
 }
 
 .docker-card:hover {
