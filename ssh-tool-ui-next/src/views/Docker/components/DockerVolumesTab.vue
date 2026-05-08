@@ -215,6 +215,7 @@ async function submitCreate() {
   background: var(--docker-toolbar-bg);
   padding: 2px 0 12px;
   backdrop-filter: blur(12px);
+  padding: 8px;
 }
 
 .docker-card-list {
