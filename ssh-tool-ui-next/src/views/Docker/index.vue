@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
-import { Download, Upload } from '@vicons/carbon'
 import { LogoDocker } from '@vicons/ionicons5'
 import { useSettingsStore } from '@/stores/settings'
 import DockerContainersTab from './components/DockerContainersTab.vue'
@@ -46,26 +45,6 @@ const controller: DockerViewController = reactive(useDockerView(props))
           </div>
         </div>
 
-        <NSpace>
-          <NInput
-            :value="controller.pullImageName"
-            class="w-[min(320px,60vw)] lt-sm:w-full"
-            placeholder="例如 nginx:latest"
-            @update:value="controller.pullImageName = $event"
-            @keydown.enter.prevent="controller.pullImage"
-          >
-            <template #prefix>
-              <NIcon><Download /></NIcon>
-            </template>
-          </NInput>
-          <NButton type="primary" :loading="controller.pullingImage" @click="controller.pullImage">
-            <template #icon>
-              <NIcon><Upload /></NIcon>
-            </template>
-            拉取镜像
-          </NButton>
-          <NButton quaternary :loading="controller.loading" @click="controller.refresh">刷新</NButton>
-        </NSpace>
       </div>
 
     </div>

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
 import DockerSummaryCards from './DockerSummaryCards.vue'
+import DockerTabToolbar from './DockerTabToolbar.vue'
 
 const props = defineProps<{
   controller: DockerViewController
@@ -56,17 +57,21 @@ const composeStatusType = computed(() => {
         ? 'bg-[linear-gradient(145deg,rgba(15,23,42,0.78),rgba(30,41,59,0.52))]'
         : 'bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(241,245,249,0.94))]'"
     >
-      <div class="flex flex-wrap items-start justify-between gap-[12px]">
-        <div>
+      <DockerTabToolbar>
+        <template #left>
           <div class="text-[16px] font-600">Docker 概览</div>
-        </div>
+        </template>
 
-        <div class="flex flex-wrap gap-[8px]">
+        <template #actions>
+          <NButton quaternary size="small" :loading="controller.loading" @click="controller.refresh">刷新</NButton>
+        </template>
+
+        <template #meta>
           <NTag round size="small" :type="composeStatusType">Compose {{ composeStatusText }}</NTag>
           <NTag round size="small">容器 {{ controller.containerSummary.total }}</NTag>
           <NTag round size="small">镜像 {{ controller.imageSummary.total }}</NTag>
-        </div>
-      </div>
+        </template>
+      </DockerTabToolbar>
     </NCard>
 
     <DockerSummaryCards :controller="controller" />

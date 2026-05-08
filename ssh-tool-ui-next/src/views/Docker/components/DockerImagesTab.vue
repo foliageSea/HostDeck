@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { Download, Upload } from '@vicons/carbon'
 import type { DockerImage } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
+import DockerTabToolbar from './DockerTabToolbar.vue'
 
 defineProps<{
   controller: DockerViewController
@@ -41,7 +43,39 @@ function getImageName(image: DockerImage) {
 <template>
   <div class="flex h-full min-h-0 flex-col overflow-hidden"
     :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+    <DockerTabToolbar>
+      <template #left>
+        <NInput
+          :value="controller.pullImageName"
+          class="w-[min(320px,60vw)] lt-sm:w-full"
+          placeholder="例如 nginx:latest"
+          @update:value="controller.pullImageName = $event"
+          @keydown.enter.prevent="controller.pullImage"
+        >
+          <template #prefix>
+            <NIcon><Download /></NIcon>
+          </template>
+        </NInput>
+      </template>
+
+      <template #actions>
+        <NButton type="primary" :loading="controller.pullingImage" @click="controller.pullImage">
+          <template #icon>
+            <NIcon><Upload /></NIcon>
+          </template>
+          拉取镜像
+        </NButton>
+        <NButton quaternary :loading="controller.loading" @click="controller.refreshImages">刷新</NButton>
+      </template>
+
+      <template #meta>
+        <NTag round size="small">镜像 {{ controller.imageSummary.total }}</NTag>
+        <NTag round size="small">显示 {{ controller.imageTotal }}</NTag>
+      </template>
+    </DockerTabToolbar>
+
     <div class="docker-card-shell">
+
       <NEmpty v-if="controller.images.length === 0" />
 
       <div v-else class="docker-card-list">

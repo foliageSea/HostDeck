@@ -3,6 +3,7 @@ import { ChevronDown } from '@vicons/carbon'
 import type { DockerComposeProject } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
+import DockerTabToolbar from './DockerTabToolbar.vue'
 
 const props = defineProps<{
   controller: DockerViewController
@@ -51,14 +52,16 @@ function formatComposePorts(ports: string) {
 
 <template>
   <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
-    <div class="docker-toolbar">
-      <div class="flex flex-wrap items-center justify-end gap-[12px]">
-        <NSpace>
-          <NButton type="primary" @click="controller.openCreateComposeProject">新建编排</NButton>
-          <NButton quaternary :loading="controller.loading" @click="controller.refreshCompose">刷新编排</NButton>
-        </NSpace>
-      </div>
-    </div>
+    <DockerTabToolbar>
+      <template #actions>
+        <NButton type="primary" @click="controller.openCreateComposeProject">新建编排</NButton>
+        <NButton quaternary :loading="controller.loading" @click="controller.refreshCompose">刷新编排</NButton>
+      </template>
+
+      <template #meta>
+        <NTag round size="small">编排 {{ controller.composeProjects.length }}</NTag>
+      </template>
+    </DockerTabToolbar>
 
     <NResult
       v-if="controller.composeAvailable === false"
@@ -152,8 +155,6 @@ function formatComposePorts(ports: string) {
   --compose-field-bg: rgba(15, 23, 42, 0.38);
   --compose-label-color: rgba(226, 232, 240, 0.52);
   --compose-value-color: rgba(248, 250, 252, 0.9);
-  --compose-toolbar-bg: rgba(15, 23, 42, 0.76);
-  --compose-toolbar-border: rgba(148, 163, 184, 0.14);
 }
 
 .docker-theme-light {
@@ -162,20 +163,6 @@ function formatComposePorts(ports: string) {
   --compose-field-bg: rgba(241, 245, 249, 0.92);
   --compose-label-color: rgba(100, 116, 139, 0.9);
   --compose-value-color: rgba(30, 41, 59, 0.92);
-  --compose-toolbar-bg: rgba(255, 255, 255, 0.8);
-  --compose-toolbar-border: rgba(148, 163, 184, 0.18);
-}
-
-.docker-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  flex: none;
-  border-bottom: 1px solid var(--compose-toolbar-border);
-  background: transparent;
-  padding: 2px 0 12px;
-  backdrop-filter: none;
-  padding: 8px;
 }
 
 .compose-project-list {

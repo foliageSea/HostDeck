@@ -3,6 +3,7 @@ import { Add, Pin, PinFilled } from '@vicons/carbon'
 import type { DockerContainer } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
+import DockerTabToolbar from './DockerTabToolbar.vue'
 
 const props = defineProps<{
   controller: DockerViewController
@@ -75,8 +76,8 @@ function isPaused(container: DockerContainer) {
 <template>
   <div class="flex h-full min-h-0 flex-col overflow-hidden"
     :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
-    <div class="mb-[12px] flex flex-wrap items-start justify-between gap-[12px]">
-      <NSpace>
+    <DockerTabToolbar>
+      <template #left>
         <NSelect :value="controller.containerStatusFilter" class="w-[128px]"
           :options="controller.containerStatusOptions" size="small"
           @update:value="controller.setContainerStatusFilter" />
@@ -85,21 +86,25 @@ function isPaused(container: DockerContainer) {
         <NButton quaternary @click="controller.confirmRemoveStoppedContainers">清理已停止</NButton>
         <NButton quaternary @click="controller.confirmPruneImages(false)">清理悬空镜像</NButton>
         <NButton quaternary @click="controller.confirmPruneImages(true)">清理无引用镜像</NButton>
-        <div class="mt-1 flex gap-1">
-          <NTag round size="small">已选 {{ controller.selectedContainerIds.length }}</NTag>
-          <NTag round size="small">显示 {{ controller.containerTotal }} / {{ controller.containerSummary.total }}</NTag>
-        </div>
-      </NSpace>
+      </template>
 
-      <NButton quaternary @click="controller.openCreateContainer">
-        <template #icon>
-          <NIcon>
-            <Add />
-          </NIcon>
-        </template>
-        新建容器
-      </NButton>
-    </div>
+      <template #actions>
+        <NButton quaternary :loading="controller.loading" @click="controller.refreshContainers">刷新</NButton>
+        <NButton quaternary @click="controller.openCreateContainer">
+          <template #icon>
+            <NIcon>
+              <Add />
+            </NIcon>
+          </template>
+          新建容器
+        </NButton>
+      </template>
+
+      <template #meta>
+        <NTag round size="small">已选 {{ controller.selectedContainerIds.length }}</NTag>
+        <NTag round size="small">显示 {{ controller.containerTotal }} / {{ controller.containerSummary.total }}</NTag>
+      </template>
+    </DockerTabToolbar>
 
     <div class="docker-card-shell">
       <NEmpty v-if="controller.containers.length === 0" />

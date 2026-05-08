@@ -5,6 +5,7 @@ import { dockerApi, type DockerContainer, type DockerNetwork } from '@/api/docke
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
+import DockerTabToolbar from './DockerTabToolbar.vue'
 
 const props = defineProps<{
   controller: DockerViewController
@@ -206,19 +207,17 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 
 <template>
   <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
-    <div class="docker-toolbar">
-      <div class="flex flex-wrap items-center justify-between gap-[12px]">
-        <NSpace>
-          <NButton type="primary" @click="openCreateDialog">新建网络</NButton>
-          <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks">刷新网络</NButton>
-          <NButton quaternary @click="controller.confirmPruneNetworks">清理未使用</NButton>
-        </NSpace>
-      </div>
+    <DockerTabToolbar>
+      <template #actions>
+        <NButton type="primary" @click="openCreateDialog">新建网络</NButton>
+        <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks">刷新网络</NButton>
+        <NButton quaternary @click="controller.confirmPruneNetworks">清理未使用</NButton>
+      </template>
 
-      <div class="flex items-center gap-[8px] text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.82)]'">
+      <template #meta>
         <NTag round size="small">网络 {{ controller.networks.length }}</NTag>
-      </div>
-    </div>
+      </template>
+    </DockerTabToolbar>
 
     <NEmpty v-if="controller.networks.length === 0" />
 
@@ -375,8 +374,6 @@ function getConnectedContainersTitle(network: DockerNetwork) {
   --docker-card-field-bg: rgba(15, 23, 42, 0.38);
   --docker-card-label-color: rgba(226, 232, 240, 0.52);
   --docker-card-value-color: rgba(248, 250, 252, 0.9);
-  --docker-toolbar-bg: rgba(15, 23, 42, 0.76);
-  --docker-toolbar-border: rgba(148, 163, 184, 0.14);
 }
 
 .docker-theme-light {
@@ -388,23 +385,6 @@ function getConnectedContainersTitle(network: DockerNetwork) {
   --docker-card-field-bg: rgba(241, 245, 249, 0.92);
   --docker-card-label-color: rgba(100, 116, 139, 0.9);
   --docker-card-value-color: rgba(30, 41, 59, 0.92);
-  --docker-toolbar-bg: rgba(255, 255, 255, 0.8);
-  --docker-toolbar-border: rgba(148, 163, 184, 0.18);
-}
-
-.docker-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 12px;
-  border-bottom: 1px solid var(--docker-toolbar-border);
-  background: transparent;
-  padding: 2px 0 12px;
-  backdrop-filter: none;
-  padding: 8px;
 }
 
 .docker-card-list {
