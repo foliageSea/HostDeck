@@ -45,20 +45,25 @@ export function useDockerView(props: DockerViewProps) {
   const dockerAvailable = ref<boolean | null>(null)
   const loadedTabs = ref<Record<DockerTabName, boolean>>(createLoadedTabs())
   const containers = ref<DockerContainer[]>([])
+  const containerSearchKeyword = ref('')
   const containerStatusFilter = ref<DockerContainerStatusFilter>('all')
   const containerPage = ref(1)
   const containerPageSize = ref(8)
   const containerTotal = ref(0)
   const containerSummary = ref<DockerContainerSummary>({ total: 0, running: 0, stopped: 0 })
   const images = ref<DockerImage[]>([])
+  const imageSearchKeyword = ref('')
   const imagePage = ref(1)
   const imagePageSize = ref(8)
   const imageTotal = ref(0)
   const imageSummary = ref<DockerImageSummary>({ total: 0, dangling: 0 })
   const networks = ref<DockerNetwork[]>([])
+  const networkSearchKeyword = ref('')
   const volumes = ref<DockerVolume[]>([])
+  const volumeSearchKeyword = ref('')
   const composeAvailable = ref<boolean | null>(null)
   const composeProjects = ref<DockerComposeProject[]>([])
+  const composeSearchKeyword = ref('')
   const composeServicesMap = ref<Record<string, DockerComposeService[]>>({})
   const composeServiceLoadingMap = ref<Record<string, boolean>>({})
   const composeActionLoadingMap = ref<Record<string, boolean>>({})
@@ -142,6 +147,36 @@ export function useDockerView(props: DockerViewProps) {
   const selectedRunningIds = computed(() =>
     containers.value.filter((item) => selectedContainerIds.value.includes(item.id) && item.state === 'running').map((item) => item.id),
   )
+  const filteredNetworks = computed(() => {
+    const keyword = networkSearchKeyword.value.trim().toLowerCase()
+    if (!keyword) {
+      return networks.value
+    }
+
+    return networks.value.filter((network) =>
+      [network.id, network.name, network.driver, network.scope, ...network.connectedContainerNames].some((value) => value.toLowerCase().includes(keyword)),
+    )
+  })
+  const filteredVolumes = computed(() => {
+    const keyword = volumeSearchKeyword.value.trim().toLowerCase()
+    if (!keyword) {
+      return volumes.value
+    }
+
+    return volumes.value.filter((volume) =>
+      [volume.name, volume.driver, volume.scope, volume.mountpoint, String(volume.refCount)].some((value) => value.toLowerCase().includes(keyword)),
+    )
+  })
+  const filteredComposeProjects = computed(() => {
+    const keyword = composeSearchKeyword.value.trim().toLowerCase()
+    if (!keyword) {
+      return composeProjects.value
+    }
+
+    return composeProjects.value.filter((project) =>
+      [project.name, project.status, project.configFiles, project.workingDir].some((value) => value.toLowerCase().includes(keyword)),
+    )
+  })
   const displayedLogs = computed(() => {
     if (!logsKeyword.value.trim()) {
       return logsContent.value
@@ -179,6 +214,14 @@ export function useDockerView(props: DockerViewProps) {
 
   function setContainerStatusFilter(value: DockerContainerStatusFilter) {
     containerStatusFilter.value = value
+  }
+
+  function setContainerSearchKeyword(value: string) {
+    containerSearchKeyword.value = value
+  }
+
+  function setImageSearchKeyword(value: string) {
+    imageSearchKeyword.value = value
   }
 
   function updateSelectedContainerIds(keys: Array<string | number>) {
@@ -327,6 +370,7 @@ export function useDockerView(props: DockerViewProps) {
         page,
         pageSize,
         status: containerStatusFilter.value,
+        keyword: containerSearchKeyword.value.trim() || undefined,
       }),
     )
 
@@ -348,7 +392,9 @@ export function useDockerView(props: DockerViewProps) {
 
   async function loadImagesPage(page = imagePage.value, pageSize = imagePageSize.value) {
     const connectionId = requireConnectionId()
-    const result = await queueDockerRequest(() => dockerApi.listImages(connectionId, { page, pageSize }))
+    const result = await queueDockerRequest(() =>
+      dockerApi.listImages(connectionId, { page, pageSize, keyword: imageSearchKeyword.value.trim() || undefined }),
+    )
 
     images.value = result.items
     imagePage.value = result.page
@@ -1346,6 +1392,15 @@ export function useDockerView(props: DockerViewProps) {
     await loadDockerSection(() => loadContainersPage(1, containerPageSize.value), '加载容器列表失败。')
   })
 
+  watch(containerSearchKeyword, async () => {
+    selectedContainerIds.value = []
+    await loadDockerSection(() => loadContainersPage(1, containerPageSize.value), '加载容器列表失败。')
+  })
+
+  watch(imageSearchKeyword, async () => {
+    await loadDockerSection(() => loadImagesPage(1, imagePageSize.value), '加载镜像列表失败。')
+  })
+
   watch(logsTail, async (value, previous) => {
     if (value !== previous && logsVisible.value) {
       await refreshLogs()
@@ -1360,6 +1415,7 @@ export function useDockerView(props: DockerViewProps) {
     composeActionLoadingMap,
     composeAvailable,
     composeProjects,
+    composeSearchKeyword,
     composeServiceLoadingMap,
     composeServicesMap,
     confirmComposeProjectAction,
@@ -1376,6 +1432,7 @@ export function useDockerView(props: DockerViewProps) {
     containerResourceLoadedMap,
     containerResourceLoadingMap,
     containers,
+    containerSearchKeyword,
     containerStatusFilter,
     containerStatusOptions,
     containerSummary,
@@ -1391,6 +1448,9 @@ export function useDockerView(props: DockerViewProps) {
     enterShell,
     formatDateTime,
     formatTime,
+    filteredComposeProjects,
+    filteredNetworks,
+    filteredVolumes,
     getComposeConfigFiles,
     getComposeServiceStatusType,
     getComposeStatusType,
@@ -1419,6 +1479,7 @@ export function useDockerView(props: DockerViewProps) {
     imageTagVisible,
     imageTotal,
     images,
+    imageSearchKeyword,
     inspectContent,
     inspectLoading,
     inspectTitle,
@@ -1434,6 +1495,7 @@ export function useDockerView(props: DockerViewProps) {
     logsTail,
     logsTitle,
     logsVisible,
+    networkSearchKeyword,
     networks,
     openImageTagDialog,
     openContainerPort,
@@ -1462,7 +1524,9 @@ export function useDockerView(props: DockerViewProps) {
     selectedComposeProjectName,
     selectedContainerIds,
     setActiveTab,
+    setContainerSearchKeyword,
     setContainerStatusFilter,
+    setImageSearchKeyword,
     statsMap,
     stoppedContainers,
     submitRenameContainer,
@@ -1477,6 +1541,7 @@ export function useDockerView(props: DockerViewProps) {
     viewLogs,
     viewNetworkInspect,
     viewVolumeInspect,
+    volumeSearchKeyword,
     volumes,
   }
 }

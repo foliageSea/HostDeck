@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:shelf/shelf.dart';
 
 import '../models/docker_container.dart';
+import '../models/docker_image.dart';
 import '../models/result.dart';
 import '../models/ssh_session.dart';
 import '../services/docker_service.dart';
@@ -303,6 +304,7 @@ class DockerController {
   Future<Response> listContainers(Request request) async {
     final pagination = _parsePagination(request);
     final statusFilter = request.url.queryParameters['status'] ?? 'all';
+    final keyword = request.url.queryParameters['keyword'] ?? '';
     return _withSession(request, (session) async {
       try {
         final containers = await _dockerService.listContainers(session);
@@ -310,6 +312,7 @@ class DockerController {
             .where(
               (container) => _matchesContainerStatus(container, statusFilter),
             )
+            .where((container) => _matchesContainerKeyword(container, keyword))
             .toList();
         return Result.ok(
           _pageResponse(
@@ -336,12 +339,16 @@ class DockerController {
   /// 获取镜像列表
   Future<Response> listImages(Request request) async {
     final pagination = _parsePagination(request);
+    final keyword = request.url.queryParameters['keyword'] ?? '';
     return _withSession(request, (session) async {
       try {
         final images = await _dockerService.listImages(session);
+        final filteredImages = images
+            .where((image) => _matchesImageKeyword(image, keyword))
+            .toList();
         return Result.ok(
           _pageResponse(
-            images,
+            filteredImages,
             pagination,
             (image) => image.toJson(),
             summary: {
@@ -1044,6 +1051,41 @@ class DockerController {
     }
 
     return true;
+  }
+
+  bool _matchesContainerKeyword(DockerContainer container, String keyword) {
+    final query = keyword.trim().toLowerCase();
+    if (query.isEmpty) {
+      return true;
+    }
+
+    return [
+      container.id,
+      container.name,
+      container.image,
+      container.status,
+      container.state,
+      ...container.ports,
+      ...container.networks.expand(
+        (network) => [network.name, network.ipAddress],
+      ),
+    ].any((value) => value.toLowerCase().contains(query));
+  }
+
+  bool _matchesImageKeyword(DockerImage image, String keyword) {
+    final query = keyword.trim().toLowerCase();
+    if (query.isEmpty) {
+      return true;
+    }
+
+    return [
+      image.id,
+      image.repository,
+      image.tag,
+      image.size,
+      image.dangling ? '悬空 dangling' : '',
+      image.inUse ? '使用中 in use' : '普通 normal',
+    ].any((value) => value.toLowerCase().contains(query));
   }
 }
 

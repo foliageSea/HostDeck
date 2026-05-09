@@ -53,13 +53,22 @@ function formatComposePorts(ports: string) {
 <template>
   <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <DockerTabToolbar>
+      <template #left>
+        <NInput
+          v-model:value="controller.composeSearchKeyword"
+          clearable
+          class="w-[min(220px,60vw)] lt-sm:w-full"
+          placeholder="搜索编排"
+        />
+      </template>
+
       <template #actions>
         <NButton type="primary" @click="controller.openCreateComposeProject">新建编排</NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshCompose">刷新编排</NButton>
       </template>
 
       <template #meta>
-        <NTag round size="small">编排 {{ controller.composeProjects.length }}</NTag>
+        <NTag round size="small">显示 {{ controller.filteredComposeProjects.length }} / {{ controller.composeProjects.length }}</NTag>
       </template>
     </DockerTabToolbar>
 
@@ -69,11 +78,11 @@ function formatComposePorts(ports: string) {
       title="Docker Compose 不可用"
     />
 
-    <NEmpty v-else-if="controller.composeProjects.length === 0">
+    <NEmpty v-else-if="controller.filteredComposeProjects.length === 0">
     </NEmpty>
 
     <NCollapse v-else accordion :default-expanded-names="controller.selectedComposeProjectName" class="compose-project-list">
-      <NCollapseItem v-for="project in controller.composeProjects" :key="getProjectKey(project)" :name="project.name">
+      <NCollapseItem v-for="project in controller.filteredComposeProjects" :key="getProjectKey(project)" :name="project.name">
         <template #header>
           <div class="min-w-0 flex flex-1 items-center gap-[10px]">
             <strong class="truncate text-[15px]" :title="project.name">{{ project.name }}</strong>

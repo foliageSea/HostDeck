@@ -72,6 +72,15 @@ async function submitCreate() {
 <template>
   <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <DockerTabToolbar>
+      <template #left>
+        <NInput
+          v-model:value="controller.volumeSearchKeyword"
+          clearable
+          class="w-[min(220px,60vw)] lt-sm:w-full"
+          placeholder="搜索存储卷"
+        />
+      </template>
+
       <template #actions>
         <NButton type="primary" @click="openCreateDialog">新建存储卷</NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshVolumes">刷新存储卷</NButton>
@@ -79,15 +88,15 @@ async function submitCreate() {
       </template>
 
       <template #meta>
-        <NTag round size="small">存储卷 {{ controller.volumes.length }}</NTag>
+        <NTag round size="small">显示 {{ controller.filteredVolumes.length }} / {{ controller.volumes.length }}</NTag>
       </template>
     </DockerTabToolbar>
 
-    <NEmpty v-if="controller.volumes.length === 0" />
+    <NEmpty v-if="controller.filteredVolumes.length === 0" />
 
     <div v-else class="docker-card-list">
       <NCard
-        v-for="volume in controller.volumes"
+        v-for="volume in controller.filteredVolumes"
         :key="volume.name"
         class="docker-card"
         content-class="docker-card-content"

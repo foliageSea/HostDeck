@@ -208,6 +208,15 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 <template>
   <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <DockerTabToolbar>
+      <template #left>
+        <NInput
+          v-model:value="controller.networkSearchKeyword"
+          clearable
+          class="w-[min(220px,60vw)] lt-sm:w-full"
+          placeholder="搜索网络"
+        />
+      </template>
+
       <template #actions>
         <NButton type="primary" @click="openCreateDialog">新建网络</NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks">刷新网络</NButton>
@@ -215,15 +224,15 @@ function getConnectedContainersTitle(network: DockerNetwork) {
       </template>
 
       <template #meta>
-        <NTag round size="small">网络 {{ controller.networks.length }}</NTag>
+        <NTag round size="small">显示 {{ controller.filteredNetworks.length }} / {{ controller.networks.length }}</NTag>
       </template>
     </DockerTabToolbar>
 
-    <NEmpty v-if="controller.networks.length === 0" />
+    <NEmpty v-if="controller.filteredNetworks.length === 0" />
 
     <div v-else class="docker-card-list">
       <NCard
-        v-for="network in controller.networks"
+        v-for="network in controller.filteredNetworks"
         :key="network.id"
         class="docker-card"
         content-class="docker-card-content"

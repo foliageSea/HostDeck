@@ -41,11 +41,13 @@ export interface DockerContainerListParams {
   page?: number
   pageSize?: number
   status?: DockerContainerStatusFilter
+  keyword?: string
 }
 
 export interface DockerImageListParams {
   page?: number
   pageSize?: number
+  keyword?: string
 }
 
 export interface DockerContainerSummary {

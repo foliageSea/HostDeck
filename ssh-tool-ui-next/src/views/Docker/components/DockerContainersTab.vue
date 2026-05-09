@@ -108,12 +108,16 @@ function isPaused(container: DockerContainer) {
     :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
     <DockerTabToolbar>
       <template #left>
-        <NSelect :value="controller.containerStatusFilter" class="w-[128px]"
-          :options="controller.containerStatusOptions" size="small"
-          @update:value="controller.setContainerStatusFilter" />
-        <NDropdown trigger="click" :options="containerMoreActionOptions" @select="handleContainerMoreAction">
-          <NButton quaternary :loading="controller.batchProcessing">操作</NButton>
-        </NDropdown>
+        <div class="flex gap-1 items-center"> 
+          <NInput :value="controller.containerSearchKeyword" clearable class="w-[min(220px,60vw)] lt-sm:w-full"
+            placeholder="搜索容器"  @update:value="controller.setContainerSearchKeyword" />
+          <NSelect :value="controller.containerStatusFilter" class="w-[128px]"
+            :options="controller.containerStatusOptions" 
+            @update:value="controller.setContainerStatusFilter" />
+          <NDropdown trigger="click" :options="containerMoreActionOptions" @select="handleContainerMoreAction">
+            <NButton quaternary :loading="controller.batchProcessing">操作</NButton>
+          </NDropdown>
+        </div>
       </template>
 
       <template #actions>
@@ -149,12 +153,8 @@ function isPaused(container: DockerContainer) {
                 <div class="mt-[4px] min-w-0 text-[12px]"
                   :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'"
                   :title="container.id">
-                  <CopyableText
-                    :text="container.id"
-                    :display-text="container.id.slice(0, 12)"
-                    success-message="已复制容器 ID。"
-                    error-message="复制容器 ID 失败。"
-                  />
+                  <CopyableText :text="container.id" :display-text="container.id.slice(0, 12)"
+                    success-message="已复制容器 ID。" error-message="复制容器 ID 失败。" />
                 </div>
               </div>
             </div>
@@ -172,7 +172,7 @@ function isPaused(container: DockerContainer) {
             <div class="docker-card-field">
               <span>资源</span>
               <strong v-if="controller.containerResourceLoadedMap[container.id]">{{ getContainerResource(container)
-                }}</strong>
+              }}</strong>
               <NButton v-else text type="primary" :loading="controller.containerResourceLoadingMap[container.id]"
                 @click="controller.refreshContainerResource(container.id)">
                 获取资源
@@ -198,17 +198,12 @@ function isPaused(container: DockerContainer) {
               <span>IP</span>
               <div class="docker-card-chip-list" :title="getContainerNetworkIpsTitle(container)">
                 <template v-if="container.networks.some((item) => item.ipAddress)">
-                  <NTag
-                    v-for="network in container.networks.filter((item) => item.ipAddress).slice(0, 3)"
-                    :key="`${network.name}-${network.ipAddress}`"
-                    size="small"
-                    round
-                    type="info"
-                  >
+                  <NTag v-for="network in container.networks.filter((item) => item.ipAddress).slice(0, 3)"
+                    :key="`${network.name}-${network.ipAddress}`" size="small" round type="info">
                     {{ network.ipAddress }}
                   </NTag>
                   <span v-if="container.networks.filter((item) => item.ipAddress).length > 3">
-                    等 {{ container.networks.filter((item) => item.ipAddress).length }} 项
+                    等 {{container.networks.filter((item) => item.ipAddress).length}} 项
                   </span>
                 </template>
                 <template v-else>-</template>
@@ -219,9 +214,8 @@ function isPaused(container: DockerContainer) {
               <div class="docker-card-port-list" :title="getPortsTitle(container)">
                 <template v-if="container.ports.length">
                   <span v-for="port in container.ports.slice(0, 3)" :key="port" class="docker-card-port-item">
-                    <NButton
-                    class="mr-1"
-                    text type="primary" size="tiny" :disabled="!controller.getContainerPortUrl(port)"
+                    <NButton class="mr-1" text type="primary" size="tiny"
+                      :disabled="!controller.getContainerPortUrl(port)"
                       :title="controller.getContainerPortUrl(port) ? `打开 ${controller.getContainerPortUrl(port)}` : `${port} 未映射宿主机端口`"
                       @click.stop="controller.openContainerPort(port)">
                       {{ port }}
