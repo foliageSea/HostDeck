@@ -105,9 +105,6 @@ async function submitCreateComposeProject() {
         </div>
       </div>
 
-      <NSpace>
-        <NButton round quaternary @click="closeWindow">关闭</NButton>
-      </NSpace>
     </div>
 
     <div class="create-compose-body min-h-0 min-w-0 flex-1 overflow-hidden p-[18px]">
