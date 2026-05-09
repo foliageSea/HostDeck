@@ -1,15 +1,39 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Download, Upload } from '@vicons/carbon'
 import type { DockerImage } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
 import DockerTabToolbar from './DockerTabToolbar.vue'
 
-defineProps<{
+const props = defineProps<{
   controller: DockerViewController
 }>()
 
 const settingsStore = useSettingsStore()
+const imageImportInputRef = ref<HTMLInputElement | null>(null)
+
+function openImageImportPicker() {
+  if (props.controller.importingImage) {
+    return
+  }
+
+  imageImportInputRef.value?.click()
+}
+
+async function handleImageImportChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) {
+    return
+  }
+
+  try {
+    await props.controller.importImage(file)
+  } finally {
+    input.value = ''
+  }
+}
 
 function getImageStatus(image: DockerImage) {
   if (image.dangling) {
@@ -43,6 +67,9 @@ function getImageName(image: DockerImage) {
 <template>
   <div class="flex h-full min-h-0 flex-col overflow-hidden"
     :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+    <input ref="imageImportInputRef" type="file" hidden accept=".tar,.tar.gz,.tgz,application/x-tar,application/gzip,application/x-gzip"
+      @change="handleImageImportChange" />
+
     <DockerTabToolbar>
       <template #left>
         <div class="flex items-center gap-1">
@@ -61,10 +88,18 @@ function getImageName(image: DockerImage) {
       </template>
 
       <template #actions>
-        <NButton type="primary" :loading="controller.pullingImage" @click="controller.pullImage">
+        <NButton :loading="controller.importingImage" @click="openImageImportPicker">
           <template #icon>
             <NIcon>
               <Upload />
+            </NIcon>
+          </template>
+          导入镜像
+        </NButton>
+        <NButton type="primary" :loading="controller.pullingImage" @click="controller.pullImage">
+          <template #icon>
+            <NIcon>
+              <Download />
             </NIcon>
           </template>
           拉取镜像

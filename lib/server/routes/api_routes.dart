@@ -199,6 +199,7 @@ class ApiRoutes {
     router.post('/api/docker/images/prune', dockerController.pruneImages);
     router.delete('/api/docker/images/<id>', dockerController.removeImage);
     router.post('/api/docker/images/pull', dockerController.pullImage);
+    router.post('/api/docker/images/import', dockerController.importImage);
     router.post('/api/docker/images/tag', dockerController.tagImage);
     router.get('/api/docker/images/<id>/export', dockerController.exportImage);
     router.get(

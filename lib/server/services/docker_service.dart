@@ -388,6 +388,75 @@ class DockerService {
     );
   }
 
+  /// 导入镜像 tar 流
+  Future<String> importImage(
+    SshSession session,
+    Stream<List<int>> archive,
+  ) async {
+    final process = await session.client.execute(
+      'sh -lc ${_shellQuote('docker load')}',
+    );
+    final stdoutBuffer = BytesBuilder(copy: false);
+    final stderrBuffer = BytesBuilder(copy: false);
+    final stdoutDone = Completer<void>();
+    final stderrDone = Completer<void>();
+
+    final stdoutSubscription = process.stdout.listen(
+      stdoutBuffer.add,
+      onError: stdoutDone.completeError,
+      onDone: stdoutDone.complete,
+    );
+    final stderrSubscription = process.stderr.listen(
+      stderrBuffer.add,
+      onError: stderrDone.completeError,
+      onDone: stderrDone.complete,
+    );
+
+    try {
+      await process.stdin.addStream(
+        archive.map(
+          (chunk) => chunk is Uint8List ? chunk : Uint8List.fromList(chunk),
+        ),
+      );
+      await process.stdin.close();
+      await process.done;
+      await stdoutDone.future;
+      await stderrDone.future;
+
+      final stdout = utf8.decode(
+        stdoutBuffer.takeBytes(),
+        allowMalformed: true,
+      );
+      final stderr = utf8.decode(
+        stderrBuffer.takeBytes(),
+        allowMalformed: true,
+      );
+
+      if (process.exitCode != null && process.exitCode != 0) {
+        final output = [
+          stderr.trim(),
+          stdout.trim(),
+        ].where((value) => value.isNotEmpty).join('\n');
+        throw Exception(
+          output.isNotEmpty
+              ? output
+              : 'docker load failed with exit code ${process.exitCode}',
+        );
+      }
+
+      return [
+        stdout.trim(),
+        stderr.trim(),
+      ].where((value) => value.isNotEmpty).join('\n');
+    } catch (_) {
+      process.close();
+      rethrow;
+    } finally {
+      await stdoutSubscription.cancel();
+      await stderrSubscription.cancel();
+    }
+  }
+
   /// 镜像重新打标签
   Future<void> tagImage(
     SshSession session,

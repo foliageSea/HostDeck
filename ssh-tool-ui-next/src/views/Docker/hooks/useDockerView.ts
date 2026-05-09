@@ -90,6 +90,7 @@ export function useDockerView(props: DockerViewProps) {
   const inspectLoading = ref(false)
   const inspectTitle = ref('')
   const inspectContent = ref<unknown | null>(null)
+  const importingImage = ref(false)
   const pullingImage = ref(false)
   const pullImageName = ref('')
   const imageTagVisible = ref(false)
@@ -1021,6 +1022,23 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
+  async function importImage(file: File) {
+    importingImage.value = true
+    try {
+      const connectionId = requireConnectionId()
+      const formData = new FormData()
+      formData.append('file', file, file.name)
+      await queueDockerRequest(() => dockerApi.importImage(connectionId, formData))
+      getUiApi().message.success(`镜像归档 ${file.name} 导入完成。`)
+      await refreshTabsAfterChange('images')
+    } catch (error) {
+      console.error('Failed to import image', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '镜像导入失败。')
+    } finally {
+      importingImage.value = false
+    }
+  }
+
   async function handleComposeProjectAction(project: DockerComposeProject, action: 'up' | 'stop' | 'restart' | 'down') {
     const payload = getComposeProjectPayload(project)
     if (!payload) {
@@ -1552,6 +1570,8 @@ export function useDockerView(props: DockerViewProps) {
     imageTagTarget,
     imageTagVisible,
     imageTotal,
+    importImage,
+    importingImage,
     images,
     imageSearchKeyword,
     inspectContent,

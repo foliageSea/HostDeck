@@ -1,3 +1,4 @@
+import type { AxiosProgressEvent } from 'axios'
 import { http } from '@/lib/http'
 
 export interface DockerContainerNetwork {
@@ -538,6 +539,21 @@ export const dockerApi = {
       '/api/docker/images/pull',
       { image },
       { params: { connectionId } },
+    )
+    return response.data
+  },
+
+  async importImage(connectionId: string, formData: FormData, onUploadProgress?: (event: AxiosProgressEvent) => void) {
+    const response = await http.post<{ success: boolean; output: string }>(
+      '/api/docker/images/import',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress,
+        params: { connectionId },
+      },
     )
     return response.data
   },

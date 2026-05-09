@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:shelf/shelf.dart';
+import 'package:shelf_multipart/shelf_multipart.dart';
 
 import '../models/docker_container.dart';
 import '../models/docker_image.dart';
@@ -697,6 +699,35 @@ class DockerController {
 
         final output = await _dockerService.pullImage(session, image);
         return Result.ok({'success': true, 'output': output});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 导入镜像
+  Future<Response> importImage(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final multipart = request.multipart();
+        if (multipart == null) {
+          return Result.fail(400, 'Expected multipart request');
+        }
+
+        await for (final part in multipart.parts) {
+          final contentDisposition = part.headers['content-disposition'];
+          if (contentDisposition == null) continue;
+
+          final headerValue = HeaderValue.parse(contentDisposition);
+          final partName = headerValue.parameters['name'];
+          final filename = headerValue.parameters['filename'];
+          if (partName != 'file' || filename == null) continue;
+
+          final output = await _dockerService.importImage(session, part);
+          return Result.ok({'success': true, 'output': output});
+        }
+
+        return Result.fail(400, 'image archive is required');
       } catch (e) {
         return Result.fail(500, e.toString());
       }
