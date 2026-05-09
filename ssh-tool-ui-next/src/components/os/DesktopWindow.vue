@@ -21,8 +21,11 @@ let resizeStartClientX = 0
 let resizeStartClientY = 0
 
 const windowStyle = computed(() => {
+  const borderColor = isActive.value ? 'var(--app-primary-border-strong)' : 'var(--app-primary-soft-strong)'
+
   if (props.window.isMaximized) {
     return {
+      borderColor,
       bottom: '0',
       left: '0',
       right: '0',
@@ -32,6 +35,7 @@ const windowStyle = computed(() => {
   }
 
   return {
+    borderColor,
     height: `${props.window.height}px`,
     left: `${props.window.x}px`,
     minHeight: `${props.window.minHeight}px`,
@@ -132,16 +136,11 @@ onUnmounted(() => {
 
 <template>
   <section
-    class="absolute flex flex-col overflow-hidden rounded-[20px] opacity-100 backdrop-blur-[18px] transition-[opacity,transform,box-shadow,border-color] duration-[240ms] ease-in-out"
+    class="absolute flex flex-col overflow-hidden rounded-[20px] opacity-100 backdrop-blur-[18px] transition-[opacity,transform,box-shadow,border-color] duration-[240ms] ease-in-out border border-solid"
     :class="[
       settingsStore.isDark
         ? 'border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.72)] shadow-[0_28px_80px_rgba(2,6,23,0.35)]'
         : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.76)] shadow-[0_24px_72px_rgba(148,163,184,0.24)]',
-      isActive
-        ? settingsStore.isDark
-          ? 'border-[rgba(96,165,250,0.36)] shadow-[0_34px_96px_rgba(2,6,23,0.44)]'
-          : 'border-[rgba(59,130,246,0.32)] shadow-[0_28px_84px_rgba(59,130,246,0.16)]'
-        : '',
       {
         'h-auto': window.isMaximized,
         'invisible pointer-events-none opacity-0 scale-[0.92] translate-y-[14px]': window.isMinimized,

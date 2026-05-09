@@ -1,4 +1,11 @@
 :root {
+  --app-primary-color: #2563eb;
+  --app-primary-rgb: 37, 99, 235;
+  --app-primary-border: rgba(37, 99, 235, 0.55);
+  --app-primary-border-strong: rgba(37, 99, 235, 0.72);
+  --app-primary-soft: rgba(37, 99, 235, 0.16);
+  --app-primary-soft-strong: rgba(37, 99, 235, 0.24);
+
   font-family: Inter, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.5;
   font-weight: 400;
