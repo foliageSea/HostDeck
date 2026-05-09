@@ -18,6 +18,7 @@ export type DesktopAppId =
   | 'docker'
   | 'docker-create-container'
   | 'docker-create-compose'
+  | 'docker-compose-services'
   | 'settings'
   | 'logout'
   | 'editor'

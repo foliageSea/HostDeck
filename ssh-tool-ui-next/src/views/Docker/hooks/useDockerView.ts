@@ -1060,6 +1060,28 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
+  function openComposeServices(project: DockerComposeProject) {
+    try {
+      const connectionId = requireConnectionId()
+      const payload = getComposeProjectPayload(project)
+      if (!payload) {
+        getUiApi().message.warning('该编排项目缺少 compose 配置文件路径，无法加载服务。')
+        return
+      }
+
+      desktopStore.openWindow('docker-compose-services', {
+        connectionId,
+        host: props.host ?? sshStore.host,
+        project,
+        title: `编排服务 · ${project.name}`,
+        username: props.username ?? sshStore.username,
+      })
+    } catch (error) {
+      console.error('Failed to open compose services window', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '打开编排服务窗口失败。')
+    }
+  }
+
   async function loadComposeProjects() {
     const connectionId = requireConnectionId()
     const result = await queueDockerRequest(() => dockerApi.checkCompose(connectionId))
@@ -1497,6 +1519,7 @@ export function useDockerView(props: DockerViewProps) {
     logsVisible,
     networkSearchKeyword,
     networks,
+    openComposeServices,
     openImageTagDialog,
     openContainerPort,
     openCreateComposeProject,

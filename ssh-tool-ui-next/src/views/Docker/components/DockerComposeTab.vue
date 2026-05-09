@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ChevronDown } from '@vicons/carbon'
 import type { DockerComposeProject } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
@@ -20,34 +19,6 @@ function getConfigTitle(project: DockerComposeProject) {
   return files.length ? files.join('\n') : '未返回配置文件'
 }
 
-function formatComposePorts(ports: string) {
-  const rawPorts = ports.trim()
-  if (!rawPorts) {
-    return '-'
-  }
-
-  const publishers = rawPorts.match(/\{[^}]+\}/g)
-  if (!publishers) {
-    return rawPorts
-  }
-
-  const formattedPorts = publishers
-    .map((publisher) => {
-      const targetPort = publisher.match(/TargetPort:\s*([^,}]+)/)?.[1]?.trim()
-      const publishedPort = publisher.match(/PublishedPort:\s*([^,}]+)/)?.[1]?.trim()
-      const protocol = publisher.match(/Protocol:\s*([^,}]+)/)?.[1]?.trim()
-
-      if (!targetPort) {
-        return ''
-      }
-
-      const protocolSuffix = protocol ? `/${protocol}` : ''
-      return publishedPort ? `${publishedPort}:${targetPort}${protocolSuffix}` : `${targetPort}${protocolSuffix}`
-    })
-    .filter(Boolean)
-
-  return formattedPorts.length ? Array.from(new Set(formattedPorts)).join(', ') : rawPorts
-}
 </script>
 
 <template>
@@ -81,30 +52,23 @@ function formatComposePorts(ports: string) {
     <NEmpty v-else-if="controller.filteredComposeProjects.length === 0">
     </NEmpty>
 
-    <NCollapse v-else accordion :default-expanded-names="controller.selectedComposeProjectName" class="compose-project-list">
-      <NCollapseItem v-for="project in controller.filteredComposeProjects" :key="getProjectKey(project)" :name="project.name">
-        <template #header>
-          <div class="min-w-0 flex flex-1 items-center gap-[10px]">
+    <div v-else class="compose-project-list">
+      <div v-for="project in controller.filteredComposeProjects" :key="getProjectKey(project)" class="compose-project-card">
+        <div class="mb-[12px] flex flex-wrap items-center justify-between gap-[10px]">
+          <div class="min-w-0 flex items-center gap-[10px]">
             <strong class="truncate text-[15px]" :title="project.name">{{ project.name }}</strong>
             <NTag round size="small" :type="controller.getComposeStatusType(project)">{{ project.status || 'unknown' }}</NTag>
           </div>
-        </template>
 
-        <template #arrow>
-          <NIcon><ChevronDown /></NIcon>
-        </template>
-
-        <template #header-extra>
-          <NSpace size="small" @click.stop>
+          <NSpace size="small">
             <NButton size="tiny" quaternary :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'up')">启动</NButton>
             <NButton size="tiny" quaternary :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'stop')">停止</NButton>
             <NButton size="tiny" quaternary :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'restart')">重启</NButton>
             <NButton size="tiny" quaternary @click="controller.viewComposeLogs(project)">日志</NButton>
             <NButton size="tiny" quaternary type="error" :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'down')">Down</NButton>
           </NSpace>
-        </template>
+        </div>
 
-        <div class="compose-project-card">
           <div class="compose-project-meta">
             <div class="compose-project-field">
               <span>工作目录</span>
@@ -117,43 +81,10 @@ function formatComposePorts(ports: string) {
           </div>
 
           <div class="mt-[12px] flex flex-wrap items-center justify-end gap-[8px]">
-            <NButton size="small" quaternary :loading="controller.composeServiceLoadingMap[project.name]" @click="controller.refreshComposeServices(project)">加载服务</NButton>
+            <NButton size="small" quaternary @click="controller.openComposeServices(project)">加载服务</NButton>
           </div>
-
-          <div v-if="controller.composeServicesMap[project.name]?.length" class="compose-service-grid">
-            <NCard v-for="service in controller.composeServicesMap[project.name]" :key="service.id || service.name" size="small" :bordered="false" class="compose-service-card">
-              <template #header>
-                <div class="min-w-0">
-                  <div class="truncate text-[14px] font-600" :title="service.service || service.name">{{ service.service || service.name }}</div>
-                  <div class="mt-[3px] truncate text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.52)]' : 'text-[rgba(100,116,139,0.82)]'" :title="service.name">
-                    {{ service.name || '-' }}
-                  </div>
-                </div>
-              </template>
-
-              <template #header-extra>
-                <NTag round size="small" :type="controller.getComposeServiceStatusType(service)">{{ service.state || service.status || 'unknown' }}</NTag>
-              </template>
-
-              <div class="compose-service-fields">
-                <div class="compose-service-field wide">
-                  <span>镜像</span>
-                  <strong :title="service.image || '-'">{{ service.image || '-' }}</strong>
-                </div>
-                <div class="compose-service-field wide">
-                  <span>端口</span>
-                  <strong :title="service.ports || '-'">{{ formatComposePorts(service.ports) }}</strong>
-                </div>
-                <div class="compose-service-field wide">
-                  <span>状态</span>
-                  <strong :title="service.status || '-'">{{ service.status || '-' }}</strong>
-                </div>
-              </div>
-            </NCard>
-          </div>
-        </div>
-      </NCollapseItem>
-    </NCollapse>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -179,10 +110,9 @@ function formatComposePorts(ports: string) {
   min-height: 0;
   overflow: auto;
   padding-right: 4px;
-}
-
-.compose-project-list :deep(.n-collapse-item) {
-  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .compose-project-card {
@@ -192,35 +122,27 @@ function formatComposePorts(ports: string) {
   padding: 10px;
 }
 
-.compose-project-meta,
-.compose-service-fields {
+.compose-project-meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 7px;
 }
 
-.compose-project-field,
-.compose-service-field {
+.compose-project-field {
   min-width: 0;
   border-radius: 10px;
   background: var(--compose-field-bg);
   padding: 6px 8px;
 }
 
-.compose-service-field.wide {
-  grid-column: auto;
-}
-
-.compose-project-field span,
-.compose-service-field span {
+.compose-project-field span {
   display: block;
   margin-bottom: 2px;
   color: var(--compose-label-color);
   font-size: 11px;
 }
 
-.compose-project-field strong,
-.compose-service-field strong {
+.compose-project-field strong {
   display: block;
   overflow: hidden;
   color: var(--compose-value-color);
@@ -230,37 +152,9 @@ function formatComposePorts(ports: string) {
   white-space: nowrap;
 }
 
-.compose-service-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.compose-service-card {
-  width: 100%;
-  --n-color: transparent;
-  border: 1px solid var(--compose-card-border);
-  background: transparent;
-}
-
-.compose-service-card :deep(.n-card-header) {
-  padding: 10px 12px 8px;
-}
-
-.compose-service-card :deep(.n-card__content) {
-  padding: 0 12px 10px;
-}
-
 @media (max-width: 640px) {
-  .compose-project-meta,
-  .compose-service-fields,
-  .compose-service-grid {
+  .compose-project-meta {
     grid-template-columns: 1fr;
-  }
-
-  .compose-service-card {
-    width: 100%;
   }
 }
 </style>

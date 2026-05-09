@@ -8,6 +8,7 @@ import { basename, normalize } from '@/utils/path'
 import DashboardView from '@/views/Dashboard/index.vue'
 import DockerCreateComposeView from '@/views/Docker/components/DockerCreateComposeView.vue'
 import DockerCreateContainerView from '@/views/Docker/components/DockerCreateContainerView.vue'
+import DockerComposeServicesView from '@/views/Docker/components/DockerComposeServicesView.vue'
 import DockerView from '@/views/Docker/index.vue'
 import FilesView from '@/views/Files/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
@@ -359,6 +360,18 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 760,
         title: '新建编排',
         width: 860,
+      },
+      'docker-compose-services': {
+        component: markRaw(DockerComposeServicesView),
+        height: 680,
+        hide: true,
+        icon: 'docker',
+        id: 'docker-compose-services',
+        minimizable: false,
+        minHeight: 480,
+        minWidth: 760,
+        title: '编排服务',
+        width: 960,
       },
       'runtime-sessions': {
         component: markRaw(RuntimeSessionsView),
