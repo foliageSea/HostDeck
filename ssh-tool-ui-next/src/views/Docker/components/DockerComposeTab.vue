@@ -19,6 +19,10 @@ function getConfigTitle(project: DockerComposeProject) {
   return files.length ? files.join('\n') : '未返回配置文件'
 }
 
+function isComposeProjectRunning(project: DockerComposeProject) {
+  return project.status.toLowerCase().includes('running')
+}
+
 </script>
 
 <template>
@@ -61,9 +65,9 @@ function getConfigTitle(project: DockerComposeProject) {
           </div>
 
           <NSpace size="small">
-            <NButton size="tiny" quaternary :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'up')">启动</NButton>
-            <NButton size="tiny" quaternary :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'stop')">停止</NButton>
-            <NButton size="tiny" quaternary :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'restart')">重启</NButton>
+            <NButton v-if="isComposeProjectRunning(project)" size="tiny" quaternary :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'stop')">停止</NButton>
+            <NButton v-else size="tiny" quaternary :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'up')">启动</NButton>
+            <NButton size="tiny" quaternary :disabled="!isComposeProjectRunning(project)" :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'restart')">重启</NButton>
             <NButton size="tiny" quaternary @click="controller.viewComposeLogs(project)">日志</NButton>
             <NButton size="tiny" quaternary type="error" :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'down')">Down</NButton>
           </NSpace>
