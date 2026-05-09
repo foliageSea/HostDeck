@@ -30,6 +30,7 @@ body,
 #app {
   margin: 0;
   min-height: 100vh;
+  user-select: none;
 }
 
 body {
