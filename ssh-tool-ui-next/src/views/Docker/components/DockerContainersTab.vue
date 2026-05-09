@@ -411,9 +411,21 @@ function isPaused(container: DockerContainer) {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
+  overflow: hidden;
   color: var(--docker-card-value-color);
   font-size: 12px;
   font-weight: 500;
+}
+
+.docker-card-chip-list :deep(.n-tag) {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.docker-card-chip-list :deep(.n-tag__content) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .docker-card-port-item {
