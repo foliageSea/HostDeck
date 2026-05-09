@@ -551,6 +551,14 @@ export const dockerApi = {
     return response.data
   },
 
+  async exportImage(connectionId: string, imageId: string, image: string) {
+    const response = await http.get<Blob>(`/api/docker/images/${encodeURIComponent(imageId)}/export`, {
+      params: { connectionId, image },
+      responseType: 'blob',
+    })
+    return response.data
+  },
+
   async getImageHistory(connectionId: string, imageId: string) {
     const response = await http.get<DockerImageHistoryItem[]>(`/api/docker/images/${imageId}/history`, {
       params: { connectionId },

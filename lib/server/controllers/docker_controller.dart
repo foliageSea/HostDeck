@@ -145,6 +145,15 @@ class DockerController {
     return "'${value.replaceAll("'", "'\\''")}'";
   }
 
+  String _downloadFilenameForImage(String imageRef) {
+    final sanitized = imageRef
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+
+    return '${sanitized.isEmpty ? 'docker-image' : sanitized}.tar';
+  }
+
   /// 创建一个新的终端会话并进入容器 Shell
   ///
   /// 返回: { sessionId }
@@ -710,6 +719,34 @@ class DockerController {
         return Result.ok({'success': true});
       } catch (e) {
         return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 导出镜像
+  Future<Response> exportImage(Request request, String id) async {
+    return _withSession(request, (session) async {
+      try {
+        final imageRef =
+            request.url.queryParameters['image']?.toString().trim() ?? id;
+        if (imageRef.isEmpty) {
+          return Response.badRequest(body: 'image is required');
+        }
+
+        final stream = await _dockerService.exportImage(session, imageRef);
+        final filename = _downloadFilenameForImage(imageRef);
+        final encodedFilename = Uri.encodeComponent(filename);
+
+        return Response.ok(
+          stream,
+          headers: {
+            'content-type': 'application/x-tar',
+            'content-disposition':
+                "attachment; filename*=UTF-8''$encodedFilename",
+          },
+        );
+      } catch (e) {
+        return Response.internalServerError(body: e.toString());
       }
     });
   }

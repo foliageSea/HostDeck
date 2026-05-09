@@ -406,6 +406,72 @@ class DockerService {
     );
   }
 
+  /// 导出镜像 tar 流
+  Future<Stream<Uint8List>> exportImage(
+    SshSession session,
+    String imageRef,
+  ) async {
+    final normalizedImageRef = imageRef.trim();
+    if (normalizedImageRef.isEmpty) {
+      throw Exception('image is required');
+    }
+
+    await _engineRepository.requestJsonObject(
+      session,
+      method: 'GET',
+      path: '/images/${Uri.encodeComponent(normalizedImageRef)}/json',
+    );
+
+    final command =
+        'sh -lc ${_shellQuote('docker save ${_shellQuote(normalizedImageRef)}')}';
+    final process = await session.client.execute(command);
+    final controller = StreamController<Uint8List>();
+    final stderrBuffer = BytesBuilder(copy: false);
+    StreamSubscription<Uint8List>? stdoutSubscription;
+    StreamSubscription<Uint8List>? stderrSubscription;
+
+    controller.onListen = () {
+      stderrSubscription = process.stderr.listen((data) {
+        if (stderrBuffer.length < 8192) {
+          stderrBuffer.add(data);
+        }
+      });
+
+      stdoutSubscription = process.stdout.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: () async {
+          await process.done;
+          await stderrSubscription?.cancel();
+
+          if (process.exitCode != null && process.exitCode != 0) {
+            final stderr = utf8.decode(
+              stderrBuffer.takeBytes(),
+              allowMalformed: true,
+            );
+            controller.addError(
+              Exception(
+                stderr.trim().isEmpty
+                    ? 'docker save failed with exit code ${process.exitCode}'
+                    : stderr.trim(),
+              ),
+            );
+          }
+
+          await controller.close();
+        },
+      );
+    };
+
+    controller.onCancel = () async {
+      await stdoutSubscription?.cancel();
+      await stderrSubscription?.cancel();
+      process.close();
+    };
+
+    return controller.stream;
+  }
+
   /// 获取镜像历史
   Future<List<Map<String, dynamic>>> getImageHistory(
     SshSession session,

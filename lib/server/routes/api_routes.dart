@@ -200,6 +200,7 @@ class ApiRoutes {
     router.delete('/api/docker/images/<id>', dockerController.removeImage);
     router.post('/api/docker/images/pull', dockerController.pullImage);
     router.post('/api/docker/images/tag', dockerController.tagImage);
+    router.get('/api/docker/images/<id>/export', dockerController.exportImage);
     router.get(
       '/api/docker/images/<id>/history',
       dockerController.getImageHistory,

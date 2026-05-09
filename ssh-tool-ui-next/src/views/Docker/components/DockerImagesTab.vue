@@ -122,6 +122,8 @@ function getImageName(image: DockerImage) {
           <template #footer>
             <div class="docker-card-actions">
               <NButton size="tiny" quaternary @click="controller.openImageTagDialog(image)">Tag</NButton>
+              <NButton size="tiny" quaternary :loading="controller.imageExportingMap[image.id]"
+                @click="controller.exportImage(image)">导出</NButton>
               <NButton size="tiny" quaternary @click="controller.viewImageHistory(image)">历史</NButton>
               <NButton size="tiny" quaternary @click="controller.viewImageRefs(image)">引用</NButton>
               <NButton size="tiny" quaternary type="error" @click="controller.confirmRemoveImage(image)">删除</NButton>

@@ -96,6 +96,7 @@ export function useDockerView(props: DockerViewProps) {
   const imageTagging = ref(false)
   const imageTagSource = ref('')
   const imageTagTarget = ref('')
+  const imageExportingMap = ref<Record<string, boolean>>({})
   const imageHistoryVisible = ref(false)
   const imageHistoryLoading = ref(false)
   const imageHistoryTitle = ref('')
@@ -306,6 +307,26 @@ export function useDockerView(props: DockerViewProps) {
     window.URL.revokeObjectURL(url)
   }
 
+  function getImageRef(image: DockerImage) {
+    const repository = image.repository.trim()
+    const tag = image.tag.trim()
+
+    if (repository && tag && repository !== '<none>' && tag !== '<none>') {
+      return `${repository}:${tag}`
+    }
+
+    return image.id
+  }
+
+  function getImageExportFilename(image: DockerImage) {
+    const name = getImageRef(image)
+      .replace(/[^A-Za-z0-9._-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '')
+
+    return `${name || 'docker-image'}.tar`
+  }
+
   async function refreshLogs(silent = false) {
     if (!logsContainerId.value && !logsComposeProject.value) {
       return
@@ -355,6 +376,7 @@ export function useDockerView(props: DockerViewProps) {
     diagnosticsMap.value = {}
     containerResourceLoadingMap.value = {}
     containerResourceLoadedMap.value = {}
+    imageExportingMap.value = {}
     composeProjects.value = []
     composeServicesMap.value = {}
     composeServiceLoadingMap.value = {}
@@ -865,6 +887,34 @@ export function useDockerView(props: DockerViewProps) {
     imageTagSource.value = `${image.repository}:${image.tag}`
     imageTagTarget.value = ''
     imageTagVisible.value = true
+  }
+
+  async function exportImage(image: DockerImage) {
+    const imageRef = getImageRef(image)
+    imageExportingMap.value = {
+      ...imageExportingMap.value,
+      [image.id]: true,
+    }
+
+    try {
+      const connectionId = requireConnectionId()
+      const blob = await queueDockerRequest(() => dockerApi.exportImage(connectionId, image.id, imageRef))
+      const url = window.URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = getImageExportFilename(image)
+      anchor.click()
+      window.URL.revokeObjectURL(url)
+      getUiApi().message.success(`镜像 ${imageRef} 导出完成。`)
+    } catch (error) {
+      console.error('Failed to export image', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '镜像导出失败。')
+    } finally {
+      imageExportingMap.value = {
+        ...imageExportingMap.value,
+        [image.id]: false,
+      }
+    }
   }
 
   async function submitTagImage() {
@@ -1473,6 +1523,7 @@ export function useDockerView(props: DockerViewProps) {
     filteredComposeProjects,
     filteredNetworks,
     filteredVolumes,
+    exportImage,
     getComposeConfigFiles,
     getComposeServiceStatusType,
     getComposeStatusType,
@@ -1482,6 +1533,7 @@ export function useDockerView(props: DockerViewProps) {
     handleContainerPageSizeChange,
     handleImagePageChange,
     handleImagePageSizeChange,
+    imageExportingMap,
     imageHistoryColumns,
     imageHistoryItems,
     imageHistoryLoading,
