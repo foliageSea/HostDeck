@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Add, Pin, PinFilled } from '@vicons/carbon'
 import type { DockerContainer } from '@/api/docker'
+import CopyableText from '@/components/common/CopyableText.vue'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
 import DockerTabToolbar from './DockerTabToolbar.vue'
@@ -118,10 +119,15 @@ function isPaused(container: DockerContainer) {
                 @update:checked="toggleContainerSelection(container.id, $event)" />
               <div class="min-w-0 flex-1">
                 <div class="truncate text-[15px] font-600" :title="container.name">{{ container.name }}</div>
-                <div class="mt-[4px] truncate text-[12px]"
+                <div class="mt-[4px] min-w-0 text-[12px]"
                   :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'"
                   :title="container.id">
-                  {{ container.id.slice(0, 12) }}
+                  <CopyableText
+                    :text="container.id"
+                    :display-text="container.id.slice(0, 12)"
+                    success-message="已复制容器 ID。"
+                    error-message="复制容器 ID 失败。"
+                  />
                 </div>
               </div>
             </div>
