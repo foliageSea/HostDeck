@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Add, Pin, PinFilled } from '@vicons/carbon'
 import type { DockerContainer } from '@/api/docker'
 import CopyableText from '@/components/common/CopyableText.vue'
@@ -11,6 +12,34 @@ const props = defineProps<{
 }>()
 
 const settingsStore = useSettingsStore()
+const containerMoreActionOptions = computed(() => [
+  { key: 'batch-start', label: '批量启动' },
+  { key: 'batch-stop', label: '批量停止' },
+  { key: 'divider', type: 'divider' },
+  { key: 'cleanup-stopped', label: '清理已停止' },
+  { key: 'prune-dangling-images', label: '清理悬空镜像' },
+  { key: 'prune-unused-images', label: '清理无引用镜像' },
+])
+
+function handleContainerMoreAction(key: string) {
+  switch (key) {
+    case 'batch-start':
+      props.controller.batchStartSelected()
+      break
+    case 'batch-stop':
+      props.controller.batchStopSelected()
+      break
+    case 'cleanup-stopped':
+      props.controller.confirmRemoveStoppedContainers()
+      break
+    case 'prune-dangling-images':
+      props.controller.confirmPruneImages(false)
+      break
+    case 'prune-unused-images':
+      props.controller.confirmPruneImages(true)
+      break
+  }
+}
 
 function isContainerSelected(id: string) {
   return props.controller.selectedContainerIds.includes(id)
@@ -82,11 +111,9 @@ function isPaused(container: DockerContainer) {
         <NSelect :value="controller.containerStatusFilter" class="w-[128px]"
           :options="controller.containerStatusOptions" size="small"
           @update:value="controller.setContainerStatusFilter" />
-        <NButton quaternary :loading="controller.batchProcessing" @click="controller.batchStartSelected">批量启动</NButton>
-        <NButton quaternary :loading="controller.batchProcessing" @click="controller.batchStopSelected">批量停止</NButton>
-        <NButton quaternary @click="controller.confirmRemoveStoppedContainers">清理已停止</NButton>
-        <NButton quaternary @click="controller.confirmPruneImages(false)">清理悬空镜像</NButton>
-        <NButton quaternary @click="controller.confirmPruneImages(true)">清理无引用镜像</NButton>
+        <NDropdown trigger="click" :options="containerMoreActionOptions" @select="handleContainerMoreAction">
+          <NButton quaternary :loading="controller.batchProcessing">操作</NButton>
+        </NDropdown>
       </template>
 
       <template #actions>
