@@ -82,6 +82,21 @@ class ProcessService {
     return parseProcessDetail(output, pid);
   }
 
+  Future<ProcessDetail?> getProcessDetailOrNull(
+    SshSession session,
+    int pid,
+  ) async {
+    try {
+      return await getProcessDetail(session, pid);
+    } catch (error) {
+      final message = error.toString();
+      if (message.contains('Process $pid not found.')) {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
   Future<List<ProcessTreeNode>> getProcessTree(
     SshSession session, {
     String? keyword,

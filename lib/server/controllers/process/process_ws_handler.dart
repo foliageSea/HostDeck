@@ -29,6 +29,9 @@ class ProcessWsHandler {
         var sortBy = request.url.queryParameters['sortBy'] ?? 'cpu';
         var sortOrder = request.url.queryParameters['sortOrder'] ?? 'desc';
         var includeTree = request.url.queryParameters['includeTree'] == 'true';
+        var selectedPid = _parseSelectedPid(
+          request.url.queryParameters['selectedPid'],
+        );
 
         Future<Map<String, dynamic>> buildSnapshot(SshSession session) async {
           final processes = await _processService.listProcesses(
@@ -50,6 +53,19 @@ class ProcessWsHandler {
                 .buildProcessTree(processes)
                 .map((item) => item.toJson())
                 .toList();
+          }
+
+          if (selectedPid != null) {
+            final processExists = processes.any((item) => item.pid == selectedPid);
+            final detail = processExists
+                ? await _processService.getProcessDetailOrNull(
+                    session,
+                    selectedPid!,
+                  )
+                : null;
+            data['detail'] = detail?.toJson();
+          } else {
+            data['detail'] = null;
           }
 
           return data;
@@ -150,6 +166,7 @@ class ProcessWsHandler {
               final nextSortBy = payload['sortBy'];
               final nextSortOrder = payload['sortOrder'];
               final nextIncludeTree = payload['includeTree'];
+              final nextSelectedPid = payload['selectedPid'];
 
               keyword = nextKeyword is String && nextKeyword.trim().isNotEmpty
                   ? nextKeyword.trim()
@@ -165,6 +182,7 @@ class ProcessWsHandler {
                   ? nextSortOrder.trim()
                   : 'desc';
               includeTree = nextIncludeTree == true;
+              selectedPid = _parseSelectedPid(nextSelectedPid);
 
               unawaited(sendSnapshot());
             } catch (_) {}
@@ -176,5 +194,23 @@ class ProcessWsHandler {
         );
       })(request);
     };
+  }
+
+  int? _parseSelectedPid(Object? value) {
+    if (value is int) {
+      return value > 0 ? value : null;
+    }
+
+    if (value is String) {
+      final normalized = value.trim();
+      if (normalized.isEmpty) {
+        return null;
+      }
+
+      final pid = int.tryParse(normalized);
+      return pid != null && pid > 0 ? pid : null;
+    }
+
+    return null;
   }
 }

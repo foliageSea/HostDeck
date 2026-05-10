@@ -187,6 +187,7 @@ function handleSnapshot(payload: unknown) {
   const message = payload as {
     code?: number
     data?: {
+      detail?: ProcessDetail | null
       processes?: ProcessInfo[]
       refreshedAt?: number
       tree?: ProcessTreeNode[]
@@ -207,6 +208,10 @@ function handleSnapshot(payload: unknown) {
   if (Array.isArray(message.data.tree)) {
     processTree.value = message.data.tree
   }
+  if (detailVisible.value && selectedPid.value !== null) {
+    selectedProcessDetail.value = message.data.detail ?? null
+    detailLoading.value = false
+  }
   refreshAt.value = message.data.refreshedAt ? new Date(message.data.refreshedAt) : new Date()
   loading.value = false
   treeLoading.value = false
@@ -222,6 +227,7 @@ function sendWsFilters() {
     payload: {
       includeTree: activeTab.value === 'tree',
       keyword: keyword.value.trim() || undefined,
+      selectedPid: detailVisible.value ? selectedPid.value : undefined,
       sortBy: sortBy.value,
       sortOrder: sortOrder.value,
       user: userFilter.value || undefined,
@@ -312,15 +318,15 @@ async function openDetail(pid: number, visible = true) {
   }
 
   selectedPid.value = pid
+  selectedProcessDetail.value = null
+  detailLoading.value = true
   if (visible) {
     detailVisible.value = true
   }
 
-  detailLoading.value = true
-  try {
-    selectedProcessDetail.value = await processApi.getDetail(connectionId.value, pid)
-  } finally {
-    detailLoading.value = false
+  sendWsFilters()
+  if (wsStatus.value === 'connected') {
+    requestRefresh()
   }
 }
 
@@ -343,7 +349,7 @@ async function handleSignal(process: ProcessInfo, signal: ProcessSignal) {
         ui.message.success(`已向 PID ${process.pid} 发送 ${signal}。`)
         requestRefresh()
         if (selectedPid.value === process.pid) {
-          await openDetail(process.pid, false)
+          detailLoading.value = true
         }
       } catch (error) {
         console.error('Failed to send process signal', error)
@@ -406,7 +412,6 @@ async function submitStartProcess() {
     startCommand.value = ''
     startWorkingDirectory.value = ''
     startEnvironmentText.value = ''
-    requestRefresh()
     await openDetail(result.pid)
   } catch (error) {
     console.error('Failed to start process', error)
@@ -429,6 +434,22 @@ watch([keyword, userFilter, sortBy, sortOrder], () => {
     treeLoading.value = true
   }
   sendWsFilters()
+})
+
+watch(detailVisible, (value) => {
+  if (!value) {
+    selectedPid.value = null
+    selectedProcessDetail.value = null
+    detailLoading.value = false
+    sendWsFilters()
+    return
+  }
+
+  if (selectedPid.value !== null) {
+    detailLoading.value = true
+    sendWsFilters()
+    requestRefresh()
+  }
 })
 
 watch(connectionId, async () => {
@@ -545,7 +566,7 @@ onBeforeUnmount(() => {
     <NDrawer v-model:show="detailVisible" :width="drawerWidth" placement="right">
       <NDrawerContent title="进程详情" closable>
         <NSpin :show="detailLoading">
-          <NEmpty v-if="!selectedProcessDetail" description="请选择一个进程" />
+          <NEmpty v-if="!selectedProcessDetail" :description="selectedPid ? '该进程已结束或当前用户无权限查看。' : '请选择一个进程'" />
           <div v-else class="grid gap-[14px]">
             <div class="grid grid-cols-2 gap-[12px]">
               <NCard size="small" title="PID"><div class="text-[20px] font-700">{{ selectedProcessDetail.pid }}</div></NCard>
@@ -574,7 +595,7 @@ onBeforeUnmount(() => {
               <NButton secondary type="error" :loading="actionLoadingPid === selectedProcessDetail.pid" @click="handleSignal(selectedProcessDetail, 'KILL')">
                 强制结束
               </NButton>
-              <NButton quaternary @click="openDetail(selectedProcessDetail.pid, false)">刷新详情</NButton>
+              <NButton quaternary @click="detailLoading = true; requestRefresh()">刷新详情</NButton>
             </div>
           </div>
         </NSpin>
