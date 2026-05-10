@@ -59,6 +59,32 @@ const isVideoWallpaper = computed(() =>
 )
 const serverEditorTitle = computed(() => (serverEditorMode.value === 'create' ? '新建服务器' : '编辑服务器'))
 
+function getServerAvatarText(server: SavedServer) {
+  const source = server.username || server.name || server.host
+  return source.trim().slice(0, 1).toUpperCase() || '?'
+}
+
+function getServerAvatarGradient(server: SavedServer) {
+  const source = `${server.username}${server.id ?? ''}${server.host}${server.name}`
+  let hash = 0
+  for (let index = 0; index < source.length; index += 1) {
+    hash = source.charCodeAt(index) + ((hash << 5) - hash)
+  }
+
+  const hue = Math.abs(hash) % 360
+  return `linear-gradient(135deg, hsl(${hue} 82% 62%), hsl(${(hue + 42) % 360} 78% 48%))`
+}
+
+function selectFirstAvailableServer() {
+  const firstServer = sshStore.savedServers[0]
+  if (firstServer) {
+    applyServer(firstServer)
+    return
+  }
+
+  resetConnectionForm()
+}
+
 function applyConnectionForm(server: Pick<SavedServer, keyof ConnectionFormState>) {
   connectionForm.host = server.host
   connectionForm.password = server.password ?? ''
@@ -189,6 +215,11 @@ const isConnecting = computed(() => connectMutation.isPending.value)
 const isSavingServer = computed(() => saveServerMutation.isPending.value)
 
 function handleConnect() {
+  if (!selectedServer.value) {
+    getUiApi().message.warning('请先选择一个服务器。')
+    return
+  }
+
   connectMutation.mutate({
     host: connectionForm.host,
     password: connectionForm.password || undefined,
@@ -217,7 +248,12 @@ async function handleDeleteServer(serverId?: number) {
   try {
     await sshStore.removeServer(serverId)
     if (selectedServerId.value === serverId) {
-      resetConnectionForm()
+      const nextServer = sshStore.savedServers.find((server) => server.id !== serverId)
+      if (nextServer) {
+        applyServer(nextServer)
+      } else {
+        resetConnectionForm()
+      }
     }
 
     if (editingServerId.value === serverId) {
@@ -233,8 +269,11 @@ async function handleDeleteServer(serverId?: number) {
   }
 }
 
-onMounted(() => {
-  void sshStore.fetchServers()
+onMounted(async () => {
+  await sshStore.fetchServers()
+  if (!selectedServer.value) {
+    selectFirstAvailableServer()
+  }
 })
 </script>
 
@@ -259,103 +298,107 @@ onMounted(() => {
           { 'form-panel-shake': isShaking },
         ]"
       >
-        <div class="mb-[18px] flex items-start justify-between gap-[12px]">
+        <div class="mb-[22px] flex items-center justify-between gap-[16px]">
           <div>
-            <h2 class="mb-[4px] mt-0" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">连接服务器</h2>
-            <p class="m-0 text-[0.92rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.65)]' : 'text-[rgba(51,65,85,0.8)]'">支持保存、编辑和快速复用服务器连接配置。</p>
+            <h2 class="mb-[4px] mt-0" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">选择主机登录</h2>
           </div>
-          <NSpace>
+          <NSpace :wrap="false" :size="10">
             <NButton text @click="openCreateServerModal">新建</NButton>
-            <NButton text @click="resetConnectionForm">清空</NButton>
+            <NButton text @click="sshStore.fetchServers">刷新</NButton>
           </NSpace>
         </div>
 
-        <div class="mb-[18px]">
-          <div class="mb-[12px] flex items-center justify-between text-[0.92rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.78)]' : 'text-[rgba(51,65,85,0.8)]'">
-            <span>已保存服务器</span>
-            <NButton text @click="sshStore.fetchServers">刷新</NButton>
-          </div>
+        <NEmpty v-if="sshStore.savedServers.length === 0" description="暂无服务器头像" size="large">
+          <template #extra>
+            <NButton type="primary" @click="openCreateServerModal">添加服务器</NButton>
+          </template>
+        </NEmpty>
 
-          <NEmpty v-if="sshStore.savedServers.length === 0" description="暂无已保存服务器" size="small" />
-
-          <NSpace v-else vertical :size="12">
-            <NCard
+        <template v-else>
+          <div class="mb-[22px] grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-[14px]">
+            <button
               v-for="server in sshStore.savedServers"
               :key="server.id ?? `${server.host}-${server.port}`"
-              size="small"
-              embedded
-              class="cursor-pointer transition-[transform,border-color,background-color] duration-[180ms] ease-in-out hover:translate-y-[-1px]"
-              :class="{
-                'border-[rgba(96,165,250,0.52)] bg-[rgba(30,41,59,0.78)]': selectedServer?.id === server.id && settingsStore.isDark,
-                'border-[rgba(59,130,246,0.38)] bg-[rgba(219,234,254,0.6)]': selectedServer?.id === server.id && !settingsStore.isDark,
-              }"
+              type="button"
+              class="group rounded-[24px] border border-transparent px-[12px] py-[16px] text-center transition-[transform,border-color,background-color,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-3px]"
+              :class="[
+                selectedServer?.id === server.id
+                  ? settingsStore.isDark
+                    ? 'border-[rgba(147,197,253,0.86)] bg-[rgba(37,99,235,0.28)] shadow-[0_0_0_3px_rgba(96,165,250,0.2),0_22px_55px_rgba(15,23,42,0.42)]'
+                    : 'border-[rgba(37,99,235,0.58)] bg-[rgba(219,234,254,0.86)] shadow-[0_0_0_3px_rgba(59,130,246,0.16),0_22px_55px_rgba(37,99,235,0.18)]'
+                  : settingsStore.isDark
+                    ? 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
+                    : 'bg-[rgba(255,255,255,0.46)] hover:bg-[rgba(255,255,255,0.78)]',
+              ]"
               @click="applyServer(server)"
             >
-              <div class="flex items-center justify-between gap-[16px]">
-                <div>
-                  <div class="font-600" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">{{ server.name || server.host }}</div>
-                  <div class="text-[0.85rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.68)]' : 'text-[rgba(51,65,85,0.8)]'">{{ server.username }}@{{ server.host }}:{{ server.port }}</div>
+              <div class="mx-auto mb-[10px] grid h-[58px] w-[58px] place-items-center rounded-full shadow-[0_14px_28px_rgba(15,23,42,0.24)] transition-transform duration-[180ms] group-hover:scale-[1.05]">
+                <div
+                  class="grid h-full w-full place-items-center rounded-full text-[1.45rem] font-800 text-white"
+                  :style="{ background: getServerAvatarGradient(server) }"
+                >
+                  {{ getServerAvatarText(server) }}
                 </div>
-                <NSpace :size="8" @click.stop>
-                  <NButton quaternary size="small" @click="openEditServerModal(server)">
-                    编辑
-                  </NButton>
-                  <NPopconfirm :positive-button-props="{ loading: deletingServerId === server.id }"
-                    @positive-click="handleDeleteServer(server.id)">
-                    <template #trigger>
-                      <NButton quaternary type="error" size="small">
-                        删除
-                      </NButton>
-                    </template>
-                    删除该服务器配置？
-                  </NPopconfirm>
-                </NSpace>
               </div>
-            </NCard>
-          </NSpace>
-        </div>
+              <div class="truncate font-600" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">
+                {{ server.username }}
+              </div>
+              <div class="mt-[3px] truncate text-[0.78rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.68)]' : 'text-[rgba(51,65,85,0.76)]'">
+                {{ server.name || server.host }}
+              </div>
+              <div class="mt-[3px] text-[0.72rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.5)]' : 'text-[rgba(51,65,85,0.58)]'">
+                端口 {{ server.port }}
+              </div>
+            </button>
+          </div>
 
-        <NForm label-placement="top" :model="connectionForm" @submit.prevent="handleConnect">
-          <NGrid :cols="2" :x-gap="12">
-            <NFormItemGi label="主机" path="host">
-              <NInput v-model:value="connectionForm.host" placeholder="127.0.0.1" />
-            </NFormItemGi>
-            <NFormItemGi label="端口" path="port">
-              <NInputNumber v-model:value="connectionForm.port" :min="1" :max="65535" class="w-full" />
-            </NFormItemGi>
-          </NGrid>
+          <div
+            class="mb-[18px] rounded-[18px] p-[14px]"
+            :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.38)]' : 'bg-[rgba(255,255,255,0.48)]'"
+          >
+            <div class="flex items-center justify-between gap-[12px]">
+              <div class="min-w-0">
+                <div class="text-[0.78rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.58)]' : 'text-[rgba(51,65,85,0.62)]'">当前登录</div>
+                <div class="mt-[3px] truncate text-[1rem] font-600" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">
+                  {{ selectedServer?.name || selectedServer?.host }}
+                </div>
+                <div class="mt-[3px] truncate text-[0.85rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.72)]' : 'text-[rgba(51,65,85,0.78)]'">
+                  {{ selectedServer?.username }}@{{ selectedServer?.host }}:{{ selectedServer?.port }}
+                </div>
+              </div>
 
-          <NGrid :cols="2" :x-gap="12">
-            <NFormItemGi label="用户名" path="username">
-              <NInput v-model:value="connectionForm.username" placeholder="root" />
-            </NFormItemGi>
-            <NFormItemGi label="密码" path="password">
-              <NInput v-model:value="connectionForm.password" type="password" show-password-on="click" placeholder="可选" />
-            </NFormItemGi>
-          </NGrid>
+              <NSpace :size="8" @click.stop>
+                <NButton quaternary size="small" :disabled="!selectedServer" @click="selectedServer && openEditServerModal(selectedServer)">
+                  编辑
+                </NButton>
+                <NPopconfirm
+                  :positive-button-props="{ loading: deletingServerId === selectedServer?.id }"
+                  @positive-click="handleDeleteServer(selectedServer?.id)"
+                >
+                  <template #trigger>
+                    <NButton quaternary type="error" size="small" :disabled="!selectedServer">
+                      删除
+                    </NButton>
+                  </template>
+                  删除该服务器配置？
+                </NPopconfirm>
+              </NSpace>
+            </div>
+          </div>
 
-          <NFormItem label="私钥" path="privateKey">
-            <NInput
-              v-model:value="connectionForm.privateKey"
-              type="textarea"
-              :rows="4"
-              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
-            />
-          </NFormItem>
-
-          <NSpace vertical :size="12">
+          <form @submit.prevent="handleConnect">
             <NButton
               attr-type="submit"
               type="primary"
               block
               size="large"
               :loading="isConnecting"
-              :disabled="!connectionForm.host || !connectionForm.username"
+              :disabled="!selectedServer || !connectionForm.host || !connectionForm.username"
             >
-              连接并进入桌面
+              连接
             </NButton>
-          </NSpace>
-        </NForm>
+          </form>
+        </template>
       </section>
 
       <NModal v-model:show="serverEditorVisible" preset="card" :title="serverEditorTitle" style="width: min(560px, 92vw)">
