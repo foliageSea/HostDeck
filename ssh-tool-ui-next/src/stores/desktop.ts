@@ -12,6 +12,7 @@ import DockerComposeServicesView from '@/views/Docker/components/DockerComposeSe
 import DockerView from '@/views/Docker/index.vue'
 import FilesView from '@/views/Files/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
+import ProcessesView from '@/views/Processes/index.vue'
 import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
 import SettingsView from '@/views/Settings/index.vue'
 import TerminalView from '@/views/Terminal/index.vue'
@@ -314,6 +315,17 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 880,
         title: '性能监控',
         width: 1180,
+        hide: false,
+      },
+      processes: {
+        component: markRaw(ProcessesView),
+        height: 760,
+        icon: 'process',
+        id: 'processes',
+        minHeight: 560,
+        minWidth: 960,
+        title: '进程管理',
+        width: 1220,
         hide: false,
       },
       files: {

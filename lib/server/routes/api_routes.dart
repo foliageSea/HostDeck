@@ -5,6 +5,7 @@ import '../controllers/file_controller.dart';
 import '../controllers/terminal_controller.dart';
 import '../controllers/server_controller.dart';
 import '../controllers/docker_controller.dart';
+import '../controllers/process_controller.dart';
 import '../controllers/runtime_controller.dart';
 
 class ApiRoutes {
@@ -14,6 +15,7 @@ class ApiRoutes {
   final TerminalController terminalController;
   final ServerController serverController;
   final DockerController dockerController;
+  final ProcessController processController;
   final RuntimeController runtimeController;
 
   ApiRoutes({
@@ -23,6 +25,7 @@ class ApiRoutes {
     required this.terminalController,
     required this.serverController,
     required this.dockerController,
+    required this.processController,
     required this.runtimeController,
   });
 
@@ -42,6 +45,14 @@ class ApiRoutes {
     // Runtime
     router.get('/api/runtime/sessions', runtimeController.listSessions);
     router.get('/api/ws/runtime', runtimeController.wsSessions);
+
+    // Processes
+    router.get('/api/processes', processController.listProcesses);
+    router.get('/api/ws/processes', processController.wsProcesses);
+    router.get('/api/processes/tree', processController.getProcessTree);
+    router.get('/api/processes/<pid>', processController.getProcessDetail);
+    router.post('/api/processes/<pid>/signal', processController.sendSignal);
+    router.post('/api/processes/start', processController.startProcess);
 
     // System
     router.get('/api/status', systemController.status);
