@@ -473,16 +473,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    class="flex h-full min-h-0 flex-col gap-[16px] overflow-hidden p-[18px]"
-    :class="settingsStore.isDark
-      ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))]'
-      : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(226,232,240,0.38))]'"
-  >
+  <div class="flex h-full min-h-0 flex-col gap-[16px] overflow-hidden p-[18px]" :class="settingsStore.isDark
+    ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))]'
+    : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(226,232,240,0.38))]'">
     <div class="flex flex-wrap items-start justify-between gap-[16px]">
       <div>
         <div class="mb-[6px] flex items-center gap-[8px]">
-          <NIcon :size="20"><TreeView /></NIcon>
+          <NIcon :size="20">
+            <TreeView />
+          </NIcon>
           <h2 class="m-0 text-[20px]">进程管理</h2>
         </div>
         <div :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">
@@ -493,12 +492,21 @@ onBeforeUnmount(() => {
       <div class="flex flex-wrap items-center gap-[10px]">
         <NTag round size="small">{{ formatWsStatus(wsStatus) }}</NTag>
         <NTag round size="small">最近刷新 {{ formatRefreshAt(refreshAt) }}</NTag>
-        <NButton quaternary :loading="loading || treeLoading" :disabled="wsStatus !== 'connected'" @click="requestRefresh">
-          <template #icon><NIcon><Renew /></NIcon></template>
+        <NButton quaternary :loading="loading || treeLoading" :disabled="wsStatus !== 'connected'"
+          @click="requestRefresh">
+          <template #icon>
+            <NIcon>
+              <Renew />
+            </NIcon>
+          </template>
           刷新
         </NButton>
         <NButton type="primary" @click="showStartModal = true">
-          <template #icon><NIcon><Play /></NIcon></template>
+          <template #icon>
+            <NIcon>
+              <Play />
+            </NIcon>
+          </template>
           启动进程
         </NButton>
       </div>
@@ -506,58 +514,53 @@ onBeforeUnmount(() => {
 
     <div class="grid grid-cols-[minmax(0,1fr)_240px_auto_auto] gap-[12px] lt-lg:grid-cols-1">
       <NInput v-model:value="keyword" clearable placeholder="搜索 PID / 用户 / 命令" @keyup.enter="requestRefresh">
-        <template #prefix><NIcon><Search /></NIcon></template>
+        <template #prefix>
+          <NIcon>
+            <Search />
+          </NIcon>
+        </template>
       </NInput>
       <NSelect v-model:value="userFilter" clearable :options="userOptions" placeholder="按用户筛选" />
-      <NSelect
-        v-model:value="sortBy"
-        :options="[
-          { label: '按 CPU', value: 'cpu' },
-          { label: '按内存', value: 'memory' },
-          { label: '按 PID', value: 'pid' },
-          { label: '按用户', value: 'user' },
-          { label: '按命令', value: 'command' },
-        ]"
-        class="w-[120px]"
-      />
-      <NSelect
-        v-model:value="sortOrder"
-        :options="[
-          { label: '降序', value: 'desc' },
-          { label: '升序', value: 'asc' },
-        ]"
-        class="w-[100px]"
-      />
+      <NSelect v-model:value="sortBy" :options="[
+        { label: '按 CPU', value: 'cpu' },
+        { label: '按内存', value: 'memory' },
+        { label: '按 PID', value: 'pid' },
+        { label: '按用户', value: 'user' },
+        { label: '按命令', value: 'command' },
+      ]" class="w-[120px]" />
+      <NSelect v-model:value="sortOrder" :options="[
+        { label: '降序', value: 'desc' },
+        { label: '升序', value: 'asc' },
+      ]" class="w-[100px]" />
     </div>
 
-    <NTabs v-model:value="activeTab" animated type="line" class="min-h-0 flex-1">
-      <NTabPane name="list" tab="进程列表" class="min-h-0">
-        <NCard :bordered="false" class="h-full rounded-[18px]" :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'">
+    <NTabs v-model:value="activeTab" animated type="line" class="process-tabs min-h-0 flex-1">
+      <NTabPane name="list" tab="进程列表" class="h-full min-h-0">
+        <NCard :bordered="false" class="process-card h-full min-h-0 rounded-[18px]"
+          :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'">
           <NSpin :show="loading" class="h-full min-h-0">
-            <NEmpty v-if="!loading && processes.length === 0" description="未找到匹配进程" class="h-full min-h-[240px] justify-center" />
+            <NEmpty v-if="!loading && processes.length === 0" description="未找到匹配进程"
+              class="h-full min-h-[240px] justify-center" />
             <div v-else class="process-table-shell">
-              <NDataTable :bordered="false" :single-line="false" :pagination="{ pageSize: 12 }" :columns="processColumns" :data="processes" />
+              <NDataTable class="process-table" :bordered="false" :single-line="false" :pagination="{ pageSize: 12 }"
+                :columns="processColumns" :data="processes" flex-height />
             </div>
           </NSpin>
         </NCard>
       </NTabPane>
 
-      <NTabPane name="tree" tab="进程树" class="min-h-0">
-        <NCard :bordered="false" class="h-full rounded-[18px]" :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'">
+      <NTabPane name="tree" tab="进程树" class="h-full min-h-0 overflow-auto app-scrollbar">
+        <NCard :bordered="false" class="process-card h-full min-h-0 rounded-[18px] overflow-auto"
+          :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'">
           <NSpin :show="treeLoading" class="h-full min-h-0">
-            <NEmpty v-if="!treeLoading && treeOptions.length === 0" description="没有可展示的进程树" class="h-full min-h-[240px] justify-center" />
-            <NTree
-              v-else
-              block-line
-              block-node
-              :data="treeOptions"
-              selectable
-              key-field="key"
-              label-field="label"
-              children-field="children"
-              class="process-tree"
-              @update:selected-keys="(keys: Array<string | number>) => { const pid = Number(keys[0]); if (pid) { void openDetail(pid) } }"
-            />
+            <NEmpty v-if="!treeLoading && treeOptions.length === 0" description="没有可展示的进程树"
+              class="h-full min-h-[240px] justify-center" />
+            <div v-else class="process-tree-shell "
+              :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'">
+              <NTree block-line block-node :data="treeOptions" selectable key-field="key" label-field="label"
+                children-field="children" class="process-tree"
+                @update:selected-keys="(keys: Array<string | number>) => { const pid = Number(keys[0]); if (pid) { void openDetail(pid) } }" />
+            </div>
           </NSpin>
         </NCard>
       </NTabPane>
@@ -569,10 +572,18 @@ onBeforeUnmount(() => {
           <NEmpty v-if="!selectedProcessDetail" :description="selectedPid ? '该进程已结束或当前用户无权限查看。' : '请选择一个进程'" />
           <div v-else class="grid gap-[14px]">
             <div class="grid grid-cols-2 gap-[12px]">
-              <NCard size="small" title="PID"><div class="text-[20px] font-700">{{ selectedProcessDetail.pid }}</div></NCard>
-              <NCard size="small" title="PPID"><div class="text-[20px] font-700">{{ selectedProcessDetail.ppid }}</div></NCard>
-              <NCard size="small" title="CPU"><div class="text-[20px] font-700">{{ selectedProcessDetail.cpuPercent.toFixed(1) }}%</div></NCard>
-              <NCard size="small" title="内存"><div class="text-[20px] font-700">{{ selectedProcessDetail.memoryPercent.toFixed(1) }}%</div></NCard>
+              <NCard size="small" title="PID">
+                <div class="text-[20px] font-700">{{ selectedProcessDetail.pid }}</div>
+              </NCard>
+              <NCard size="small" title="PPID">
+                <div class="text-[20px] font-700">{{ selectedProcessDetail.ppid }}</div>
+              </NCard>
+              <NCard size="small" title="CPU">
+                <div class="text-[20px] font-700">{{ selectedProcessDetail.cpuPercent.toFixed(1) }}%</div>
+              </NCard>
+              <NCard size="small" title="内存">
+                <div class="text-[20px] font-700">{{ selectedProcessDetail.memoryPercent.toFixed(1) }}%</div>
+              </NCard>
             </div>
 
             <NDescriptions bordered label-placement="left" :column="1" size="small">
@@ -588,11 +599,17 @@ onBeforeUnmount(() => {
             </NDescriptions>
 
             <div class="flex gap-[10px]">
-              <NButton secondary type="warning" :loading="actionLoadingPid === selectedProcessDetail.pid" @click="handleSignal(selectedProcessDetail, 'TERM')">
-                <template #icon><NIcon><Stop /></NIcon></template>
+              <NButton secondary type="warning" :loading="actionLoadingPid === selectedProcessDetail.pid"
+                @click="handleSignal(selectedProcessDetail, 'TERM')">
+                <template #icon>
+                  <NIcon>
+                    <Stop />
+                  </NIcon>
+                </template>
                 TERM
               </NButton>
-              <NButton secondary type="error" :loading="actionLoadingPid === selectedProcessDetail.pid" @click="handleSignal(selectedProcessDetail, 'KILL')">
+              <NButton secondary type="error" :loading="actionLoadingPid === selectedProcessDetail.pid"
+                @click="handleSignal(selectedProcessDetail, 'KILL')">
                 强制结束
               </NButton>
               <NButton quaternary @click="detailLoading = true; requestRefresh()">刷新详情</NButton>
@@ -605,13 +622,15 @@ onBeforeUnmount(() => {
     <NModal v-model:show="showStartModal" preset="card" title="启动新进程" style="width: min(720px, 94vw)">
       <NForm label-placement="top">
         <NFormItem label="启动命令">
-          <NInput v-model:value="startCommand" type="textarea" :autosize="{ minRows: 3, maxRows: 6 }" placeholder="例如：python app.py --port 8080" />
+          <NInput v-model:value="startCommand" type="textarea" :autosize="{ minRows: 3, maxRows: 6 }"
+            placeholder="例如：python app.py --port 8080" />
         </NFormItem>
         <NFormItem label="工作目录">
           <NInput v-model:value="startWorkingDirectory" placeholder="例如：/srv/app" />
         </NFormItem>
         <NFormItem label="环境变量">
-          <NInput v-model:value="startEnvironmentText" type="textarea" :autosize="{ minRows: 4, maxRows: 8 }" placeholder="每行一个 KEY=value" />
+          <NInput v-model:value="startEnvironmentText" type="textarea" :autosize="{ minRows: 4, maxRows: 8 }"
+            placeholder="每行一个 KEY=value" />
         </NFormItem>
       </NForm>
 
@@ -626,12 +645,68 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.process-tabs {
+  height: 100%;
+  min-height: 0;
+}
+
+.process-tabs :deep(.n-tabs-wrapper),
+.process-tabs :deep(.n-tabs-content-holder),
+.process-tabs :deep(.n-tabs-content) {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.process-tabs :deep(.n-tabs-content-holder),
+.process-tabs :deep(.n-tabs-content),
+.process-tabs :deep(.n-tabs-pane-wrapper),
+.process-tabs :deep(.n-tab-pane) {
+  height: 100%;
+  min-height: 0;
+}
+
+.process-tabs :deep(.n-tabs-pane-wrapper) {
+  overflow: hidden;
+}
+
+.process-card :deep(.n-card__content) {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.process-card :deep(.n-spin-container),
+.process-card :deep(.n-spin-content) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.process-card :deep(.n-spin-content) {
+  display: flex;
+  flex-direction: column;
+}
+
 .process-table-shell {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.process-table {
+  height: 100%;
+  min-height: 0;
+}
+
+.process-tree-shell {
+  flex: 1;
   min-height: 0;
 }
 
 .process-tree {
-  min-height: 0;
-  overflow: auto;
+  min-width: max-content;
 }
 </style>
