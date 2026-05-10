@@ -87,7 +87,12 @@ const processColumns: DataTableColumns<ProcessInfo> = [
     render: (row: ProcessInfo) => `${row.memoryPercent.toFixed(1)}%`,
   },
   { title: '状态', key: 'state', width: 80 },
-  { title: '运行时长', key: 'elapsed', width: 110 },
+  {
+    title: '运行时长',
+    key: 'elapsed',
+    width: 132,
+    render: (row: ProcessInfo) => h('span', { title: row.elapsed }, formatElapsed(row.elapsed)),
+  },
   { title: '命令', key: 'commandLine', ellipsis: { tooltip: true } },
   {
     title: '操作',
@@ -160,6 +165,32 @@ function formatWsStatus(value: typeof wsStatus.value) {
   }
 
   return '实时推送已断开'
+}
+
+function formatElapsed(value?: string) {
+  const totalSeconds = Number(value)
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+    return value?.trim() || '-'
+  }
+
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = Math.floor(totalSeconds % 60)
+
+  if (days > 0) {
+    return `${days}天 ${hours}小时 ${minutes}分钟`
+  }
+
+  if (hours > 0) {
+    return `${hours}小时 ${minutes}分钟`
+  }
+
+  if (minutes > 0) {
+    return `${minutes}分钟 ${seconds}秒`
+  }
+
+  return `${seconds}秒`
 }
 
 function stopProcessWs() {
@@ -594,7 +625,7 @@ onBeforeUnmount(() => {
               <NDescriptionsItem label="PGID">{{ selectedProcessDetail.pgid }}</NDescriptionsItem>
               <NDescriptionsItem label="SID">{{ selectedProcessDetail.sid }}</NDescriptionsItem>
               <NDescriptionsItem label="启动时间">{{ selectedProcessDetail.startTime }}</NDescriptionsItem>
-              <NDescriptionsItem label="运行时长">{{ selectedProcessDetail.elapsed }}</NDescriptionsItem>
+              <NDescriptionsItem label="运行时长">{{ formatElapsed(selectedProcessDetail.elapsed) }}</NDescriptionsItem>
               <NDescriptionsItem label="命令行">{{ selectedProcessDetail.commandLine }}</NDescriptionsItem>
             </NDescriptions>
 
