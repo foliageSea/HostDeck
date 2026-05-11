@@ -14,8 +14,8 @@ class SshRepository {
     SshSession session,
     String command,
   ) async {
-    final result = await session.client.runWithResult(
-      'sh -lc ${_shellQuote(command)}',
+    final result = await session.runOperation(
+      () => session.client.runWithResult('sh -lc ${_shellQuote(command)}'),
     );
     final stdout = utf8.decode(result.stdout).trim();
     final stderr = utf8.decode(result.stderr).trim();
@@ -39,7 +39,9 @@ class SshRepository {
   }
 
   Future<Uint8List> execBytes(SshSession session, String command) async {
-    final result = await session.client.run(command);
+    final result = await session.runOperation(
+      () => session.client.run(command),
+    );
     return result;
   }
 
@@ -135,7 +137,7 @@ class SshRepository {
   Future<void> copy(SshSession session, String source, String target) async {
     // 使用 cp -r 命令进行复制，这比 SFTP 读写更高效
     final cmd = 'cp -r ${_shellQuote(source)} ${_shellQuote(target)}';
-    await session.client.run(cmd);
+    await session.runOperation(() => session.client.run(cmd));
   }
 
   Future<void> extract(
@@ -183,8 +185,18 @@ class SshRepository {
     // 更稳妥的方式：cd 到公共父目录。
     // 这里简单实现：直接 tar
     final cmd = 'tar -czf - $quotedPaths';
-    final sshSession = await session.client.execute(cmd);
-    return sshSession.stdout;
+    final permit = await session.acquireOperation();
+    try {
+      final sshSession = await session.client.execute(cmd);
+      return _releaseOperationWhenStreamDone(
+        sshSession.stdout,
+        permit.release,
+        onCancel: sshSession.close,
+      );
+    } catch (_) {
+      permit.release();
+      rethrow;
+    }
   }
 
   Future<void> delete(SshSession session, String path) async {
@@ -192,7 +204,7 @@ class SshRepository {
     // 使用 rm -rf 命令通过 SSH 执行进行递归删除，更可靠且支持非空目录
     // 使用单引号包裹路径以避免 Shell 扩展，并转义路径中已有的单引号
     final cmd = 'rm -rf ${_shellQuote(path)}';
-    final result = await session.client.run(cmd);
+    final result = await session.runOperation(() => session.client.run(cmd));
     if (result.isNotEmpty) {
       final output = utf8.decode(result);
       // rm -rf 成功时通常没有输出，如果有输出通常表示错误
@@ -216,5 +228,43 @@ class SshRepository {
       throw StateError('Shell is not initialized for session ${session.id}');
     }
     shell.write(Uint8List.fromList(utf8.encode(data)));
+  }
+
+  Stream<Uint8List> _releaseOperationWhenStreamDone(
+    Stream<Uint8List> stream,
+    void Function() release, {
+    void Function()? onCancel,
+  }) {
+    final controller = StreamController<Uint8List>();
+    StreamSubscription<Uint8List>? subscription;
+    var released = false;
+
+    void releaseOnce() {
+      if (released) {
+        return;
+      }
+
+      released = true;
+      release();
+    }
+
+    controller.onListen = () {
+      subscription = stream.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: () async {
+          releaseOnce();
+          await controller.close();
+        },
+      );
+    };
+
+    controller.onCancel = () async {
+      await subscription?.cancel();
+      onCancel?.call();
+      releaseOnce();
+    };
+
+    return controller.stream;
   }
 }

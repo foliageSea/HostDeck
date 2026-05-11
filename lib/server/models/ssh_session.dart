@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:dartssh2/dartssh2.dart';
 
+import 'ssh_operation_limiter.dart';
+
 class SshSession {
   final String id;
   final String connectionId;
   final SSHClient client;
   final SSHSession? shell;
+  final SshOperationLimiter operationLimiter;
   final StreamController<String> _outputController;
   SftpClient? _sftpClient;
   Future<SftpClient>? _sftpInitFuture;
@@ -14,6 +17,14 @@ class SshSession {
   Stream<String> get output => _outputController.stream;
   StreamController<String> get outputController => _outputController;
 
+  Future<SshOperationPermit> acquireOperation() {
+    return operationLimiter.acquire();
+  }
+
+  Future<T> runOperation<T>(FutureOr<T> Function() action) {
+    return operationLimiter.run(action);
+  }
+
   Future<SftpClient> sftp() async {
     if (_sftpClient != null) return _sftpClient!;
 
@@ -21,7 +32,7 @@ class SshSession {
       return _sftpInitFuture!;
     }
 
-    _sftpInitFuture = client.sftp();
+    _sftpInitFuture = runOperation(client.sftp);
     try {
       _sftpClient = await _sftpInitFuture;
       return _sftpClient!;
@@ -35,9 +46,12 @@ class SshSession {
     required this.id,
     required this.connectionId,
     required this.client,
+    SshOperationLimiter? operationLimiter,
     this.shell,
     StreamController<String>? outputController,
-  }) : _outputController = outputController ?? StreamController.broadcast();
+  }) : operationLimiter =
+           operationLimiter ?? SshOperationLimiter(maxConcurrentOperations: 4),
+       _outputController = outputController ?? StreamController.broadcast();
 
   Future<void> close() async {
     if (_isClosed) {

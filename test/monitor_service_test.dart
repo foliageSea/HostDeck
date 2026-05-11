@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ssh_tool/server/services/monitor_service.dart';
 import 'package:ssh_tool/server/repositories/ssh_repository.dart';
+import 'package:ssh_tool/server/models/ssh_operation_limiter.dart';
 import 'package:ssh_tool/server/models/ssh_session.dart';
 import 'package:ssh_tool/server/models/file_item.dart';
 import 'package:dartssh2/dartssh2.dart';
@@ -98,11 +99,22 @@ class MockSshSession implements SshSession {
   @override
   SSHSession get shell => throw UnimplementedError();
   @override
+  final SshOperationLimiter operationLimiter = SshOperationLimiter(
+    maxConcurrentOperations: 4,
+  );
+  @override
   Stream<String> get output => Stream.empty();
   @override
   StreamController<String> get outputController => StreamController();
   @override
   Future<SftpClient> sftp() => throw UnimplementedError();
+  @override
+  Future<SshOperationPermit> acquireOperation() => operationLimiter.acquire();
+  @override
+  Future<T> runOperation<T>(FutureOr<T> Function() action) {
+    return operationLimiter.run(action);
+  }
+
   @override
   Future<void> close() async {}
 }

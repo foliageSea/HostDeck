@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:logging/logging.dart';
 import '../models/ssh_session.dart';
+import '../models/ssh_operation_limiter.dart';
 
 class SshSessionLimitExceeded implements Exception {
   final int maxSessions;
@@ -16,9 +17,11 @@ class SshSessionLimitExceeded implements Exception {
 
 class SshService {
   static const maxSessions = 8;
+  static const maxConcurrentOperations = 4;
 
   final Map<String, SshSession> _sessions = {};
   final Map<String, SSHClient> _clients = {};
+  final Map<String, SshOperationLimiter> _operationLimiters = {};
   int _pendingSessionCreations = 0;
 
   final logger = Logger('SshService');
@@ -45,6 +48,9 @@ class SshService {
 
     final connectionId = _generateId();
     _clients[connectionId] = client;
+    _operationLimiters[connectionId] = SshOperationLimiter(
+      maxConcurrentOperations: maxConcurrentOperations,
+    );
 
     // Handle unexpected disconnection, including futures completed with errors.
     unawaited(
@@ -76,9 +82,9 @@ class SshService {
     _reserveSessionCapacity();
 
     try {
-      final shell = await client.shell(
-        pty: SSHPtyConfig(width: 80, height: 24),
-      );
+      final shell = await _operationLimiterFor(
+        connectionId,
+      ).run(() => client.shell(pty: SSHPtyConfig(width: 80, height: 24)));
 
       final sessionId = _generateId();
       final outputController = StreamController<String>.broadcast();
@@ -95,6 +101,7 @@ class SshService {
         id: sessionId,
         connectionId: connectionId,
         client: client,
+        operationLimiter: _operationLimiterFor(connectionId),
         shell: shell,
         outputController: outputController,
       );
@@ -133,6 +140,7 @@ class SshService {
         id: sessionId,
         connectionId: connectionId,
         client: client,
+        operationLimiter: _operationLimiterFor(connectionId),
         shell: null,
       );
 
@@ -171,6 +179,7 @@ class SshService {
                 'connectionId': entry.key,
                 'isClosed': entry.value.isClosed,
                 'sessionCount': sessionCounts[entry.key] ?? 0,
+                ...?_operationLimiters[entry.key]?.snapshot(),
               },
             )
             .toList()
@@ -246,6 +255,15 @@ class SshService {
       _sessions.remove(session.id);
     }
     _clients.remove(connectionId);
+    _operationLimiters.remove(connectionId);
+  }
+
+  SshOperationLimiter _operationLimiterFor(String connectionId) {
+    return _operationLimiters.putIfAbsent(
+      connectionId,
+      () =>
+          SshOperationLimiter(maxConcurrentOperations: maxConcurrentOperations),
+    );
   }
 
   String _generateId() {

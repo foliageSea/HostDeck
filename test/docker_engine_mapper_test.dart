@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ssh_tool/server/models/ssh_operation_limiter.dart';
 import 'package:ssh_tool/server/models/ssh_session.dart';
 import 'package:ssh_tool/server/repositories/docker_engine_repository.dart';
 import 'package:ssh_tool/server/repositories/ssh_repository.dart';
@@ -236,6 +237,11 @@ class _FakeSshSession implements SshSession {
   SSHSession? get shell => null;
 
   @override
+  final SshOperationLimiter operationLimiter = SshOperationLimiter(
+    maxConcurrentOperations: 4,
+  );
+
+  @override
   Stream<String> get output => const Stream.empty();
 
   @override
@@ -243,6 +249,14 @@ class _FakeSshSession implements SshSession {
 
   @override
   Future<SftpClient> sftp() => throw UnimplementedError();
+
+  @override
+  Future<SshOperationPermit> acquireOperation() => operationLimiter.acquire();
+
+  @override
+  Future<T> runOperation<T>(FutureOr<T> Function() action) {
+    return operationLimiter.run(action);
+  }
 
   @override
   Future<void> close() async {}

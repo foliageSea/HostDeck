@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dartssh2/dartssh2.dart';
 import 'package:logging/logging.dart';
 
 import '../models/docker_container.dart';
@@ -393,20 +394,31 @@ class DockerService {
     SshSession session,
     Stream<List<int>> archive,
   ) async {
-    final process = await session.client.execute(
-      'sh -lc ${_shellQuote('docker load')}',
-    );
+    final permit = await session.acquireOperation();
+    SSHSession? process;
+    StreamSubscription<Uint8List>? stdoutSubscription;
+    StreamSubscription<Uint8List>? stderrSubscription;
+
+    try {
+      process = await session.client.execute(
+        'sh -lc ${_shellQuote('docker load')}',
+      );
+    } catch (_) {
+      permit.release();
+      rethrow;
+    }
+
     final stdoutBuffer = BytesBuilder(copy: false);
     final stderrBuffer = BytesBuilder(copy: false);
     final stdoutDone = Completer<void>();
     final stderrDone = Completer<void>();
 
-    final stdoutSubscription = process.stdout.listen(
+    stdoutSubscription = process.stdout.listen(
       stdoutBuffer.add,
       onError: stdoutDone.completeError,
       onDone: stdoutDone.complete,
     );
-    final stderrSubscription = process.stderr.listen(
+    stderrSubscription = process.stderr.listen(
       stderrBuffer.add,
       onError: stderrDone.completeError,
       onDone: stderrDone.complete,
@@ -454,6 +466,7 @@ class DockerService {
     } finally {
       await stdoutSubscription.cancel();
       await stderrSubscription.cancel();
+      permit.release();
     }
   }
 
@@ -493,11 +506,29 @@ class DockerService {
 
     final command =
         'sh -lc ${_shellQuote('docker save ${_shellQuote(normalizedImageRef)}')}';
-    final process = await session.client.execute(command);
+    final permit = await session.acquireOperation();
+    final SSHSession process;
+    try {
+      process = await session.client.execute(command);
+    } catch (_) {
+      permit.release();
+      rethrow;
+    }
+
     final controller = StreamController<Uint8List>();
     final stderrBuffer = BytesBuilder(copy: false);
     StreamSubscription<Uint8List>? stdoutSubscription;
     StreamSubscription<Uint8List>? stderrSubscription;
+    var released = false;
+
+    void releaseOnce() {
+      if (released) {
+        return;
+      }
+
+      released = true;
+      permit.release();
+    }
 
     controller.onListen = () {
       stderrSubscription = process.stderr.listen((data) {
@@ -508,23 +539,31 @@ class DockerService {
 
       stdoutSubscription = process.stdout.listen(
         controller.add,
-        onError: controller.addError,
+        onError: (Object error, StackTrace stackTrace) async {
+          controller.addError(error, stackTrace);
+          releaseOnce();
+          await controller.close();
+        },
         onDone: () async {
-          await process.done;
-          await stderrSubscription?.cancel();
+          try {
+            await process.done;
+            await stderrSubscription?.cancel();
 
-          if (process.exitCode != null && process.exitCode != 0) {
-            final stderr = utf8.decode(
-              stderrBuffer.takeBytes(),
-              allowMalformed: true,
-            );
-            controller.addError(
-              Exception(
-                stderr.trim().isEmpty
-                    ? 'docker save failed with exit code ${process.exitCode}'
-                    : stderr.trim(),
-              ),
-            );
+            if (process.exitCode != null && process.exitCode != 0) {
+              final stderr = utf8.decode(
+                stderrBuffer.takeBytes(),
+                allowMalformed: true,
+              );
+              controller.addError(
+                Exception(
+                  stderr.trim().isEmpty
+                      ? 'docker save failed with exit code ${process.exitCode}'
+                      : stderr.trim(),
+                ),
+              );
+            }
+          } finally {
+            releaseOnce();
           }
 
           await controller.close();
@@ -536,6 +575,7 @@ class DockerService {
       await stdoutSubscription?.cancel();
       await stderrSubscription?.cancel();
       process.close();
+      releaseOnce();
     };
 
     return controller.stream;
