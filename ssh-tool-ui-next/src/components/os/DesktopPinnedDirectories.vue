@@ -56,6 +56,11 @@ interface DesktopItem {
   y: number
 }
 
+const desktopIconColors: Record<DesktopItem['icon'], string> = {
+  folder: '#f59e0b',
+  link: '#38bdf8',
+}
+
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 
@@ -732,7 +737,7 @@ onUnmounted(() => {
               : '',
           ]"
         >
-          <AppIcon :name="item.icon" :size="28" />
+          <AppIcon :color="desktopIconColors[item.icon]" :name="item.icon" :size="28" />
         </div>
         <div class="w-full">
           <div class="truncate-line text-[13px] font-600">{{ item.label }}</div>

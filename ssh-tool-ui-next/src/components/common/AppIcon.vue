@@ -7,6 +7,7 @@ import type { AppIconKey } from '@/types/desktop'
 
 const props = withDefaults(
   defineProps<{
+    color?: string
     name: AppIconKey
     size?: number
   }>(),
@@ -33,7 +34,7 @@ const icon = computed(() => iconMap[props.name])
 </script>
 
 <template>
-  <NIcon :size="size">
+  <NIcon :color="color" :size="size">
     <component :is="icon" />
   </NIcon>
 </template>

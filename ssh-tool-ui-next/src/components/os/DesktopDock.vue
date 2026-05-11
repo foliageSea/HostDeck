@@ -20,6 +20,15 @@ const contextMenu = ref<{
   x: number
   y: number
 } | null>(null)
+const dockIconColors: Partial<Record<DesktopAppId, string>> = {
+  dashboard: '#38bdf8',
+  docker: '#0ea5e9',
+  files: '#f59e0b',
+  processes: '#a78bfa',
+  'runtime-sessions': '#22c55e',
+  settings: '#94a3b8',
+  terminal: '#34d399',
+}
 const contextMenuOptions = computed(() => {
   const appId = contextMenu.value?.appId
   if (!appId) {
@@ -71,6 +80,10 @@ function getAppWindows(appId: DesktopAppId) {
 
 function isAppOpen(appId: DesktopAppId) {
   return getAppWindows(appId).length > 0
+}
+
+function getDockIconColor(appId: DesktopAppId) {
+  return dockIconColors[appId] ?? 'currentColor'
 }
 
 function handleOpen(event: MouseEvent, appId: DesktopAppId) {
@@ -212,7 +225,7 @@ function handleContextMenuSelect(key: string | number) {
         :aria-label="app.title"
         @click="handleOpen($event, app.id)"
         @contextmenu="handleContextMenu($event, app.id)" @keydown="handleTriggerKeydown($event, app.id)">
-        <AppIcon :name="app.icon" :size="24" />
+        <AppIcon :color="getDockIconColor(app.id)" :name="app.icon" :size="24" />
         <span v-if="isAppOpen(app.id)" class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]" aria-hidden="true" />
       </button>
 
