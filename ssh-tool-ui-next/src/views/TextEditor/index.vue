@@ -21,9 +21,27 @@ const content = ref('')
 const showSettings = ref(false)
 const editorFontFamilyDraft = ref(settingsStore.editorFontFamily)
 
-const filename = computed(() => props.path.split('/').pop() || props.path)
-
 const language = computed(() => detectLanguage(props.path))
+
+const menuOptions = computed(() => [
+  {
+    key: 'file',
+    label: '文件',
+    children: [
+      { key: 'save', label: '保存', disabled: saving.value },
+      { key: 'reload', label: '重新加载', disabled: loading.value || saving.value },
+      { key: 'divider', type: 'divider' },
+      { key: 'close', label: '关闭' },
+    ],
+  },
+  {
+    key: 'view',
+    label: '查看',
+    children: [
+      { key: 'settings', label: '设置' },
+    ],
+  },
+])
 
 const languageByFilename: Record<string, string> = {
   '.bash_profile': 'shell',
@@ -171,6 +189,23 @@ function closeWindow() {
   }
 }
 
+function handleActionSelect(key: string) {
+  switch (key) {
+    case 'save':
+      void saveFile()
+      break
+    case 'reload':
+      void loadFile()
+      break
+    case 'settings':
+      showSettings.value = true
+      break
+    case 'close':
+      closeWindow()
+      break
+  }
+}
+
 void loadFile()
 
 watch(
@@ -194,23 +229,10 @@ watch(showSettings, (value) => {
     :class="settingsStore.isDark ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.18),rgba(15,23,42,0.06))]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(226,232,240,0.36))]'"
   >
     <div
-      class="relative z-[1] flex shrink-0 items-center justify-between gap-[12px] rounded-[18px] border px-[14px] py-[12px] shadow-[0_14px_36px_rgba(15,23,42,0.12)] backdrop-blur-[12px]"
+      class="relative z-[1] flex h-[24px] shrink-0 items-center gap-[4px] overflow-visible rounded-[8px] border px-[6px] shadow-[0_14px_36px_rgba(15,23,42,0.12)] backdrop-blur-[12px]"
       :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-transparent text-[#e2e8f0]' : 'border-[rgba(148,163,184,0.2)] bg-transparent text-[#1e293b]'"
     >
-      <div class="flex min-w-0 flex-col gap-[4px]">
-        <strong>{{ filename }}</strong>
-        <span
-          class="truncate-line text-[12px]"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(71,85,105,0.88)]'"
-        >{{ props.path }}</span>
-      </div>
-
-      <NSpace>
-        <NButton round @click="showSettings = true">设置</NButton>
-        <NButton round @click="loadFile">重新加载</NButton>
-        <NButton round type="primary" :loading="saving" @click="saveFile">保存</NButton>
-        <NButton round quaternary @click="closeWindow">关闭</NButton>
-      </NSpace>
+      <NMenu class="notepad-menu" mode="horizontal" :options="menuOptions" responsive @update:value="handleActionSelect" />
     </div>
 
     <NSpin :show="loading" class="editor-body relative z-[1] flex-1 min-h-0">
@@ -275,6 +297,22 @@ watch(showSettings, (value) => {
   background:
     radial-gradient(circle at 14% 16%, rgba(59, 130, 246, 0.14), transparent 26%),
     radial-gradient(circle at 86% 12%, rgba(168, 85, 247, 0.1), transparent 20%);
+}
+
+.notepad-menu {
+  height: 24px;
+  line-height: 24px;
+}
+
+.notepad-menu :deep(.n-menu-item-content) {
+  height: 24px;
+  line-height: 24px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.notepad-menu :deep(.n-menu-item-content-header) {
+  line-height: 24px;
 }
 
 .editor-body :deep(.n-spin-body),
