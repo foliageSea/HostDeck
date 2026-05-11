@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { ChevronLeft, ChevronRight, Download, List } from '@vicons/carbon'
 import Player, { Events, type IPlayerOptions } from 'xgplayer'
 import 'xgplayer/dist/index.min.css'
 import { useSettingsStore } from '@/stores/settings'
@@ -164,18 +165,49 @@ onBeforeUnmount(() => {
       </div>
 
       <NSpace>
-        <NButton v-if="hasPlaylist" round @click="toggleSidebar">
+        <NTooltip v-if="hasPlaylist">
+          <template #trigger>
+            <NButton circle @click="toggleSidebar">
+              <template #icon>
+                <NIcon size="18">
+                  <List />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
           {{ isSidebarVisible ? '隐藏列表' : '显示列表' }}
-        </NButton>
-        <NButton round :disabled="!hasPrev" @click="openPrevious">上一项</NButton>
-        <NButton round :disabled="!hasNext" @click="openNext">下一项</NButton>
-        <NButton round tag="a" :href="`${fileUrl}&download=true`" target="_blank">下载</NButton>
+        </NTooltip>
+        <NTooltip>
+          <template #trigger>
+            <NButton circle tag="a" :href="`${fileUrl}&download=true`" target="_blank">
+              <template #icon>
+                <NIcon size="18">
+                  <Download />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
+          下载
+        </NTooltip>
       </NSpace>
     </div>
 
     <div class="media-content flex min-h-0 flex-1 overflow-hidden">
-      <div class="media-stage flex min-h-0 min-w-0 flex-1 items-center justify-center"
+      <div class="media-stage relative flex min-h-0 min-w-0 flex-1 items-center justify-center"
         :class="mediaType === 'video' && !hasError ? 'media-stage--video p-[8px]' : 'p-[8px]'">
+        <NTooltip v-if="hasPlaylist" placement="right">
+          <template #trigger>
+            <NButton circle class="media-nav-button media-nav-button--prev" :disabled="!hasPrev" @click="openPrevious">
+              <template #icon>
+                <NIcon size="24">
+                  <ChevronLeft />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
+          上一项
+        </NTooltip>
+
         <img v-if="mediaType === 'image' && !hasError" :src="fileUrl" :alt="filename"
           class="max-h-full max-w-full object-contain bg-black" @error="hasError = true" />
 
@@ -183,6 +215,19 @@ onBeforeUnmount(() => {
           class="media-video-player h-full min-h-[260px] w-full overflow-hidden rounded-[16px] bg-black" />
 
         <NResult v-else status="warning" title="无法预览该文件" description="当前仅支持基础图片和视频预览。" />
+
+        <NTooltip v-if="hasPlaylist" placement="left">
+          <template #trigger>
+            <NButton circle class="media-nav-button media-nav-button--next" :disabled="!hasNext" @click="openNext">
+              <template #icon>
+                <NIcon size="24">
+                  <ChevronRight />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
+          下一项
+        </NTooltip>
       </div>
 
       <aside v-if="shouldShowSidebar" class="media-sidebar flex w-[252px] min-w-[220px] flex-col border-l"
@@ -221,6 +266,30 @@ onBeforeUnmount(() => {
 <style scoped>
 .media-video-player {
   flex: 1;
+}
+
+.media-nav-button {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  transform: translateY(-50%);
+  opacity: 0.86;
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.26);
+  backdrop-filter: blur(10px);
+}
+
+.media-nav-button:hover {
+  opacity: 1;
+}
+
+.media-nav-button--prev {
+  left: 18px;
+}
+
+.media-nav-button--next {
+  right: 18px;
 }
 
 .media-video-player :deep(.xgplayer) {
@@ -267,6 +336,19 @@ onBeforeUnmount(() => {
 
   .media-stage--video {
     padding: 0;
+  }
+
+  .media-nav-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .media-nav-button--prev {
+    left: 10px;
+  }
+
+  .media-nav-button--next {
+    right: 10px;
   }
 }
 </style>
