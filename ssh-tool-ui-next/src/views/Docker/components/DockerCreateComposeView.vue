@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { LogoDocker } from '@vicons/ionicons5'
 import CodeEditor from '@/components/editor/CodeEditor.vue'
 import { dockerApi, type DockerComposeCreatePayload } from '@/api/docker'
@@ -7,6 +7,7 @@ import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
+import { FilePickerDialog, type FilePickerConfirmPayload } from '@/views/Files/components'
 
 const props = defineProps<{
   windowId?: string
@@ -18,6 +19,7 @@ const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const creatingComposeProject = ref(false)
+const showWorkingDirPicker = ref(false)
 const createForm = ref<DockerComposeCreatePayload>({
   projectName: '',
   workingDir: '',
@@ -31,6 +33,7 @@ const createForm = ref<DockerComposeCreatePayload>({
 `,
   startAfterCreate: true,
 })
+const currentConnectionId = computed(() => props.connectionId ?? sshStore.connectionId)
 
 function requireConnectionId() {
   const connectionId = props.connectionId ?? sshStore.connectionId
@@ -44,6 +47,22 @@ function requireConnectionId() {
 function closeWindow() {
   if (props.windowId) {
     desktopStore.closeWindow(props.windowId)
+  }
+}
+
+function openWorkingDirPicker() {
+  if (!currentConnectionId.value) {
+    getUiApi().message.error('当前没有可用的 SSH 连接。')
+    return
+  }
+
+  showWorkingDirPicker.value = true
+}
+
+function handleWorkingDirPicked(payload: FilePickerConfirmPayload) {
+  const selectedPath = payload.selections[0]?.path
+  if (selectedPath) {
+    createForm.value.workingDir = selectedPath
   }
 }
 
@@ -120,7 +139,10 @@ async function submitCreateComposeProject() {
         </NGrid>
 
         <NFormItem label="远端工作目录" required class="mt-2">
-          <NInput v-model:value="createForm.workingDir" placeholder="例如 /opt/my-stack" />
+          <div class="flex w-full gap-[8px]">
+            <NInput v-model:value="createForm.workingDir" placeholder="例如 /opt/my-stack" />
+            <NButton :disabled="!currentConnectionId" @click="openWorkingDirPicker">选择目录</NButton>
+          </div>
         </NFormItem>
 
         <NFormItem label="Compose YAML" required class="mt-2">
@@ -143,6 +165,16 @@ async function submitCreateComposeProject() {
         <NButton type="primary" :loading="creatingComposeProject" @click="submitCreateComposeProject">创建</NButton>
       </NSpace>
     </div>
+
+    <FilePickerDialog
+      v-model:show="showWorkingDirPicker"
+      :connection-id="currentConnectionId"
+      :initial-path="createForm.workingDir || '/'"
+      mode="directory"
+      title="选择远端工作目录"
+      confirm-text="使用此目录"
+      @confirm="handleWorkingDirPicked"
+    />
   </div>
 </template>
 
