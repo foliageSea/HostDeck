@@ -125,11 +125,19 @@ const canOpenSelectedFileInEditor = computed(() => {
   return selectedFiles.value.length === 1 && file !== null && !file.isDirectory
 })
 const archiveExtensions = ['.tar.gz', '.tar.bz2', '.tar.xz', '.tgz', '.tbz2', '.txz', '.tar', '.zip']
+const createOptions = [
+  { label: '新建目录', key: 'directory' },
+  { label: '新建文件', key: 'file' },
+]
 const sortOptions: { label: string; value: FileSortKey }[] = [
   { label: '名称', value: 'name' },
   { label: '大小', value: 'size' },
   { label: '修改时间', value: 'modifyTime' },
 ]
+const uploadOptions = computed(() => [
+  { label: '上传文件', key: 'file', disabled: isUploading.value },
+  { label: '上传目录', key: 'directory', disabled: isUploading.value },
+])
 const canExtractSelectedArchive = computed(() => {
   const file = selectedFile.value
   return selectedFiles.value.length === 1 && file !== null && !file.isDirectory && getArchiveExtension(file.filename) !== null
@@ -665,6 +673,23 @@ function toggleFavoriteSidebar() {
 
 function updateSortKey(value: string) {
   fileStore.setSortKey(value as FileSortKey)
+}
+
+function handleCreateSelect(key: string | number) {
+  if (key === 'directory' || key === 'file') {
+    openCreate(key)
+  }
+}
+
+function handleUploadSelect(key: string | number) {
+  if (key === 'file') {
+    triggerUpload()
+    return
+  }
+
+  if (key === 'directory') {
+    triggerDirectoryUpload()
+  }
 }
 
 async function navigateBack() {
@@ -1432,31 +1457,26 @@ watch(
         </div>
 
         <div class="flex w-full flex-wrap items-center justify-end gap-[12px]">
-          <NButton round @click="openCreate('directory')">
-            <template #icon>
-              <NIcon>
-                <FolderAdd />
-              </NIcon>
-            </template>
-            新建目录
-          </NButton>
-          <NButton round @click="openCreate('file')">新建文件</NButton>
-          <NButton round :disabled="isUploading" :loading="isUploading" @click="triggerUpload">
-            <template #icon>
-              <NIcon>
-                <Upload />
-              </NIcon>
-            </template>
-            上传文件
-          </NButton>
-          <NButton round :disabled="isUploading" :loading="isUploading" @click="triggerDirectoryUpload">
-            <template #icon>
-              <NIcon>
-                <Upload />
-              </NIcon>
-            </template>
-            上传目录
-          </NButton>
+          <NDropdown trigger="click" :options="createOptions" @select="handleCreateSelect">
+            <NButton round>
+              <template #icon>
+                <NIcon>
+                  <FolderAdd />
+                </NIcon>
+              </template>
+              新建
+            </NButton>
+          </NDropdown>
+          <NDropdown trigger="click" :options="uploadOptions" @select="handleUploadSelect">
+            <NButton round :disabled="isUploading" :loading="isUploading">
+              <template #icon>
+                <NIcon>
+                  <Upload />
+                </NIcon>
+              </template>
+              上传
+            </NButton>
+          </NDropdown>
           <NButton round :disabled="!canExtractSelectedArchive" @click="openExtractDialog">解压缩</NButton>
           <NButton round :disabled="selectedFiles.length !== 1" @click="openRenameDialog">重命名</NButton>
           <NButton round :disabled="selectedFiles.length === 0" type="error" ghost @click="showDeleteDialog = true">删除</NButton>
