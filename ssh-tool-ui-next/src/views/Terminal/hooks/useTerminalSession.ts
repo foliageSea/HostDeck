@@ -3,6 +3,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { Terminal } from '@xterm/xterm'
 import { terminalApi } from '@/api/terminal'
+import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
@@ -45,6 +46,23 @@ export function useTerminalSession(props: TerminalProps) {
 
   function shellQuotePosix(value: string) {
     return `'${value.replace(/'/g, `'\\''`)}'`
+  }
+
+  async function pasteClipboardToTerminal() {
+    if (!navigator.clipboard?.readText) {
+      getUiApi().message.error('当前环境不支持读取剪贴板。')
+      return
+    }
+
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text) {
+        terminalRef.value?.paste(text)
+      }
+    } catch (error) {
+      console.error('Failed to paste terminal clipboard text', error)
+      getUiApi().message.error('粘贴失败，请检查剪贴板权限。')
+    }
   }
 
   async function resolveTerminalSession() {
@@ -116,6 +134,17 @@ export function useTerminalSession(props: TerminalProps) {
         foreground: '#e2e8f0',
       },
     }))
+
+    terminalRef.value.attachCustomKeyEventHandler((event) => {
+      if (event.type === 'keydown' && event.ctrlKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === 'v') {
+        event.preventDefault()
+        event.stopPropagation()
+        void pasteClipboardToTerminal()
+        return false
+      }
+
+      return true
+    })
 
     fitAddon = markRaw(new FitAddon())
     webLinksAddon = markRaw(new WebLinksAddon((event, uri) => {
