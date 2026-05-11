@@ -75,17 +75,13 @@ function isComposeProjectRunning(project: DockerComposeProject) {
 
           <div class="compose-project-meta">
             <div class="compose-project-field">
-              <span>工作目录</span>
-              <strong :title="project.workingDir || '-'">{{ project.workingDir || '-' }}</strong>
-            </div>
-            <div class="compose-project-field">
               <span>配置文件</span>
               <strong :title="getConfigTitle(project)">{{ project.configFiles || '-' }}</strong>
             </div>
           </div>
 
           <div class="mt-[12px] flex flex-wrap items-center justify-end gap-[8px]">
-            <NButton size="small" quaternary @click="controller.openComposeServices(project)">加载服务</NButton>
+            <NButton size="small" quaternary @click="controller.openComposeServices(project)">详情</NButton>
           </div>
       </div>
     </div>
