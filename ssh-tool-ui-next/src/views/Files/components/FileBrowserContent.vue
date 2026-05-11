@@ -8,6 +8,7 @@ const settingsStore = useSettingsStore()
 
 const props = defineProps<{
   files: FileItem[]
+  emptyDescription?: string
   loading: boolean
   selectedNames: string[]
   viewMode: 'list' | 'grid'
@@ -198,7 +199,7 @@ onBeforeUnmount(() => {
     </div>
 
     <template v-else>
-      <NEmpty v-if="files.length === 0" description="当前目录没有文件" class="flex h-full min-h-[260px] items-center justify-center" />
+      <NEmpty v-if="files.length === 0" :description="emptyDescription ?? '当前目录没有文件'" class="flex h-full min-h-[260px] items-center justify-center" />
 
       <div v-else-if="viewMode === 'grid'" class="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-[12px]">
         <div

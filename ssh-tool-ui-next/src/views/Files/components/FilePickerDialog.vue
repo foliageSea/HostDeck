@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowUp, FolderAdd, Renew } from '@vicons/carbon'
+import { ArrowUp, FolderAdd, Renew, Search } from '@vicons/carbon'
 import { computed, ref, watch } from 'vue'
 import { filesApi, type FileItem } from '@/api/files'
 import { dirname, resolve } from '@/utils/path'
@@ -42,10 +42,11 @@ const creatingDirectory = ref(false)
 const selectedNames = ref<string[]>([])
 const loadError = ref('')
 const newDirectoryName = ref('')
+const searchKeyword = ref('')
 const showCreateDirectoryDialog = ref(false)
 let loadToken = 0
 
-const displayFiles = computed(() =>
+const sortedFiles = computed(() =>
   [...files.value]
     .filter((file) => file.filename !== '.' && file.filename !== '..')
     .sort((left, right) => {
@@ -56,6 +57,17 @@ const displayFiles = computed(() =>
       return left.filename.localeCompare(right.filename)
     }),
 )
+
+const displayFiles = computed(() => {
+  const keyword = searchKeyword.value.trim().toLocaleLowerCase()
+  if (!keyword) {
+    return sortedFiles.value
+  }
+
+  return sortedFiles.value.filter((file) => file.filename.toLocaleLowerCase().includes(keyword))
+})
+
+const emptyDescription = computed(() => (searchKeyword.value.trim() ? '没有匹配的文件' : '当前目录没有文件'))
 
 const selectedItems = computed(() => {
   const selectedNameSet = new Set(selectedNames.value)
@@ -104,6 +116,7 @@ watch(
     const initialPath = resolve('/', props.initialPath)
     currentPath.value = initialPath
     currentPathInput.value = initialPath
+    searchKeyword.value = ''
     selectedNames.value = []
     void loadFiles(initialPath)
   },
@@ -176,6 +189,9 @@ async function loadFiles(path: string) {
     }
 
     files.value = response
+    if (targetPath !== currentPath.value) {
+      searchKeyword.value = ''
+    }
     currentPath.value = targetPath
     currentPathInput.value = targetPath
   } catch (error) {
@@ -324,6 +340,19 @@ function confirmSelection() {
             placeholder="输入远程路径"
             @keyup.enter="submitPath"
           />
+          <NInput
+            v-model:value="searchKeyword"
+            clearable
+            :disabled="loading || !connectionId"
+            placeholder="搜索文件名"
+            class="md:max-w-[240px]"
+          >
+            <template #prefix>
+              <NIcon>
+                <Search />
+              </NIcon>
+            </template>
+          </NInput>
           <NButton round size="small" :disabled="loading || !connectionId" @click="loadFiles(currentPath)">
             <template #icon>
               <NIcon>
@@ -357,6 +386,7 @@ function confirmSelection() {
 
       <FileBrowserContent
         :files="displayFiles"
+        :empty-description="emptyDescription"
         :loading="loading"
         :selected-names="selectedNames"
         view-mode="list"
