@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
+import { Settings } from '@vicons/carbon'
 import '@xterm/xterm/css/xterm.css'
 import TerminalSettingsModal from './components/TerminalSettingsModal.vue'
 import { useTerminalSession } from './hooks/useTerminalSession'
-import { useSshStore } from '@/stores/ssh'
 import { useSettingsStore } from '@/stores/settings'
 import { getUiApi } from '@/lib/ui'
 
@@ -19,26 +19,12 @@ const props = defineProps<{
   closeConnectionOnUnmount?: boolean
 }>()
 
-const sshStore = useSshStore()
 const settingsStore = useSettingsStore()
 const showSettings = ref(false)
 const showCopyButton = ref(false)
 const selectedText = ref('')
 const copyButtonStyle = ref({ left: '0px', top: '0px' })
 const { terminal, terminalContainer } = useTerminalSession(props)
-const sessionMeta = computed(() => {
-  if (props.host || props.username) {
-    return {
-      host: props.host ?? '',
-      username: props.username ?? '',
-    }
-  }
-
-  return {
-    host: sshStore.host,
-    username: sshStore.username,
-  }
-})
 
 void terminalContainer
 
@@ -85,19 +71,19 @@ async function copySelection() {
       ? 'bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.55),#020617_72%)]'
       : 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.82),#f8fafc_72%)]',
   ]" @mousedown="showCopyButton = false" @mouseup="openCopyButton">
-    <div class="flex items-center justify-between gap-[12px] border-b px-[14px] py-[10px]" :class="[
-      settingsStore.isDark
-        ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(2,6,23,0.72)] text-[#cbd5e1]'
-        : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.74)] text-[#334155]',
-    ]">
-      <div class="flex min-w-0 items-center gap-[10px] text-[13px]">
-        <span>{{ sessionMeta.username || 'unknown' }}@{{ sessionMeta.host || 'localhost' }}</span>
-        <span v-if="cwd" class="truncate-line"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(71,85,105,0.88)]'">{{ cwd
-          }}</span>
-      </div>
-
-      <NButton quaternary size="small" @click="showSettings = true">终端设置</NButton>
+    <div class="absolute right-[20px] top-[18px] z-10">
+      <NTooltip trigger="hover">
+        <template #trigger>
+          <NButton quaternary circle size="small" aria-label="终端设置" @click="showSettings = true">
+            <template #icon>
+              <NIcon :size="16">
+                <Settings />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        终端设置
+      </NTooltip>
     </div>
 
     <div
