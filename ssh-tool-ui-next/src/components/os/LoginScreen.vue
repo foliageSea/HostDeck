@@ -320,16 +320,11 @@ onMounted(async () => {
               v-for="server in sshStore.savedServers"
               :key="server.id ?? `${server.host}-${server.port}`"
               type="button"
-              class="group rounded-[24px] border border-transparent px-[12px] py-[16px] text-center transition-[transform,border-color,background-color,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-3px]"
-              :class="[
-                selectedServer?.id === server.id
-                  ? settingsStore.isDark
-                    ? 'border-[rgba(147,197,253,0.86)] bg-[rgba(37,99,235,0.28)] shadow-[0_0_0_3px_rgba(96,165,250,0.2),0_22px_55px_rgba(15,23,42,0.42)]'
-                    : 'border-[rgba(37,99,235,0.58)] bg-[rgba(219,234,254,0.86)] shadow-[0_0_0_3px_rgba(59,130,246,0.16),0_22px_55px_rgba(37,99,235,0.18)]'
-                  : settingsStore.isDark
-                    ? 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
-                    : 'bg-[rgba(255,255,255,0.46)] hover:bg-[rgba(255,255,255,0.78)]',
-              ]"
+              class="group rounded-[24px] border border-transparent px-[12px] py-[16px] text-center transition-[transform,background-color] duration-[180ms] ease-in-out hover:translate-y-[-3px]"
+              :class="settingsStore.isDark
+                ? 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
+                : 'bg-[rgba(255,255,255,0.46)] hover:bg-[rgba(255,255,255,0.78)]'
+              "
               @click="applyServer(server)"
             >
               <div class="mx-auto mb-[10px] grid h-[58px] w-[58px] place-items-center rounded-full shadow-[0_14px_28px_rgba(15,23,42,0.24)] transition-transform duration-[180ms] group-hover:scale-[1.05]">
