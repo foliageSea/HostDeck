@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 export type UploadTaskStatus = 'pending' | 'uploading' | 'success' | 'error' | 'cancelled'
+export type UploadTaskSource = 'files' | 'docker-image-import'
 
 export interface UploadTaskItem {
   connectionId: string
@@ -10,7 +11,7 @@ export interface UploadTaskItem {
   name: string
   path: string
   progress: number
-  source: 'files'
+  source: UploadTaskSource
   status: UploadTaskStatus
   total: number
 }
@@ -21,7 +22,7 @@ export interface UploadBatch {
   errorMessage: string
   id: string
   path: string
-  source: 'files'
+  source: UploadTaskSource
   tasks: UploadTaskItem[]
 }
 
@@ -54,7 +55,12 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
 
   const hasTasks = computed(() => batches.value.length > 0)
 
-  function createBatch(connectionId: string, path: string, files: Array<File | UploadBatchFile>) {
+  function createBatch(
+    connectionId: string,
+    path: string,
+    files: Array<File | UploadBatchFile>,
+    source: UploadTaskSource = 'files',
+  ) {
     const batchId = `upload-batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const createdAt = Date.now()
     cancelledBatchIds.delete(batchId)
@@ -70,7 +76,7 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
         name: taskName,
         path: taskPath,
         progress: 0,
-        source: 'files' as const,
+        source,
         status: 'pending' as const,
         total: file.size,
       }
@@ -82,7 +88,7 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
       errorMessage: '',
       id: batchId,
       path,
-      source: 'files',
+      source,
       tasks,
     })
 

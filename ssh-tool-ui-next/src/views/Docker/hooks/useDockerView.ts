@@ -20,6 +20,7 @@ import {
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSshStore } from '@/stores/ssh'
+import { useUploadCenterStore } from '@/stores/upload-center'
 
 import { imageHistoryColumns, imageRefsColumns } from './dockerViewColumns'
 import {
@@ -39,6 +40,7 @@ export type { DockerViewProps } from './dockerViewTypes'
 export function useDockerView(props: DockerViewProps) {
   const desktopStore = useDesktopStore()
   const sshStore = useSshStore()
+  const uploadCenterStore = useUploadCenterStore()
 
   const activeTab = ref<DockerTabName>('overview')
   const loading = ref(false)
@@ -1023,18 +1025,76 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   async function importImage(file: File) {
+    const connectionId = requireConnectionId()
     importingImage.value = true
+    const batchId = uploadCenterStore.createBatch(
+      connectionId,
+      'Docker 镜像导入',
+      [{ file, name: file.name, path: 'Docker 镜像' }],
+      'docker-image-import',
+    )
+    const task = uploadCenterStore.batches.find((item) => item.id === batchId)?.tasks[0]
+    const controller = new AbortController()
+    uploadCenterStore.clearBatchError(batchId)
+    uploadCenterStore.registerBatchController(batchId, controller)
+
     try {
-      const connectionId = requireConnectionId()
+      if (task) {
+        uploadCenterStore.updateTask(task.id, {
+          loaded: 0,
+          progress: 0,
+          status: 'uploading',
+          total: file.size,
+        })
+      }
+
       const formData = new FormData()
       formData.append('file', file, file.name)
-      await queueDockerRequest(() => dockerApi.importImage(connectionId, formData))
+      await queueDockerRequest(() =>
+        dockerApi.importImage(
+          connectionId,
+          formData,
+          (progressEvent) => {
+            if (!task) {
+              return
+            }
+
+            const total = progressEvent.total ?? file.size
+            const loaded = Math.min(progressEvent.loaded, total)
+            uploadCenterStore.updateTask(task.id, {
+              loaded,
+              progress: total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0,
+              total,
+            })
+          },
+          controller.signal,
+        ),
+      )
+      if (task) {
+        uploadCenterStore.updateTask(task.id, {
+          loaded: file.size,
+          progress: 100,
+          status: 'success',
+          total: file.size,
+        })
+      }
       getUiApi().message.success(`镜像归档 ${file.name} 导入完成。`)
       await refreshTabsAfterChange('images')
     } catch (error) {
+      if (uploadCenterStore.isBatchCancelled(batchId)) {
+        return
+      }
+
+      if (task) {
+        uploadCenterStore.updateTask(task.id, {
+          status: 'error',
+        })
+      }
+      uploadCenterStore.markBatchError(batchId, error instanceof Error ? error.message : '镜像导入失败。')
       console.error('Failed to import image', error)
       getUiApi().message.error(error instanceof Error ? error.message : '镜像导入失败。')
     } finally {
+      uploadCenterStore.clearBatchController(batchId)
       importingImage.value = false
     }
   }

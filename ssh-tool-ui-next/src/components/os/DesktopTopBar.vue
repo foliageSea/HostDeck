@@ -5,7 +5,7 @@ import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
-import { useUploadCenterStore, type UploadBatch, type UploadTaskStatus } from '@/stores/upload-center'
+import { useUploadCenterStore, type UploadBatch, type UploadTaskSource, type UploadTaskStatus } from '@/stores/upload-center'
 
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
@@ -110,8 +110,12 @@ function formatFileSize(size: number) {
   return `${size} B`
 }
 
-function formatUploadStatus(status: UploadTaskStatus) {
+function formatUploadStatus(status: UploadTaskStatus, source: UploadTaskSource) {
   if (status === 'uploading') {
+    if (source === 'docker-image-import') {
+      return '导入中'
+    }
+
     return '上传中'
   }
 
@@ -128,6 +132,30 @@ function formatUploadStatus(status: UploadTaskStatus) {
   }
 
   return '等待中'
+}
+
+function getTaskSourceTitle(source: UploadTaskSource) {
+  if (source === 'docker-image-import') {
+    return '镜像导入'
+  }
+
+  return '文件上传'
+}
+
+function getTaskActiveText(source: UploadTaskSource, name: string) {
+  if (source === 'docker-image-import') {
+    return `正在导入 ${name}`
+  }
+
+  return `正在上传 ${name}`
+}
+
+function getCancelTaskText(source: UploadTaskSource) {
+  if (source === 'docker-image-import') {
+    return '中断导入'
+  }
+
+  return '中断上传'
 }
 
 function formatBatchTime(timestamp: number) {
@@ -265,7 +293,7 @@ function disconnect() {
               <div class="text-[14px] font-700">任务中心</div>
               <div class="text-[12px]"
                 :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.94)]' : 'text-[rgba(100,116,139,0.92)]'">
-                {{ uploadCenterStore.totalTaskCount }} 个上传任务
+                {{ uploadCenterStore.totalTaskCount }} 个任务
                 <template v-if="uploadCenterStore.activeTaskCount > 0">
                   ，{{ uploadCenterStore.activeTaskCount }} 个进行中
                 </template>
@@ -288,7 +316,7 @@ function disconnect() {
 
           <div v-if="uploadBatches.length === 0" class="text-[12px]"
             :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.94)]' : 'text-[rgba(100,116,139,0.92)]'">
-            当前没有上传任务
+            当前没有任务
           </div>
 
           <div v-else class="flex flex-col gap-[12px] overflow-auto pr-[2px]">
@@ -306,13 +334,13 @@ function disconnect() {
               <div class="flex items-start justify-between gap-[12px] lt-md:flex-col">
                 <div>
                   <div class="truncate-line text-[13px] font-600" :class="settingsStore.isDark ? '' : 'text-[#0f172a]'">
-                    文件上传 ·
+                    {{ getTaskSourceTitle(batch.source) }} ·
                     {{ batch.path }}</div>
                   <div class="text-[12px]"
                     :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.94)]' : 'text-[rgba(100,116,139,0.92)]'">
                     {{ formatBatchTime(batch.createdAt) }}
                     <template v-if="batch.currentFileName">
-                      · 正在上传 {{ batch.currentFileName }}
+                      · {{ getTaskActiveText(batch.source, batch.currentFileName) }}
                     </template>
                     · {{ batch.completedCount }}/{{ batch.totalCount }} 完成
                     <template v-if="batch.cancelledCount > 0">
@@ -335,7 +363,7 @@ function disconnect() {
                         <StopFilledAlt />
                       </NIcon>
                     </template>
-                    中断上传
+                    {{ getCancelTaskText(batch.source) }}
                   </NButton>
                 </div>
               </div>
@@ -370,7 +398,7 @@ function disconnect() {
                         task.name }}</div>
                     <NTag size="small"
                       :type="task.status === 'error' ? 'error' : task.status === 'success' ? 'success' : task.status === 'cancelled' ? 'warning' : 'info'">
-                      {{ formatUploadStatus(task.status) }}
+                      {{ formatUploadStatus(task.status, task.source) }}
                     </NTag>
                   </div>
                   <div class="flex items-start justify-between gap-[12px] text-[12px] lt-md:flex-col"

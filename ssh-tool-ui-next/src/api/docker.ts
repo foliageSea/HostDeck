@@ -543,7 +543,12 @@ export const dockerApi = {
     return response.data
   },
 
-  async importImage(connectionId: string, formData: FormData, onUploadProgress?: (event: AxiosProgressEvent) => void) {
+  async importImage(
+    connectionId: string,
+    formData: FormData,
+    onUploadProgress?: (event: AxiosProgressEvent) => void,
+    signal?: AbortSignal,
+  ) {
     const response = await http.post<{ success: boolean; output: string }>(
       '/api/docker/images/import',
       formData,
@@ -553,6 +558,7 @@ export const dockerApi = {
         },
         onUploadProgress,
         params: { connectionId },
+        signal,
       },
     )
     return response.data
