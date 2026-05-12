@@ -1576,37 +1576,6 @@ watch(
           {{ fileStore.sortDirection === "asc" ? "升序" : "降序" }}
         </NButton>
         <div class="flex items-center gap-[8px]">
-          <NPopover trigger="hover" placement="bottom-end">
-            <template #trigger>
-              <NButton quaternary round>
-                <template #icon>
-                  <NIcon>
-                    <Help />
-                  </NIcon>
-                </template>
-              </NButton>
-            </template>
-            <div
-              class="flex flex-col gap-[6px] text-[12px]"
-              :class="
-                settingsStore.isDark
-                  ? 'text-[rgba(226,232,240,0.96)]'
-                  : 'text-[rgba(51,65,85,0.96)]'
-              "
-            >
-              <div>Ctrl/Cmd + Click：多选</div>
-              <div>Shift + Click：范围选择</div>
-              <div>Ctrl/Cmd + A：全选</div>
-              <div>Ctrl/Cmd + C：复制</div>
-              <div>Ctrl/Cmd + X：移动</div>
-              <div>Ctrl/Cmd + V：粘贴</div>
-              <div>Ctrl/Cmd + U：上传</div>
-              <div>Ctrl/Cmd + D：下载</div>
-              <div>Delete：删除</div>
-              <div>F2：重命名</div>
-              <div>Enter：打开选中项</div>
-            </div>
-          </NPopover>
           <NTooltip>
             <template #trigger>
               <NButton
@@ -1641,6 +1610,37 @@ watch(
             </template>
             网格视图
           </NTooltip>
+          <NPopover trigger="hover" placement="bottom-end">
+            <template #trigger>
+              <NButton quaternary round>
+                <template #icon>
+                  <NIcon>
+                    <Help />
+                  </NIcon>
+                </template>
+              </NButton>
+            </template>
+            <div
+              class="flex flex-col gap-[6px] text-[12px]"
+              :class="
+                settingsStore.isDark
+                  ? 'text-[rgba(226,232,240,0.96)]'
+                  : 'text-[rgba(51,65,85,0.96)]'
+              "
+            >
+              <div>Ctrl/Cmd + Click：多选</div>
+              <div>Shift + Click：范围选择</div>
+              <div>Ctrl/Cmd + A：全选</div>
+              <div>Ctrl/Cmd + C：复制</div>
+              <div>Ctrl/Cmd + X：移动</div>
+              <div>Ctrl/Cmd + V：粘贴</div>
+              <div>Ctrl/Cmd + U：上传</div>
+              <div>Ctrl/Cmd + D：下载</div>
+              <div>Delete：删除</div>
+              <div>F2：重命名</div>
+              <div>Enter：打开选中项</div>
+            </div>
+          </NPopover>
         </div>
       </div>
     </div>
