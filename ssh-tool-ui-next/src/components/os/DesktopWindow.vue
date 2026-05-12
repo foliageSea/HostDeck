@@ -135,8 +135,8 @@ onUnmounted(() => {
     class="absolute flex flex-col overflow-hidden rounded-[20px] opacity-100 transition-[opacity,transform,box-shadow] duration-[240ms] ease-in-out"
     :class="[
       settingsStore.isDark
-        ? 'bg-[#000] shadow-[0_22px_48px_rgba(0,0,0,0.56),0_8px_18px_rgba(0,0,0,0.34),0_0_0_1px_rgba(255,255,255,0.08)]'
-        : 'bg-[#fff] shadow-[0_22px_48px_rgba(15,23,42,0.20),0_8px_18px_rgba(15,23,42,0.12),0_0_0_1px_rgba(15,23,42,0.06)]',
+        ? 'bg-transparent shadow-[0_22px_48px_rgba(0,0,0,0.56),0_8px_18px_rgba(0,0,0,0.34),0_0_0_1px_rgba(255,255,255,0.08)]'
+        : 'bg-transparent shadow-[0_22px_48px_rgba(15,23,42,0.20),0_8px_18px_rgba(15,23,42,0.12),0_0_0_1px_rgba(15,23,42,0.06)]',
       {
         'desktop-window--opening': !window.isClosing,
         'pointer-events-none opacity-0 scale-[0.94] translate-y-[12px]': window.isClosing,
@@ -150,11 +150,11 @@ onUnmounted(() => {
     @mousedown="focusWindow"
   >
     <header
-      class="relative flex h-[48px] items-center justify-between gap-[12px] border-b px-[14px]"
+      class="relative flex h-[48px] items-center justify-between gap-[12px] border-b px-[14px] backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(140%)]"
       :class="[
         settingsStore.isDark
-          ? 'border-[rgba(148,163,184,0.14)] bg-[#000]'
-          : 'border-[rgba(148,163,184,0.22)] bg-[#fff]',
+          ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(0,0,0,0.58)]'
+          : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.62)]',
       ]"
       @mousedown.prevent="startDrag"
       @dblclick="maximizeWindow"
@@ -185,7 +185,10 @@ onUnmounted(() => {
       </div>
     </header>
 
-    <div class="min-h-0 flex-1">
+    <div
+      class="min-h-0 flex-1 backdrop-blur-[22px] [backdrop-filter:blur(22px)_saturate(135%)]"
+      :class="settingsStore.isDark ? 'bg-[rgba(0,0,0,0.72)]' : 'bg-[rgba(255,255,255,0.76)]'"
+    >
       <component :is="window.component" :window-id="window.id" v-bind="window.props" />
     </div>
 
