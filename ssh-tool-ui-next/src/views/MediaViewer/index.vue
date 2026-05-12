@@ -230,35 +230,37 @@ onBeforeUnmount(() => {
         </NTooltip>
       </div>
 
-      <aside v-if="shouldShowSidebar" class="media-sidebar flex w-[252px] min-w-[220px] flex-col border-l"
-        :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.76)]' : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.82)]'">
-        <div class="flex items-center justify-between gap-[10px] px-[12px] pb-[10px] pt-[12px] text-[13px] font-600"
-          :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#1e293b]'">
-          <span>文件列表</span>
-          <span class="text-[12px] font-500" :class="settingsStore.isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'">{{
-            props.playlist?.length ?? 0 }} 项</span>
-        </div>
+      <Transition name="media-sidebar-slide">
+        <aside v-if="shouldShowSidebar" class="media-sidebar flex w-[252px] min-w-[220px] flex-col border-l"
+          :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.76)]' : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.82)]'">
+          <div class="flex items-center justify-between gap-[10px] px-[12px] pb-[10px] pt-[12px] text-[13px] font-600"
+            :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#1e293b]'">
+            <span>文件列表</span>
+            <span class="text-[12px] font-500" :class="settingsStore.isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'">{{
+              props.playlist?.length ?? 0 }} 项</span>
+          </div>
 
-        <div class="flex min-h-0 flex-1 flex-col gap-[8px] overflow-auto px-[10px] pb-[12px]">
-          <button v-for="(item, index) in props.playlist" :key="item.path" type="button"
-            class="grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-[8px] rounded-[12px] border px-[10px] py-[9px] text-left transition-[background,border-color,color] duration-[180ms] ease-in-out"
-            :class="[
-              settingsStore.isDark
-                ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.8)] text-[#cbd5e1] hover:border-[rgba(96,165,250,0.42)] hover:bg-[rgba(30,41,59,0.86)]'
-                : 'border-[rgba(148,163,184,0.24)] bg-[rgba(255,255,255,0.88)] text-[#334155] hover:border-[rgba(37,99,235,0.36)] hover:bg-[rgba(239,246,255,0.92)]',
-              index === currentIndex
-                ? settingsStore.isDark
-                  ? 'border-[rgba(96,165,250,0.7)] bg-[rgba(37,99,235,0.18)] text-white'
-                  : 'bg-[rgba(59,130,246,0.14)] text-[#1d4ed8]'
-                : '',
-            ]" :title="item.filename" @click="changeFile(index)">
-            <span class="rounded-full px-[6px] py-[2px] text-[11px] leading-[1.4]"
-              :class="settingsStore.isDark ? 'bg-[rgba(59,130,246,0.14)] text-[#93c5fd]' : 'bg-[rgba(37,99,235,0.1)] text-[#2563eb]'">{{
-                item.type === 'video' ? '视频' : '图片' }}</span>
-            <span class="truncate-line">{{ item.filename }}</span>
-          </button>
-        </div>
-      </aside>
+          <div class="flex min-h-0 flex-1 flex-col gap-[8px] overflow-auto px-[10px] pb-[12px]">
+            <button v-for="(item, index) in props.playlist" :key="item.path" type="button"
+              class="grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-[8px] rounded-[12px] border px-[10px] py-[9px] text-left transition-[background,border-color,color] duration-[180ms] ease-in-out"
+              :class="[
+                settingsStore.isDark
+                  ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.8)] text-[#cbd5e1] hover:border-[rgba(96,165,250,0.42)] hover:bg-[rgba(30,41,59,0.86)]'
+                  : 'border-[rgba(148,163,184,0.24)] bg-[rgba(255,255,255,0.88)] text-[#334155] hover:border-[rgba(37,99,235,0.36)] hover:bg-[rgba(239,246,255,0.92)]',
+                index === currentIndex
+                  ? settingsStore.isDark
+                    ? 'border-[rgba(96,165,250,0.7)] bg-[rgba(37,99,235,0.18)] text-white'
+                    : 'bg-[rgba(59,130,246,0.14)] text-[#1d4ed8]'
+                  : '',
+              ]" :title="item.filename" @click="changeFile(index)">
+              <span class="rounded-full px-[6px] py-[2px] text-[11px] leading-[1.4]"
+                :class="settingsStore.isDark ? 'bg-[rgba(59,130,246,0.14)] text-[#93c5fd]' : 'bg-[rgba(37,99,235,0.1)] text-[#2563eb]'">{{
+                  item.type === 'video' ? '视频' : '图片' }}</span>
+              <span class="truncate-line">{{ item.filename }}</span>
+            </button>
+          </div>
+        </aside>
+      </Transition>
     </div>
   </div>
 </template>
@@ -290,6 +292,37 @@ onBeforeUnmount(() => {
 
 .media-nav-button--next {
   right: 18px;
+}
+
+.media-sidebar {
+  overflow: hidden;
+}
+
+.media-sidebar-slide-enter-active,
+.media-sidebar-slide-leave-active {
+  transition:
+    flex-basis 220ms ease,
+    min-width 220ms ease,
+    width 220ms ease,
+    opacity 180ms ease,
+    transform 220ms ease;
+}
+
+.media-sidebar-slide-enter-from,
+.media-sidebar-slide-leave-to {
+  width: 0;
+  min-width: 0;
+  flex-basis: 0;
+  opacity: 0;
+  transform: translateX(18px);
+}
+
+.media-sidebar-slide-enter-to,
+.media-sidebar-slide-leave-from {
+  width: 252px;
+  min-width: 220px;
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .media-video-player :deep(.xgplayer) {
@@ -328,6 +361,29 @@ onBeforeUnmount(() => {
     inset: 0 0 0 auto;
     width: min(78vw, 280px);
     box-shadow: -20px 0 40px rgba(2, 6, 23, 0.32);
+  }
+
+  .media-sidebar-slide-enter-active,
+  .media-sidebar-slide-leave-active {
+    transition:
+      opacity 180ms ease,
+      transform 220ms ease;
+  }
+
+  .media-sidebar-slide-enter-from,
+  .media-sidebar-slide-leave-to {
+    width: min(78vw, 280px);
+    min-width: 0;
+    opacity: 0;
+    transform: translateX(100%);
+  }
+
+  .media-sidebar-slide-enter-to,
+  .media-sidebar-slide-leave-from {
+    width: min(78vw, 280px);
+    min-width: 0;
+    opacity: 1;
+    transform: translateX(0);
   }
 
   .media-stage {
