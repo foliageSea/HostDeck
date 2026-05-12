@@ -327,7 +327,7 @@ function confirmSelection() {
     <div class="flex h-[min(680px,calc(100vh-180px))] min-h-[420px] flex-col gap-[12px]">
       <div class="flex flex-col gap-[10px] md:flex-row md:items-center">
         <div class="flex min-w-0 flex-1 items-center gap-[8px]">
-          <NButton round size="small" :disabled="loading || currentPath === '/'" @click="navigateUp">
+          <NButton quaternary round size="small" :disabled="loading || currentPath === '/'" @click="navigateUp">
             <template #icon>
               <NIcon>
                 <ArrowUp />
@@ -353,7 +353,7 @@ function confirmSelection() {
               </NIcon>
             </template>
           </NInput>
-          <NButton round size="small" :disabled="loading || !connectionId" @click="loadFiles(currentPath)">
+          <NButton quaternary round size="small" :disabled="loading || !connectionId" @click="loadFiles(currentPath)">
             <template #icon>
               <NIcon>
                 <Renew />
@@ -362,6 +362,7 @@ function confirmSelection() {
           </NButton>
           <NButton
             v-if="allowCreateDirectory"
+            quaternary
             round
             size="small"
             :disabled="loading || !connectionId"
@@ -406,8 +407,8 @@ function confirmSelection() {
           <span v-else>未选择文件</span>
         </div>
         <div class="flex justify-end gap-[8px]">
-          <NButton round @click="handleShowUpdate(false)">取消</NButton>
-          <NButton round type="primary" :disabled="confirmDisabled" @click="confirmSelection">
+          <NButton quaternary round @click="handleShowUpdate(false)">取消</NButton>
+          <NButton quaternary round type="primary" :disabled="confirmDisabled" @click="confirmSelection">
             {{ confirmText }}
           </NButton>
         </div>
@@ -428,8 +429,8 @@ function confirmSelection() {
           @keyup.enter="confirmCreateDirectory"
         />
         <div class="flex justify-end gap-[8px]">
-          <NButton round :disabled="creatingDirectory" @click="showCreateDirectoryDialog = false">取消</NButton>
-          <NButton round type="primary" :loading="creatingDirectory" @click="confirmCreateDirectory">创建</NButton>
+          <NButton quaternary round :disabled="creatingDirectory" @click="showCreateDirectoryDialog = false">取消</NButton>
+          <NButton quaternary round type="primary" :loading="creatingDirectory" @click="confirmCreateDirectory">创建</NButton>
         </div>
       </div>
     </NModal>

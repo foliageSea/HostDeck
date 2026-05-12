@@ -1572,7 +1572,7 @@ watch(
           class="w-[116px] flex-none"
           @update:value="updateSortKey"
         />
-        <NButton round @click="fileStore.toggleSortDirection()">
+        <NButton quaternary round @click="fileStore.toggleSortDirection()">
           {{ fileStore.sortDirection === "asc" ? "升序" : "降序" }}
         </NButton>
         <div class="flex items-center gap-[8px]">
@@ -1693,6 +1693,7 @@ watch(
           <div class="flex flex-wrap items-center justify-end gap-[12px]">
             <NButton
               v-if="editingPath"
+              quaternary
               size="small"
               round
               type="primary"
@@ -1702,7 +1703,7 @@ watch(
             >
             <NTooltip v-else>
               <template #trigger>
-                <NButton size="small" round @click="startPathEditing">
+                <NButton quaternary size="small" round @click="startPathEditing">
                   <template #icon>
                     <NIcon>
                       <ArrowRight />
@@ -1715,6 +1716,7 @@ watch(
             <NTooltip>
               <template #trigger>
                 <NButton
+                  quaternary
                   size="small"
                   round
                   :type="isCurrentPathFavorite ? 'warning' : 'default'"
@@ -1734,6 +1736,7 @@ watch(
             <NTooltip>
               <template #trigger>
                 <NButton
+                  quaternary
                   size="small"
                   round
                   :type="isCurrentPathPinned ? 'primary' : 'default'"
@@ -1758,7 +1761,7 @@ watch(
               placement="bottom-end"
             >
               <template #trigger>
-                <NButton size="small" round class="md:hidden">
+                <NButton quaternary size="small" round class="md:hidden">
                   <template #icon>
                     <NIcon>
                       <LocationStar />
@@ -1816,7 +1819,7 @@ watch(
             </NPopover>
             <NTooltip>
               <template #trigger>
-                <NButton size="small" round @click="openTerminalHere">
+                <NButton quaternary size="small" round @click="openTerminalHere">
                   <template #icon>
                     <NIcon>
                       <Terminal />
@@ -1829,13 +1832,13 @@ watch(
           </div>
         </div>
 
-        <div class="flex w-full flex-wrap items-center justify-end gap-[12px]">
+        <div class="flex w-full flex-wrap items-center justify-start gap-[12px]">
           <NDropdown
             trigger="click"
             :options="createOptions"
             @select="handleCreateSelect"
           >
-            <NButton round>
+            <NButton quaternary round>
               <template #icon>
                 <NIcon>
                   <FolderAdd />
@@ -1849,7 +1852,7 @@ watch(
             :options="uploadOptions"
             @select="handleUploadSelect"
           >
-            <NButton round :disabled="isUploading" :loading="isUploading">
+            <NButton quaternary round :disabled="isUploading" :loading="isUploading">
               <template #icon>
                 <NIcon>
                   <Upload />
@@ -1859,18 +1862,21 @@ watch(
             </NButton>
           </NDropdown>
           <NButton
+            quaternary
             round
             :disabled="!canExtractSelectedArchive"
             @click="openExtractDialog"
             >解压缩</NButton
           >
           <NButton
+            quaternary
             round
             :disabled="selectedFiles.length !== 1"
             @click="openRenameDialog"
             >重命名</NButton
           >
           <NButton
+            quaternary
             round
             :disabled="selectedFiles.length === 0"
             type="error"
@@ -1879,6 +1885,7 @@ watch(
             >删除</NButton
           >
           <NButton
+            quaternary
             round
             :disabled="selectedFiles.length === 0"
             @click="downloadSelectedFiles"
@@ -2009,12 +2016,14 @@ watch(
         />
         <NSpace justify="end">
           <NButton
+            quaternary
             round
             :disabled="extractingArchive"
             @click="showExtractDialog = false"
             >取消</NButton
           >
           <NButton
+            quaternary
             round
             type="primary"
             :loading="extractingArchive"
