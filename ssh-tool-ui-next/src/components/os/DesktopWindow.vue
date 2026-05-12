@@ -135,12 +135,12 @@ onUnmounted(() => {
     class="absolute flex flex-col overflow-hidden rounded-[20px] opacity-100 transition-[opacity,transform,box-shadow] duration-[240ms] ease-in-out"
     :class="[
       settingsStore.isDark
-        ? 'bg-[#000] shadow-[0_28px_80px_rgba(2,6,23,0.35)]'
-        : 'bg-[#fff] shadow-[0_24px_72px_rgba(148,163,184,0.24)]',
+        ? 'bg-[#000] shadow-[0_22px_48px_rgba(0,0,0,0.56),0_8px_18px_rgba(0,0,0,0.34),0_0_0_1px_rgba(255,255,255,0.08)]'
+        : 'bg-[#fff] shadow-[0_22px_48px_rgba(15,23,42,0.20),0_8px_18px_rgba(15,23,42,0.12),0_0_0_1px_rgba(15,23,42,0.06)]',
       {
         'desktop-window--opening': !window.isClosing,
         'pointer-events-none opacity-0 scale-[0.94] translate-y-[12px]': window.isClosing,
-        'h-auto': window.isMaximized,
+        'h-auto rounded-none shadow-none': window.isMaximized,
         'invisible pointer-events-none opacity-0 scale-[0.92] translate-y-[14px]': window.isMinimized,
         'transition-none': (isDragging || isResizing) && !window.isClosing,
       },
