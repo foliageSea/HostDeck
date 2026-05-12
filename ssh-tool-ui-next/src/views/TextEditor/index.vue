@@ -229,8 +229,8 @@ watch(showSettings, (value) => {
     :class="settingsStore.isDark ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.18),rgba(15,23,42,0.06))]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(226,232,240,0.36))]'"
   >
     <div
-      class="relative z-[1] flex h-[24px] shrink-0 items-center gap-[4px] overflow-visible rounded-[8px] border px-[6px] shadow-[0_14px_36px_rgba(15,23,42,0.12)] backdrop-blur-[12px]"
-      :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-transparent text-[#e2e8f0]' : 'border-[rgba(148,163,184,0.2)] bg-transparent text-[#1e293b]'"
+      class="relative z-[1] flex h-[32px] shrink-0 items-center gap-[4px] overflow-visible px-[8px]"
+      :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#1e293b]'"
     >
       <NMenu class="notepad-menu" mode="horizontal" :options="menuOptions" responsive @update:value="handleActionSelect" />
     </div>
@@ -300,19 +300,19 @@ watch(showSettings, (value) => {
 }
 
 .notepad-menu {
-  height: 24px;
-  line-height: 24px;
+  height: 32px;
+  line-height: 32px;
 }
 
 .notepad-menu :deep(.n-menu-item-content) {
-  height: 24px;
-  line-height: 24px;
+  height: 32px;
+  line-height: 32px;
   padding-top: 0;
   padding-bottom: 0;
 }
 
 .notepad-menu :deep(.n-menu-item-content-header) {
-  line-height: 24px;
+  line-height: 32px;
 }
 
 .editor-body :deep(.n-spin-body),
