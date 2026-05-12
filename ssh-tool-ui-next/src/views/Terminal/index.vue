@@ -91,7 +91,7 @@ async function copySelection() {
       :class="[
         settingsStore.isDark
           ? 'border-[rgba(148,163,184,0.14)] bg-[#050816] shadow-[0_20px_48px_rgba(2,6,23,0.32)]'
-          : 'border-[rgba(148,163,184,0.18)] bg-[#0f172a] shadow-[0_18px_42px_rgba(15,23,42,0.14)]',
+          : 'border-[rgba(148,163,184,0.24)] bg-[#f8fafc] shadow-[0_18px_42px_rgba(15,23,42,0.12)]',
       ]"
     >
       <div ref="terminalContainer" class="terminal-host h-full min-h-0 overflow-hidden rounded-[inherit] px-2" />

@@ -18,6 +18,56 @@ interface TerminalProps {
   closeConnectionOnUnmount?: boolean
 }
 
+function buildTerminalTheme(isDark: boolean) {
+  if (isDark) {
+    return {
+      background: '#050816',
+      black: '#0f172a',
+      blue: '#60a5fa',
+      brightBlack: '#475569',
+      brightBlue: '#93c5fd',
+      brightCyan: '#67e8f9',
+      brightGreen: '#86efac',
+      brightMagenta: '#f0abfc',
+      brightRed: '#fca5a5',
+      brightWhite: '#f8fafc',
+      brightYellow: '#fde68a',
+      cursor: '#e2e8f0',
+      cyan: '#22d3ee',
+      foreground: '#e2e8f0',
+      green: '#4ade80',
+      magenta: '#e879f9',
+      red: '#f87171',
+      selectionBackground: '#334155',
+      white: '#cbd5e1',
+      yellow: '#facc15',
+    }
+  }
+
+  return {
+    background: '#f8fafc',
+    black: '#0f172a',
+    blue: '#2563eb',
+    brightBlack: '#64748b',
+    brightBlue: '#1d4ed8',
+    brightCyan: '#0e7490',
+    brightGreen: '#15803d',
+    brightMagenta: '#a21caf',
+    brightRed: '#b91c1c',
+    brightWhite: '#020617',
+    brightYellow: '#a16207',
+    cursor: '#0f172a',
+    cyan: '#0891b2',
+    foreground: '#0f172a',
+    green: '#16a34a',
+    magenta: '#c026d3',
+    red: '#dc2626',
+    selectionBackground: '#dbeafe',
+    white: '#334155',
+    yellow: '#ca8a04',
+  }
+}
+
 export function useTerminalSession(props: TerminalProps) {
   const sshStore = useSshStore()
   const settingsStore = useSettingsStore()
@@ -129,10 +179,7 @@ export function useTerminalSession(props: TerminalProps) {
       cursorBlink: true,
       fontFamily: settingsStore.terminalFontFamily,
       fontSize: settingsStore.terminalFontSize,
-      theme: {
-        background: '#050816',
-        foreground: '#e2e8f0',
-      },
+      theme: buildTerminalTheme(settingsStore.isDark),
     }))
 
     terminalRef.value.attachCustomKeyEventHandler((event) => {
@@ -155,6 +202,17 @@ export function useTerminalSession(props: TerminalProps) {
     terminalRef.value.loadAddon(fitAddon)
     terminalRef.value.loadAddon(webLinksAddon)
   }
+
+  watch(
+    () => settingsStore.isDark,
+    (isDark) => {
+      if (!terminalRef.value) {
+        return
+      }
+
+      terminalRef.value.options.theme = buildTerminalTheme(isDark)
+    },
+  )
 
   watch(
     () => settingsStore.terminalFontSize,
