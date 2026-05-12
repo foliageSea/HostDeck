@@ -21,11 +21,8 @@ let resizeStartClientX = 0
 let resizeStartClientY = 0
 
 const windowStyle = computed(() => {
-  const borderColor = isActive.value ? 'var(--app-primary-border-strong)' : 'var(--app-primary-soft-strong)'
-
   if (props.window.isMaximized) {
     return {
-      borderColor,
       bottom: '0',
       left: '0',
       right: '0',
@@ -35,7 +32,6 @@ const windowStyle = computed(() => {
   }
 
   return {
-    borderColor,
     height: `${props.window.height}px`,
     left: `${props.window.x}px`,
     minHeight: `${props.window.minHeight}px`,
@@ -136,11 +132,11 @@ onUnmounted(() => {
 
 <template>
   <section
-    class="absolute flex flex-col overflow-hidden rounded-[20px] opacity-100 backdrop-blur-[18px] transition-[opacity,transform,box-shadow,border-color] duration-[240ms] ease-in-out border border-solid"
+    class="absolute flex flex-col overflow-hidden rounded-[20px] opacity-100 transition-[opacity,transform,box-shadow] duration-[240ms] ease-in-out"
     :class="[
       settingsStore.isDark
-        ? 'border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.72)] shadow-[0_28px_80px_rgba(2,6,23,0.35)]'
-        : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.76)] shadow-[0_24px_72px_rgba(148,163,184,0.24)]',
+        ? 'bg-[#000] shadow-[0_28px_80px_rgba(2,6,23,0.35)]'
+        : 'bg-[#fff] shadow-[0_24px_72px_rgba(148,163,184,0.24)]',
       {
         'desktop-window--opening': !window.isClosing,
         'pointer-events-none opacity-0 scale-[0.94] translate-y-[12px]': window.isClosing,
@@ -157,8 +153,8 @@ onUnmounted(() => {
       class="relative flex h-[48px] items-center justify-between gap-[12px] border-b px-[14px]"
       :class="[
         settingsStore.isDark
-          ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.74)]'
-          : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.88)]',
+          ? 'border-[rgba(148,163,184,0.14)] bg-[#000]'
+          : 'border-[rgba(148,163,184,0.22)] bg-[#fff]',
       ]"
       @mousedown.prevent="startDrag"
       @dblclick="maximizeWindow"
@@ -176,7 +172,7 @@ onUnmounted(() => {
 
       <div
         class="pointer-events-none absolute left-1/2 flex max-w-[min(65%,calc(100%_-_140px))] min-w-0 translate-x-[-50%] items-center gap-[8px] overflow-hidden text-ellipsis whitespace-nowrap font-600"
-        :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
+        :class="isActive ? 'text-[var(--app-primary-color)]' : settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
       >
         <AppIcon :name="window.icon" :size="16" />
         <span class="overflow-hidden text-ellipsis">{{ window.title }}</span>
