@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import CodeEditor from '@/components/editor/CodeEditor.vue'
 import { filesApi } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
@@ -171,6 +171,10 @@ async function loadFile() {
 }
 
 async function saveFile() {
+  if (saving.value) {
+    return
+  }
+
   saving.value = true
   try {
     await filesApi.writeFile(props.connectionId, props.path, content.value)
@@ -206,7 +210,22 @@ function handleActionSelect(key: string) {
   }
 }
 
+function handleKeydown(event: KeyboardEvent) {
+  if (event.ctrlKey && event.key.toLowerCase() === 's') {
+    event.preventDefault()
+    void saveFile()
+  }
+}
+
 void loadFile()
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
 
 watch(
   () => settingsStore.editorFontFamily,
