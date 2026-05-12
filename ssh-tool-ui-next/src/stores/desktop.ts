@@ -19,6 +19,7 @@ import TerminalView from '@/views/Terminal/index.vue'
 import TextEditorView from '@/views/TextEditor/index.vue'
 
 export const maxSessionWindows = 8
+const windowCloseAnimationMs = 220
 
 const PINNED_DIRECTORIES_STORAGE_KEY = 'ssh-tool:desktop:pinned-directories'
 const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'ssh-tool:desktop:pinned-directory-positions'
@@ -283,12 +284,13 @@ export interface WindowState {
   isMinimized: boolean
   isMaximized: boolean
   zIndex: number
+  isClosing: boolean
   props?: Record<string, unknown>
 }
 
 function getTopVisibleWindow(windows: WindowState[]) {
   return [...windows]
-    .filter((window) => !window.isMinimized)
+    .filter((window) => !window.isMinimized && !window.isClosing)
     .sort((left, right) => right.zIndex - left.zIndex)[0]
 }
 
@@ -449,7 +451,7 @@ export const useDesktopStore = defineStore('desktop', {
   }),
 
   getters: {
-    sessionWindowCount: (state): number => state.windows.filter((window) => isSessionWindowAppId(window.appId)).length,
+    sessionWindowCount: (state): number => state.windows.filter((window) => isSessionWindowAppId(window.appId) && !window.isClosing).length,
   },
 
   actions: {
@@ -668,18 +670,9 @@ export const useDesktopStore = defineStore('desktop', {
     },
 
     closeAppWindows(appId: DesktopAppId) {
-      const closedWindowIds = this.windows.filter((window) => window.appId === appId).map((window) => window.id)
-      const windowSessionStore = useWindowSessionStore()
-
-      this.windows = this.windows.filter((window) => window.appId !== appId)
-      closedWindowIds.forEach((windowId) => {
-        void windowSessionStore.disconnectWindow(windowId)
-      })
-
-      if (this.activeWindowId && !this.windows.some((window) => window.id === this.activeWindowId)) {
-        const nextActiveWindow = getTopVisibleWindow(this.windows)
-        this.activeWindowId = nextActiveWindow?.id ?? null
-      }
+      this.windows
+        .filter((window) => window.appId === appId)
+        .forEach((window) => this.closeWindow(window.id))
     },
 
     closeWindow(id: string) {
@@ -688,18 +681,37 @@ export const useDesktopStore = defineStore('desktop', {
         return
       }
 
-      this.windows.splice(targetIndex, 1)
-      void useWindowSessionStore().disconnectWindow(id)
+      const targetWindow = this.windows[targetIndex]
+      if (targetWindow.isClosing) {
+        return
+      }
+
+      targetWindow.isClosing = true
 
       if (this.activeWindowId === id) {
         const nextActiveWindow = getTopVisibleWindow(this.windows)
         this.activeWindowId = nextActiveWindow?.id ?? null
       }
+
+      globalThis.setTimeout(() => {
+        const removingIndex = this.windows.findIndex((window) => window.id === id)
+        if (removingIndex === -1) {
+          return
+        }
+
+        this.windows.splice(removingIndex, 1)
+        void useWindowSessionStore().disconnectWindow(id)
+
+        if (this.activeWindowId === id) {
+          const nextActiveWindow = getTopVisibleWindow(this.windows)
+          this.activeWindowId = nextActiveWindow?.id ?? null
+        }
+      }, windowCloseAnimationMs)
     },
 
     focusWindow(id: string) {
       const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow) {
+      if (!targetWindow || targetWindow.isClosing) {
         return
       }
 
@@ -713,7 +725,7 @@ export const useDesktopStore = defineStore('desktop', {
 
     maximizeWindow(id: string) {
       const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow) {
+      if (!targetWindow || targetWindow.isClosing) {
         return
       }
 
@@ -723,7 +735,7 @@ export const useDesktopStore = defineStore('desktop', {
 
     minimizeWindow(id: string) {
       const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow || !targetWindow.minimizable) {
+      if (!targetWindow || targetWindow.isClosing || !targetWindow.minimizable) {
         return
       }
 
@@ -760,6 +772,7 @@ export const useDesktopStore = defineStore('desktop', {
         component: app.component,
         height: Math.max(app.height ?? 600, minHeight),
         icon: app.icon,
+        isClosing: false,
         id: windowId,
         isMaximized: false,
         isMinimized: false,

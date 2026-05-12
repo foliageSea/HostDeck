@@ -142,9 +142,11 @@ onUnmounted(() => {
         ? 'border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.72)] shadow-[0_28px_80px_rgba(2,6,23,0.35)]'
         : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.76)] shadow-[0_24px_72px_rgba(148,163,184,0.24)]',
       {
+        'desktop-window--opening': !window.isClosing,
+        'pointer-events-none opacity-0 scale-[0.94] translate-y-[12px]': window.isClosing,
         'h-auto': window.isMaximized,
         'invisible pointer-events-none opacity-0 scale-[0.92] translate-y-[14px]': window.isMinimized,
-        'transition-none': isDragging || isResizing,
+        'transition-none': (isDragging || isResizing) && !window.isClosing,
       },
     ]"
     :style="windowStyle"
@@ -194,3 +196,21 @@ onUnmounted(() => {
     <div v-if="!window.isMaximized" class="absolute bottom-0 right-0 h-[18px] w-[18px] cursor-nwse-resize" @mousedown.prevent="startResize" />
   </section>
 </template>
+
+<style scoped>
+.desktop-window--opening {
+  animation: desktop-window-open 260ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@keyframes desktop-window-open {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+</style>
