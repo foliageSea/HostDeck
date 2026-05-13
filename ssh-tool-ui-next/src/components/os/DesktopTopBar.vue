@@ -212,17 +212,17 @@ function disconnect() {
 
 <template>
   <header
-    class="absolute left-0 right-0 top-0 z-20 grid h-[48px] grid-cols-[1fr_auto_1fr] items-center border-b px-[16px] backdrop-blur-[16px]"
+    class="absolute left-0 right-0 top-0 z-20 grid h-[var(--desktop-topbar-height)] grid-cols-[1fr_auto_1fr] items-center border-b px-[12px] backdrop-blur-[16px]"
     :class="[
       settingsStore.isDark
         ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.45)] text-[#e2e8f0]'
         : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.58)] text-[#1e293b]',
     ]">
-    <div class="flex min-w-0 items-center gap-[12px]">
+    <div class="flex min-w-0 items-center gap-[8px]">
       <span class="font-700 tracking-[0.04em]">SSH Tool</span>
     </div>
 
-    <div class="flex min-w-0 items-center justify-center gap-[12px] text-[0.92rem]"
+    <div class="flex min-w-0 items-center justify-center gap-[8px] text-[0.88rem]"
       :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.8)]' : 'text-[rgba(51,65,85,0.82)]'">
       <NTooltip placement="bottom">
         <template #trigger>
@@ -236,7 +236,7 @@ function disconnect() {
       <NTooltip placement="bottom">
         <template #trigger>
           <div
-            class="flex min-w-[120px] max-w-[320px] items-center justify-between gap-[8px] rounded-[10px] px-[10px] py-[4px] text-[12px]"
+            class="flex min-w-[120px] max-w-[320px] items-center justify-between gap-[8px] rounded-[10px] px-[10px] py-[3px] text-[12px]"
             :class="settingsStore.isDark
               ? 'bg-[rgba(15,23,42,0.46)] text-[rgba(226,232,240,0.88)]'
               : 'bg-[rgba(255,255,255,0.58)] text-[rgba(30,41,59,0.88)]'">
@@ -249,7 +249,7 @@ function disconnect() {
       <NTooltip v-if="monitorError" placement="bottom">
         <template #trigger>
           <div
-            class="flex items-center gap-[8px] rounded-[10px] border px-[10px] py-[4px] text-[12px]"
+            class="flex items-center gap-[8px] rounded-[10px] border px-[10px] py-[3px] text-[12px]"
             :class="settingsStore.isDark
               ? 'border-[rgba(248,113,113,0.3)] bg-[rgba(127,29,29,0.28)] text-[rgba(254,202,202,0.96)]'
               : 'border-[rgba(239,68,68,0.24)] bg-[rgba(254,242,242,0.9)] text-[rgba(185,28,28,0.92)]'">
@@ -261,7 +261,7 @@ function disconnect() {
       </NTooltip>
     </div>
 
-    <div class="flex min-w-0 items-center justify-end gap-[12px]">
+    <div class="flex min-w-0 items-center justify-end gap-[8px]">
       <div class="hidden grid-cols-2 gap-[4px] xl:grid">
         <div v-for="stat in performanceStats" :key="stat.label"
           class="flex min-w-[74px] items-center justify-between gap-[5px] px-[6px] py-[2px] text-[10px] leading-[1.1]"
