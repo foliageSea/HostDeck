@@ -18,17 +18,20 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const content = ref('')
+const savedContent = ref('')
 const showSettings = ref(false)
 const editorFontFamilyDraft = ref(settingsStore.editorFontFamily)
+const confirmingUnsavedChanges = ref(false)
 
 const language = computed(() => detectLanguage(props.path))
+const hasUnsavedChanges = computed(() => content.value !== savedContent.value)
 
 const menuOptions = computed(() => [
   {
     key: 'file',
     label: '文件',
     children: [
-      { key: 'save', label: '保存', disabled: saving.value },
+      { key: 'save', label: hasUnsavedChanges.value ? '保存 *' : '保存', disabled: saving.value },
       { key: 'reload', label: '重新加载', disabled: loading.value || saving.value },
       { key: 'divider', type: 'divider' },
       { key: 'close', label: '关闭' },
@@ -156,12 +159,54 @@ function resetEditorSettings() {
   editorFontFamilyDraft.value = settingsStore.editorFontFamily
 }
 
+function confirmDiscardUnsavedChanges(contentText: string) {
+  if (!hasUnsavedChanges.value) {
+    return Promise.resolve(true)
+  }
+
+  if (confirmingUnsavedChanges.value) {
+    return Promise.resolve(false)
+  }
+
+  confirmingUnsavedChanges.value = true
+
+  return new Promise<boolean>((resolve) => {
+    let settled = false
+    const settle = (value: boolean) => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      confirmingUnsavedChanges.value = false
+      resolve(value)
+    }
+
+    getUiApi().dialog.warning({
+      title: '存在未保存的修改',
+      content: contentText,
+      positiveText: '放弃修改',
+      negativeText: '取消',
+      onPositiveClick: () => settle(true),
+      onNegativeClick: () => settle(false),
+      onClose: () => settle(false),
+      onMaskClick: () => settle(false),
+    })
+  })
+}
+
+async function confirmCloseWindow() {
+  return confirmDiscardUnsavedChanges('关闭窗口将丢失当前未保存的修改，是否继续？')
+}
+
 async function loadFile() {
   loading.value = true
   error.value = ''
 
   try {
-    content.value = await filesApi.readFile(props.connectionId, props.path)
+    const nextContent = await filesApi.readFile(props.connectionId, props.path)
+    content.value = nextContent
+    savedContent.value = nextContent
   } catch (loadError) {
     console.error('Failed to read file', loadError)
     error.value = '文件读取失败。'
@@ -178,6 +223,7 @@ async function saveFile() {
   saving.value = true
   try {
     await filesApi.writeFile(props.connectionId, props.path, content.value)
+    savedContent.value = content.value
     getUiApi().message.success('文件已保存。')
   } catch (saveError) {
     console.error('Failed to save file', saveError)
@@ -189,8 +235,16 @@ async function saveFile() {
 
 function closeWindow() {
   if (props.windowId) {
-    desktopStore.closeWindow(props.windowId)
+    void desktopStore.requestCloseWindow(props.windowId)
   }
+}
+
+async function reloadFile() {
+  if (!await confirmDiscardUnsavedChanges('重新加载将丢失当前未保存的修改，是否继续？')) {
+    return
+  }
+
+  await loadFile()
 }
 
 function handleActionSelect(key: string) {
@@ -199,7 +253,7 @@ function handleActionSelect(key: string) {
       void saveFile()
       break
     case 'reload':
-      void loadFile()
+      void reloadFile()
       break
     case 'settings':
       showSettings.value = true
@@ -220,10 +274,18 @@ function handleKeydown(event: KeyboardEvent) {
 void loadFile()
 
 onMounted(() => {
+  if (props.windowId) {
+    desktopStore.setWindowBeforeClose(props.windowId, confirmCloseWindow)
+  }
+
   window.addEventListener('keydown', handleKeydown)
 })
 
 onBeforeUnmount(() => {
+  if (props.windowId) {
+    desktopStore.setWindowBeforeClose(props.windowId)
+  }
+
   window.removeEventListener('keydown', handleKeydown)
 })
 
@@ -252,12 +314,19 @@ watch(showSettings, (value) => {
       :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#1e293b]'"
     >
       <NMenu class="notepad-menu" mode="horizontal" :options="menuOptions" responsive @update:value="handleActionSelect" />
+      <span
+        v-if="hasUnsavedChanges"
+        class="ml-[8px] shrink-0 whitespace-nowrap rounded-full px-[10px] py-[3px] text-[12px] font-600"
+        :class="settingsStore.isDark ? 'bg-[rgba(251,191,36,0.16)] text-[#fbbf24]' : 'bg-[rgba(245,158,11,0.14)] text-[#b45309]'"
+      >
+        未保存
+      </span>
     </div>
 
     <NSpin :show="loading" class="editor-body relative z-[1] flex-1 min-h-0">
       <NResult v-if="error" status="error" title="无法读取文件" :description="error">
         <template #footer>
-          <NButton round @click="loadFile">重试</NButton>
+          <NButton round @click="reloadFile">重试</NButton>
         </template>
       </NResult>
 

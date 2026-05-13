@@ -33,6 +33,7 @@ type PinnedDirectoryPositions = Record<string, {
   x: number
   y: number
 }>
+type WindowBeforeCloseHandler = () => boolean | Promise<boolean>
 type PinnedDirectoryPositionsByConnection = Record<string, PinnedDirectoryPositions>
 
 export interface PinnedPortLink {
@@ -285,6 +286,7 @@ export interface WindowState {
   isMaximized: boolean
   zIndex: number
   isClosing: boolean
+  beforeClose?: WindowBeforeCloseHandler
   props?: Record<string, unknown>
 }
 
@@ -672,7 +674,25 @@ export const useDesktopStore = defineStore('desktop', {
     closeAppWindows(appId: DesktopAppId) {
       this.windows
         .filter((window) => window.appId === appId)
-        .forEach((window) => this.closeWindow(window.id))
+        .forEach((window) => {
+          void this.requestCloseWindow(window.id)
+        })
+    },
+
+    async requestCloseWindow(id: string) {
+      const targetWindow = this.windows.find((window) => window.id === id)
+      if (!targetWindow || targetWindow.isClosing) {
+        return
+      }
+
+      if (targetWindow.beforeClose) {
+        const canClose = await targetWindow.beforeClose()
+        if (!canClose) {
+          return
+        }
+      }
+
+      this.closeWindow(id)
     },
 
     closeWindow(id: string) {
@@ -809,6 +829,15 @@ export const useDesktopStore = defineStore('desktop', {
 
       targetWindow.isMinimized = false
       this.focusWindow(id)
+    },
+
+    setWindowBeforeClose(id: string, handler?: WindowBeforeCloseHandler) {
+      const targetWindow = this.windows.find((window) => window.id === id)
+      if (!targetWindow) {
+        return
+      }
+
+      targetWindow.beforeClose = handler
     },
 
     updateWindowPosition(id: string, x: number, y: number) {

@@ -59,7 +59,7 @@ function minimizeWindow() {
 }
 
 function closeWindow() {
-  desktopStore.closeWindow(props.window.id)
+  void desktopStore.requestCloseWindow(props.window.id)
 }
 
 function handleDrag(event: MouseEvent) {
