@@ -66,8 +66,8 @@ const uploadSpeed = computed(() => formatSpeed(monitorData.value?.network?.uploa
 const downloadSpeed = computed(() => formatSpeed(monitorData.value?.network?.downloadSpeed ?? 0))
 const performanceStats = computed(() => [
   { label: 'CPU', value: cpuUsage.value },
-  { label: '内存', value: memoryUsage.value },
   { label: '上传', value: uploadSpeed.value },
+  { label: '内存', value: memoryUsage.value },
   { label: '下载', value: downloadSpeed.value },
 ])
 const hasUnreadUploads = computed(() => uploadCenterStore.activeTaskCount > 0)
@@ -259,19 +259,17 @@ function disconnect() {
         </template>
         {{ monitorError }}
       </NTooltip>
-      <div class="hidden items-center gap-[8px] xl:flex">
-        <div v-for="stat in performanceStats" :key="stat.label"
-          class="flex min-w-[92px] items-center justify-between gap-[8px] rounded-[10px] px-[10px] py-[4px] text-[12px]"
-          :class="settingsStore.isDark
-            ? 'bg-[rgba(15,23,42,0.46)] text-[rgba(226,232,240,0.88)]'
-            : 'bg-[rgba(255,255,255,0.58)] text-[rgba(30,41,59,0.88)]'">
-          <span class="text-[rgba(148,163,184,0.94)]">{{ stat.label }}</span>
-          <strong class="font-600">{{ stat.value }}</strong>
-        </div>
-      </div>
     </div>
 
     <div class="flex min-w-0 items-center justify-end gap-[12px]">
+      <div class="hidden grid-cols-2 gap-[4px] xl:grid">
+        <div v-for="stat in performanceStats" :key="stat.label"
+          class="flex min-w-[74px] items-center justify-between gap-[5px] px-[6px] py-[2px] text-[10px] leading-[1.1]"
+          :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.88)]' : 'text-[rgba(30,41,59,0.88)]'">
+          <span class="text-[rgba(148,163,184,0.94)]">{{ stat.label }}</span>
+          <strong class="whitespace-nowrap font-600">{{ stat.value }}</strong>
+        </div>
+      </div>
       <NPopover trigger="click" placement="bottom-end" :show="uploadCenterStore.panelOpen"
         @update:show="handleTaskCenterVisibilityChange">
         <template #trigger>
