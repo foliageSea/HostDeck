@@ -6,7 +6,7 @@
 - Dart CLI 服务：入口为 `bin/server.dart`，可独立以 B/S 模式运行
 - Vue 3 前端：当前主前端位于 `ssh-tool-ui-next/`
 
-仓库内仍保留了 `ssh-tool-ui/` 目录的历史遗留产物，但当前开发、Docker 构建和发布流程都以 `ssh-tool-ui-next/` 为准。
+当前开发、Docker 构建和发布流程都以 `ssh-tool-ui-next/` 为准；旧 `ssh-tool-ui/` 目录已不存在。
 
 ## 功能概览
 
@@ -79,7 +79,8 @@ flutter run -d windows
 
 说明：
 
-- Vite 默认地址通常是 `http://localhost:5173`
+- `ssh-tool-ui-next/vite.config.ts` 当前端口是 `http://localhost:5174`
+- `lib/main.dart` 的 Flutter debug WebView 仍硬编码加载 `http://localhost:5173`，调试桌面壳前需要先统一端口，或临时让 Vite 使用 5173
 - Flutter 内置后端默认监听 `http://localhost:8080`
 - `ssh-tool-ui-next/vite.config.ts` 会把 `/api` 和 `/socket.io` 代理到 `http://localhost:8080`
 
@@ -136,7 +137,7 @@ dart build cli --target bin/server.dart -o build/server
 - `build/server/bundle/lib/`：运行时动态库
 - `build/server/bundle/web/`：前端静态资源
 
-说明：仓库中的 `scripts/build_server.sh` 和 `scripts/build_server.ps1` 目前仍引用旧目录 `ssh-tool-ui/`，使用前需要先校正路径，否则会失败。
+说明：仓库中的 `scripts/build_server.sh` 和 `scripts/build_server.ps1` 目前仍引用已不存在的旧目录 `ssh-tool-ui/`，使用前需要先校正为 `ssh-tool-ui-next/`，否则会失败。
 
 ## Docker
 
@@ -168,6 +169,13 @@ flutter test
 ```bash
 pnpm build
 pnpm exec vue-tsc -p tsconfig.app.json --noEmit
+pnpm test
+```
+
+单个前端测试示例：
+
+```bash
+pnpm exec vitest run src/views/Files/components/__tests__/FilePickerDialog.spec.ts
 ```
 
 ## 项目结构
@@ -177,7 +185,6 @@ ssh_tool/
 ├── bin/                 # Dart CLI 服务入口
 ├── lib/                 # Flutter 桌面壳与内置后端服务
 ├── ssh-tool-ui-next/    # 当前主前端工程
-├── ssh-tool-ui/         # 历史遗留目录/旧产物
 ├── assets/web/          # Flutter release 打包使用的静态资源
 ├── scripts/             # 服务打包脚本
 ├── test/                # Flutter/Dart 测试
