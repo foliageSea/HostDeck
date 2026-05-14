@@ -316,15 +316,16 @@ onMounted(async () => {
 
         <template v-else>
           <div class="mb-[22px] grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-[14px]">
-            <button
+            <div
               v-for="server in sshStore.savedServers"
               :key="server.id ?? `${server.host}-${server.port}`"
-              type="button"
-              class="group rounded-[24px] border border-transparent px-[12px] py-[16px] text-center transition-[transform,background-color] duration-[180ms] ease-in-out hover:translate-y-[-3px]"
-              :class="settingsStore.isDark
-                ? 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
-                : 'bg-[rgba(255,255,255,0.46)] hover:bg-[rgba(255,255,255,0.78)]'
-              "
+              class="group server-card rounded-[24px] border border-transparent px-[12px] py-[16px] text-center transition-[transform,background-color,border-color] duration-[180ms] ease-in-out hover:translate-y-[-3px]"
+              :class="[
+                settingsStore.isDark
+                  ? 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
+                  : 'bg-[rgba(255,255,255,0.46)] hover:bg-[rgba(255,255,255,0.78)]',
+                { 'server-card-selected': server.id === selectedServerId },
+              ]"
               @click="applyServer(server)"
             >
               <div class="mx-auto mb-[10px] grid h-[58px] w-[58px] place-items-center rounded-full shadow-[0_14px_28px_rgba(15,23,42,0.24)] transition-transform duration-[180ms] group-hover:scale-[1.05]">
@@ -344,7 +345,7 @@ onMounted(async () => {
               <div class="mt-[3px] text-[0.72rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.5)]' : 'text-[rgba(51,65,85,0.58)]'">
                 端口 {{ server.port }}
               </div>
-            </button>
+            </div>
           </div>
 
           <div
@@ -451,6 +452,10 @@ onMounted(async () => {
 <style scoped>
 .form-panel-shake {
   animation: panel-shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+.server-card-selected {
+  border-color: var(--app-primary-color);
 }
 
 @keyframes panel-shake {
