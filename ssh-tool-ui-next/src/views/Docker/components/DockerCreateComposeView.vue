@@ -145,14 +145,14 @@ async function submitCreateComposeProject() {
           </div>
         </NFormItem>
 
+        <NFormItem label="创建后立即启动" class="pt-2">
+          <NSwitch v-model:value="createForm.startAfterCreate" />
+        </NFormItem>
+
         <NFormItem label="Compose YAML" required class="mt-2">
           <div class="compose-editor-wrap h-[420px] min-h-[320px] min-w-0 w-full">
             <CodeEditor v-model="createForm.content" language="yaml" class="h-full min-h-0" />
           </div>
-        </NFormItem>
-
-        <NFormItem label="创建后立即启动">
-          <NSwitch v-model:value="createForm.startAfterCreate" />
         </NFormItem>
       </NForm>
     </div>
