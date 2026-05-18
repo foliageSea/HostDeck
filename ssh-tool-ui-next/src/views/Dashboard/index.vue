@@ -83,15 +83,11 @@ const memorySeries = computed(() =>
 )
 const uploadSeries = computed(() => visibleSamples.value.map((sample) => sample.network?.uploadSpeed ?? 0))
 const downloadSeries = computed(() => visibleSamples.value.map((sample) => sample.network?.downloadSpeed ?? 0))
-const rangeSampleCount = computed(() => visibleSamples.value.length)
-
 const cpuPeakDisplay = computed(() => formatPercent(getPeak(cpuSeries.value)))
 const cpuAverageDisplay = computed(() => formatPercent(getAverage(cpuSeries.value)))
 const memoryPeakDisplay = computed(() => formatPercent(getPeak(memorySeries.value)))
 const memoryAverageDisplay = computed(() => formatPercent(getAverage(memorySeries.value)))
-const uploadPeakDisplay = computed(() => formatSpeed(getPeak(uploadSeries.value)))
 const uploadAverageDisplay = computed(() => formatSpeed(getAverage(uploadSeries.value)))
-const downloadPeakDisplay = computed(() => formatSpeed(getPeak(downloadSeries.value)))
 const downloadAverageDisplay = computed(() => formatSpeed(getAverage(downloadSeries.value)))
 
 watch(
@@ -470,37 +466,6 @@ function createChartOption(config: {
       </div>
     </div>
 
-    <div v-if="hasSamples" class="range-stats-grid mb-[18px] grid gap-[14px]">
-      <div v-for="item in [
-        { label: 'CPU 区间统计', average: cpuAverageDisplay, peak: cpuPeakDisplay },
-        { label: '内存区间统计', average: memoryAverageDisplay, peak: memoryPeakDisplay },
-        { label: '上传区间统计', average: uploadAverageDisplay, peak: uploadPeakDisplay },
-        { label: '下载区间统计', average: downloadAverageDisplay, peak: downloadPeakDisplay },
-      ]" :key="item.label" class="rounded-[20px] p-[16px] backdrop-blur-[16px]"
-        :class="settingsStore.isDark
-          ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
-          : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'">
-        <div class="flex items-start justify-between gap-[12px]">
-          <div>
-            <div class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">{{ item.label }}</div>
-            <div class="mt-[6px] text-[13px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.66)]' : 'text-[rgba(51,65,85,0.8)]'">
-              {{ visibleRangeLabel }} · {{ rangeSampleCount }} 个采样点
-            </div>
-          </div>
-        </div>
-        <div class="mt-[14px] grid grid-cols-2 gap-[12px]">
-          <div>
-            <div class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">均值</div>
-            <div class="mt-[6px] text-[22px] font-700">{{ item.average }}</div>
-          </div>
-          <div>
-            <div class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">峰值</div>
-            <div class="mt-[6px] text-[22px] font-700">{{ item.peak }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div v-if="historyLoading && !hasSamples"
       class="flex min-h-[420px] items-center justify-center rounded-[24px] backdrop-blur-[16px]"
       :class="settingsStore.isDark
@@ -585,10 +550,6 @@ function createChartOption(config: {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.range-stats-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
 .chart-grid-span-2 {
   grid-column: span 2;
 }
@@ -604,7 +565,6 @@ function createChartOption(config: {
 }
 
 @media (max-width: 1280px) {
-  .range-stats-grid,
   .stats-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -612,7 +572,6 @@ function createChartOption(config: {
 
 @media (max-width: 980px) {
   .chart-grid,
-  .range-stats-grid,
   .stats-grid {
     grid-template-columns: 1fr;
   }
