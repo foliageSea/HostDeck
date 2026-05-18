@@ -24,7 +24,6 @@ const dockIconColors: Partial<Record<DesktopAppId, string>> = {
   dashboard: '#38bdf8',
   docker: '#0ea5e9',
   files: '#f59e0b',
-  processes: '#a78bfa',
   'runtime-sessions': '#22c55e',
   settings: '#94a3b8',
   terminal: '#34d399',

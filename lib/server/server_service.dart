@@ -12,7 +12,6 @@ import 'services/ssh_service.dart';
 import 'services/monitor_history_service.dart';
 import 'services/monitor_service.dart';
 import 'services/file_service.dart';
-import 'services/process_service.dart';
 import 'services/docker_service.dart';
 import 'services/database_service.dart';
 import 'controllers/auth_controller.dart';
@@ -21,7 +20,6 @@ import 'controllers/file_controller.dart';
 import 'controllers/terminal_controller.dart';
 import 'controllers/server_controller.dart';
 import 'controllers/docker_controller.dart';
-import 'controllers/process_controller.dart';
 import 'controllers/runtime_controller.dart';
 import 'routes/api_routes.dart';
 
@@ -71,7 +69,6 @@ class ServerService {
     final monitorHistoryService = MonitorHistoryService();
     final monitorService = MonitorService(sshRepository);
     final fileService = FileService(sshRepository);
-    final processService = ProcessService(sshRepository);
     final dockerService = DockerService(sshRepository);
 
     // 2. Initialize Controllers
@@ -82,7 +79,6 @@ class ServerService {
       monitorHistoryService,
     );
     final fileController = FileController(sshService, fileService);
-    final processController = ProcessController(sshService, processService);
     final terminalController = TerminalController(sshService);
     final serverController = ServerController(serverRepository);
     final dockerController = DockerController(sshService, dockerService);
@@ -96,7 +92,6 @@ class ServerService {
       terminalController: terminalController,
       serverController: serverController,
       dockerController: dockerController,
-      processController: processController,
       runtimeController: runtimeController,
     );
 
