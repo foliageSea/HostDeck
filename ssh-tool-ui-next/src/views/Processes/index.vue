@@ -573,7 +573,7 @@ onBeforeUnmount(() => {
             <NEmpty v-if="!loading && processes.length === 0" description="未找到匹配进程"
               class="h-full min-h-[240px] justify-center" />
             <div v-else class="process-table-shell">
-              <NDataTable class="process-table" :bordered="false" :single-line="false" :pagination="{ pageSize: 12 }"
+              <NDataTable class="process-table" :bordered="false" :single-line="false" :pagination="false"
                 :columns="processColumns" :data="processes" flex-height />
             </div>
           </NSpin>
