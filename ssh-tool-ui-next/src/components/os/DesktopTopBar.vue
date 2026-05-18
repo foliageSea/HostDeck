@@ -262,7 +262,7 @@ function disconnect() {
     </div>
 
     <div class="flex min-w-0 items-center justify-end gap-[8px]">
-      <div class="hidden grid-cols-2 gap-[4px] xl:grid">
+      <div class="hidden grid-cols-2 gap-[2px] xl:grid">
         <div v-for="stat in performanceStats" :key="stat.label"
           class="flex min-w-[74px] items-center justify-between gap-[5px] px-[6px] py-[2px] text-[10px] leading-[1.1]"
           :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.88)]' : 'text-[rgba(30,41,59,0.88)]'">
