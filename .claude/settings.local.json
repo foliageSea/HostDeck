@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(find /d/temp_proj/ssh_tool/ssh-tool-ui/src -type f -name *.vue -o -name *.ts -o -name *.js)"
-    ]
-  }
-}
