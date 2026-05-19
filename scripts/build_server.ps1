@@ -19,7 +19,7 @@ function Invoke-Native {
 }
 
 $buildDir = Join-Path $RootDir 'build\server'
-$uiDir = Join-Path $RootDir 'ssh-tool-ui'
+$uiDir = Join-Path $RootDir 'ssh-tool-ui-next'
 
 Write-Host 'Building frontend...'
 Invoke-Native -Command pnpm -Args @('--dir', "$uiDir", 'install')
