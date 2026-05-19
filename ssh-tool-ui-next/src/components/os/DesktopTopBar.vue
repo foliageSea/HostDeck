@@ -266,7 +266,7 @@ function disconnect() {
         <div v-for="stat in performanceStats" :key="stat.label"
           class="flex min-w-[74px] items-center justify-between gap-[5px] px-[6px] py-[2px] text-[10px] leading-[1.1]"
           :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.88)]' : 'text-[rgba(30,41,59,0.88)]'">
-          <span class="text-[rgba(148,163,184,0.94)]">{{ stat.label }}</span>
+          <span>{{ stat.label }}</span>
           <strong class="whitespace-nowrap font-600">{{ stat.value }}</strong>
         </div>
       </div>
