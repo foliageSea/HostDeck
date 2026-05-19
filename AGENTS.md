@@ -56,3 +56,7 @@
 - 前端改动至少跑 `pnpm --dir ssh-tool-ui-next build`；涉及类型边界或测试逻辑时再跑 `vue-tsc` 和相关 `vitest run ...`。
 - API 合约改动要同步 `lib/server/controllers/*`、`ssh-tool-ui-next/src/api/*` 和调用点，并确认 `src/lib/http.ts` 的统一解包仍匹配。
 - 打包链路改动要同时核对 `Dockerfile`、`.github/workflows/release.yml`、`pubspec.yaml` 的 `assets/web/` 声明和服务打包脚本。
+
+
+## Commit
+- 提交代码使用中文 例：`feat(file): 新增文件选择器`
