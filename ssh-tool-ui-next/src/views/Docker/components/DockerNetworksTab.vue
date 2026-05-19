@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SelectOption } from 'naive-ui'
 import { reactive, ref } from 'vue'
+import { Help } from '@vicons/carbon'
 import { dockerApi, type DockerContainer, type DockerNetwork } from '@/api/docker'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
@@ -320,13 +321,52 @@ function getConnectedContainersTitle(network: DockerNetwork) {
           />
         </NFormItem>
         <div class="grid grid-cols-3 gap-[12px] lt-sm:grid-cols-1">
-          <NFormItem label="Internal">
+          <NFormItem>
+            <template #label>
+              <span class="docker-form-label-with-help">
+                Internal
+                <NTooltip trigger="hover" placement="top">
+                  <template #trigger>
+                    <NIcon class="docker-help-icon" :size="14">
+                      <Help />
+                    </NIcon>
+                  </template>
+                  内部网络。开启后容器通常只能在该网络内通信，适合数据库、缓存等不希望外部访问的服务。
+                </NTooltip>
+              </span>
+            </template>
             <NSwitch v-model:value="createForm.internal" />
           </NFormItem>
-          <NFormItem label="Attachable">
+          <NFormItem>
+            <template #label>
+              <span class="docker-form-label-with-help">
+                Attachable
+                <NTooltip trigger="hover" placement="top">
+                  <template #trigger>
+                    <NIcon class="docker-help-icon" :size="14">
+                      <Help />
+                    </NIcon>
+                  </template>
+                  允许独立容器加入。主要用于 overlay/Swarm 网络，开启后可手动把普通容器连接到该网络。
+                </NTooltip>
+              </span>
+            </template>
             <NSwitch v-model:value="createForm.attachable" />
           </NFormItem>
-          <NFormItem label="Ingress">
+          <NFormItem>
+            <template #label>
+              <span class="docker-form-label-with-help">
+                Ingress
+                <NTooltip trigger="hover" placement="top">
+                  <template #trigger>
+                    <NIcon class="docker-help-icon" :size="14">
+                      <Help />
+                    </NIcon>
+                  </template>
+                  Swarm 入口网络。用于 Swarm 服务端口发布和路由网格，普通 bridge 网络通常不要开启。
+                </NTooltip>
+              </span>
+            </template>
             <NSwitch v-model:value="createForm.ingress" />
           </NFormItem>
         </div>
@@ -472,6 +512,17 @@ function getConnectedContainersTitle(network: DockerNetwork) {
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.docker-form-label-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.docker-help-icon {
+  cursor: help;
+  color: var(--docker-card-label-color);
 }
 
 .docker-chip-list {
