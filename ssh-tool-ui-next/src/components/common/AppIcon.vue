@@ -24,16 +24,19 @@ const iconMap: Record<AppIconKey, Component> = {
   link: Launch,
   logout: Logout,
   media: Image,
+  opencode: ApplicationWeb,
   runtime: ApplicationWeb,
   settings: Settings,
   terminal: Terminal,
 }
 
 const icon = computed(() => iconMap[props.name])
+const iconImageSrc = computed(() => props.name === 'opencode' ? '/opencode.ico' : null)
 </script>
 
 <template>
-  <NIcon :color="color" :size="size">
+  <img v-if="iconImageSrc" :src="iconImageSrc" :width="size" :height="size" alt="" aria-hidden="true">
+  <NIcon v-else :color="color" :size="size">
     <component :is="icon" />
   </NIcon>
 </template>

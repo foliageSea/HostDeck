@@ -25,7 +25,7 @@ const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'ssh-tool:desktop:pinned-director
 const PINNED_PORT_LINKS_STORAGE_KEY = 'ssh-tool:desktop:pinned-port-links'
 const PINNED_PORT_LINK_POSITIONS_STORAGE_KEY = 'ssh-tool:desktop:pinned-port-link-positions'
 
-const sessionWindowAppIds = new Set<DesktopAppId>(['terminal'])
+const sessionWindowAppIds = new Set<DesktopAppId>(['terminal', 'opencode'])
 
 type PinnedDirectoriesByConnection = Record<string, string[]>
 type PinnedDirectoryPositions = Record<string, {
@@ -307,6 +307,16 @@ export const useDesktopStore = defineStore('desktop', {
         minHeight: 360,
         minWidth: 640,
         title: '终端',
+        width: 920,
+      },
+      opencode: {
+        component: markRaw(TerminalView),
+        height: 560,
+        icon: 'opencode',
+        id: 'opencode',
+        minHeight: 360,
+        minWidth: 640,
+        title: 'OpenCode',
         width: 920,
       },
       dashboard: {
@@ -787,7 +797,9 @@ export const useDesktopStore = defineStore('desktop', {
         minimizable: app.minimizable ?? true,
         minHeight,
         minWidth,
-        props,
+        props: appId === 'opencode'
+          ? { startupCommand: 'opencode web --hostname 0.0.0.0 --port 4096', ...props }
+          : props,
         title: typeof props?.title === 'string' ? props.title : app.title,
         width: Math.max(app.width ?? 800, minWidth),
         x: 80 + this.windows.length * 24,
