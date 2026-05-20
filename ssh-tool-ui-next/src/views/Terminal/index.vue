@@ -15,6 +15,10 @@ const props = defineProps<{
   sessionId?: string
   cwd?: string
   startupCommand?: string
+  openIframeAfterMs?: number
+  openIframeTitle?: string
+  openIframeUrl?: string
+  shutdownCommand?: string
   closeSessionOnUnmount?: boolean
   closeConnectionOnUnmount?: boolean
 }>()

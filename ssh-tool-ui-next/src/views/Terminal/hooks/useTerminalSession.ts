@@ -14,6 +14,10 @@ interface TerminalProps {
   sessionId?: string
   cwd?: string
   startupCommand?: string
+  openIframeAfterMs?: number
+  openIframeTitle?: string
+  openIframeUrl?: string
+  shutdownCommand?: string
   closeSessionOnUnmount?: boolean
   closeConnectionOnUnmount?: boolean
 }
@@ -81,6 +85,12 @@ export function useTerminalSession(props: TerminalProps) {
   let resizeObserver: ResizeObserver | null = null
   let ownedSessionId: string | null = null
   let initializedCwd = false
+  let startupCommandTimer: number | null = null
+  let openIframeTimer: number | null = null
+
+  function delay(ms: number) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms))
+  }
 
   function fitTerminal() {
     fitAddon?.fit()
@@ -92,6 +102,44 @@ export function useTerminalSession(props: TerminalProps) {
   function buildTerminalSocketUrl(sessionId: string) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     return `${protocol}//${window.location.host}/socket.io?sessionId=${sessionId}`
+  }
+
+  function clearStartupTimers() {
+    if (startupCommandTimer !== null) {
+      clearTimeout(startupCommandTimer)
+      startupCommandTimer = null
+    }
+
+    if (openIframeTimer !== null) {
+      clearTimeout(openIframeTimer)
+      openIframeTimer = null
+    }
+  }
+
+  function closeLinkedIframeWindow() {
+    if (!props.openIframeUrl) {
+      return
+    }
+
+    desktopStore.windows
+      .filter((window) => window.appId === 'iframe-app' && window.props?.url === props.openIframeUrl)
+      .forEach((window) => {
+        desktopStore.closeWindow(window.id)
+      })
+  }
+
+  async function shutdownTerminalProcess() {
+    if (socket?.readyState !== WebSocket.OPEN) {
+      return
+    }
+
+    socket.send('\x03')
+    await delay(300)
+
+    if (props.shutdownCommand) {
+      socket.send(`${props.shutdownCommand}\r`)
+      await delay(500)
+    }
   }
 
   function shellQuotePosix(value: string) {
@@ -149,8 +197,19 @@ export function useTerminalSession(props: TerminalProps) {
       }
 
       if (props.startupCommand) {
-        window.setTimeout(() => {
+        startupCommandTimer = window.setTimeout(() => {
+          startupCommandTimer = null
           socket?.send(`${props.startupCommand}\r`)
+
+          if (props.openIframeUrl) {
+            openIframeTimer = window.setTimeout(() => {
+              openIframeTimer = null
+              desktopStore.openWindow('iframe-app', {
+                title: props.openIframeTitle ?? props.openIframeUrl,
+                url: props.openIframeUrl,
+              })
+            }, props.openIframeAfterMs ?? 2000)
+          }
         }, 1000)
       }
     }
@@ -284,6 +343,9 @@ export function useTerminalSession(props: TerminalProps) {
     const sessionIdToClose = ownedSessionId ?? (props.closeSessionOnUnmount ? props.sessionId ?? null : null)
 
     resizeObserver?.disconnect()
+    clearStartupTimers()
+    closeLinkedIframeWindow()
+    await shutdownTerminalProcess()
     socket?.close()
     terminalRef.value?.dispose()
     webLinksAddon = null

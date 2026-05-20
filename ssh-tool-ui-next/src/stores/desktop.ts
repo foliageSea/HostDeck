@@ -11,6 +11,7 @@ import DockerCreateContainerView from '@/views/Docker/components/DockerCreateCon
 import DockerComposeServicesView from '@/views/Docker/components/DockerComposeServicesView.vue'
 import DockerView from '@/views/Docker/index.vue'
 import FilesView from '@/views/Files/index.vue'
+import IframeAppView from '@/views/IframeApp/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
 import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
 import SettingsView from '@/views/Settings/index.vue'
@@ -255,6 +256,11 @@ function isSessionWindowAppId(appId: DesktopAppId) {
   return sessionWindowAppIds.has(appId)
 }
 
+function buildOpenCodeWebUrl() {
+  const host = useSshStore().host.trim() || window.location.hostname
+  return `http://${host}:4096`
+}
+
 export interface AppConfig {
   id: DesktopAppId
   title: string
@@ -318,6 +324,17 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 640,
         title: 'OpenCode',
         width: 920,
+      },
+      'iframe-app': {
+        component: markRaw(IframeAppView),
+        height: 760,
+        hide: true,
+        icon: 'link',
+        id: 'iframe-app',
+        minHeight: 520,
+        minWidth: 760,
+        title: 'Web 应用',
+        width: 1180,
       },
       dashboard: {
         component: markRaw(DashboardView),
@@ -798,7 +815,14 @@ export const useDesktopStore = defineStore('desktop', {
         minHeight,
         minWidth,
         props: appId === 'opencode'
-          ? { startupCommand: 'opencode web --hostname 0.0.0.0 --port 4096', ...props }
+          ? {
+              openIframeAfterMs: 2000,
+              openIframeTitle: 'OpenCode Web',
+              openIframeUrl: buildOpenCodeWebUrl(),
+              shutdownCommand: "pkill -f 'opencode web .*--port 4096' || true",
+              startupCommand: 'opencode web --hostname 0.0.0.0 --port 4096',
+              ...props,
+            }
           : props,
         title: typeof props?.title === 'string' ? props.title : app.title,
         width: Math.max(app.width ?? 800, minWidth),
