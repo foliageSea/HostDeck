@@ -13,12 +13,28 @@
 - SSH 登录与服务器保存
 - 桌面式工作台、多窗口、Dock、窗口切换器
 - 多会话终端
+- OpenCode 应用入口，可自动启动远端 `opencode web` 并打开 Web 窗口
+- 通用内嵌 Web 应用窗口
 - 文件管理、收藏目录、桌面钉住目录
+- 端口链接桌面钉住
 - 文本编辑与图片/视频预览
 - 系统监控
 - 运行态会话查看
-- Docker 容器与镜像管理
+- Docker 容器、镜像、网络、卷与 Compose 管理
 - 主题、壁纸与终端字体设置
+
+## 开发文档
+
+近期已补充模块化开发文档，建议从 `docs/README.md` 开始阅读：
+
+- `docs/architecture.md`：整体架构、运行形态和请求流转
+- `docs/backend.md`：Dart 服务端分层、路由和依赖组装
+- `docs/frontend.md`：Vue 前端目录、状态管理和 HTTP 约定
+- `docs/api-contract.md`：统一响应、错误处理和 WebSocket 约定
+- `docs/development.md`：本地开发流程
+- `docs/build-and-release.md`：构建与发布流程
+- `docs/testing.md`：测试与校验流程
+- `docs/modules/*.md`：认证、终端、文件、Docker、桌面工作台等模块说明
 
 ## 技术栈
 
@@ -122,7 +138,15 @@ GitHub Actions 的 `.github/workflows/release.yml` 已经会先构建 `ssh-tool-
 
 ## 纯 Dart 服务打包
 
-手动构建 CLI bundle：
+Windows 可直接使用脚本构建 CLI bundle：
+
+```powershell
+.\scripts\build_server.ps1
+```
+
+脚本会安装并构建 `ssh-tool-ui-next/`，执行 `flutter pub get` 和 `dart build cli`，再把前端产物复制到 `build/server/bundle/web/`，并生成 `build/server/start_server.bat`。
+
+也可以手动构建：
 
 ```bash
 pnpm --dir ssh-tool-ui-next build
@@ -137,7 +161,7 @@ dart build cli --target bin/server.dart -o build/server
 - `build/server/bundle/lib/`：运行时动态库
 - `build/server/bundle/web/`：前端静态资源
 
-说明：仓库中的 `scripts/build_server.sh` 和 `scripts/build_server.ps1` 目前仍引用已不存在的旧目录 `ssh-tool-ui/`，使用前需要先校正为 `ssh-tool-ui-next/`，否则会失败。
+说明：`scripts/build_server.ps1` 已使用当前前端目录 `ssh-tool-ui-next/`；`scripts/build_server.sh` 仍引用已不存在的旧目录 `ssh-tool-ui/`，在 Linux/macOS 使用前需要先校正为 `ssh-tool-ui-next/`，否则会失败。
 
 ## Docker
 
@@ -183,6 +207,7 @@ pnpm exec vitest run src/views/Files/components/__tests__/FilePickerDialog.spec.
 ```text
 ssh_tool/
 ├── bin/                 # Dart CLI 服务入口
+├── docs/                # 架构、开发、构建、测试与模块文档
 ├── lib/                 # Flutter 桌面壳与内置后端服务
 ├── ssh-tool-ui-next/    # 当前主前端工程
 ├── assets/web/          # Flutter release 打包使用的静态资源
