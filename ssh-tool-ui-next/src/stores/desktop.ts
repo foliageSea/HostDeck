@@ -315,16 +315,6 @@ export const useDesktopStore = defineStore('desktop', {
         title: '终端',
         width: 920,
       },
-      opencode: {
-        component: markRaw(TerminalView),
-        height: 560,
-        icon: 'opencode',
-        id: 'opencode',
-        minHeight: 360,
-        minWidth: 640,
-        title: 'OpenCode',
-        width: 920,
-      },
       'iframe-app': {
         component: markRaw(IframeAppView),
         height: 760,
@@ -367,6 +357,16 @@ export const useDesktopStore = defineStore('desktop', {
         title: 'Docker 管理',
         width: 1180,
         hide: false,
+      },
+      opencode: {
+        component: markRaw(TerminalView),
+        height: 560,
+        icon: 'opencode',
+        id: 'opencode',
+        minHeight: 360,
+        minWidth: 640,
+        title: 'OpenCode',
+        width: 920,
       },
       'docker-create-container': {
         component: markRaw(DockerCreateContainerView),
