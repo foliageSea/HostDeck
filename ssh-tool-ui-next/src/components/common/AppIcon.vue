@@ -21,6 +21,7 @@ const iconMap: Record<AppIconKey, Component> = {
   docker: LogoDocker,
   editor: Document,
   folder: Folder,
+  'iframe-app': ApplicationWeb,
   link: Launch,
   logout: Logout,
   media: Image,

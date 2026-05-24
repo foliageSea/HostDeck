@@ -3,6 +3,7 @@ import { computed, watch, watchEffect } from 'vue'
 import { darkTheme, dateZhCN, NConfigProvider, NDialogProvider, NGlobalStyle, NLoadingBarProvider, NMessageProvider, NNotificationProvider, zhCN, type GlobalThemeOverrides } from 'naive-ui'
 import UiApiBridge from '@/components/common/UiApiBridge.vue'
 import DesktopShell from '@/components/os/DesktopShell.vue'
+import ElectronTitleBar from '@/components/os/ElectronTitleBar.vue'
 import LoginScreen from '@/components/os/LoginScreen.vue'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -12,6 +13,7 @@ const sshStore = useSshStore()
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 
+const isElectron = computed(() => Boolean(window.sshTool?.window))
 const theme = computed(() => (settingsStore.isDark ? darkTheme : null))
 const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   common: {
@@ -33,6 +35,7 @@ watchEffect(() => {
   const primaryRgb = hexToRgb(settingsStore.primaryColor)
 
   document.documentElement.dataset.theme = settingsStore.isDark ? 'dark' : 'light'
+  document.documentElement.dataset.electron = isElectron.value ? 'true' : 'false'
   document.documentElement.style.setProperty('--app-primary-color', settingsStore.primaryColor)
   document.documentElement.style.setProperty('--app-primary-rgb', primaryRgb)
   document.documentElement.style.setProperty('--app-primary-border', `rgba(${primaryRgb}, 0.55)`)
@@ -59,7 +62,8 @@ watch(
           <NMessageProvider>
             <NGlobalStyle />
             <UiApiBridge />
-            <div class="min-h-screen">
+            <ElectronTitleBar v-if="isElectron" />
+            <div class="app-root min-h-screen">
               <Transition name="fade" mode="out-in">
                 <DesktopShell v-if="sshStore.isConnected" />
                 <LoginScreen v-else />

@@ -5,6 +5,7 @@
   --app-primary-border-strong: rgba(37, 99, 235, 0.72);
   --app-primary-soft: rgba(37, 99, 235, 0.16);
   --app-primary-soft-strong: rgba(37, 99, 235, 0.24);
+  --electron-titlebar-height: 38px;
 
   font-family: Inter, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.5;
@@ -44,6 +45,24 @@ body {
   background:
     radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 32%),
     linear-gradient(180deg, #0f172a 0%, #020617 100%);
+}
+
+:root[data-electron='true'] body {
+  overflow: hidden;
+}
+
+.app-root {
+  min-height: 100vh;
+}
+
+:root[data-electron='true'] .app-root {
+  height: 100vh;
+  min-height: calc(100vh - var(--electron-titlebar-height));
+  padding-top: var(--electron-titlebar-height);
+}
+
+:root[data-electron='true'] .desktop-shell {
+  min-height: calc(100vh - var(--electron-titlebar-height));
 }
 
 :root[data-theme='light'] body {
