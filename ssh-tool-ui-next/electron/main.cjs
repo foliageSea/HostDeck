@@ -7,6 +7,7 @@ const uiRoot = path.resolve(__dirname, '..')
 const repoRoot = path.resolve(uiRoot, '..')
 const devUrl = process.env.SSH_TOOL_ELECTRON_DEV_URL || 'http://localhost:5174'
 const useDevServer = !app.isPackaged && process.env.SSH_TOOL_ELECTRON_MODE !== 'preview'
+const isPackaged = app.isPackaged
 
 let mainWindow
 let serverProcess
@@ -43,16 +44,19 @@ async function waitFor(url) {
 function startServer() {
   const port = serverPort()
   const host = '127.0.0.1'
-  const webDir = path.join(uiRoot, 'dist')
+  const webDir = isPackaged ? path.join(process.resourcesPath, 'web') : path.join(uiRoot, 'dist')
   const dataDir = path.join(app.getPath('userData'), 'data')
-  const args = ['run', path.join(repoRoot, 'bin', 'server.dart')]
+  const command = isPackaged
+    ? path.join(process.resourcesPath, 'server', 'server.exe')
+    : process.env.SSH_TOOL_DART_COMMAND || 'dart'
+  const args = isPackaged ? [] : ['run', path.join(repoRoot, 'bin', 'server.dart')]
   args.push('--host', host)
   args.push('--port', String(port))
   args.push('--web-dir', webDir)
   args.push('--data-dir', dataDir)
 
-  serverProcess = spawn(process.env.SSH_TOOL_DART_COMMAND || 'dart', args, {
-    cwd: repoRoot,
+  serverProcess = spawn(command, args, {
+    cwd: isPackaged ? process.resourcesPath : repoRoot,
     stdio: 'inherit',
     windowsHide: true,
   })

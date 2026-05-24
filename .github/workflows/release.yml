@@ -182,6 +182,36 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  build-electron-windows:
+    needs: build-web
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: ssh-tool-ui-next/dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      - name: Install Dependencies
+        run: |
+          npm install -g pnpm
+          pnpm --dir ssh-tool-ui-next install
+      - name: Build Electron Windows
+        run: pnpm --dir ssh-tool-ui-next electron:pack:win
+      - name: Upload Electron Windows
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ssh-tool-ui-next/release/*.exe
+            ssh-tool-ui-next/release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # build-linux:
   #   needs: build-web
   #   runs-on: ubuntu-latest

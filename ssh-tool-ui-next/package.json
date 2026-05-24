@@ -9,6 +9,9 @@
     "build": "vite build",
     "electron:dev": "node electron/start-dev.cjs",
     "electron:preview": "pnpm build && cross-env SSH_TOOL_ELECTRON_MODE=preview electron .",
+    "electron:build:server": "node electron/build-server.cjs",
+    "electron:pack:win": "pnpm electron:build:server && electron-builder --win",
+    "electron:build:win": "pnpm build && pnpm electron:pack:win",
     "test": "vitest run",
     "preview": "vite preview"
   },
@@ -36,6 +39,7 @@
     "@vue/tsconfig": "^0.9.1",
     "cross-env": "^10.1.0",
     "electron": "^39.2.7",
+    "electron-builder": "^26.8.1",
     "jsdom": "^29.1.1",
     "naive-ui": "^2.44.1",
     "typescript": "~6.0.2",
@@ -46,5 +50,38 @@
     "vite": "^8.0.4",
     "vitest": "^4.1.5",
     "vue-tsc": "^3.2.6"
+  },
+  "build": {
+    "appId": "com.foliagesea.ssh-tool",
+    "productName": "SSH Tool",
+    "artifactName": "ssh-tool-electron-windows-${version}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/main.cjs",
+      "electron/preload.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../build/electron-server/bundle/bin/server.exe",
+        "to": "server/server.exe"
+      },
+      {
+        "from": "dist",
+        "to": "web"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
