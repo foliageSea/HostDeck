@@ -172,7 +172,7 @@ onUnmounted(() => {
 
       <div
         class="pointer-events-none absolute left-1/2 flex max-w-[min(65%,calc(100%_-_140px))] min-w-0 translate-x-[-50%] items-center gap-[8px] overflow-hidden text-ellipsis whitespace-nowrap font-600"
-        :class="isActive ? 'text-[var(--app-primary-color)]' : settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
+        :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
       >
         <AppIcon :name="window.icon" :size="16" />
         <span class="overflow-hidden text-ellipsis">{{ window.title }}</span>
