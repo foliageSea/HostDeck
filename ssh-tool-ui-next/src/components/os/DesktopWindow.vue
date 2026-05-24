@@ -10,7 +10,6 @@ const props = defineProps<{
 
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
-const isActive = computed(() => desktopStore.activeWindowId === props.window.id)
 const isDragging = ref(false)
 const isResizing = ref(false)
 let dragOffsetX = 0

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, session, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const http = require('node:http')
 const path = require('node:path')
@@ -130,6 +130,10 @@ ipcMain.handle('window:toggle-maximize', (event) => {
 
 ipcMain.handle('window:close', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.close()
+})
+
+ipcMain.handle('app:clear-browser-cache', async () => {
+  await session.defaultSession.clearCache()
 })
 
 app.whenReady().then(async () => {

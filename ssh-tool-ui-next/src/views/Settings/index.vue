@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
+import { getUiApi } from '@/lib/ui'
 import WallpaperSection from './components/WallpaperSection.vue'
 import { useWallpaperSettings } from './hooks/useWallpaperSettings'
 
 const controller = useWallpaperSettings()
 const { settingsStore } = controller
+const clearingBrowserCache = ref(false)
+const canClearBrowserCache = computed(() => Boolean(window.sshTool?.app?.clearBrowserCache))
 
 const primaryColorPresets = [
   '#2563eb',
@@ -13,6 +17,30 @@ const primaryColorPresets = [
   '#db2777',
   '#ea580c',
 ]
+
+function confirmClearBrowserCache() {
+  const dialog = getUiApi().dialog.warning({
+    title: '清理浏览器缓存',
+    content: '将清理 Electron 内置浏览器缓存，不会删除登录信息、应用设置、壁纸或本地数据。是否继续？',
+    positiveText: '清理缓存',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      dialog.loading = true
+      clearingBrowserCache.value = true
+      try {
+        await window.sshTool?.app?.clearBrowserCache()
+        getUiApi().message.success('浏览器缓存已清理。')
+      }
+      catch (error) {
+        getUiApi().message.error(error instanceof Error ? error.message : '清理浏览器缓存失败。')
+      }
+      finally {
+        dialog.loading = false
+        clearingBrowserCache.value = false
+      }
+    },
+  })
+}
 </script>
 
 <template>
@@ -65,6 +93,22 @@ const primaryColorPresets = [
           :controller="controller"
         />
       </NSpace>
+    </NCard>
+
+    <NCard v-if="canClearBrowserCache" title="应用维护" size="large">
+      <div class="flex flex-col gap-[12px]">
+        <div>
+          <div class="text-[14px] font-600">浏览器缓存</div>
+          <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
+            清理 Electron 内置浏览器缓存，不影响登录信息、应用设置、壁纸和本地数据。
+          </div>
+        </div>
+        <div>
+          <NButton type="warning" secondary :loading="clearingBrowserCache" @click="confirmClearBrowserCache">
+            清理浏览器缓存
+          </NButton>
+        </div>
+      </div>
     </NCard>
   </div>
 </template>
