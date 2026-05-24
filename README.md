@@ -1,10 +1,11 @@
 # SSH Tool
 
-`ssh_tool` 是一个跨平台 SSH 工具，当前由三部分组成：
+`ssh_tool` 是一个跨平台 SSH 工具，当前由四部分组成：
 
 - Flutter 桌面壳：负责窗口承载、日志面板和内置后端服务
 - Dart CLI 服务：入口为 `bin/server.dart`，可独立以 B/S 模式运行
 - Vue 3 前端：当前主前端位于 `ssh-tool-ui-next/`
+- Electron Windows 壳：复用 `ssh-tool-ui-next/` 前端和 Dart CLI 服务进行桌面打包
 
 当前开发、Docker 构建和发布流程都以 `ssh-tool-ui-next/` 为准；旧 `ssh-tool-ui/` 目录已不存在。
 
@@ -61,6 +62,7 @@
 - xterm.js
 - Monaco Editor
 - xgplayer
+- Electron / electron-builder
 
 ## 前置要求
 
@@ -134,7 +136,26 @@ pnpm --dir ssh-tool-ui-next build
 flutter build windows --release
 ```
 
-GitHub Actions 的 `.github/workflows/release.yml` 已经会先构建 `ssh-tool-ui-next/dist`，再把产物放入 `assets/web/` 后执行桌面构建。
+GitHub Actions 的 `.github/workflows/release.yml` 已经会先构建 `ssh-tool-ui-next/dist`，再把产物放入 `assets/web/` 后执行 Windows 桌面构建。
+
+当前发布工作流启用的产物包括：
+
+- Docker 镜像 tar.gz
+- Flutter Windows zip
+- Electron Windows exe/zip
+
+Linux、macOS、Android 和纯 Dart bundle 的发布 job 目前保留在工作流中但处于注释状态。
+
+### Electron Windows 构建
+
+Electron Windows 壳位于 `ssh-tool-ui-next/electron/`，构建时会先生成 Dart CLI 服务 bundle，再把前端 `dist/` 和服务可执行文件打入安装包。
+
+```bash
+pnpm --dir ssh-tool-ui-next install
+pnpm --dir ssh-tool-ui-next electron:build:win
+```
+
+构建结果位于 `ssh-tool-ui-next/release/`。
 
 ## 纯 Dart 服务打包
 
@@ -161,7 +182,7 @@ dart build cli --target bin/server.dart -o build/server
 - `build/server/bundle/lib/`：运行时动态库
 - `build/server/bundle/web/`：前端静态资源
 
-说明：`scripts/build_server.ps1` 已使用当前前端目录 `ssh-tool-ui-next/`；`scripts/build_server.sh` 仍引用已不存在的旧目录 `ssh-tool-ui/`，在 Linux/macOS 使用前需要先校正为 `ssh-tool-ui-next/`，否则会失败。
+说明：`scripts/build_server.ps1` 已使用当前前端目录 `ssh-tool-ui-next/`；`scripts/build_server.sh` 仍引用已不存在的旧目录 `ssh-tool-ui/`，当前不可直接使用。在 Linux/macOS 使用前需要先把脚本里的 `ssh-tool-ui` 和 `ssh-tool-ui/dist` 校正为 `ssh-tool-ui-next` 和 `ssh-tool-ui-next/dist`，否则会失败。
 
 ## Docker
 
