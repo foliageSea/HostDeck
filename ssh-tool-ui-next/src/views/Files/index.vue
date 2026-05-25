@@ -1880,7 +1880,6 @@ watch(
             round
             :disabled="selectedFiles.length === 0"
             type="error"
-            ghost
             @click="showDeleteDialog = true"
             >删除</NButton
           >

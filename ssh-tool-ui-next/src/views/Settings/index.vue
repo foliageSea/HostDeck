@@ -58,13 +58,14 @@ function confirmClearBrowserCache() {
         </NFormItem>
         <NFormItem label="主题色">
           <div class="flex flex-wrap items-center gap-[12px]">
-            <NColorPicker
-              class="w-[180px]"
-              :value="settingsStore.primaryColor"
-              :show-alpha="false"
-              :modes="['hex']"
-              @update:value="settingsStore.setPrimaryColor"
-            />
+            <div class="w-[180px]">
+              <NColorPicker
+                :value="settingsStore.primaryColor"
+                :show-alpha="false"
+                :modes="['hex']"
+                @update:value="settingsStore.setPrimaryColor"
+              />
+            </div>
             <div class="flex items-center gap-[8px]">
               <button
                 v-for="color in primaryColorPresets"
