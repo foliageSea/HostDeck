@@ -132,6 +132,14 @@ ipcMain.handle('window:close', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.close()
 })
 
+ipcMain.handle('app:open-in-browser', async (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  const url = window?.webContents.getURL()
+  if (!url) return
+
+  await shell.openExternal(url)
+})
+
 ipcMain.handle('app:clear-browser-cache', async () => {
   await session.defaultSession.clearCache()
 })

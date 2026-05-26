@@ -4,6 +4,7 @@ declare global {
   interface Window {
     sshTool?: {
       app?: {
+        openInBrowser: () => Promise<void>
         clearBrowserCache: () => Promise<void>
       }
       platform: string

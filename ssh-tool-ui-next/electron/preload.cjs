@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('sshTool', {
   app: {
+    openInBrowser: () => ipcRenderer.invoke('app:open-in-browser'),
     clearBrowserCache: () => ipcRenderer.invoke('app:clear-browser-cache'),
   },
   platform: process.platform,
