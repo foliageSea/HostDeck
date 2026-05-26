@@ -66,7 +66,7 @@ export function createFileStore(connection: FileStoreConnection) {
   const files = ref<FileItem[]>([])
   const currentConnectionId = computed(() => connection.connectionId)
   const loading = ref(false)
-  const viewMode = useLocalStorage<FileViewMode>('ssh-tool:files:view-mode', 'list')
+  const viewMode = useLocalStorage<FileViewMode>('ssh-tool:files:view-mode', 'grid')
   const sortState = useLocalStorage<FileSortState>('ssh-tool:files:sort', { direction: 'asc', key: 'name' })
   const favoritePathsByConnection = useLocalStorage<FavoritePathsByConnection>('ssh-tool:files:favorite-paths', {})
   const selectedNames = ref<string[]>([])
