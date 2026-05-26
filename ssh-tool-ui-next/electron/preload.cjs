@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('sshTool', {
   app: {
     openInBrowser: () => ipcRenderer.invoke('app:open-in-browser'),
     clearBrowserCache: () => ipcRenderer.invoke('app:clear-browser-cache'),
+    getExternalAccess: () => ipcRenderer.invoke('app:get-external-access'),
+    setExternalAccess: (enabled) => ipcRenderer.invoke('app:set-external-access', enabled),
   },
   platform: process.platform,
   window: {

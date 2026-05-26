@@ -6,6 +6,8 @@ declare global {
       app?: {
         openInBrowser: () => Promise<void>
         clearBrowserCache: () => Promise<void>
+        getExternalAccess: () => Promise<boolean>
+        setExternalAccess: (enabled: boolean) => Promise<boolean>
       }
       platform: string
       window?: {

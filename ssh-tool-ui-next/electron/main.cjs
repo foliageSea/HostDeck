@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, session, shell } = require('electron')
 const { spawn } = require('node:child_process')
+const fs = require('node:fs')
 const http = require('node:http')
 const path = require('node:path')
 
@@ -11,6 +12,30 @@ const isPackaged = app.isPackaged
 
 let mainWindow
 let serverProcess
+
+function electronSettingsPath() {
+  return path.join(app.getPath('userData'), 'electron-settings.json')
+}
+
+function readElectronSettings() {
+  try {
+    const rawValue = fs.readFileSync(electronSettingsPath(), 'utf8')
+    const value = JSON.parse(rawValue)
+    return value && typeof value === 'object' ? value : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeElectronSettings(settings) {
+  const settingsPath = electronSettingsPath()
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true })
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
+}
+
+function allowExternalAccess() {
+  return readElectronSettings().allowExternalAccess === true
+}
 
 function serverPort() {
   const port = Number(process.env.SSH_TOOL_ELECTRON_PORT)
@@ -43,7 +68,8 @@ async function waitFor(url) {
 
 function startServer() {
   const port = serverPort()
-  const host = '127.0.0.1'
+  const host = allowExternalAccess() ? '0.0.0.0' : '127.0.0.1'
+  const localUrl = 'http://127.0.0.1:' + port
   const webDir = isPackaged ? path.join(process.resourcesPath, 'web') : path.join(uiRoot, 'dist')
   const dataDir = path.join(app.getPath('userData'), 'data')
   const command = isPackaged
@@ -60,26 +86,45 @@ function startServer() {
     stdio: 'inherit',
     windowsHide: true,
   })
+  const child = serverProcess
 
   serverProcess.on('exit', (code, signal) => {
     if (code !== 0 && signal !== 'SIGTERM') {
       console.error('SSH Tool server exited:', code, signal)
     }
-    serverProcess = null
+    if (serverProcess === child) serverProcess = null
   })
 
-  return 'http://' + host + ':' + port
+  return localUrl
 }
 
 function stopServer() {
-  if (!serverProcess) return
+  if (!serverProcess) return Promise.resolve()
   const child = serverProcess
-  serverProcess = null
-  if (process.platform === 'win32') {
-    spawn('taskkill', ['/pid', String(child.pid), '/f', '/t'])
-    return
-  }
-  child.kill('SIGTERM')
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, 3000)
+    child.once('exit', () => {
+      clearTimeout(timer)
+      resolve()
+    })
+    serverProcess = null
+
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/pid', String(child.pid), '/f', '/t'])
+      return
+    }
+    child.kill('SIGTERM')
+  })
+}
+
+async function restartServer() {
+  if (useDevServer) return devUrl
+
+  await stopServer()
+  const url = startServer()
+  await waitFor(url)
+  mainWindow?.loadURL(url)
+  return url
 }
 
 function createWindow(url) {
@@ -142,6 +187,16 @@ ipcMain.handle('app:open-in-browser', async (event) => {
 
 ipcMain.handle('app:clear-browser-cache', async () => {
   await session.defaultSession.clearCache()
+})
+
+ipcMain.handle('app:get-external-access', () => allowExternalAccess())
+
+ipcMain.handle('app:set-external-access', async (_event, enabled) => {
+  const settings = readElectronSettings()
+  settings.allowExternalAccess = enabled === true
+  writeElectronSettings(settings)
+  await restartServer()
+  return settings.allowExternalAccess
 })
 
 app.whenReady().then(async () => {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { getUiApi } from '@/lib/ui'
 import WallpaperSection from './components/WallpaperSection.vue'
 import { useWallpaperSettings } from './hooks/useWallpaperSettings'
@@ -7,7 +7,16 @@ import { useWallpaperSettings } from './hooks/useWallpaperSettings'
 const controller = useWallpaperSettings()
 const { settingsStore } = controller
 const clearingBrowserCache = ref(false)
+const externalAccess = ref(false)
+const externalAccessLoading = ref(false)
 const canClearBrowserCache = computed(() => Boolean(window.sshTool?.app?.clearBrowserCache))
+const canManageExternalAccess = computed(() => Boolean(window.sshTool?.app?.getExternalAccess && window.sshTool?.app?.setExternalAccess))
+
+onMounted(async () => {
+  if (!canManageExternalAccess.value) return
+
+  externalAccess.value = await window.sshTool?.app?.getExternalAccess() ?? false
+})
 
 const primaryColorPresets = [
   '#2563eb',
@@ -40,6 +49,21 @@ function confirmClearBrowserCache() {
       }
     },
   })
+}
+
+async function updateExternalAccess(value: boolean) {
+  externalAccessLoading.value = true
+  try {
+    externalAccess.value = await window.sshTool?.app?.setExternalAccess(value) ?? false
+    getUiApi().message.success(externalAccess.value ? '已允许局域网访问。' : '已恢复仅本机访问。')
+  }
+  catch (error) {
+    externalAccess.value = !value
+    getUiApi().message.error(error instanceof Error ? error.message : '更新外部访问设置失败。')
+  }
+  finally {
+    externalAccessLoading.value = false
+  }
 }
 </script>
 
@@ -96,15 +120,25 @@ function confirmClearBrowserCache() {
       </NSpace>
     </NCard>
 
-    <NCard v-if="canClearBrowserCache" title="应用维护" size="large">
+    <NCard v-if="canClearBrowserCache || canManageExternalAccess" title="应用维护" size="large">
       <div class="flex flex-col gap-[12px]">
-        <div>
+        <div v-if="canManageExternalAccess" class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]">
+          <div>
+            <div class="text-[14px] font-600">允许外部访问</div>
+            <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
+              开启后内置后端将绑定 0.0.0.0，可通过本机局域网 IP 访问当前服务。
+            </div>
+          </div>
+          <NSwitch :value="externalAccess" :loading="externalAccessLoading" @update:value="updateExternalAccess" />
+        </div>
+
+        <div v-if="canClearBrowserCache">
           <div class="text-[14px] font-600">浏览器缓存</div>
           <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
-            清理 Electron 内置浏览器缓存，不影响登录信息、应用设置、壁纸和本地数据。
+            清理内置浏览器缓存，不影响登录信息、应用设置、壁纸和本地数据。
           </div>
         </div>
-        <div>
+        <div v-if="canClearBrowserCache">
           <NButton type="warning" secondary :loading="clearingBrowserCache" @click="confirmClearBrowserCache">
             清理浏览器缓存
           </NButton>
