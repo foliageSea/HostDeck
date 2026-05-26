@@ -209,14 +209,11 @@ onBeforeUnmount(() => {
           type="button"
           class="flex min-h-[130px] select-none flex-col items-center justify-center gap-[10px] rounded-[16px] border p-[14px] text-center text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
           :class="[
-            settingsStore.isDark
-              ? 'border-[rgba(148,163,184,0.16)] bg-transparent hover:border-[var(--app-primary-border)] hover:bg-[rgba(30,41,59,0.86)]'
-              : 'border-[rgba(148,163,184,0.22)] bg-transparent hover:border-[var(--app-primary-border)] hover:bg-[var(--app-primary-soft)]',
             selectedNames.includes(file.filename)
-              ? settingsStore.isDark
-                ? 'border-[var(--app-primary-border)] bg-[rgba(30,41,59,0.86)]'
-                : 'border-[var(--app-primary-border)] bg-[var(--app-primary-soft)]'
-              : '',
+              ? 'border-[var(--app-primary-border)] bg-[var(--app-primary-soft)]'
+              : settingsStore.isDark
+                ? 'border-[rgba(148,163,184,0.16)] bg-transparent hover:border-[var(--app-primary-border)] hover:bg-[rgba(30,41,59,0.86)]'
+                : 'border-[rgba(148,163,184,0.22)] bg-transparent hover:border-[var(--app-primary-border)] hover:bg-[var(--app-primary-soft)]',
           ]"
           @click="emit('clickFile', file, $event)"
           @contextmenu="handleFileContextMenu(file, $event)"
@@ -238,14 +235,11 @@ onBeforeUnmount(() => {
           type="button"
           class="file-row grid grid-cols-[minmax(0,1fr)_120px_180px] select-none items-center gap-[12px] rounded-[14px] border px-[14px] py-[12px] text-left text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
           :class="[
-            settingsStore.isDark
-              ? 'border-[rgba(148,163,184,0.16)] bg-transparent hover:border-[var(--app-primary-border)] hover:bg-[rgba(30,41,59,0.86)]'
-              : 'border-[rgba(148,163,184,0.22)] bg-transparent hover:border-[var(--app-primary-border)] hover:bg-[var(--app-primary-soft)]',
             selectedNames.includes(file.filename)
-              ? settingsStore.isDark
-                ? 'border-[var(--app-primary-border)] bg-[rgba(30,41,59,0.86)]'
-                : 'border-[var(--app-primary-border)] bg-[var(--app-primary-soft)]'
-              : '',
+              ? 'border-[var(--app-primary-border)] bg-[var(--app-primary-soft)]'
+              : settingsStore.isDark
+                ? 'border-[rgba(148,163,184,0.16)] bg-transparent hover:border-[var(--app-primary-border)] hover:bg-[rgba(30,41,59,0.86)]'
+                : 'border-[rgba(148,163,184,0.22)] bg-transparent hover:border-[var(--app-primary-border)] hover:bg-[var(--app-primary-soft)]',
           ]"
           @click="emit('clickFile', file, $event)"
           @contextmenu="handleFileContextMenu(file, $event)"
