@@ -21,9 +21,9 @@ const DESKTOP_WALLPAPER_STORAGE_KEY = 'ssh-tool-ui-next.desktopWallpaper'
 const LOGIN_WALLPAPER_STORAGE_KEY = 'ssh-tool-ui-next.loginWallpaper'
 const DEFAULT_TERMINAL_FONT_SIZE = 14
 const DEFAULT_TERMINAL_FONT_FAMILY = 'Consolas, "Cascadia Mono", "Courier New", monospace'
-const DEFAULT_EDITOR_FONT_SIZE = 13
+const DEFAULT_EDITOR_FONT_SIZE = 14
 const DEFAULT_EDITOR_FONT_FAMILY = 'Consolas, "Cascadia Mono", "Courier New", monospace'
-const DEFAULT_PRIMARY_COLOR = '#2563eb'
+const DEFAULT_PRIMARY_COLOR = '#0891b2'
 
 type ThemeMode = 'dark' | 'light' | 'system'
 
