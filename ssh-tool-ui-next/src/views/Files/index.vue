@@ -749,7 +749,14 @@ async function openFile(file: FileItem) {
 }
 
 async function submitPath() {
-  await fileStore.navigateTo(currentPathInput.value);
+  const targetPath = resolve(fileStore.currentPath, currentPathInput.value);
+  if (targetPath === fileStore.currentPath) {
+    syncPathInput();
+    editingPath.value = false;
+    return;
+  }
+
+  await fileStore.navigateTo(targetPath);
   syncPathInput();
   editingPath.value = false;
 }
