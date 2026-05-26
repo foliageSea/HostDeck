@@ -11,6 +11,7 @@ const selectorTarget = ref<HTMLElement | null>(null)
 const selectorPanel = ref<HTMLElement | null>(null)
 const selectorAppId = ref<DesktopAppId | null>(null)
 const bouncingAppId = ref<DesktopAppId | null>(null)
+const hoveredDockIndex = ref<number | null>(null)
 const selectorPosition = ref<{
   x: number
   y: number
@@ -84,6 +85,30 @@ function isAppOpen(appId: DesktopAppId) {
 
 function getDockIconColor(appId: DesktopAppId) {
   return dockIconColors[appId] ?? 'currentColor'
+}
+
+function getDockItemStyle(index: number, appId: DesktopAppId) {
+  const hoveredIndex = hoveredDockIndex.value
+  const isOpen = isAppOpen(appId)
+
+  if (hoveredIndex === null) {
+    return {
+      '--dock-scale': '1',
+      '--dock-lift': isOpen ? '-2px' : '0px',
+      '--dock-spread': '0px',
+    }
+  }
+
+  const distance = Math.abs(index - hoveredIndex)
+  const scale = distance === 0 ? 1.34 : distance === 1 ? 1.16 : distance === 2 ? 1.06 : 1
+  const lift = distance === 0 ? -10 : distance === 1 ? -5 : distance === 2 ? -2 : isOpen ? -2 : 0
+  const spread = distance === 0 ? 9 : distance === 1 ? 3 : 0
+
+  return {
+    '--dock-scale': String(scale),
+    '--dock-lift': `${lift}px`,
+    '--dock-spread': `${spread}px`,
+  }
 }
 
 function handleOpen(event: MouseEvent, appId: DesktopAppId) {
@@ -206,20 +231,27 @@ function handleContextMenuSelect(key: string | number) {
     ]"
     @contextmenu.prevent
   >
-    <div v-for="app in dockApps" :key="app.id" class="dock-entry relative">
+    <div
+      v-for="(app, index) in dockApps"
+      :key="app.id"
+      class="dock-entry relative"
+      @mouseenter="hoveredDockIndex = index"
+      @mouseleave="hoveredDockIndex = null"
+    >
       <button
-        class="dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color] duration-[180ms] ease-in-out hover:translate-y-[-2px] cursor-pointer"
+        class="dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
         :class="[
           settingsStore.isDark
-            ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0] hover:bg-[rgba(51,65,85,0.92)]'
-            : 'bg-[rgba(241,245,249,0.88)] text-[#1e293b] hover:bg-[rgba(226,232,240,0.96)]',
+            ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0]'
+            : 'bg-[rgba(241,245,249,0.88)] text-[#1e293b]',
           isAppOpen(app.id)
             ? settingsStore.isDark
-              ? 'translate-y-[-2px] bg-[rgba(51,65,85,0.92)]'
-              : 'translate-y-[-2px] bg-[rgba(226,232,240,0.96)]'
+              ? 'bg-[rgba(51,65,85,0.92)]'
+              : 'bg-[rgba(226,232,240,0.96)]'
             : '',
           { 'dock-item-bounce': bouncingAppId === app.id },
         ]"
+        :style="getDockItemStyle(index, app.id)"
         type="button"
         :title="app.title"
         :aria-label="app.title"
@@ -275,21 +307,33 @@ function handleContextMenuSelect(key: string | number) {
 </template>
 
 <style scoped>
+.dock-entry {
+  display: flex;
+  align-items: flex-end;
+}
+
+.dock-item {
+  margin-inline: var(--dock-spread, 0);
+  transform: translateY(var(--dock-lift, 0)) scale(var(--dock-scale, 1));
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
 .dock-item-bounce {
   animation: dock-bounce 0.38s ease;
 }
 
 @keyframes dock-bounce {
   0% {
-    transform: translateY(0);
+    transform: translateY(var(--dock-lift, 0)) scale(var(--dock-scale, 1));
   }
 
   40% {
-    transform: translateY(-6px);
+    transform: translateY(calc(var(--dock-lift, 0) - 6px)) scale(var(--dock-scale, 1));
   }
 
   100% {
-    transform: translateY(0);
+    transform: translateY(var(--dock-lift, 0)) scale(var(--dock-scale, 1));
   }
 }
 
