@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Close, Logout, Moon, Notification, StopFilledAlt, Sun } from '@vicons/carbon'
+import { Close, CloudUpload, Logout, Moon, StopFilledAlt, Sun } from '@vicons/carbon'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -277,7 +277,7 @@ function disconnect() {
             <NButton quaternary circle>
               <template #icon>
                 <NIcon :size="16">
-                  <Notification />
+                  <CloudUpload />
                 </NIcon>
               </template>
             </NButton>
