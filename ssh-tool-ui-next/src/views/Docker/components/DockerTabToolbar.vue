@@ -22,7 +22,6 @@
   flex: none;
   flex-direction: column;
   gap: 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
   padding: 8px 0 12px;
 }
 
