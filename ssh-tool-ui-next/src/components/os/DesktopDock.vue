@@ -238,7 +238,7 @@ function handleContextMenuSelect(key: string | number) {
       @mouseenter="hoveredDockIndex = index"
       @mouseleave="hoveredDockIndex = null"
     >
-      <button
+      <div
         class="dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
         :class="[
           settingsStore.isDark
@@ -259,7 +259,7 @@ function handleContextMenuSelect(key: string | number) {
         @contextmenu="handleContextMenu($event, app.id)" @keydown="handleTriggerKeydown($event, app.id)">
         <AppIcon :color="getDockIconColor(app.id)" :name="app.icon" :size="24" />
         <span v-if="isAppOpen(app.id)" class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]" aria-hidden="true" />
-      </button>
+      </div>
 
     </div>
 
