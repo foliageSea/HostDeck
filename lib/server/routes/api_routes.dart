@@ -64,7 +64,7 @@ class ApiRoutes {
     router.post('/api/files/extract', fileController.extract);
 
     // Terminal
-    router.get('/socket.io', terminalController.handler);
+    router.get('/api/ws/terminal', terminalController.handler);
     router.post('/api/terminal/session', terminalController.createSession);
     router.delete('/api/terminal/session', terminalController.closeSession);
 

@@ -28,7 +28,7 @@
 
 - 后端默认监听 `http://localhost:8080`。
 - Vite 配置实际端口是 `5174`；`README.md` 中的 `5173` 是旧信息。
-- Vite 代理 `/api` 和 `/socket.io` 到 `VITE_DEV_PROXY_TARGET`，默认 `http://localhost:8080`。
+- Vite 代理 `/api` 到 `VITE_DEV_PROXY_TARGET`，默认 `http://localhost:8080`；终端 WebSocket 使用 `/api/ws/terminal`。
 - Flutter debug 的 WebView 仍硬编码加载 `http://localhost:5173`（`lib/main.dart`），如要调试桌面壳需先统一该端口或让 Vite 使用 5173。
 - Flutter release 使用 `assets/web/` 作为静态资源；本地桌面 release 前要先构建前端并同步 `ssh-tool-ui-next/dist` 到 `assets/web/`。
 - CI release 会构建 `ssh-tool-ui-next/dist`，Windows 桌面 job 下载到 `assets/web`，Dockerfile 直接复制 `ssh-tool-ui-next/dist` 到 `/app/web`。

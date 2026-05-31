@@ -20,7 +20,7 @@
 
 ## API 与通道
 
-- `GET /socket.io`：终端 WebSocket 通道。
+- `GET /api/ws/terminal`：终端 WebSocket 通道。
 - `POST /api/terminal/session`：创建终端会话。
 - `DELETE /api/terminal/session`：关闭终端会话。
 

@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           ws: true,
         },
-        "/socket.io": {
+        "/api/ws/terminal": {
           target: proxyTarget,
           changeOrigin: true,
           ws: true,

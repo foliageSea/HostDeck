@@ -49,7 +49,7 @@
 
 ## WebSocket 路由
 
-- `/socket.io`：终端会话通道。
+- `/api/ws/terminal`：终端会话通道。
 - `/api/ws/monitor`：系统监控推送。
 - `/api/ws/session`：SSH 会话状态推送。
 - `/api/ws/runtime`：运行态会话推送。

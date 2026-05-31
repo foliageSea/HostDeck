@@ -64,7 +64,7 @@ dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir ssh-tool-ui-next/d
 pnpm --dir ssh-tool-ui-next dev
 ```
 
-Vite 会将 `/api` 和 `/socket.io` 代理到 `VITE_DEV_PROXY_TARGET`，默认是 `http://localhost:8080`。前端独立开发时，需要确保后端服务已经启动。
+Vite 会将 `/api` 代理到 `VITE_DEV_PROXY_TARGET`，默认是 `http://localhost:8080`；终端 WebSocket 使用 `/api/ws/terminal`。前端独立开发时，需要确保后端服务已经启动。
 
 ## 新功能开发流程
 

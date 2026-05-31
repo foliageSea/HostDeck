@@ -100,7 +100,7 @@ flutter run -d windows
 - `ssh-tool-ui-next/vite.config.ts` 当前端口是 `http://localhost:5174`
 - `lib/main.dart` 的 Flutter debug WebView 仍硬编码加载 `http://localhost:5173`，调试桌面壳前需要先统一端口，或临时让 Vite 使用 5173
 - Flutter 内置后端默认监听 `http://localhost:8080`
-- `ssh-tool-ui-next/vite.config.ts` 会把 `/api` 和 `/socket.io` 代理到 `http://localhost:8080`
+- `ssh-tool-ui-next/vite.config.ts` 会把 `/api` 代理到 `http://localhost:8080`，其中终端 WebSocket 使用 `/api/ws/terminal`
 
 如需在 macOS/Linux 调试桌面壳，把 `windows` 替换为对应设备即可。
 

@@ -101,7 +101,7 @@ export function useTerminalSession(props: TerminalProps) {
 
   function buildTerminalSocketUrl(sessionId: string) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${protocol}//${window.location.host}/socket.io?sessionId=${sessionId}`
+    return `${protocol}//${window.location.host}/api/ws/terminal?sessionId=${sessionId}`
   }
 
   function clearStartupTimers() {

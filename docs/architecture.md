@@ -14,7 +14,7 @@
 
 - 前端通过 Vite 开发服务器运行。
 - 后端由 Flutter 桌面壳内置启动，默认监听 `http://localhost:8080`。
-- Vite 代理 `/api` 和 `/socket.io` 到后端。
+- Vite 代理 `/api` 到后端，其中终端 WebSocket 使用 `/api/ws/terminal`。
 - 注意：`ssh-tool-ui-next/vite.config.ts` 实际端口是 `5174`，`lib/main.dart` debug WebView 当前仍硬编码加载 `http://localhost:5173`。
 
 纯 B/S 模式：
@@ -56,7 +56,7 @@
 
 WebSocket 请求：
 
-- 终端使用 `/socket.io`。
+- 终端使用 `/api/ws/terminal`。
 - 系统监控使用 `/api/ws/monitor`。
 - SSH 会话状态使用 `/api/ws/session`。
 - 运行态会话使用 `/api/ws/runtime`。
