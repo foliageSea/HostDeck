@@ -218,9 +218,7 @@ function disconnect() {
         ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.45)] text-[#e2e8f0]'
         : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.58)] text-[#1e293b]',
     ]">
-    <div class="flex min-w-0 items-center gap-[8px]">
-      <span class="font-700 tracking-[0.04em]">SSH Tool</span>
-    </div>
+    <div class="flex min-w-0 items-center gap-[8px]" />
 
     <div class="flex min-w-0 items-center justify-center gap-[8px] text-[0.88rem]"
       :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.8)]' : 'text-[rgba(51,65,85,0.82)]'">
