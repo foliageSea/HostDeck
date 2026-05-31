@@ -223,11 +223,11 @@ function handleContextMenuSelect(key: string | number) {
 <template>
   <footer
     ref="selectorTarget"
-    class="desktop-dock absolute bottom-[24px] left-1/2 z-20 flex translate-x-[-50%] items-center gap-[12px] rounded-[24px] p-[10px] backdrop-blur-[16px]"
+    class="desktop-dock absolute bottom-[12px] left-1/2 z-20 flex translate-x-[-50%] items-center gap-[12px] rounded-[24px] p-[10px] backdrop-blur-[16px]"
     :class="[
       settingsStore.isDark
-        ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.56)]'
-        : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.66)]',
+        ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.44)]'
+        : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.52)]',
     ]"
     @contextmenu.prevent
   >
