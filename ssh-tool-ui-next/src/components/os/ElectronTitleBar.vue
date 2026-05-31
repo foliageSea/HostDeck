@@ -51,16 +51,15 @@ async function openInBrowser() {
   height: var(--electron-titlebar-height);
   align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(15, 23, 42, 0.58);
-  color: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(22px) saturate(140%);
+  background: #000;
+  color: rgba(255, 255, 255, 0.86);
   -webkit-app-region: drag;
 }
 
 :global(:root[data-theme='light']) .electron-titlebar {
-  border-bottom-color: rgba(15, 23, 42, 0.1);
-  background: rgba(248, 250, 252, 0.78);
-  color: rgba(15, 23, 42, 0.74);
+  border-bottom-color: rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: rgba(0, 0, 0, 0.78);
 }
 
 .electron-titlebar__controls {
