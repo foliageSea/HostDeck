@@ -156,10 +156,37 @@ export function useTerminalSession(props: TerminalProps) {
       const text = await navigator.clipboard.readText()
       if (text) {
         terminalRef.value?.paste(text)
+        getUiApi().message.success('已粘贴')
       }
     } catch (error) {
       console.error('Failed to paste terminal clipboard text', error)
       getUiApi().message.error('粘贴失败，请检查剪贴板权限。')
+    }
+  }
+
+  async function copyTerminalSelection() {
+    const terminal = terminalRef.value
+    if (!terminal?.hasSelection()) {
+      return
+    }
+
+    const selection = terminal.getSelection()
+    if (!selection) {
+      return
+    }
+
+    if (!navigator.clipboard?.writeText) {
+      getUiApi().message.error('当前环境不支持写入剪贴板。')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(selection)
+      getUiApi().message.success('已复制')
+      terminal.clearSelection()
+    } catch (error) {
+      console.error('Failed to copy terminal clipboard text', error)
+      getUiApi().message.error('复制失败，请检查剪贴板权限。')
     }
   }
 
@@ -242,10 +269,24 @@ export function useTerminalSession(props: TerminalProps) {
     }))
 
     terminalRef.value.attachCustomKeyEventHandler((event) => {
-      if (event.type === 'keydown' && event.ctrlKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === 'v') {
+      if (event.type !== 'keydown' || event.metaKey) {
+        return true
+      }
+
+      const key = event.key.toLowerCase()
+      const isPasteShortcut = key === 'v' && !event.shiftKey && !event.metaKey && (event.ctrlKey !== event.altKey)
+      const isCopyShortcut = key === 'c' && event.altKey && !event.ctrlKey && !event.shiftKey
+
+      if (isPasteShortcut || isCopyShortcut) {
         event.preventDefault()
         event.stopPropagation()
-        void pasteClipboardToTerminal()
+
+        if (isPasteShortcut) {
+          void pasteClipboardToTerminal()
+        } else {
+          void copyTerminalSelection()
+        }
+
         return false
       }
 
