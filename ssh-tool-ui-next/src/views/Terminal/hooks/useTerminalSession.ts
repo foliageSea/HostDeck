@@ -1,6 +1,7 @@
 import { markRaw, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
+import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
 import { terminalApi } from '@/api/terminal'
 import { getUiApi } from '@/lib/ui'
@@ -81,6 +82,7 @@ export function useTerminalSession(props: TerminalProps) {
 
   let fitAddon: FitAddon | null = null
   let webLinksAddon: WebLinksAddon | null = null
+  let webglAddon: WebglAddon | null = null
   let socket: WebSocket | null = null
   let resizeObserver: ResizeObserver | null = null
   let ownedSessionId: string | null = null
@@ -301,6 +303,14 @@ export function useTerminalSession(props: TerminalProps) {
 
     terminalRef.value.loadAddon(fitAddon)
     terminalRef.value.loadAddon(webLinksAddon)
+
+    try {
+      webglAddon = markRaw(new WebglAddon())
+      terminalRef.value.loadAddon(webglAddon)
+    } catch (error) {
+      webglAddon = null
+      console.warn('Terminal WebGL renderer unavailable, falling back to default renderer.', error)
+    }
   }
 
   watch(
@@ -389,6 +399,7 @@ export function useTerminalSession(props: TerminalProps) {
     await shutdownTerminalProcess()
     socket?.close()
     terminalRef.value?.dispose()
+    webglAddon = null
     webLinksAddon = null
     fitAddon = null
     socket = null
