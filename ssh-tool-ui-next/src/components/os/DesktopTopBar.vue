@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Close, CloudUpload, Logout, Moon, StopFilledAlt, Sun } from '@vicons/carbon'
+import { Close, CloudUpload, Download, Logout, Moon, StopFilledAlt, Sun } from '@vicons/carbon'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -71,6 +71,11 @@ const performanceStats = computed(() => [
   { label: '下载', value: downloadSpeed.value },
 ])
 const hasUnreadUploads = computed(() => uploadCenterStore.activeTaskCount > 0)
+const hasActiveDownloads = computed(() =>
+  uploadCenterStore.batches.some((batch) =>
+    batch.tasks.some((task) => task.status === 'downloading'),
+  ),
+)
 const uploadBatches = computed(() =>
   uploadCenterStore.batches.map((batch) => {
     const totalBytes = batch.tasks.reduce((sum, task) => sum + task.total, 0)
@@ -78,7 +83,7 @@ const uploadBatches = computed(() =>
     const completedCount = batch.tasks.filter((task) => task.status === 'success').length
     const cancelledCount = batch.tasks.filter((task) => task.status === 'cancelled').length
     const failedCount = batch.tasks.filter((task) => task.status === 'error').length
-    const activeTask = batch.tasks.find((task) => task.status === 'uploading')
+    const activeTask = batch.tasks.find((task) => task.status === 'uploading' || task.status === 'downloading')
 
     return {
       ...batch,
@@ -119,6 +124,10 @@ function formatUploadStatus(status: UploadTaskStatus, source: UploadTaskSource) 
     return '上传中'
   }
 
+  if (status === 'downloading') {
+    return '下载中'
+  }
+
   if (status === 'success') {
     return '已完成'
   }
@@ -135,6 +144,10 @@ function formatUploadStatus(status: UploadTaskStatus, source: UploadTaskSource) 
 }
 
 function getTaskSourceTitle(source: UploadTaskSource) {
+  if (source === 'files-download') {
+    return '文件下载'
+  }
+
   if (source === 'docker-image-import') {
     return '镜像导入'
   }
@@ -143,6 +156,10 @@ function getTaskSourceTitle(source: UploadTaskSource) {
 }
 
 function getTaskActiveText(source: UploadTaskSource, name: string) {
+  if (source === 'files-download') {
+    return `正在下载 ${name}`
+  }
+
   if (source === 'docker-image-import') {
     return `正在导入 ${name}`
   }
@@ -151,6 +168,10 @@ function getTaskActiveText(source: UploadTaskSource, name: string) {
 }
 
 function getCancelTaskText(source: UploadTaskSource) {
+  if (source === 'files-download') {
+    return '中断下载'
+  }
+
   if (source === 'docker-image-import') {
     return '中断导入'
   }
@@ -180,7 +201,7 @@ function formatSpeed(value: number) {
 }
 
 function isBatchActive(batch: UploadBatch) {
-  return batch.tasks.some((task) => task.status === 'pending' || task.status === 'uploading')
+  return batch.tasks.some((task) => task.status === 'pending' || task.status === 'uploading' || task.status === 'downloading')
 }
 
 function cancelUploadBatch(batchId: string) {
@@ -275,7 +296,7 @@ function disconnect() {
             <NButton quaternary circle>
               <template #icon>
                 <NIcon :size="16">
-                  <CloudUpload />
+                  <component :is="hasActiveDownloads ? Download : CloudUpload" />
                 </NIcon>
               </template>
             </NButton>
@@ -378,7 +399,7 @@ function disconnect() {
                     settingsStore.isDark
                       ? 'border border-[rgba(148,163,184,0.12)] bg-[rgba(15,23,42,0.52)]'
                       : 'border border-[rgba(148,163,184,0.18)] bg-[rgba(255,255,255,0.98)]',
-                    task.status === 'uploading'
+                    task.status === 'uploading' || task.status === 'downloading'
                       ? settingsStore.isDark ? 'border-[rgba(96,165,250,0.28)]' : 'border-[rgba(59,130,246,0.28)]'
                       : '',
                     task.status === 'success'
@@ -404,7 +425,7 @@ function disconnect() {
                   </div>
                   <NProgress type="line" :percentage="task.progress"
                     :status="task.status === 'error' ? 'error' : task.status === 'success' ? 'success' : task.status === 'cancelled' ? 'warning' : 'default'"
-                    :show-indicator="false" :processing="task.status === 'uploading'" />
+                    :show-indicator="false" :processing="task.status === 'uploading' || task.status === 'downloading'" />
                 </div>
               </div>
             </div>

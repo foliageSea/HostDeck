@@ -100,18 +100,32 @@ export const filesApi = {
     return response.data
   },
 
-  download: async (connectionId: string, path: string) => {
+  download: async (
+    connectionId: string,
+    path: string,
+    onDownloadProgress?: (event: AxiosProgressEvent) => void,
+    signal?: AbortSignal,
+  ) => {
     const response = await http.get<Blob>('/api/files/read', {
+      onDownloadProgress,
       params: { connectionId, download: 'true', path },
       responseType: 'blob',
+      signal,
     })
     return response.data
   },
 
-  batchDownload: async (connectionId: string, paths: string[]) => {
+  batchDownload: async (
+    connectionId: string,
+    paths: string[],
+    onDownloadProgress?: (event: AxiosProgressEvent) => void,
+    signal?: AbortSignal,
+  ) => {
     const response = await http.post<Blob>('/api/files/batch-download', { paths }, {
+      onDownloadProgress,
       params: { connectionId },
       responseType: 'blob',
+      signal,
     })
     return response.data
   },

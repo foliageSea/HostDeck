@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-export type UploadTaskStatus = 'pending' | 'uploading' | 'success' | 'error' | 'cancelled'
-export type UploadTaskSource = 'files' | 'docker-image-import'
+export type UploadTaskStatus = 'pending' | 'uploading' | 'downloading' | 'success' | 'error' | 'cancelled'
+export type UploadTaskSource = 'files' | 'files-download' | 'docker-image-import'
 
 export interface UploadTaskItem {
   connectionId: string
@@ -27,9 +27,10 @@ export interface UploadBatch {
 }
 
 export interface UploadBatchFile {
-  file: File
+  file?: File
   name?: string
   path?: string
+  size?: number
 }
 
 export const useUploadCenterStore = defineStore('upload-center', () => {
@@ -39,7 +40,7 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
   const cancelledBatchIds = new Set<string>()
 
   function isTaskActive(status: UploadTaskStatus) {
-    return status === 'pending' || status === 'uploading'
+    return status === 'pending' || status === 'uploading' || status === 'downloading'
   }
 
   const activeTaskCount = computed(() =>
@@ -66,8 +67,9 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     cancelledBatchIds.delete(batchId)
     const tasks = files.map((item, index) => {
       const file = item instanceof File ? item : item.file
-      const taskName = item instanceof File ? file.name : (item.name ?? file.name)
+      const taskName = item instanceof File ? item.name : (item.name ?? file?.name ?? '未命名任务')
       const taskPath = item instanceof File ? path : (item.path ?? path)
+      const taskSize = item instanceof File ? item.size : (item.size ?? file?.size ?? 0)
 
       return {
         connectionId,
@@ -78,7 +80,7 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
         progress: 0,
         source,
         status: 'pending' as const,
-        total: file.size,
+        total: taskSize,
       }
     })
 
@@ -166,10 +168,10 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     cancelledBatchIds.add(batchId)
     batchControllers.get(batchId)?.abort()
     batchControllers.delete(batchId)
-    batch.errorMessage = '上传已中断。'
+    batch.errorMessage = batch.source === 'files-download' ? '下载已中断。' : '上传已中断。'
 
     for (const task of batch.tasks) {
-      if (task.status === 'pending' || task.status === 'uploading') {
+      if (isTaskActive(task.status)) {
         task.status = 'cancelled'
       }
     }
