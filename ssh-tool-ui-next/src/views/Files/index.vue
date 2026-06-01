@@ -132,6 +132,21 @@ const isCurrentPathFavorite = computed(() =>
 const isCurrentPathPinned = computed(() =>
   desktopStore.isDirectoryPinned(fileStore.currentPath),
 );
+const trimmedSearch = computed(() => fileStore.search.trim());
+const hasSearch = computed(() => trimmedSearch.value.length > 0);
+const searchResultHint = computed(() => {
+  if (!hasSearch.value) {
+    return "";
+  }
+
+  const resultCount = fileStore.displayFiles.length;
+  const totalCount = fileStore.files.filter(
+    (file) => file.filename !== "." && file.filename !== "..",
+  ).length;
+  return resultCount > 0
+    ? `搜索“${trimmedSearch.value}”：找到 ${resultCount} 项，共 ${totalCount} 项`
+    : `未找到匹配“${trimmedSearch.value}”的文件或目录`;
+});
 const selectedDirectoryPath = computed(() => {
   if (selectedFiles.value.length !== 1 || !selectedFile.value?.isDirectory) {
     return null;
@@ -812,6 +827,10 @@ function toggleFavoriteSidebar() {
 
 function updateSortKey(value: string) {
   fileStore.setSortKey(value as FileSortKey);
+}
+
+function clearSearch() {
+  fileStore.search = "";
 }
 
 function handleCreateSelect(key: string | number) {
@@ -2023,8 +2042,29 @@ watch(
           </NButton>
         </div>
 
+        <div
+          v-if="hasSearch"
+          class="flex flex-wrap items-center justify-between gap-[10px] rounded-[16px] border px-[14px] py-[10px] shadow-[0_12px_28px_rgba(37,99,235,0.12)]"
+          :class="
+            settingsStore.isDark
+              ? 'border-[rgba(96,165,250,0.42)] bg-[rgba(30,64,175,0.24)] text-[rgba(219,234,254,0.98)]'
+              : 'border-[rgba(37,99,235,0.3)] bg-[rgba(219,234,254,0.86)] text-[rgba(30,64,175,0.98)]'
+          "
+        >
+          <div class="flex min-w-0 items-center gap-[10px] text-[13px] font-600">
+            <span class="h-[8px] w-[8px] flex-none rounded-full bg-[var(--app-primary-color)]" />
+            <span class="truncate-line">{{ searchResultHint }}</span>
+          </div>
+          <NButton quaternary round size="small" @click="clearSearch">
+            清除搜索
+          </NButton>
+        </div>
+
         <FileBrowserContent
           :files="fileStore.displayFiles"
+          :empty-description="
+            hasSearch ? '没有找到匹配的文件或目录' : undefined
+          "
           :loading="fileStore.loading"
           :selected-names="fileStore.selectedNames"
           :view-mode="fileStore.viewMode"
