@@ -6,7 +6,6 @@ const path = require('node:path')
 
 const uiRoot = path.resolve(__dirname, '..')
 const repoRoot = path.resolve(uiRoot, '..')
-const devUrl = process.env.SSH_TOOL_ELECTRON_DEV_URL || 'http://localhost:5174'
 const useDevServer = !app.isPackaged && process.env.SSH_TOOL_ELECTRON_MODE !== 'preview'
 const isPackaged = app.isPackaged
 
@@ -40,6 +39,21 @@ function allowExternalAccess() {
 function serverPort() {
   const port = Number(process.env.SSH_TOOL_ELECTRON_PORT)
   return Number.isInteger(port) && port > 0 && port <= 65535 ? port : 18080
+}
+
+async function devServerUrl() {
+  if (process.env.SSH_TOOL_ELECTRON_DEV_URL) return process.env.SSH_TOOL_ELECTRON_DEV_URL
+
+  try {
+    const { resolveConfig } = await import('vite')
+    const config = await resolveConfig({}, 'serve')
+    const port = Number(config.server.port)
+    if (Number.isInteger(port) && port > 0 && port <= 65535) return 'http://localhost:' + port
+  } catch (error) {
+    console.warn('Unable to resolve Vite dev server URL:', error)
+  }
+
+  return 'http://localhost:5173'
 }
 
 function ping(url) {
@@ -118,7 +132,7 @@ function stopServer() {
 }
 
 async function restartServer() {
-  if (useDevServer) return devUrl
+  if (useDevServer) return devServerUrl()
 
   await stopServer()
   const url = startServer()
@@ -200,7 +214,7 @@ ipcMain.handle('app:set-external-access', async (_event, enabled) => {
 })
 
 app.whenReady().then(async () => {
-  const url = useDevServer ? devUrl : startServer()
+  const url = useDevServer ? await devServerUrl() : startServer()
   if (!useDevServer) await waitFor(url)
   createWindow(url)
 

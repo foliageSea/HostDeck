@@ -1,8 +1,18 @@
 const { spawn } = require('node:child_process')
 const http = require('node:http')
 
-const viteUrl = process.env.SSH_TOOL_ELECTRON_DEV_URL || 'http://localhost:5174'
 const children = []
+
+async function viteDevUrl() {
+  if (process.env.SSH_TOOL_ELECTRON_DEV_URL) return process.env.SSH_TOOL_ELECTRON_DEV_URL
+
+  const { resolveConfig } = await import('vite')
+  const config = await resolveConfig({}, 'serve')
+  const port = Number(config.server.port)
+  if (Number.isInteger(port) && port > 0 && port <= 65535) return 'http://localhost:' + port
+
+  return 'http://localhost:5173'
+}
 
 function run(command, args, env = {}) {
   const child = spawn(command, args, {
@@ -59,9 +69,10 @@ process.on('SIGTERM', () => {
 })
 
 async function main() {
+  const viteUrl = await viteDevUrl()
   run('pnpm', ['dev'])
   await waitFor(viteUrl)
-  const electron = run('pnpm', ['exec', 'electron', '.'])
+  const electron = run('pnpm', ['exec', 'electron', '.'], { SSH_TOOL_ELECTRON_DEV_URL: viteUrl })
   electron.on('exit', (code) => {
     stopAll()
     process.exit(code || 0)
