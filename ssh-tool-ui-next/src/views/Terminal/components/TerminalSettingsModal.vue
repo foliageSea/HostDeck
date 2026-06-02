@@ -23,12 +23,19 @@ const settingsStore = useSettingsStore()
     <NSpace vertical size="large">
       <div>
         <div class="mb-[10px] text-[13px] text-[rgba(148,163,184,0.92)]">字体大小</div>
-        <NSlider
+        <NInputNumber
+          class="font-size-input w-full"
           :value="settingsStore.terminalFontSize"
           :min="8"
           :max="32"
-          :tooltip="false"
-          @update:value="(value: number) => settingsStore.setTerminalFontSize(value)"
+          :step="1"
+          button-placement="both"
+          placeholder="8 - 32"
+          @update:value="(value: number | null) => {
+            if (typeof value === 'number') {
+              settingsStore.setTerminalFontSize(value)
+            }
+          }"
         />
       </div>
 
@@ -48,3 +55,9 @@ const settingsStore = useSettingsStore()
     </NSpace>
   </NModal>
 </template>
+
+<style scoped>
+.font-size-input :deep(.n-input__input-el) {
+  text-align: center;
+}
+</style>
