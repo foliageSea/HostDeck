@@ -131,17 +131,27 @@ function stopServer() {
   })
 }
 
+function loadingPagePath() {
+  return path.join(__dirname, 'loading.html')
+}
+
+function showLoadingPage() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.loadFile(loadingPagePath())
+}
+
 async function restartServer() {
   if (useDevServer) return devServerUrl()
 
   await stopServer()
   const url = startServer()
+  showLoadingPage()
   await waitFor(url)
   mainWindow?.loadURL(url)
   return url
 }
 
-function createWindow(url) {
+function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -164,10 +174,17 @@ function createWindow(url) {
     return { action: 'deny' }
   })
 
-  mainWindow.loadURL(url)
+  showLoadingPage()
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+}
+
+async function loadApplication() {
+  const url = useDevServer ? await devServerUrl() : startServer()
+  await waitFor(url)
+  if (mainWindow && !mainWindow.isDestroyed()) await mainWindow.loadURL(url)
+  return url
 }
 
 ipcMain.handle('window:minimize', (event) => {
@@ -214,12 +231,14 @@ ipcMain.handle('app:set-external-access', async (_event, enabled) => {
 })
 
 app.whenReady().then(async () => {
-  const url = useDevServer ? await devServerUrl() : startServer()
-  if (!useDevServer) await waitFor(url)
-  createWindow(url)
+  createWindow()
+  const url = await loadApplication()
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow(url)
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+      mainWindow?.loadURL(url)
+    }
   })
 })
 

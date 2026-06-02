@@ -62,6 +62,7 @@
     },
     "files": [
       "electron/main.cjs",
+      "electron/loading.html",
       "electron/preload.cjs",
       "package.json"
     ],
