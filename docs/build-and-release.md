@@ -52,8 +52,8 @@ dart build cli --target bin/server.dart -o build/server
 Dockerfile 当前以 `ssh-tool-ui-next/` 为前端来源。
 
 ```bash
-docker build -t ssh-tool:local .
-docker run --rm -p 8080:8080 -v ssh-tool-data:/data ssh-tool:local
+docker build -t host-deck:local .
+docker run --rm -p 8080:8080 -v host-deck-data:/data host-deck:local
 ```
 
 容器默认启动参数：

@@ -55,8 +55,8 @@
   },
   "build": {
     "appId": "com.foliagesea.ssh-tool",
-    "productName": "SSH Tool",
-    "artifactName": "ssh-tool-electron-windows-${version}.${ext}",
+    "productName": "HostDeck",
+    "artifactName": "host-deck-electron-windows-${version}.${ext}",
     "directories": {
       "output": "release"
     },

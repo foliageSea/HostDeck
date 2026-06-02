@@ -1,6 +1,6 @@
-# SSH Tool 开发文档
+# HostDeck 开发文档
 
-本目录记录 `ssh_tool` 各模块的开发约定、代码入口、API 合约和验证方式。项目当前由 Flutter 桌面壳、Dart HTTP/WebSocket 服务、Vue 3 前端三部分组成。
+本目录记录 HostDeck 各模块的开发约定、代码入口、API 合约和验证方式。项目当前由 Flutter 桌面壳、Dart HTTP/WebSocket 服务、Vue 3 前端三部分组成。
 
 ## 推荐阅读顺序
 

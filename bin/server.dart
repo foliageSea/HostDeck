@@ -24,7 +24,7 @@ Future<void> main(List<String> args) async {
   try {
     await server.start();
     log.info(
-      'SSH Tool server started at http://${config.host}:${config.port} (web: ${config.webDir ?? 'disabled'})',
+      'HostDeck server started at http://${config.host}:${config.port} (web: ${config.webDir ?? 'disabled'})',
     );
   } catch (e, st) {
     log.severe('Failed to start server: $e', e, st);
@@ -121,7 +121,7 @@ String? _resolveDefaultWebDir() {
 
 Never _printUsageAndExit({int exitCode = 0}) {
   stdout.writeln('''
-SSH Tool Server
+HostDeck Server
 
 Usage:
   dart run bin/server.dart [options]

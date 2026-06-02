@@ -1,6 +1,6 @@
-# SSH Tool
+# HostDeck
 
-`ssh_tool` 是一个跨平台 SSH 工具，当前由四部分组成：
+`ssh_tool` 是 HostDeck 的当前 Dart 包名。HostDeck 是一个跨平台远程主机工作台，当前由四部分组成：
 
 - Flutter 桌面壳：负责窗口承载、日志面板和内置后端服务
 - Dart CLI 服务：入口为 `bin/server.dart`，可独立以 B/S 模式运行
@@ -190,8 +190,8 @@ dart build cli --target bin/server.dart -o build/server
 `Dockerfile` 当前会直接构建 `ssh-tool-ui-next/` 与 Dart CLI 服务：
 
 ```bash
-docker build -t ssh-tool:local .
-docker run --rm -p 8080:8080 -v ssh-tool-data:/data ssh-tool:local
+docker build -t host-deck:local .
+docker run --rm -p 8080:8080 -v host-deck-data:/data host-deck:local
 ```
 
 容器默认启动参数：

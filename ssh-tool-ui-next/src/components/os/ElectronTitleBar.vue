@@ -29,7 +29,7 @@ async function openInBrowser() {
       <button class="electron-titlebar__button electron-titlebar__button--maximize" type="button" :aria-label="isMaximized ? '还原' : '最大化'" @click="toggleMaximizeWindow" />
     </div>
     <div class="electron-titlebar__drag-region">
-      <span class="electron-titlebar__title">SSH Tool</span>
+      <span class="electron-titlebar__title">HostDeck</span>
     </div>
     <div class="electron-titlebar__actions">
       <button class="electron-titlebar__action" type="button" aria-label="在外部浏览器打开" title="在外部浏览器打开" @click="openInBrowser">

@@ -49,11 +49,11 @@ jobs:
   #         New-Item -ItemType Directory -Path build\server\bundle\web -Force
   #         Copy-Item -Path ssh-tool-ui-next\dist\* -Destination build\server\bundle\web -Recurse
   #     - name: Package Dart Windows Bundle
-  #       run: Compress-Archive -Path build\server\bundle\* -DestinationPath ssh-tool-dart-windows-${{ github.ref_name }}.zip
+  #       run: Compress-Archive -Path build\server\bundle\* -DestinationPath host-deck-dart-windows-${{ github.ref_name }}.zip
   #     - name: Upload Dart Windows Bundle
   #       uses: softprops/action-gh-release@v1
   #       with:
-  #         files: ssh-tool-dart-windows-${{ github.ref_name }}.zip
+  #         files: host-deck-dart-windows-${{ github.ref_name }}.zip
   #       env:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -75,11 +75,11 @@ jobs:
   #         mkdir -p build/server/bundle/web
   #         cp -R ssh-tool-ui-next/dist/. build/server/bundle/web/
   #     - name: Package Dart Linux Bundle
-  #       run: tar -czf ssh-tool-dart-linux-${{ github.ref_name }}.tar.gz -C build/server/bundle .
+  #       run: tar -czf host-deck-dart-linux-${{ github.ref_name }}.tar.gz -C build/server/bundle .
   #     - name: Upload Dart Linux Bundle
   #       uses: softprops/action-gh-release@v1
   #       with:
-  #         files: ssh-tool-dart-linux-${{ github.ref_name }}.tar.gz
+  #         files: host-deck-dart-linux-${{ github.ref_name }}.tar.gz
   #       env:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -101,11 +101,11 @@ jobs:
   #         mkdir -p build/server/bundle/web
   #         cp -R ssh-tool-ui-next/dist/. build/server/bundle/web/
   #     - name: Package Dart MacOS Bundle
-  #       run: tar -czf ssh-tool-dart-macos-${{ github.ref_name }}.tar.gz -C build/server/bundle .
+  #       run: tar -czf host-deck-dart-macos-${{ github.ref_name }}.tar.gz -C build/server/bundle .
   #     - name: Upload Dart MacOS Bundle
   #       uses: softprops/action-gh-release@v1
   #       with:
-  #         files: ssh-tool-dart-macos-${{ github.ref_name }}.tar.gz
+  #         files: host-deck-dart-macos-${{ github.ref_name }}.tar.gz
   #       env:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -123,15 +123,15 @@ jobs:
           file: ./Dockerfile
           push: false
           tags: |
-            ssh-tool:${{ github.ref_name }}
-            ssh-tool:latest
-          outputs: type=docker,dest=/tmp/ssh-tool-${{ github.ref_name }}.tar
+            host-deck:${{ github.ref_name }}
+            host-deck:latest
+          outputs: type=docker,dest=/tmp/host-deck-${{ github.ref_name }}.tar
       - name: Compress Docker Image Tar
-        run: gzip -f /tmp/ssh-tool-${{ github.ref_name }}.tar
+        run: gzip -f /tmp/host-deck-${{ github.ref_name }}.tar
       - name: Upload Docker Image Asset
         uses: softprops/action-gh-release@v1
         with:
-          files: /tmp/ssh-tool-${{ github.ref_name }}.tar.gz
+          files: /tmp/host-deck-${{ github.ref_name }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -151,11 +151,11 @@ jobs:
   #     - run: flutter pub get
   #     - run: flutter build apk --release
   #     - name: Rename APK
-  #       run: mv build/app/outputs/flutter-apk/app-release.apk ssh-tool-android-${{ github.ref_name }}.apk
+  #       run: mv build/app/outputs/flutter-apk/app-release.apk host-deck-android-${{ github.ref_name }}.apk
   #     - name: Upload APK
   #       uses: softprops/action-gh-release@v1
   #       with:
-  #         files: ssh-tool-android-${{ github.ref_name }}.apk
+  #         files: host-deck-android-${{ github.ref_name }}.apk
   #       env:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -174,11 +174,11 @@ jobs:
       - run: flutter pub get
       - run: flutter build windows --release
       - name: Archive Windows Build
-        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ssh-tool-windows-${{ github.ref_name }}.zip
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath host-deck-windows-${{ github.ref_name }}.zip
       - name: Upload Windows
         uses: softprops/action-gh-release@v1
         with:
-          files: ssh-tool-windows-${{ github.ref_name }}.zip
+          files: host-deck-windows-${{ github.ref_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

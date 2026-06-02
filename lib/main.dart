@@ -234,7 +234,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
                   Icon(Icons.terminal, size: 18, color: primaryColor),
                   const SizedBox(width: 8),
                   Text(
-                    'SSH Tool',
+                    'HostDeck',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -278,7 +278,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SSH Tool',
+      title: 'HostDeck',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),

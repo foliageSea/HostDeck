@@ -22,7 +22,7 @@
 - 前端测试：`pnpm --dir ssh-tool-ui-next test`
 - 单个前端测试：`pnpm --dir ssh-tool-ui-next exec vitest run src/views/Files/components/__tests__/FilePickerDialog.spec.ts`
 - 纯 B/S 本地运行：先 `pnpm --dir ssh-tool-ui-next build`，再 `dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir ssh-tool-ui-next/dist`
-- Docker 本地构建：`docker build -t ssh-tool:local .`
+- Docker 本地构建：`docker build -t host-deck:local .`
 
 ## Dev Servers And Packaging
 

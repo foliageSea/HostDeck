@@ -104,7 +104,7 @@ function startServer() {
 
   serverProcess.on('exit', (code, signal) => {
     if (code !== 0 && signal !== 'SIGTERM') {
-      console.error('SSH Tool server exited:', code, signal)
+      console.error('HostDeck server exited:', code, signal)
     }
     if (serverProcess === child) serverProcess = null
   })
@@ -157,7 +157,7 @@ function createWindow() {
     height: 820,
     minWidth: 1024,
     minHeight: 720,
-    title: 'SSH Tool',
+    title: 'HostDeck',
     frame: false,
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: 16, y: 14 },
