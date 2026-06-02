@@ -265,6 +265,7 @@ export function useTerminalSession(props: TerminalProps) {
     terminalRef.value = markRaw(new Terminal({
       allowProposedApi: true,
       cursorBlink: true,
+      cursorStyle: 'bar',
       fontFamily: settingsStore.terminalFontFamily,
       fontSize: settingsStore.terminalFontSize,
       theme: buildTerminalTheme(settingsStore.isDark),
