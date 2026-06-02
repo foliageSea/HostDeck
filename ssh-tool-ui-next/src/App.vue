@@ -13,7 +13,7 @@ const sshStore = useSshStore()
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 
-const isElectron = computed(() => Boolean(window.sshTool?.window))
+const isElectron = computed(() => Boolean(window.hostDeck?.window))
 const theme = computed(() => (settingsStore.isDark ? darkTheme : null))
 const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   common: {

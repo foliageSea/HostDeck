@@ -1,6 +1,6 @@
 # HostDeck
 
-`ssh_tool` 是 HostDeck 的当前 Dart 包名。HostDeck 是一个跨平台远程主机工作台，当前由四部分组成：
+`host_deck` 是 HostDeck 的当前 Dart 包名。HostDeck 是一个跨平台远程主机工作台，当前由四部分组成：
 
 - Flutter 桌面壳：负责窗口承载、日志面板和内置后端服务
 - Dart CLI 服务：入口为 `bin/server.dart`，可独立以 B/S 模式运行
@@ -98,7 +98,7 @@ flutter run -d windows
 说明：
 
 - Vite 开发服务器端口以 `ssh-tool-ui-next/vite.config.ts` 的 `server.port` 为准。
-- Electron 开发模式会从 Vite 配置读取开发服务器地址，也可通过 `SSH_TOOL_ELECTRON_DEV_URL` 覆盖。
+- Electron 开发模式会从 Vite 配置读取开发服务器地址，也可通过 `HOST_DECK_ELECTRON_DEV_URL` 覆盖。
 - `lib/main.dart` 的 Flutter debug WebView 仍硬编码加载 `http://localhost:5173`，调试桌面壳前需要先统一端口，或临时让 Vite 使用 5173
 - Flutter 内置后端默认监听 `http://localhost:8080`
 - `ssh-tool-ui-next/vite.config.ts` 会把 `/api` 代理到 `http://localhost:8080`，其中终端 WebSocket 使用 `/api/ws/terminal`
@@ -183,7 +183,7 @@ dart build cli --target bin/server.dart -o build/server
 - `build/server/bundle/lib/`：运行时动态库
 - `build/server/bundle/web/`：前端静态资源
 
-说明：`scripts/build_server.ps1` 已使用当前前端目录 `ssh-tool-ui-next/`；`scripts/build_server.sh` 仍引用已不存在的旧目录 `ssh-tool-ui/`，当前不可直接使用。在 Linux/macOS 使用前需要先把脚本里的 `ssh-tool-ui` 和 `ssh-tool-ui/dist` 校正为 `ssh-tool-ui-next` 和 `ssh-tool-ui-next/dist`，否则会失败。
+说明：`scripts/build_server.ps1` 和 `scripts/build_server.sh` 都使用当前前端目录 `ssh-tool-ui-next/`。
 
 ## Docker
 
@@ -227,7 +227,7 @@ pnpm exec vitest run src/views/Files/components/__tests__/FilePickerDialog.spec.
 ## 项目结构
 
 ```text
-ssh_tool/
+host_deck/
 ├── bin/                 # Dart CLI 服务入口
 ├── docs/                # 架构、开发、构建、测试与模块文档
 ├── lib/                 # Flutter 桌面壳与内置后端服务

@@ -92,9 +92,9 @@ BEGIN
             VALUE "CompanyName", "com.foliage" "\0"
             VALUE "FileDescription", "HostDeck" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "ssh_tool" "\0"
+            VALUE "InternalName", "host_deck" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.foliage. All rights reserved." "\0"
-            VALUE "OriginalFilename", "ssh_tool.exe" "\0"
+            VALUE "OriginalFilename", "host_deck.exe" "\0"
             VALUE "ProductName", "HostDeck" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END

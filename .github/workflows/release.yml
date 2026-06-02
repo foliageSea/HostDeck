@@ -231,11 +231,11 @@ jobs:
   #     - run: flutter pub get
   #     - run: flutter build linux --release
   #     - name: Archive Linux Build
-  #       run: tar -czf ssh-tool-linux-${{ github.ref_name }}.tar.gz -C build/linux/x64/release/bundle .
+  #       run: tar -czf host-deck-linux-${{ github.ref_name }}.tar.gz -C build/linux/x64/release/bundle .
   #     - name: Upload Linux
   #       uses: softprops/action-gh-release@v1
   #       with:
-  #         files: ssh-tool-linux-${{ github.ref_name }}.tar.gz
+  #         files: host-deck-linux-${{ github.ref_name }}.tar.gz
   #       env:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -254,10 +254,10 @@ jobs:
   #     - run: flutter pub get
   #     - run: flutter build macos --release
   #     - name: Archive MacOS Build
-  #       run: ditto -c -k --keepParent build/macos/Build/Products/Release/ssh_tool.app ssh-tool-macos-${{ github.ref_name }}.zip
+  #       run: ditto -c -k --keepParent build/macos/Build/Products/Release/HostDeck.app host-deck-macos-${{ github.ref_name }}.zip
   #     - name: Upload MacOS
   #       uses: softprops/action-gh-release@v1
   #       with:
-  #         files: ssh-tool-macos-${{ github.ref_name }}.zip
+  #         files: host-deck-macos-${{ github.ref_name }}.zip
   #       env:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

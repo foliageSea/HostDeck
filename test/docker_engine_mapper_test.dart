@@ -3,12 +3,12 @@ import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ssh_tool/server/models/ssh_operation_limiter.dart';
-import 'package:ssh_tool/server/models/ssh_session.dart';
-import 'package:ssh_tool/server/repositories/docker_engine_repository.dart';
-import 'package:ssh_tool/server/repositories/ssh_repository.dart';
-import 'package:ssh_tool/server/services/docker_engine_mapper.dart';
-import 'package:ssh_tool/server/services/docker_service.dart';
+import 'package:host_deck/server/models/ssh_operation_limiter.dart';
+import 'package:host_deck/server/models/ssh_session.dart';
+import 'package:host_deck/server/repositories/docker_engine_repository.dart';
+import 'package:host_deck/server/repositories/ssh_repository.dart';
+import 'package:host_deck/server/services/docker_engine_mapper.dart';
+import 'package:host_deck/server/services/docker_service.dart';
 
 void main() {
   group('DockerEngineMapper', () {
@@ -186,7 +186,7 @@ void main() {
         'internal': true,
         'attachable': true,
         'options': {'com.docker.network.bridge.enable_icc': 'true'},
-        'labels': {'app': 'ssh-tool'},
+        'labels': {'app': 'host-deck'},
       });
 
       expect(request, {
@@ -196,7 +196,7 @@ void main() {
         'Internal': true,
         'Attachable': true,
         'Options': {'com.docker.network.bridge.enable_icc': 'true'},
-        'Labels': {'app': 'ssh-tool'},
+        'Labels': {'app': 'host-deck'},
       });
     });
 
@@ -205,14 +205,14 @@ void main() {
         'name': 'cache-data',
         'driver': 'local',
         'options': {'type': 'nfs'},
-        'labels': {'app': 'ssh-tool'},
+        'labels': {'app': 'host-deck'},
       });
 
       expect(request, {
         'Name': 'cache-data',
         'Driver': 'local',
         'DriverOpts': {'type': 'nfs'},
-        'Labels': {'app': 'ssh-tool'},
+        'Labels': {'app': 'host-deck'},
       });
     });
   });

@@ -4,20 +4,20 @@ import { ref } from 'vue'
 const isMaximized = ref(false)
 
 async function minimizeWindow() {
-  await window.sshTool?.window?.minimize()
+  await window.hostDeck?.window?.minimize()
 }
 
 async function toggleMaximizeWindow() {
-  const nextState = await window.sshTool?.window?.toggleMaximize()
+  const nextState = await window.hostDeck?.window?.toggleMaximize()
   isMaximized.value = Boolean(nextState)
 }
 
 async function closeWindow() {
-  await window.sshTool?.window?.close()
+  await window.hostDeck?.window?.close()
 }
 
 async function openInBrowser() {
-  await window.sshTool?.app?.openInBrowser()
+  await window.hostDeck?.app?.openInBrowser()
 }
 </script>
 

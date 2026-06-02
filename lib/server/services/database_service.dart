@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 import 'package:logging/logging.dart';
@@ -15,7 +17,12 @@ class DatabaseService {
 
   Future<void> init() async {
     final dir = await RuntimePaths.resolveDataDirectory(overridePath: _dataDir);
-    final dbPath = p.join(dir.path, 'ssh_tool.db');
+    final dbPath = p.join(dir.path, 'host_deck.db');
+    final legacyDbPath = p.join(dir.path, 'ssh_tool.db');
+
+    if (!File(dbPath).existsSync() && File(legacyDbPath).existsSync()) {
+      File(legacyDbPath).renameSync(dbPath);
+    }
 
     // Ensure directory exists
     await dir.create(recursive: true);

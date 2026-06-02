@@ -6,7 +6,7 @@ const path = require('node:path')
 
 const uiRoot = path.resolve(__dirname, '..')
 const repoRoot = path.resolve(uiRoot, '..')
-const useDevServer = !app.isPackaged && process.env.SSH_TOOL_ELECTRON_MODE !== 'preview'
+const useDevServer = !app.isPackaged && process.env.HOST_DECK_ELECTRON_MODE !== 'preview'
 const isPackaged = app.isPackaged
 
 let mainWindow
@@ -37,12 +37,12 @@ function allowExternalAccess() {
 }
 
 function serverPort() {
-  const port = Number(process.env.SSH_TOOL_ELECTRON_PORT)
+  const port = Number(process.env.HOST_DECK_ELECTRON_PORT)
   return Number.isInteger(port) && port > 0 && port <= 65535 ? port : 18080
 }
 
 async function devServerUrl() {
-  if (process.env.SSH_TOOL_ELECTRON_DEV_URL) return process.env.SSH_TOOL_ELECTRON_DEV_URL
+  if (process.env.HOST_DECK_ELECTRON_DEV_URL) return process.env.HOST_DECK_ELECTRON_DEV_URL
 
   try {
     const { resolveConfig } = await import('vite')
@@ -88,7 +88,7 @@ function startServer() {
   const dataDir = path.join(app.getPath('userData'), 'data')
   const command = isPackaged
     ? path.join(process.resourcesPath, 'server', 'server.exe')
-    : process.env.SSH_TOOL_DART_COMMAND || 'dart'
+    : process.env.HOST_DECK_DART_COMMAND || 'dart'
   const args = isPackaged ? [] : ['run', path.join(repoRoot, 'bin', 'server.dart')]
   args.push('--host', host)
   args.push('--port', String(port))

@@ -28,7 +28,7 @@ class DockerEngineResponse {
 }
 
 class DockerEngineRepository {
-  static const _statusMarker = '__SSH_TOOL_HTTP_STATUS__';
+  static const _statusMarker = '__HOST_DECK_HTTP_STATUS__';
 
   final SshRepository _sshRepository;
   final String socketPath;

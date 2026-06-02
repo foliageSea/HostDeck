@@ -1,4 +1,4 @@
-package com.foliage.ssh_tool
+package com.foliagesea.hostdeck
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -4,7 +4,7 @@ const http = require('node:http')
 const children = []
 
 async function viteDevUrl() {
-  if (process.env.SSH_TOOL_ELECTRON_DEV_URL) return process.env.SSH_TOOL_ELECTRON_DEV_URL
+  if (process.env.HOST_DECK_ELECTRON_DEV_URL) return process.env.HOST_DECK_ELECTRON_DEV_URL
 
   const { resolveConfig } = await import('vite')
   const config = await resolveConfig({}, 'serve')
@@ -72,7 +72,7 @@ async function main() {
   const viteUrl = await viteDevUrl()
   run('pnpm', ['dev'])
   await waitFor(viteUrl)
-  const electron = run('pnpm', ['exec', 'electron', '.'], { SSH_TOOL_ELECTRON_DEV_URL: viteUrl })
+  const electron = run('pnpm', ['exec', 'electron', '.'], { HOST_DECK_ELECTRON_DEV_URL: viteUrl })
   electron.on('exit', (code) => {
     stopAll()
     process.exit(code || 0)

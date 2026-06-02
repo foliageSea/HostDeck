@@ -9,13 +9,13 @@ const { settingsStore } = controller
 const clearingBrowserCache = ref(false)
 const externalAccess = ref(false)
 const externalAccessLoading = ref(false)
-const canClearBrowserCache = computed(() => Boolean(window.sshTool?.app?.clearBrowserCache))
-const canManageExternalAccess = computed(() => Boolean(window.sshTool?.app?.getExternalAccess && window.sshTool?.app?.setExternalAccess))
+const canClearBrowserCache = computed(() => Boolean(window.hostDeck?.app?.clearBrowserCache))
+const canManageExternalAccess = computed(() => Boolean(window.hostDeck?.app?.getExternalAccess && window.hostDeck?.app?.setExternalAccess))
 
 onMounted(async () => {
   if (!canManageExternalAccess.value) return
 
-  externalAccess.value = await window.sshTool?.app?.getExternalAccess() ?? false
+  externalAccess.value = await window.hostDeck?.app?.getExternalAccess() ?? false
 })
 
 const primaryColorPresets = [
@@ -37,7 +37,7 @@ function confirmClearBrowserCache() {
       dialog.loading = true
       clearingBrowserCache.value = true
       try {
-        await window.sshTool?.app?.clearBrowserCache()
+        await window.hostDeck?.app?.clearBrowserCache()
         getUiApi().message.success('浏览器缓存已清理。')
       }
       catch (error) {
@@ -54,7 +54,7 @@ function confirmClearBrowserCache() {
 async function updateExternalAccess(value: boolean) {
   externalAccessLoading.value = true
   try {
-    externalAccess.value = await window.sshTool?.app?.setExternalAccess(value) ?? false
+    externalAccess.value = await window.hostDeck?.app?.setExternalAccess(value) ?? false
     getUiApi().message.success(externalAccess.value ? '已允许局域网访问。' : '已恢复仅本机访问。')
   }
   catch (error) {

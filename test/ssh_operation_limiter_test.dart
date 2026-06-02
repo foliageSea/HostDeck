@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ssh_tool/server/models/ssh_operation_limiter.dart';
+import 'package:host_deck/server/models/ssh_operation_limiter.dart';
 
 void main() {
   test('queues operations beyond concurrency limit', () async {

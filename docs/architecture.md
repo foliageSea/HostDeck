@@ -1,6 +1,6 @@
 # 整体架构
 
-`ssh_tool` 是一个跨平台 SSH 工具，当前同时支持桌面应用形态和纯 B/S 服务形态。
+`host_deck` 是 HostDeck 的 Dart 包名。HostDeck 是一个跨平台远程主机工作台，当前同时支持桌面应用形态和纯 B/S 服务形态。
 
 ## 组成部分
 
@@ -15,7 +15,7 @@
 - 前端通过 Vite 开发服务器运行。
 - 后端由 Flutter 桌面壳内置启动，默认监听 `http://localhost:8080`。
 - Vite 代理 `/api` 到后端，其中终端 WebSocket 使用 `/api/ws/terminal`。
-- 注意：Vite 开发服务器端口以 `ssh-tool-ui-next/vite.config.ts` 的 `server.port` 为准；Electron 开发模式会读取该配置，也可通过 `SSH_TOOL_ELECTRON_DEV_URL` 覆盖；`lib/main.dart` debug WebView 当前仍硬编码加载 `http://localhost:5173`。
+- 注意：Vite 开发服务器端口以 `ssh-tool-ui-next/vite.config.ts` 的 `server.port` 为准；Electron 开发模式会读取该配置，也可通过 `HOST_DECK_ELECTRON_DEV_URL` 覆盖；`lib/main.dart` debug WebView 当前仍硬编码加载 `http://localhost:5173`。
 
 纯 B/S 模式：
 

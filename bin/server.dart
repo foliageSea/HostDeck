@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
-import 'package:ssh_tool/server/server_service.dart';
-import 'package:ssh_tool/utils/app_settings.dart';
+import 'package:host_deck/server/server_service.dart';
+import 'package:host_deck/utils/app_settings.dart';
 
 Future<void> main(List<String> args) async {
   _configureLogging();
@@ -129,7 +129,7 @@ Usage:
 Options:
   --host <value>       Bind host, default: 0.0.0.0
   --port <value>       Bind port, default: 8080
-  --web-dir <path>     Static web root directory (e.g. ssh-tool-ui/dist)
+  --web-dir <path>     Static web root directory (e.g. ssh-tool-ui-next/dist)
   --data-dir <path>    Data directory for sqlite and settings
   --help               Show this help
 ''');

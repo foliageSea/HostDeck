@@ -2,7 +2,7 @@ export {}
 
 declare global {
   interface Window {
-    sshTool?: {
+    hostDeck?: {
       app?: {
         openInBrowser: () => Promise<void>
         clearBrowserCache: () => Promise<void>

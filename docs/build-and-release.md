@@ -45,7 +45,7 @@ dart build cli --target bin/server.dart -o build/server
 - `build/server/bundle/lib/`：运行时动态库。
 - `build/server/bundle/web/`：前端静态资源。
 
-注意：仓库中的 `scripts/build_server.ps1` 和 `scripts/build_server.sh` 当前仍引用已不存在的旧目录 `ssh-tool-ui/`，使用前必须修正为 `ssh-tool-ui-next/`。
+注意：仓库中的 `scripts/build_server.ps1` 和 `scripts/build_server.sh` 当前都以 `ssh-tool-ui-next/` 为前端来源。
 
 ## Docker 构建
 

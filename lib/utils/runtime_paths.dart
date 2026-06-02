@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 class RuntimePaths {
-  static const String _appDirName = 'ssh_tool';
+  static const String _appDirName = 'host_deck';
+  static const String _legacyAppDirName = 'ssh_tool';
 
   static Future<Directory> resolveDataDirectory({String? overridePath}) async {
     final customPath = overridePath?.trim();
@@ -30,6 +31,14 @@ class RuntimePaths {
     }
 
     final dir = Directory(p.join(basePath, _appDirName));
+    final legacyDir = Directory(p.join(basePath, _legacyAppDirName));
+    if (!await dir.exists() && await legacyDir.exists()) {
+      try {
+        await legacyDir.rename(dir.path);
+      } on FileSystemException {
+        return legacyDir;
+      }
+    }
     await dir.create(recursive: true);
     return dir;
   }

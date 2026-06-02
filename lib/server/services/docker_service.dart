@@ -1160,7 +1160,7 @@ class DockerService {
     List<String> args, {
     String? workingDir,
   }) async {
-    const statusMarker = '__SSH_TOOL_COMPOSE_STATUS__';
+    const statusMarker = '__HOST_DECK_COMPOSE_STATUS__';
     final dockerCommand = args.map(_shellQuote).join(' ');
     final directory = workingDir?.trim();
     final command = [
