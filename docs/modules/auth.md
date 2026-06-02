@@ -14,10 +14,10 @@
 
 前端：
 
-- `ssh-tool-ui-next/src/api/auth.ts`
-- `ssh-tool-ui-next/src/stores/ssh.ts`
-- `ssh-tool-ui-next/src/components/os/LoginScreen.vue`
-- `ssh-tool-ui-next/src/lib/http.ts`
+- `host-deck-ui/src/api/auth.ts`
+- `host-deck-ui/src/stores/ssh.ts`
+- `host-deck-ui/src/components/os/LoginScreen.vue`
+- `host-deck-ui/src/lib/http.ts`
 
 ## API
 

@@ -18,18 +18,18 @@ jobs:
           node-version: '20'
       - name: Install Dependencies
         run: |
-          cd ssh-tool-ui-next
+          cd host-deck-ui
           npm install -g pnpm
           pnpm install
       - name: Build Web
         run: |
-          cd ssh-tool-ui-next
+          cd host-deck-ui
           pnpm build
       - name: Upload Web Artifact
         uses: actions/upload-artifact@v4
         with:
           name: web-build
-          path: ssh-tool-ui-next/dist
+          path: host-deck-ui/dist
 
   # build-dart-windows:
   #   needs: build-web
@@ -39,7 +39,7 @@ jobs:
   #     - uses: actions/download-artifact@v4
   #       with:
   #         name: web-build
-  #         path: ssh-tool-ui-next/dist
+  #         path: host-deck-ui/dist
   #     - uses: subosito/flutter-action@v2
   #       with:
   #         channel: 'stable'
@@ -47,7 +47,7 @@ jobs:
   #     - run: dart build cli --target bin/server.dart -o build/server
   #     - run: |
   #         New-Item -ItemType Directory -Path build\server\bundle\web -Force
-  #         Copy-Item -Path ssh-tool-ui-next\dist\* -Destination build\server\bundle\web -Recurse
+  #         Copy-Item -Path host-deck-ui\dist\* -Destination build\server\bundle\web -Recurse
   #     - name: Package Dart Windows Bundle
   #       run: Compress-Archive -Path build\server\bundle\* -DestinationPath host-deck-dart-windows-${{ github.ref_name }}.zip
   #     - name: Upload Dart Windows Bundle
@@ -65,7 +65,7 @@ jobs:
   #     - uses: actions/download-artifact@v4
   #       with:
   #         name: web-build
-  #         path: ssh-tool-ui-next/dist
+  #         path: host-deck-ui/dist
   #     - uses: subosito/flutter-action@v2
   #       with:
   #         channel: 'stable'
@@ -73,7 +73,7 @@ jobs:
   #     - run: dart build cli --target bin/server.dart -o build/server
   #     - run: |
   #         mkdir -p build/server/bundle/web
-  #         cp -R ssh-tool-ui-next/dist/. build/server/bundle/web/
+  #         cp -R host-deck-ui/dist/. build/server/bundle/web/
   #     - name: Package Dart Linux Bundle
   #       run: tar -czf host-deck-dart-linux-${{ github.ref_name }}.tar.gz -C build/server/bundle .
   #     - name: Upload Dart Linux Bundle
@@ -91,7 +91,7 @@ jobs:
   #     - uses: actions/download-artifact@v4
   #       with:
   #         name: web-build
-  #         path: ssh-tool-ui-next/dist
+  #         path: host-deck-ui/dist
   #     - uses: subosito/flutter-action@v2
   #       with:
   #         channel: 'stable'
@@ -99,7 +99,7 @@ jobs:
   #     - run: dart build cli --target bin/server.dart -o build/server
   #     - run: |
   #         mkdir -p build/server/bundle/web
-  #         cp -R ssh-tool-ui-next/dist/. build/server/bundle/web/
+  #         cp -R host-deck-ui/dist/. build/server/bundle/web/
   #     - name: Package Dart MacOS Bundle
   #       run: tar -czf host-deck-dart-macos-${{ github.ref_name }}.tar.gz -C build/server/bundle .
   #     - name: Upload Dart MacOS Bundle
@@ -190,7 +190,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: web-build
-          path: ssh-tool-ui-next/dist
+          path: host-deck-ui/dist
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -200,15 +200,15 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install -g pnpm
-          pnpm --dir ssh-tool-ui-next install
+          pnpm --dir host-deck-ui install
       - name: Build Electron Windows
-        run: pnpm --dir ssh-tool-ui-next electron:pack:win
+        run: pnpm --dir host-deck-ui electron:pack:win
       - name: Upload Electron Windows
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ssh-tool-ui-next/release/*.exe
-            ssh-tool-ui-next/release/*.zip
+            host-deck-ui/release/*.exe
+            host-deck-ui/release/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

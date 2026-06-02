@@ -31,7 +31,7 @@
 - 如需业务逻辑，新增或修改 `lib/server/services/*`。
 - 如需外部访问或持久化，新增或修改 `lib/server/repositories/*`。
 - 在 `ApiRoutes.router` 中注册路由。
-- 在 `ssh-tool-ui-next/src/api/*` 添加前端请求封装。
+- 在 `host-deck-ui/src/api/*` 添加前端请求封装。
 - 更新调用该 API 的 store、hook 或 view。
 
 ## 响应约定

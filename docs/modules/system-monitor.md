@@ -17,8 +17,8 @@
 
 前端：
 
-- `ssh-tool-ui-next/src/api/system.ts`
-- `ssh-tool-ui-next/src/views/Dashboard/index.vue`
+- `host-deck-ui/src/api/system.ts`
+- `host-deck-ui/src/views/Dashboard/index.vue`
 
 ## API 与通道
 

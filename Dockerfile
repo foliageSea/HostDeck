@@ -1,10 +1,10 @@
 FROM node:20-bookworm-slim AS web-builder
-WORKDIR /src/ssh-tool-ui-next
+WORKDIR /src/host-deck-ui
 
-COPY ssh-tool-ui-next/package.json ssh-tool-ui-next/pnpm-lock.yaml* ./
+COPY host-deck-ui/package.json host-deck-ui/pnpm-lock.yaml* ./
 RUN npm install -g pnpm && pnpm install
 
-COPY ssh-tool-ui-next/ ./
+COPY host-deck-ui/ ./
 RUN pnpm build
 
 FROM ghcr.io/cirruslabs/flutter:stable AS server-builder
@@ -28,7 +28,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=server-builder /src/build/server/bundle/ ./
-COPY --from=web-builder /src/ssh-tool-ui-next/dist ./web
+COPY --from=web-builder /src/host-deck-ui/dist ./web
 
 EXPOSE 8080
 VOLUME ["/data"]

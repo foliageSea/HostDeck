@@ -6,12 +6,12 @@
 
 前端：
 
-- `ssh-tool-ui-next/src/views/Settings/index.vue`
-- `ssh-tool-ui-next/src/views/Settings/components/WallpaperSection.vue`
-- `ssh-tool-ui-next/src/views/Settings/hooks/useWallpaperSettings.ts`
-- `ssh-tool-ui-next/src/stores/settings.ts`
-- `ssh-tool-ui-next/src/lib/wallpapers.ts`
-- `ssh-tool-ui-next/src/lib/wallpaper-storage.ts`
+- `host-deck-ui/src/views/Settings/index.vue`
+- `host-deck-ui/src/views/Settings/components/WallpaperSection.vue`
+- `host-deck-ui/src/views/Settings/hooks/useWallpaperSettings.ts`
+- `host-deck-ui/src/stores/settings.ts`
+- `host-deck-ui/src/lib/wallpapers.ts`
+- `host-deck-ui/src/lib/wallpaper-storage.ts`
 
 ## 开发要点
 

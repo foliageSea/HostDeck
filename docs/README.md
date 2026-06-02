@@ -40,6 +40,6 @@
 - 纯 Dart B/S 服务入口：`bin/server.dart`
 - 服务组装入口：`lib/server/server_service.dart`
 - API 路由入口：`lib/server/routes/api_routes.dart`
-- 前端入口：`ssh-tool-ui-next/src/main.ts`
-- 前端 HTTP 基础设施：`ssh-tool-ui-next/src/lib/http.ts`
-- 前端桌面工作台状态：`ssh-tool-ui-next/src/stores/desktop.ts`
+- 前端入口：`host-deck-ui/src/main.ts`
+- 前端 HTTP 基础设施：`host-deck-ui/src/lib/http.ts`
+- 前端桌面工作台状态：`host-deck-ui/src/stores/desktop.ts`

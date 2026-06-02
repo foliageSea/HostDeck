@@ -12,11 +12,11 @@
 
 前端：
 
-- `ssh-tool-ui-next/src/api/terminal.ts`
-- `ssh-tool-ui-next/src/views/Terminal/index.vue`
-- `ssh-tool-ui-next/src/views/Terminal/hooks/useTerminalSession.ts`
-- `ssh-tool-ui-next/src/views/Terminal/components/TerminalSettingsModal.vue`
-- `ssh-tool-ui-next/src/stores/desktop.ts`
+- `host-deck-ui/src/api/terminal.ts`
+- `host-deck-ui/src/views/Terminal/index.vue`
+- `host-deck-ui/src/views/Terminal/hooks/useTerminalSession.ts`
+- `host-deck-ui/src/views/Terminal/components/TerminalSettingsModal.vue`
+- `host-deck-ui/src/stores/desktop.ts`
 
 ## API 与通道
 

@@ -11,8 +11,8 @@
 
 前端：
 
-- `ssh-tool-ui-next/src/api/runtime.ts`
-- `ssh-tool-ui-next/src/views/RuntimeSessions/index.vue`
+- `host-deck-ui/src/api/runtime.ts`
+- `host-deck-ui/src/views/RuntimeSessions/index.vue`
 
 ## API 与通道
 

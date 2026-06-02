@@ -1,6 +1,6 @@
 # 前端开发说明
 
-当前主前端位于 `ssh-tool-ui-next/`，旧 `ssh-tool-ui/` 目录不存在。前端使用 Vue 3、TypeScript、Vite、Naive UI、UnoCSS、Pinia、Vue Router、TanStack Vue Query、Axios、xterm.js、Monaco Editor 和 xgplayer。
+当前主前端位于 `host-deck-ui/`。前端使用 Vue 3、TypeScript、Vite、Naive UI、UnoCSS、Pinia、Vue Router、TanStack Vue Query、Axios、xterm.js、Monaco Editor 和 xgplayer。
 
 ## 目录职责
 

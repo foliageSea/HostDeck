@@ -21,10 +21,10 @@ import TextEditorView from '@/views/TextEditor/index.vue'
 export const maxSessionWindows = 8
 const windowCloseAnimationMs = 220
 
-const PINNED_DIRECTORIES_STORAGE_KEY = 'ssh-tool:desktop:pinned-directories'
-const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'ssh-tool:desktop:pinned-directory-positions'
-const PINNED_PORT_LINKS_STORAGE_KEY = 'ssh-tool:desktop:pinned-port-links'
-const PINNED_PORT_LINK_POSITIONS_STORAGE_KEY = 'ssh-tool:desktop:pinned-port-link-positions'
+const PINNED_DIRECTORIES_STORAGE_KEY = 'host-deck:desktop:pinned-directories'
+const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'host-deck:desktop:pinned-directory-positions'
+const PINNED_PORT_LINKS_STORAGE_KEY = 'host-deck:desktop:pinned-port-links'
+const PINNED_PORT_LINK_POSITIONS_STORAGE_KEY = 'host-deck:desktop:pinned-port-link-positions'
 
 const sessionWindowAppIds = new Set<DesktopAppId>(['terminal', 'opencode'])
 

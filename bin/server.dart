@@ -129,7 +129,7 @@ Usage:
 Options:
   --host <value>       Bind host, default: 0.0.0.0
   --port <value>       Bind port, default: 8080
-  --web-dir <path>     Static web root directory (e.g. ssh-tool-ui-next/dist)
+  --web-dir <path>     Static web root directory (e.g. host-deck-ui/dist)
   --data-dir <path>    Data directory for sqlite and settings
   --help               Show this help
 ''');

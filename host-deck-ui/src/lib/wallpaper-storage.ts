@@ -1,6 +1,6 @@
 import type { WallpaperTarget } from '@/lib/wallpapers'
 
-const DB_NAME = 'ssh-tool-ui-next'
+const DB_NAME = 'host-deck-ui'
 const STORE_NAME = 'wallpapers'
 const DB_VERSION = 1
 

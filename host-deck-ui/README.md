@@ -1,6 +1,6 @@
 # HostDeck UI
 
-`ssh-tool-ui-next` 是 `host_deck` 的当前前端目录，基于 Vue 3、TypeScript、Vite 与 Naive UI，提供桌面式远程主机工作台体验。
+`host-deck-ui` 是 `host_deck` 的当前前端目录，基于 Vue 3、TypeScript、Vite 与 Naive UI，提供桌面式远程主机工作台体验。
 
 当前项目已经完成主要业务迁移，包含以下能力：
 

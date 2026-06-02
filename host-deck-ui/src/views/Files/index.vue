@@ -47,6 +47,7 @@ const fileClipboardStore = useFileClipboardStore();
 const settingsStore = useSettingsStore();
 const sshStore = useSshStore();
 const uploadCenterStore = useUploadCenterStore();
+const FAVORITE_SIDEBAR_VISIBLE_STORAGE_KEY = "host-deck:files:favorite-sidebar-visible";
 
 const fileStore = createFileStore({
   get connectionId() {
@@ -83,7 +84,7 @@ const contextMenu = ref<{
   y: number;
 } | null>(null);
 const isFavoriteSidebarVisible = useLocalStorage(
-  "ssh-tool:files:favorite-sidebar-visible",
+  FAVORITE_SIDEBAR_VISIBLE_STORAGE_KEY,
   true,
 );
 

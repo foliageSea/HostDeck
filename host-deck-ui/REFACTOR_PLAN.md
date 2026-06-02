@@ -1,8 +1,8 @@
-# ssh-tool-ui-next 重构计划
+# host-deck-ui 重构计划
 
 ## 目标
 
-- 使用 `ssh-tool-ui-next` 作为新的前端基座，保留当前产品的桌面式交互模型。
+- 使用 `host-deck-ui` 作为新的前端基座，保留当前产品的桌面式交互模型。
 - 以 Naive UI 为主 UI 方案重构 `ssh-tool-ui`，不再延续旧项目对 shadcn/radix 的组件依赖。
 - 优先复用稳定的业务逻辑、状态管理和 API 层，逐步替换视图层实现。
 - 保证每个阶段结束后都具备可运行、可验证的交付结果，避免大爆炸式迁移。
@@ -20,13 +20,13 @@
 - 文本编辑与媒体预览
 - Docker 管理
 
-新项目 `ssh-tool-ui-next` 当前仅具备：
+新项目 `host-deck-ui` 当前仅具备：
 
 - Vue 3 + Vite 基础模板
 - Naive UI 组件自动导入
 - `@vicons/carbon` 图标依赖
 
-因此本次工作本质上是以 `ssh-tool-ui-next` 为宿主，重建旧版完整产品能力。
+因此本次工作本质上是以 `host-deck-ui` 为宿主，重建旧版完整产品能力。
 
 ## 设计原则
 
@@ -72,7 +72,7 @@
 
 ## 目标目录结构
 
-建议在 `ssh-tool-ui-next/src` 下逐步收敛为如下结构：
+建议在 `host-deck-ui/src` 下逐步收敛为如下结构：
 
 ```text
 src/
@@ -155,7 +155,7 @@ src/
 
 ## Phase 1: 应用底座
 
-目标：让 `ssh-tool-ui-next` 成为可承载桌面式产品的基础工程。
+目标：让 `host-deck-ui` 成为可承载桌面式产品的基础工程。
 
 任务：
 
@@ -411,7 +411,7 @@ src/
 
 建议先落地以下事项，作为实际开发起点：
 
-1. 安装并整理 `ssh-tool-ui-next` 必需依赖
+1. 安装并整理 `host-deck-ui` 必需依赖
 2. 建立 `src/api`、`src/stores`、`src/lib`、`src/components/os`、`src/views` 目录
 3. 接入 Pinia、Router、Naive UI Provider
 4. 迁移 `http.ts` 并改造消息提示体系

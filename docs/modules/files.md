@@ -14,16 +14,16 @@
 
 前端：
 
-- `ssh-tool-ui-next/src/api/files.ts`
-- `ssh-tool-ui-next/src/views/Files/index.vue`
-- `ssh-tool-ui-next/src/views/Files/components/FileBrowserContent.vue`
-- `ssh-tool-ui-next/src/views/Files/components/FilePickerDialog.vue`
-- `ssh-tool-ui-next/src/views/Files/components/FileNameDialog.vue`
-- `ssh-tool-ui-next/src/views/Files/components/FileFavoriteSidebar.vue`
-- `ssh-tool-ui-next/src/stores/file.ts`
-- `ssh-tool-ui-next/src/stores/file-clipboard.ts`
-- `ssh-tool-ui-next/src/stores/upload-center.ts`
-- `ssh-tool-ui-next/src/utils/path.ts`
+- `host-deck-ui/src/api/files.ts`
+- `host-deck-ui/src/views/Files/index.vue`
+- `host-deck-ui/src/views/Files/components/FileBrowserContent.vue`
+- `host-deck-ui/src/views/Files/components/FilePickerDialog.vue`
+- `host-deck-ui/src/views/Files/components/FileNameDialog.vue`
+- `host-deck-ui/src/views/Files/components/FileFavoriteSidebar.vue`
+- `host-deck-ui/src/stores/file.ts`
+- `host-deck-ui/src/stores/file-clipboard.ts`
+- `host-deck-ui/src/stores/upload-center.ts`
+- `host-deck-ui/src/utils/path.ts`
 
 ## API
 
@@ -50,4 +50,4 @@
 
 ## 相关测试
 
-- `ssh-tool-ui-next/src/views/Files/components/__tests__/FilePickerDialog.spec.ts`
+- `host-deck-ui/src/views/Files/components/__tests__/FilePickerDialog.spec.ts`

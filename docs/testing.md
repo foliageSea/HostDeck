@@ -29,25 +29,25 @@ flutter test --name "MonitorService parses system status correctly"
 前端构建：
 
 ```bash
-pnpm --dir ssh-tool-ui-next build
+pnpm --dir host-deck-ui build
 ```
 
 前端类型检查：
 
 ```bash
-pnpm --dir ssh-tool-ui-next exec vue-tsc -p tsconfig.app.json --noEmit
+pnpm --dir host-deck-ui exec vue-tsc -p tsconfig.app.json --noEmit
 ```
 
 前端测试：
 
 ```bash
-pnpm --dir ssh-tool-ui-next test
+pnpm --dir host-deck-ui test
 ```
 
 单个前端测试示例：
 
 ```bash
-pnpm --dir ssh-tool-ui-next exec vitest run src/views/Files/components/__tests__/FilePickerDialog.spec.ts
+pnpm --dir host-deck-ui exec vitest run src/views/Files/components/__tests__/FilePickerDialog.spec.ts
 ```
 
 ## 当前测试索引
@@ -62,7 +62,7 @@ pnpm --dir ssh-tool-ui-next exec vitest run src/views/Files/components/__tests__
 
 前端测试：
 
-- `ssh-tool-ui-next/src/views/Files/components/__tests__/FilePickerDialog.spec.ts`
+- `host-deck-ui/src/views/Files/components/__tests__/FilePickerDialog.spec.ts`
 
 ## 变更对应的最低验证
 
@@ -74,7 +74,7 @@ pnpm --dir ssh-tool-ui-next exec vitest run src/views/Files/components/__tests__
 
 前端代码变更：
 
-- `pnpm --dir ssh-tool-ui-next build`
+- `pnpm --dir host-deck-ui build`
 - 涉及类型边界时运行 `vue-tsc`
 - 涉及已有测试组件时运行相关 `vitest`
 

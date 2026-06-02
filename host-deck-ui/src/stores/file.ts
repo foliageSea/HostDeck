@@ -14,6 +14,10 @@ interface FileSortState {
 
 type FavoritePathsByConnection = Record<string, string[]>
 
+const VIEW_MODE_STORAGE_KEY = 'host-deck:files:view-mode'
+const SORT_STORAGE_KEY = 'host-deck:files:sort'
+const FAVORITE_PATHS_STORAGE_KEY = 'host-deck:files:favorite-paths'
+
 interface FileStoreConnection {
   connectionId: string | null
   host: string
@@ -66,9 +70,9 @@ export function createFileStore(connection: FileStoreConnection) {
   const files = ref<FileItem[]>([])
   const currentConnectionId = computed(() => connection.connectionId)
   const loading = ref(false)
-  const viewMode = useLocalStorage<FileViewMode>('ssh-tool:files:view-mode', 'grid')
-  const sortState = useLocalStorage<FileSortState>('ssh-tool:files:sort', { direction: 'asc', key: 'name' })
-  const favoritePathsByConnection = useLocalStorage<FavoritePathsByConnection>('ssh-tool:files:favorite-paths', {})
+  const viewMode = useLocalStorage<FileViewMode>(VIEW_MODE_STORAGE_KEY, 'grid')
+  const sortState = useLocalStorage<FileSortState>(SORT_STORAGE_KEY, { direction: 'asc', key: 'name' })
+  const favoritePathsByConnection = useLocalStorage<FavoritePathsByConnection>(FAVORITE_PATHS_STORAGE_KEY, {})
   const selectedNames = ref<string[]>([])
   const lastSelectedName = ref<string | null>(null)
   const search = ref('')

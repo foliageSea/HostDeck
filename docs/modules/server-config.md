@@ -13,8 +13,8 @@
 
 前端：
 
-- `ssh-tool-ui-next/src/api/server.ts`
-- `ssh-tool-ui-next/src/components/os/LoginScreen.vue`
+- `host-deck-ui/src/api/server.ts`
+- `host-deck-ui/src/components/os/LoginScreen.vue`
 
 ## API
 

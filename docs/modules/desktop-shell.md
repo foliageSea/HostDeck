@@ -6,16 +6,16 @@
 
 前端：
 
-- `ssh-tool-ui-next/src/components/os/LoginScreen.vue`
-- `ssh-tool-ui-next/src/components/os/DesktopShell.vue`
-- `ssh-tool-ui-next/src/components/os/DesktopWindow.vue`
-- `ssh-tool-ui-next/src/components/os/DesktopDock.vue`
-- `ssh-tool-ui-next/src/components/os/DesktopTopBar.vue`
-- `ssh-tool-ui-next/src/components/os/DesktopWindowSwitcher.vue`
-- `ssh-tool-ui-next/src/components/os/DesktopPinnedDirectories.vue`
-- `ssh-tool-ui-next/src/stores/desktop.ts`
-- `ssh-tool-ui-next/src/stores/window-session.ts`
-- `ssh-tool-ui-next/src/types/desktop.ts`
+- `host-deck-ui/src/components/os/LoginScreen.vue`
+- `host-deck-ui/src/components/os/DesktopShell.vue`
+- `host-deck-ui/src/components/os/DesktopWindow.vue`
+- `host-deck-ui/src/components/os/DesktopDock.vue`
+- `host-deck-ui/src/components/os/DesktopTopBar.vue`
+- `host-deck-ui/src/components/os/DesktopWindowSwitcher.vue`
+- `host-deck-ui/src/components/os/DesktopPinnedDirectories.vue`
+- `host-deck-ui/src/stores/desktop.ts`
+- `host-deck-ui/src/stores/window-session.ts`
+- `host-deck-ui/src/types/desktop.ts`
 
 ## 支持的应用窗口
 
@@ -43,9 +43,9 @@
 
 `src/stores/desktop.ts` 使用 localStorage 保存部分桌面状态：
 
-- `ssh-tool:desktop:pinned-directories`
-- `ssh-tool:desktop:pinned-directory-positions`
-- `ssh-tool:desktop:pinned-port-links`
-- `ssh-tool:desktop:pinned-port-link-positions`
+- `host-deck:desktop:pinned-directories`
+- `host-deck:desktop:pinned-directory-positions`
+- `host-deck:desktop:pinned-port-links`
+- `host-deck:desktop:pinned-port-link-positions`
 
 修改存储结构时应考虑已有用户数据迁移或容错解析。

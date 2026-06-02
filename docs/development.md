@@ -12,7 +12,7 @@
 
 ```bash
 flutter pub get
-pnpm --dir ssh-tool-ui-next install
+pnpm --dir host-deck-ui install
 ```
 
 ## Flutter 桌面壳调试
@@ -22,7 +22,7 @@ pnpm --dir ssh-tool-ui-next install
 启动前端：
 
 ```bash
-pnpm --dir ssh-tool-ui-next dev
+pnpm --dir host-deck-ui dev
 ```
 
 启动桌面壳：
@@ -34,7 +34,7 @@ flutter run -d windows
 注意：
 
 - 后端默认监听 `http://localhost:8080`。
-- Vite 开发服务器端口以 `ssh-tool-ui-next/vite.config.ts` 的 `server.port` 为准。
+- Vite 开发服务器端口以 `host-deck-ui/vite.config.ts` 的 `server.port` 为准。
 - Electron 开发模式会从 Vite 配置读取开发服务器地址，也可通过 `HOST_DECK_ELECTRON_DEV_URL` 覆盖。
 - `lib/main.dart` 的 Flutter debug WebView 当前仍硬编码加载 `http://localhost:5173`。
 - 调试桌面壳前需要统一端口，或临时让 Vite 使用 `5173`。
@@ -44,8 +44,8 @@ flutter run -d windows
 先构建前端，再启动服务：
 
 ```bash
-pnpm --dir ssh-tool-ui-next build
-dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir ssh-tool-ui-next/dist
+pnpm --dir host-deck-ui build
+dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
 ```
 
 启动后访问 `http://localhost:8080`。
@@ -62,7 +62,7 @@ dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir ssh-tool-ui-next/d
 启动 Vite：
 
 ```bash
-pnpm --dir ssh-tool-ui-next dev
+pnpm --dir host-deck-ui dev
 ```
 
 Vite 会将 `/api` 代理到 `VITE_DEV_PROXY_TARGET`，默认是 `http://localhost:8080`；终端 WebSocket 使用 `/api/ws/terminal`。前端独立开发时，需要确保后端服务已经启动。
@@ -76,7 +76,7 @@ Vite 会将 `/api` 代理到 `VITE_DEV_PROXY_TARGET`，默认是 `http://localho
 3. 在 `lib/server/services/` 实现业务逻辑。
 4. 在 `lib/server/controllers/` 实现路由处理。
 5. 在 `lib/server/routes/api_routes.dart` 注册路由。
-6. 在 `ssh-tool-ui-next/src/api/` 添加前端请求和类型。
+6. 在 `host-deck-ui/src/api/` 添加前端请求和类型。
 7. 在 `src/stores/`、`src/views/` 或 `src/components/` 中接入 UI。
 8. 补充或更新测试。
 9. 更新 `docs/` 中对应模块文档。

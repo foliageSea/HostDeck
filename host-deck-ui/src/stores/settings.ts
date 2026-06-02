@@ -11,14 +11,15 @@ import {
   setStoredWallpaperDataUrl,
 } from '@/lib/wallpaper-storage'
 
-const THEME_STORAGE_KEY = 'ssh-tool-ui-next.theme'
-const PRIMARY_COLOR_STORAGE_KEY = 'ssh-tool-ui-next.primaryColor'
-const TERMINAL_FONT_SIZE_STORAGE_KEY = 'ssh-tool-ui-next.terminalFontSize'
-const TERMINAL_FONT_FAMILY_STORAGE_KEY = 'ssh-tool-ui-next.terminalFontFamily'
-const EDITOR_FONT_SIZE_STORAGE_KEY = 'ssh-tool-ui-next.editorFontSize'
-const EDITOR_FONT_FAMILY_STORAGE_KEY = 'ssh-tool-ui-next.editorFontFamily'
-const DESKTOP_WALLPAPER_STORAGE_KEY = 'ssh-tool-ui-next.desktopWallpaper'
-const LOGIN_WALLPAPER_STORAGE_KEY = 'ssh-tool-ui-next.loginWallpaper'
+const THEME_STORAGE_KEY = 'host-deck-ui.theme'
+const PRIMARY_COLOR_STORAGE_KEY = 'host-deck-ui.primaryColor'
+const TERMINAL_FONT_SIZE_STORAGE_KEY = 'host-deck-ui.terminalFontSize'
+const TERMINAL_FONT_FAMILY_STORAGE_KEY = 'host-deck-ui.terminalFontFamily'
+const EDITOR_FONT_SIZE_STORAGE_KEY = 'host-deck-ui.editorFontSize'
+const EDITOR_FONT_FAMILY_STORAGE_KEY = 'host-deck-ui.editorFontFamily'
+const DESKTOP_WALLPAPER_STORAGE_KEY = 'host-deck-ui.desktopWallpaper'
+const LOGIN_WALLPAPER_STORAGE_KEY = 'host-deck-ui.loginWallpaper'
+
 const DEFAULT_TERMINAL_FONT_SIZE = 14
 const DEFAULT_TERMINAL_FONT_FAMILY = 'Consolas, "Cascadia Mono", "Courier New", monospace'
 const DEFAULT_EDITOR_FONT_SIZE = 14

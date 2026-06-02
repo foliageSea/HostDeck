@@ -6,11 +6,11 @@
 
 前端：
 
-- `ssh-tool-ui-next/src/views/TextEditor/index.vue`
-- `ssh-tool-ui-next/src/views/MediaViewer/index.vue`
-- `ssh-tool-ui-next/src/components/editor/CodeEditor.vue`
-- `ssh-tool-ui-next/src/lib/monaco.ts`
-- `ssh-tool-ui-next/src/api/files.ts`
+- `host-deck-ui/src/views/TextEditor/index.vue`
+- `host-deck-ui/src/views/MediaViewer/index.vue`
+- `host-deck-ui/src/components/editor/CodeEditor.vue`
+- `host-deck-ui/src/lib/monaco.ts`
+- `host-deck-ui/src/api/files.ts`
 
 相关模块：
 

@@ -3,11 +3,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$ROOT_DIR/build/server"
-WEB_DIR="$ROOT_DIR/ssh-tool-ui-next/dist"
+WEB_DIR="$ROOT_DIR/host-deck-ui/dist"
 
 echo "Building frontend..."
-pnpm --dir "$ROOT_DIR/ssh-tool-ui-next" install
-pnpm --dir "$ROOT_DIR/ssh-tool-ui-next" build
+pnpm --dir "$ROOT_DIR/host-deck-ui" install
+pnpm --dir "$ROOT_DIR/host-deck-ui" build
 
 echo "Resolving Dart dependencies..."
 flutter pub get

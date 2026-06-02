@@ -18,13 +18,13 @@ Docker 模块负责通过 SSH 连接访问远端 Docker Engine，提供容器、
 
 前端：
 
-- `ssh-tool-ui-next/src/api/docker.ts`
-- `ssh-tool-ui-next/src/views/Docker/index.vue`
-- `ssh-tool-ui-next/src/views/Docker/components/*`
-- `ssh-tool-ui-next/src/views/Docker/hooks/useDockerView.ts`
-- `ssh-tool-ui-next/src/views/Docker/hooks/dockerViewColumns.ts`
-- `ssh-tool-ui-next/src/views/Docker/hooks/dockerViewHelpers.ts`
-- `ssh-tool-ui-next/src/views/Docker/hooks/dockerViewTypes.ts`
+- `host-deck-ui/src/api/docker.ts`
+- `host-deck-ui/src/views/Docker/index.vue`
+- `host-deck-ui/src/views/Docker/components/*`
+- `host-deck-ui/src/views/Docker/hooks/useDockerView.ts`
+- `host-deck-ui/src/views/Docker/hooks/dockerViewColumns.ts`
+- `host-deck-ui/src/views/Docker/hooks/dockerViewHelpers.ts`
+- `host-deck-ui/src/views/Docker/hooks/dockerViewTypes.ts`
 
 ## API 分组
 
