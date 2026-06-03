@@ -8,8 +8,8 @@
       :root {
         color-scheme: dark;
         font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-        background: #020617;
-        color: #e5e7eb;
+        background: #0f172a;
+        color: #f8fafc;
       }
 
       * {
@@ -21,10 +21,7 @@
         min-height: 100vh;
         overflow: hidden;
         user-select: none;
-        background:
-          radial-gradient(circle at 22% 16%, rgba(37, 99, 235, 0.34), transparent 28%),
-          radial-gradient(circle at 78% 22%, rgba(14, 165, 233, 0.2), transparent 24%),
-          linear-gradient(135deg, #0f172a 0%, #020617 58%, #0b1120 100%);
+        background: #0f172a;
       }
 
       .shell {
@@ -34,87 +31,31 @@
         -webkit-app-region: drag;
       }
 
-      .card {
-        width: min(420px, calc(100vw - 56px));
-        padding: 34px 36px 32px;
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 28px;
-        background: rgba(15, 23, 42, 0.72);
-        box-shadow: 0 28px 90px rgba(2, 6, 23, 0.46);
+      .loading {
         text-align: center;
-        backdrop-filter: blur(24px);
       }
 
-      .mark {
-        position: relative;
-        display: grid;
-        width: 76px;
-        height: 76px;
-        margin: 0 auto 22px;
-        place-items: center;
-        border-radius: 24px;
-        background: linear-gradient(135deg, #2563eb, #0ea5e9);
-        box-shadow: 0 18px 46px rgba(37, 99, 235, 0.35);
-      }
-
-      .mark::before {
-        position: absolute;
-        inset: -9px;
-        border: 2px solid rgba(96, 165, 250, 0.34);
-        border-top-color: rgba(224, 242, 254, 0.92);
-        border-radius: 30px;
+      .spinner {
+        width: 42px;
+        height: 42px;
+        margin: 0 auto 20px;
+        border: 3px solid rgba(148, 163, 184, 0.22);
+        border-top-color: #38bdf8;
+        border-radius: 50%;
         animation: spin 1.2s linear infinite;
-        content: "";
-      }
-
-      .cursor {
-        width: 34px;
-        height: 24px;
-        border: 2px solid rgba(255, 255, 255, 0.9);
-        border-radius: 7px;
-      }
-
-      .cursor::after {
-        display: block;
-        width: 12px;
-        height: 2px;
-        margin: 14px 0 0 13px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.9);
-        animation: blink 0.95s steps(2, end) infinite;
-        content: "";
       }
 
       h1 {
         margin: 0;
-        font-size: 24px;
-        font-weight: 700;
-        letter-spacing: 0.02em;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
       }
 
       p {
-        margin: 10px 0 0;
+        margin: 8px 0 0;
         color: #94a3b8;
         font-size: 14px;
-      }
-
-      .progress {
-        position: relative;
-        height: 4px;
-        margin-top: 28px;
-        overflow: hidden;
-        border-radius: 999px;
-        background: rgba(148, 163, 184, 0.16);
-      }
-
-      .progress::after {
-        position: absolute;
-        inset: 0;
-        width: 42%;
-        border-radius: inherit;
-        background: linear-gradient(90deg, transparent, #60a5fa, transparent);
-        animation: progress 1.35s ease-in-out infinite;
-        content: "";
       }
 
       @keyframes spin {
@@ -122,32 +63,14 @@
           transform: rotate(360deg);
         }
       }
-
-      @keyframes blink {
-        50% {
-          opacity: 0;
-        }
-      }
-
-      @keyframes progress {
-        0% {
-          transform: translateX(-110%);
-        }
-        100% {
-          transform: translateX(260%);
-        }
-      }
     </style>
   </head>
   <body>
     <main class="shell">
-      <section class="card" aria-label="应用正在初始化">
-        <div class="mark" aria-hidden="true">
-          <div class="cursor"></div>
-        </div>
+      <section class="loading" aria-label="应用正在启动">
+        <div class="spinner" aria-hidden="true"></div>
         <h1>HostDeck</h1>
-        <p>正在初始化服务与工作台...</p>
-        <div class="progress" aria-hidden="true"></div>
+        <p>正在启动...</p>
       </section>
     </main>
   </body>
