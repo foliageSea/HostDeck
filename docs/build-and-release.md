@@ -20,6 +20,26 @@ flutter build windows --release
 
 `.github/workflows/release.yml` 会构建 `host-deck-ui/dist`，Windows 桌面 job 会下载前端产物到 `assets/web` 后执行桌面构建。
 
+发版脚本会同步 `pubspec.yaml` 与 `host-deck-ui/package.json` 版本号，提交版本变更，打 Git tag，推送到 GitHub，并创建 GitHub Release：
+
+```bash
+./scripts/release.sh 1.0.1
+```
+
+不传版本号时，脚本会交互式提示输入：
+
+```bash
+./scripts/release.sh
+```
+
+也可以从前端目录脚本转发执行：
+
+```bash
+pnpm --dir host-deck-ui release 1.0.1
+```
+
+版本号可使用 `1.0.1+2` 这类带 build metadata 的格式；文件版本会写入完整版本号，Git tag 会使用去掉 `+...` 后的 `v1.0.1`，以避免 Docker tag 不支持 `+`。
+
 修改发布流程时应同时核对：
 
 - `.github/workflows/release.yml`
