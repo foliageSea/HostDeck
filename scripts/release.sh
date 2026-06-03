@@ -209,7 +209,7 @@ git push "$REMOTE" "$CURRENT_BRANCH"
 git push "$REMOTE" "$TAG"
 
 echo "Creating GitHub release: $TAG..."
-gh release create "$TAG" --title "HostDeck $TAG" --generate-notes --verify-tag
+gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag
 
 echo "Release started: $TAG"
 echo "GitHub Actions will build and upload release assets."
