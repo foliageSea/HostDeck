@@ -56,8 +56,12 @@ function formatFavoritePath(path: string) {
 
       <div class="min-h-0 flex-1 px-[10px] pb-[12px]">
         <NEmpty v-if="favoritePaths.length === 0" size="small" description="暂无收藏" class="flex h-full items-center justify-center" />
-        <NScrollbar v-else class="h-full">
-          <div class="flex flex-col gap-[8px] pr-[4px]">
+        <NScrollbar
+          v-else
+          class="favorite-path-scrollbar h-full"
+          :class="!settingsStore.isDark && 'favorite-path-scrollbar-light'"
+        >
+          <div class="flex flex-col gap-[8px] pr-[10px]">
             <div
               v-for="path in favoritePaths"
               :key="path"
@@ -108,3 +112,36 @@ function formatFavoritePath(path: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.favorite-path-scrollbar {
+  --favorite-scrollbar-thumb: rgba(148, 163, 184, 0.28);
+  --favorite-scrollbar-thumb-hover: rgba(96, 165, 250, 0.56);
+  --favorite-scrollbar-rail: rgba(148, 163, 184, 0.08);
+}
+
+.favorite-path-scrollbar-light {
+  --favorite-scrollbar-thumb: rgba(100, 116, 139, 0.2);
+  --favorite-scrollbar-thumb-hover: rgba(37, 99, 235, 0.42);
+  --favorite-scrollbar-rail: rgba(100, 116, 139, 0.08);
+}
+
+.favorite-path-scrollbar :deep(.n-scrollbar-rail) {
+  right: 1px;
+  width: 6px;
+  border-radius: 999px;
+  background: var(--favorite-scrollbar-rail);
+}
+
+.favorite-path-scrollbar :deep(.n-scrollbar-rail__scrollbar) {
+  width: 6px;
+  border-radius: 999px;
+  background-color: var(--favorite-scrollbar-thumb) !important;
+  transition: background-color 0.18s ease, opacity 0.18s ease;
+}
+
+.favorite-path-scrollbar:hover :deep(.n-scrollbar-rail__scrollbar),
+.favorite-path-scrollbar :deep(.n-scrollbar-rail__scrollbar:hover) {
+  background-color: var(--favorite-scrollbar-thumb-hover) !important;
+}
+</style>

@@ -1925,8 +1925,12 @@ watch(
                 >
                   收藏目录
                 </div>
-                <NScrollbar style="max-height: 260px">
-                  <div class="flex flex-col gap-[6px]">
+                <NScrollbar
+                  class="favorite-popover-scrollbar"
+                  :class="!settingsStore.isDark && 'favorite-popover-scrollbar-light'"
+                  style="max-height: 260px"
+                >
+                  <div class="flex flex-col gap-[6px] pr-[10px]">
                     <div
                       v-for="path in fileStore.favoritePaths"
                       :key="path"
@@ -2227,5 +2231,36 @@ watch(
 
 .details-panel :deep(.n-card__content) {
   padding: 8px 12px;
+}
+
+.favorite-popover-scrollbar {
+  --favorite-scrollbar-thumb: rgba(148, 163, 184, 0.28);
+  --favorite-scrollbar-thumb-hover: rgba(96, 165, 250, 0.56);
+  --favorite-scrollbar-rail: rgba(148, 163, 184, 0.08);
+}
+
+.favorite-popover-scrollbar-light {
+  --favorite-scrollbar-thumb: rgba(100, 116, 139, 0.2);
+  --favorite-scrollbar-thumb-hover: rgba(37, 99, 235, 0.42);
+  --favorite-scrollbar-rail: rgba(100, 116, 139, 0.08);
+}
+
+.favorite-popover-scrollbar :deep(.n-scrollbar-rail) {
+  right: 1px;
+  width: 6px;
+  border-radius: 999px;
+  background: var(--favorite-scrollbar-rail);
+}
+
+.favorite-popover-scrollbar :deep(.n-scrollbar-rail__scrollbar) {
+  width: 6px;
+  border-radius: 999px;
+  background-color: var(--favorite-scrollbar-thumb) !important;
+  transition: background-color 0.18s ease, opacity 0.18s ease;
+}
+
+.favorite-popover-scrollbar:hover :deep(.n-scrollbar-rail__scrollbar),
+.favorite-popover-scrollbar :deep(.n-scrollbar-rail__scrollbar:hover) {
+  background-color: var(--favorite-scrollbar-thumb-hover) !important;
 }
 </style>
