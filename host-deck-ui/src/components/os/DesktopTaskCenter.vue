@@ -62,6 +62,10 @@ function formatUploadStatus(status: UploadTaskStatus, source: UploadTaskSource) 
   }
 
   if (status === 'downloading') {
+    if (source === 'docker-image-export') {
+      return '导出中'
+    }
+
     return '下载中'
   }
 
@@ -89,6 +93,10 @@ function getTaskSourceTitle(source: UploadTaskSource) {
     return '镜像导入'
   }
 
+  if (source === 'docker-image-export') {
+    return '镜像导出'
+  }
+
   return '文件上传'
 }
 
@@ -101,6 +109,10 @@ function getTaskActiveText(source: UploadTaskSource, name: string) {
     return `正在导入 ${name}`
   }
 
+  if (source === 'docker-image-export') {
+    return `正在导出 ${name}`
+  }
+
   return `正在上传 ${name}`
 }
 
@@ -111,6 +123,10 @@ function getCancelTaskText(source: UploadTaskSource) {
 
   if (source === 'docker-image-import') {
     return '中断导入'
+  }
+
+  if (source === 'docker-image-export') {
+    return '中断导出'
   }
 
   return '中断上传'

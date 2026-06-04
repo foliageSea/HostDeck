@@ -330,6 +330,22 @@ export function useDockerView(props: DockerViewProps) {
     return `${name || 'docker-image'}.tar`
   }
 
+  function parseDockerSize(value: string) {
+    const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*([KMGTPE]?B)$/i)
+    if (!match) {
+      return 0
+    }
+
+    const amount = Number(match[1])
+    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']
+    const unitIndex = units.indexOf(match[2].toUpperCase())
+    if (!Number.isFinite(amount) || unitIndex < 0) {
+      return 0
+    }
+
+    return Math.round(amount * (1024 ** unitIndex))
+  }
+
   async function refreshLogs(silent = false) {
     if (!logsContainerId.value && !logsComposeProject.value) {
       return
@@ -894,25 +910,86 @@ export function useDockerView(props: DockerViewProps) {
 
   async function exportImage(image: DockerImage) {
     const imageRef = getImageRef(image)
+    const connectionId = requireConnectionId()
+    const filename = getImageExportFilename(image)
+    const estimatedTotal = parseDockerSize(image.size)
+    const batchId = uploadCenterStore.createBatch(
+      connectionId,
+      'Docker 镜像导出',
+      [{ name: filename, path: imageRef, size: estimatedTotal }],
+      'docker-image-export',
+    )
+    const task = uploadCenterStore.batches.find((item) => item.id === batchId)?.tasks[0]
+    const controller = new AbortController()
+
     imageExportingMap.value = {
       ...imageExportingMap.value,
       [image.id]: true,
     }
+    uploadCenterStore.clearBatchError(batchId)
+    uploadCenterStore.registerBatchController(batchId, controller)
 
     try {
-      const connectionId = requireConnectionId()
-      const blob = await queueDockerRequest(() => dockerApi.exportImage(connectionId, image.id, imageRef))
+      if (task) {
+        uploadCenterStore.updateTask(task.id, {
+          loaded: 0,
+          progress: 0,
+          status: 'downloading',
+          total: estimatedTotal,
+        })
+      }
+
+      const blob = await queueDockerRequest(() =>
+        dockerApi.exportImage(
+          connectionId,
+          image.id,
+          imageRef,
+          (progressEvent) => {
+            if (!task) {
+              return
+            }
+
+            const total = progressEvent.total ?? estimatedTotal
+            const loaded = total > 0 ? Math.min(progressEvent.loaded, total) : progressEvent.loaded
+            uploadCenterStore.updateTask(task.id, {
+              loaded,
+              progress: total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0,
+              total,
+            })
+          },
+          controller.signal,
+        ),
+      )
       const url = window.URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = getImageExportFilename(image)
+      anchor.download = filename
       anchor.click()
       window.URL.revokeObjectURL(url)
+      if (task) {
+        uploadCenterStore.updateTask(task.id, {
+          loaded: blob.size,
+          progress: 100,
+          status: 'success',
+          total: blob.size,
+        })
+      }
       getUiApi().message.success(`镜像 ${imageRef} 导出完成。`)
     } catch (error) {
+      if (uploadCenterStore.isBatchCancelled(batchId)) {
+        return
+      }
+
+      if (task) {
+        uploadCenterStore.updateTask(task.id, {
+          status: 'error',
+        })
+      }
+      uploadCenterStore.markBatchError(batchId, error instanceof Error ? error.message : '镜像导出失败。')
       console.error('Failed to export image', error)
       getUiApi().message.error(error instanceof Error ? error.message : '镜像导出失败。')
     } finally {
+      uploadCenterStore.clearBatchController(batchId)
       imageExportingMap.value = {
         ...imageExportingMap.value,
         [image.id]: false,

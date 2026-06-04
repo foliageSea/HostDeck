@@ -573,10 +573,18 @@ export const dockerApi = {
     return response.data
   },
 
-  async exportImage(connectionId: string, imageId: string, image: string) {
+  async exportImage(
+    connectionId: string,
+    imageId: string,
+    image: string,
+    onDownloadProgress?: (event: AxiosProgressEvent) => void,
+    signal?: AbortSignal,
+  ) {
     const response = await http.get<Blob>(`/api/docker/images/${encodeURIComponent(imageId)}/export`, {
+      onDownloadProgress,
       params: { connectionId, image },
       responseType: 'blob',
+      signal,
     })
     return response.data
   },
