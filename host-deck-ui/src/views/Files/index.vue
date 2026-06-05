@@ -47,7 +47,8 @@ const fileClipboardStore = useFileClipboardStore();
 const settingsStore = useSettingsStore();
 const sshStore = useSshStore();
 const uploadCenterStore = useUploadCenterStore();
-const FAVORITE_SIDEBAR_VISIBLE_STORAGE_KEY = "host-deck:files:favorite-sidebar-visible";
+const FAVORITE_SIDEBAR_VISIBLE_STORAGE_KEY =
+  "host-deck:files:favorite-sidebar-visible";
 
 const fileStore = createFileStore({
   get connectionId() {
@@ -1143,7 +1144,10 @@ async function downloadSelectedFiles() {
           }
 
           const total = progressEvent.total ?? singleFile.size;
-          const loaded = Math.min(progressEvent.loaded, total || progressEvent.loaded);
+          const loaded = Math.min(
+            progressEvent.loaded,
+            total || progressEvent.loaded,
+          );
           uploadCenterStore.updateTask(task.id, {
             loaded,
             progress: getDownloadProgress(loaded, total),
@@ -1165,7 +1169,9 @@ async function downloadSelectedFiles() {
         });
       }
     } else {
-      const batch = uploadCenterStore.batches.find((item) => item.id === batchId);
+      const batch = uploadCenterStore.batches.find(
+        (item) => item.id === batchId,
+      );
       for (const task of batch?.tasks ?? []) {
         uploadCenterStore.updateTask(task.id, {
           status: "downloading",
@@ -1218,7 +1224,10 @@ async function downloadSelectedFiles() {
     anchor.click();
     window.URL.revokeObjectURL(url);
   } catch (error) {
-    if (isUploadCancelled(error) || uploadCenterStore.isBatchCancelled(batchId)) {
+    if (
+      isUploadCancelled(error) ||
+      uploadCenterStore.isBatchCancelled(batchId)
+    ) {
       if (!uploadCenterStore.isBatchCancelled(batchId)) {
         uploadCenterStore.cancelBatch(batchId);
       }
@@ -1930,7 +1939,12 @@ watch(
             >
             <NTooltip v-else>
               <template #trigger>
-                <NButton quaternary size="small" round @click="startPathEditing">
+                <NButton
+                  quaternary
+                  size="small"
+                  round
+                  @click="startPathEditing"
+                >
                   <template #icon>
                     <NIcon>
                       <ArrowRight />
@@ -2007,8 +2021,14 @@ watch(
                 >
                   收藏目录
                 </div>
-                <NScrollbar style="max-height: 260px">
-                  <div class="flex flex-col gap-[6px]">
+                <NScrollbar
+                  class="favorite-popover-scrollbar"
+                  :class="
+                    !settingsStore.isDark && 'favorite-popover-scrollbar-light'
+                  "
+                  style="max-height: 260px"
+                >
+                  <div class="flex flex-col gap-[6px] pr-[10px]">
                     <div
                       v-for="path in fileStore.favoritePaths"
                       :key="path"
@@ -2046,7 +2066,12 @@ watch(
             </NPopover>
             <NTooltip>
               <template #trigger>
-                <NButton quaternary size="small" round @click="openTerminalHere">
+                <NButton
+                  quaternary
+                  size="small"
+                  round
+                  @click="openTerminalHere"
+                >
                   <template #icon>
                     <NIcon>
                       <Terminal />
@@ -2059,7 +2084,9 @@ watch(
           </div>
         </div>
 
-        <div class="flex w-full flex-wrap items-center justify-start gap-[12px]">
+        <div
+          class="flex w-full flex-wrap items-center justify-start gap-[12px]"
+        >
           <NDropdown
             trigger="click"
             :options="createOptions"
@@ -2079,7 +2106,12 @@ watch(
             :options="uploadOptions"
             @select="handleUploadSelect"
           >
-            <NButton quaternary round :disabled="isUploading" :loading="isUploading">
+            <NButton
+              quaternary
+              round
+              :disabled="isUploading"
+              :loading="isUploading"
+            >
               <template #icon>
                 <NIcon>
                   <Upload />
@@ -2134,8 +2166,12 @@ watch(
               : 'border-[rgba(37,99,235,0.3)] bg-[rgba(219,234,254,0.86)] text-[rgba(30,64,175,0.98)]'
           "
         >
-          <div class="flex min-w-0 items-center gap-[10px] text-[13px] font-600">
-            <span class="h-[8px] w-[8px] flex-none rounded-full bg-[var(--app-primary-color)]" />
+          <div
+            class="flex min-w-0 items-center gap-[10px] text-[13px] font-600"
+          >
+            <span
+              class="h-[8px] w-[8px] flex-none rounded-full bg-[var(--app-primary-color)]"
+            />
             <span class="truncate-line">{{ searchResultHint }}</span>
           </div>
           <NButton quaternary round size="small" @click="clearSearch">
@@ -2294,7 +2330,9 @@ watch(
         </div>
         <div class="property-row">
           <span class="property-label">类型</span>
-          <span class="property-value">{{ propertiesFile.isDirectory ? "目录" : "文件" }}</span>
+          <span class="property-value">{{
+            propertiesFile.isDirectory ? "目录" : "文件"
+          }}</span>
         </div>
         <div class="property-row">
           <span class="property-label">路径</span>
@@ -2303,7 +2341,9 @@ watch(
         <div class="property-row items-start">
           <span class="property-label pt-[5px]">大小</span>
           <div class="flex min-w-0 flex-1 flex-wrap items-center gap-[8px]">
-            <span class="property-value flex-none">{{ propertiesSizeText }}</span>
+            <span class="property-value flex-none">{{
+              propertiesSizeText
+            }}</span>
             <NButton
               v-if="propertiesFile.isDirectory"
               quaternary
@@ -2312,21 +2352,29 @@ watch(
               :loading="calculatingDirectorySize"
               @click="calculateDirectorySize"
             >
-              {{ calculatedDirectorySize === null ? "计算目录大小" : "重新计算" }}
+              {{
+                calculatedDirectorySize === null ? "计算目录大小" : "重新计算"
+              }}
             </NButton>
           </div>
         </div>
         <div class="property-row">
           <span class="property-label">权限</span>
-          <span class="property-value font-mono">{{ propertiesPermission }}</span>
+          <span class="property-value font-mono">{{
+            propertiesPermission
+          }}</span>
         </div>
         <div class="property-row">
           <span class="property-label">修改时间</span>
-          <span class="property-value">{{ formatModifyTime(propertiesFile.modifyTime) }}</span>
+          <span class="property-value">{{
+            formatModifyTime(propertiesFile.modifyTime)
+          }}</span>
         </div>
         <div class="property-row items-start">
           <span class="property-label pt-[2px]">原始信息</span>
-          <span class="property-value break-all font-mono text-[12px]">{{ propertiesFile.longname || "-" }}</span>
+          <span class="property-value break-all font-mono text-[12px]">{{
+            propertiesFile.longname || "-"
+          }}</span>
         </div>
       </div>
     </NModal>
@@ -2361,21 +2409,36 @@ watch(
   padding: 8px 12px;
 }
 
-.property-row {
-  display: flex;
-  min-width: 0;
-  gap: 12px;
-  font-size: 13px;
+.favorite-popover-scrollbar {
+  --favorite-scrollbar-thumb: rgba(148, 163, 184, 0.28);
+  --favorite-scrollbar-thumb-hover: rgba(96, 165, 250, 0.56);
+  --favorite-scrollbar-rail: rgba(148, 163, 184, 0.08);
 }
 
-.property-label {
-  width: 72px;
-  flex: none;
-  color: rgba(100, 116, 139, 0.92);
+.favorite-popover-scrollbar-light {
+  --favorite-scrollbar-thumb: rgba(100, 116, 139, 0.2);
+  --favorite-scrollbar-thumb-hover: rgba(37, 99, 235, 0.42);
+  --favorite-scrollbar-rail: rgba(100, 116, 139, 0.08);
 }
 
-.property-value {
-  min-width: 0;
-  flex: 1;
+.favorite-popover-scrollbar :deep(.n-scrollbar-rail) {
+  right: 1px;
+  width: 6px;
+  border-radius: 999px;
+  background: var(--favorite-scrollbar-rail);
+}
+
+.favorite-popover-scrollbar :deep(.n-scrollbar-rail__scrollbar) {
+  width: 6px;
+  border-radius: 999px;
+  background-color: var(--favorite-scrollbar-thumb) !important;
+  transition:
+    background-color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.favorite-popover-scrollbar:hover :deep(.n-scrollbar-rail__scrollbar),
+.favorite-popover-scrollbar :deep(.n-scrollbar-rail__scrollbar:hover) {
+  background-color: var(--favorite-scrollbar-thumb-hover) !important;
 }
 </style>
