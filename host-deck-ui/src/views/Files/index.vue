@@ -74,8 +74,13 @@ const showCreateDialog = ref(false);
 const showRenameDialog = ref(false);
 const showExtractDialog = ref(false);
 const showDeleteDialog = ref(false);
+const showPropertiesDialog = ref(false);
 const deletingFiles = ref(false);
 const extractingArchive = ref(false);
+const calculatingDirectorySize = ref(false);
+const propertiesFile = ref<FileItem | null>(null);
+const propertiesItemPath = ref("");
+const calculatedDirectorySize = ref<number | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const directoryInputRef = ref<HTMLInputElement | null>(null);
 const contextMenu = ref<{
@@ -245,6 +250,11 @@ const contextMenuOptions = computed(() => {
         key: "delete",
         disabled: selectedFiles.value.length === 0,
       },
+      {
+        label: "属性",
+        key: "properties",
+        disabled: selectedFiles.value.length !== 1,
+      },
     ];
 
     if (selectedDirectoryPath.value) {
@@ -313,6 +323,28 @@ const breadcrumbs = computed(() => {
       path: `/${segments.slice(0, index + 1).join("/")}`,
     })),
   ];
+});
+const propertiesPath = computed(() =>
+  propertiesFile.value ? propertiesItemPath.value : "",
+);
+const propertiesPermission = computed(() =>
+  getPermissionFromLongname(propertiesFile.value?.longname),
+);
+const propertiesSizeText = computed(() => {
+  const file = propertiesFile.value;
+  if (!file) {
+    return "-";
+  }
+
+  if (!file.isDirectory) {
+    return `${formatFileSize(file.size)} (${file.size} 字节)`;
+  }
+
+  if (calculatedDirectorySize.value === null) {
+    return "未计算";
+  }
+
+  return `${formatFileSize(calculatedDirectorySize.value)} (${calculatedDirectorySize.value} 字节)`;
 });
 
 const editableExtensions = new Set([
@@ -423,6 +455,13 @@ function formatModifyTime(value?: string) {
 
 function formatFavoritePath(path: string) {
   return basename(path) || "根目录";
+}
+
+function getPermissionFromLongname(longname?: string) {
+  const permission = longname?.trim().split(/\s+/)[0];
+  return permission && /^[dlpscb-][rwxStTs-]{9}$/.test(permission)
+    ? permission
+    : "-";
 }
 
 function handleFileClick(file: FileItem, event: MouseEvent) {
@@ -622,6 +661,11 @@ function handleContextMenuSelect(key: string | number) {
       resolve(fileStore.currentPath, selectedFile.value.filename),
       "已复制路径。",
     );
+    return;
+  }
+
+  if (key === "properties") {
+    openPropertiesDialog();
     return;
   }
 
@@ -915,6 +959,44 @@ function openExtractDialog() {
     selectedFile.value.filename,
   );
   showExtractDialog.value = true;
+}
+
+function openPropertiesDialog() {
+  if (selectedFiles.value.length !== 1 || !selectedFile.value) {
+    return;
+  }
+
+  propertiesFile.value = selectedFile.value;
+  propertiesItemPath.value = resolve(
+    fileStore.currentPath,
+    selectedFile.value.filename,
+  );
+  calculatedDirectorySize.value = null;
+  showPropertiesDialog.value = true;
+}
+
+async function calculateDirectorySize() {
+  if (
+    !fileStore.connectionId ||
+    !propertiesFile.value?.isDirectory ||
+    calculatingDirectorySize.value
+  ) {
+    return;
+  }
+
+  calculatingDirectorySize.value = true;
+  try {
+    const result = await filesApi.directorySize(
+      fileStore.connectionId,
+      propertiesPath.value,
+    );
+    calculatedDirectorySize.value = result.size;
+  } catch (error) {
+    console.error("Failed to calculate directory size", error);
+    getUiApi().message.error("目录大小计算失败。");
+  } finally {
+    calculatingDirectorySize.value = false;
+  }
 }
 
 async function confirmExtract() {
@@ -2200,6 +2282,56 @@ watch(
     </NModal>
 
     <NModal
+      v-model:show="showPropertiesDialog"
+      preset="card"
+      title="属性"
+      style="width: min(560px, calc(100vw - 24px))"
+    >
+      <div v-if="propertiesFile" class="flex flex-col gap-[12px]">
+        <div class="property-row">
+          <span class="property-label">名称</span>
+          <span class="property-value">{{ propertiesFile.filename }}</span>
+        </div>
+        <div class="property-row">
+          <span class="property-label">类型</span>
+          <span class="property-value">{{ propertiesFile.isDirectory ? "目录" : "文件" }}</span>
+        </div>
+        <div class="property-row">
+          <span class="property-label">路径</span>
+          <span class="property-value break-all">{{ propertiesPath }}</span>
+        </div>
+        <div class="property-row items-start">
+          <span class="property-label pt-[5px]">大小</span>
+          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-[8px]">
+            <span class="property-value flex-none">{{ propertiesSizeText }}</span>
+            <NButton
+              v-if="propertiesFile.isDirectory"
+              quaternary
+              round
+              size="small"
+              :loading="calculatingDirectorySize"
+              @click="calculateDirectorySize"
+            >
+              {{ calculatedDirectorySize === null ? "计算目录大小" : "重新计算" }}
+            </NButton>
+          </div>
+        </div>
+        <div class="property-row">
+          <span class="property-label">权限</span>
+          <span class="property-value font-mono">{{ propertiesPermission }}</span>
+        </div>
+        <div class="property-row">
+          <span class="property-label">修改时间</span>
+          <span class="property-value">{{ formatModifyTime(propertiesFile.modifyTime) }}</span>
+        </div>
+        <div class="property-row items-start">
+          <span class="property-label pt-[2px]">原始信息</span>
+          <span class="property-value break-all font-mono text-[12px]">{{ propertiesFile.longname || "-" }}</span>
+        </div>
+      </div>
+    </NModal>
+
+    <NModal
       v-model:show="showDeleteDialog"
       preset="dialog"
       title="确认删除"
@@ -2227,5 +2359,23 @@ watch(
 
 .details-panel :deep(.n-card__content) {
   padding: 8px 12px;
+}
+
+.property-row {
+  display: flex;
+  min-width: 0;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.property-label {
+  width: 72px;
+  flex: none;
+  color: rgba(100, 116, 139, 0.92);
+}
+
+.property-value {
+  min-width: 0;
+  flex: 1;
 }
 </style>

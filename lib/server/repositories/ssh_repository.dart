@@ -65,6 +65,42 @@ class SshRepository {
         .toList();
   }
 
+  Future<int> getDirectorySize(SshSession session, String path) async {
+    final quotedPath = _shellQuote(path);
+    final command = [
+      'if output=\$(du -sb $quotedPath 2>/dev/null); then',
+      'printf "bytes:%s" "\${output%%[[:space:]]*}";',
+      'elif output=\$(du -sk $quotedPath 2>/dev/null); then',
+      'printf "kb:%s" "\${output%%[[:space:]]*}";',
+      'else exit 1; fi',
+    ].join(' ');
+    final result = await session.runOperation(
+      () => session.client.runWithResult('sh -lc ${_shellQuote(command)}'),
+    );
+    final stdout = utf8.decode(result.stdout).trim();
+    final stderr = utf8.decode(result.stderr).trim();
+
+    if (result.exitCode != null && result.exitCode != 0) {
+      throw Exception(stderr.isNotEmpty ? stderr : 'Directory size failed.');
+    }
+
+    if (stdout.startsWith('bytes:')) {
+      final size = int.tryParse(stdout.substring('bytes:'.length));
+      if (size != null) {
+        return size;
+      }
+    }
+
+    if (stdout.startsWith('kb:')) {
+      final size = int.tryParse(stdout.substring('kb:'.length));
+      if (size != null) {
+        return size * 1024;
+      }
+    }
+
+    throw Exception('Invalid directory size output: $stdout');
+  }
+
   Future<Stream<Uint8List>> readFileStream(
     SshSession session,
     String path,

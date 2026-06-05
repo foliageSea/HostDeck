@@ -51,6 +51,7 @@ class ApiRoutes {
 
     // Files
     router.get('/api/files/list', fileController.listFiles);
+    router.get('/api/files/directory-size', fileController.directorySize);
     router.post('/api/files/session', fileController.createSession);
     router.delete('/api/files/session', fileController.closeSession);
     router.get('/api/files/read', fileController.readFile);

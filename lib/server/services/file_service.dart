@@ -13,6 +13,10 @@ class FileService {
     return _repository.listFiles(session, path);
   }
 
+  Future<int> getDirectorySize(SshSession session, String path) {
+    return _repository.getDirectorySize(session, path);
+  }
+
   Future<Stream<Uint8List>> readFileStream(SshSession session, String path) {
     return _repository.readFileStream(session, path);
   }

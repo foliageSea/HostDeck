@@ -153,6 +153,27 @@ class FileController {
     }
   }
 
+  Future<Response> directorySize(Request request) async {
+    final path = request.url.queryParameters['path'];
+    if (path == null || path.trim().isEmpty) {
+      return Result.fail(400, 'Missing path');
+    }
+
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
+
+    try {
+      final size = await _fileService.getDirectorySize(session, path);
+      return Result.ok({'size': size});
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
   Future<Response> readFile(Request request) async {
     final path = request.url.queryParameters['path'];
     final download = request.url.queryParameters['download'] == 'true';

@@ -9,6 +9,10 @@ export interface FileItem {
   modifyTime?: string
 }
 
+export interface DirectorySizeResult {
+  size: number
+}
+
 export const filesApi = {
   createSession: async (connectionId: string) => {
     const response = await http.post<{ sessionId: string }>('/api/files/session', { connectionId })
@@ -24,6 +28,13 @@ export const filesApi = {
 
   list: async (connectionId: string, path: string) => {
     const response = await http.get<FileItem[]>('/api/files/list', {
+      params: { connectionId, path },
+    })
+    return response.data
+  },
+
+  directorySize: async (connectionId: string, path: string) => {
+    const response = await http.get<DirectorySizeResult>('/api/files/directory-size', {
       params: { connectionId, path },
     })
     return response.data
