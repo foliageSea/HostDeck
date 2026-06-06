@@ -7,8 +7,10 @@ import 'package:shelf_static/shelf_static.dart';
 import 'package:logging/logging.dart';
 
 import 'repositories/ssh_repository.dart';
+import 'repositories/port_forward_repository.dart';
 import 'repositories/server_repository.dart';
 import 'services/ssh_service.dart';
+import 'services/port_forward_service.dart';
 import 'services/monitor_history_service.dart';
 import 'services/monitor_service.dart';
 import 'services/file_service.dart';
@@ -21,6 +23,7 @@ import 'controllers/terminal_controller.dart';
 import 'controllers/server_controller.dart';
 import 'controllers/docker_controller.dart';
 import 'controllers/runtime_controller.dart';
+import 'controllers/port_forward_controller.dart';
 import 'routes/api_routes.dart';
 
 class ServerService {
@@ -31,6 +34,7 @@ class ServerService {
   String? webDir;
   String? dataDir;
   DatabaseService? _dbService;
+  PortForwardService? _portForwardService;
 
   bool get isRunning => _server != null;
 
@@ -65,11 +69,14 @@ class ServerService {
 
     final sshRepository = SshRepository();
     final serverRepository = ServerRepository(_dbService!);
+    final portForwardRepository = PortForwardRepository(_dbService!);
     final sshService = SshService(); // Manages connections
     final monitorHistoryService = MonitorHistoryService();
     final monitorService = MonitorService(sshRepository);
     final fileService = FileService(sshRepository);
     final dockerService = DockerService(sshRepository);
+    final portForwardService = PortForwardService(sshService);
+    _portForwardService = portForwardService;
 
     // 2. Initialize Controllers
     final authController = AuthController(sshService, monitorHistoryService);
@@ -83,6 +90,10 @@ class ServerService {
     final serverController = ServerController(serverRepository);
     final dockerController = DockerController(sshService, dockerService);
     final runtimeController = RuntimeController(sshService);
+    final portForwardController = PortForwardController(
+      portForwardRepository,
+      portForwardService,
+    );
 
     // 3. Initialize Routes
     final apiRoutes = ApiRoutes(
@@ -93,6 +104,7 @@ class ServerService {
       serverController: serverController,
       dockerController: dockerController,
       runtimeController: runtimeController,
+      portForwardController: portForwardController,
     );
 
     // 4. Setup Static Handler
@@ -156,6 +168,7 @@ class ServerService {
       await _server?.close(force: true);
       _server = null;
     }
+    await _portForwardService?.stopAll();
     _dbService?.close();
   }
 

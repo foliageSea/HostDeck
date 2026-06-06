@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Settings, ChartLine, Document, Image, Folder, Launch, Logout, Terminal, ApplicationWeb } from '@vicons/carbon'
+import { Settings, ChartLine, Document, Image, Folder, Launch, Logout, Terminal, ApplicationWeb, Connect } from '@vicons/carbon'
 import { LogoDocker } from '@vicons/ionicons5'
 import type { Component } from 'vue'
 import type { AppIconKey } from '@/types/desktop'
@@ -26,6 +26,7 @@ const iconMap: Record<AppIconKey, Component> = {
   logout: Logout,
   media: Image,
   opencode: ApplicationWeb,
+  'port-forward': Connect,
   runtime: ApplicationWeb,
   settings: Settings,
   terminal: Terminal,

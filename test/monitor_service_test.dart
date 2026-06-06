@@ -18,6 +18,10 @@ class MockSshRepository implements SshRepository {
   }
 
   @override
+  Future<int> getDirectorySize(SshSession session, String path) =>
+      throw UnimplementedError();
+
+  @override
   Future<String> exec(SshSession session, String command) async {
     if (command.contains('grep Mem')) {
       return "Mem:           8000        4000         480          18        3627        3829";

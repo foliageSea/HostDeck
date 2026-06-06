@@ -22,6 +22,8 @@ class SshService {
   final Map<String, SshSession> _sessions = {};
   final Map<String, SSHClient> _clients = {};
   final Map<String, SshOperationLimiter> _operationLimiters = {};
+  final List<FutureOr<void> Function(String connectionId)>
+  _disconnectListeners = [];
   int _pendingSessionCreations = 0;
 
   final logger = Logger('SshService');
@@ -162,6 +164,12 @@ class SshService {
 
   SSHClient? getClient(String connectionId) => _clients[connectionId];
 
+  void addDisconnectListener(
+    FutureOr<void> Function(String connectionId) listener,
+  ) {
+    _disconnectListeners.add(listener);
+  }
+
   Map<String, dynamic> getRuntimeSnapshot() {
     final sessionCounts = <String, int>{};
     for (final session in _sessions.values) {
@@ -256,6 +264,9 @@ class SshService {
     }
     _clients.remove(connectionId);
     _operationLimiters.remove(connectionId);
+    for (final listener in _disconnectListeners) {
+      unawaited(Future.sync(() => listener(connectionId)));
+    }
   }
 
   SshOperationLimiter _operationLimiterFor(String connectionId) {

@@ -11,6 +11,7 @@ export type AppIconKey =
   | 'editor'
   | 'media'
   | 'link'
+  | 'port-forward'
 
 export type DesktopAppId =
   | 'terminal'
@@ -27,3 +28,4 @@ export type DesktopAppId =
   | 'logout'
   | 'editor'
   | 'media-viewer'
+  | 'port-forward'

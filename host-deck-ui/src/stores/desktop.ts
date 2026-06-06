@@ -13,6 +13,7 @@ import DockerView from '@/views/Docker/index.vue'
 import FilesView from '@/views/Files/index.vue'
 import IframeAppView from '@/views/IframeApp/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
+import PortForwardView from '@/views/PortForward/index.vue'
 import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
 import SettingsView from '@/views/Settings/index.vue'
 import TerminalView from '@/views/Terminal/index.vue'
@@ -413,6 +414,16 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 860,
         title: '运行态会话',
         width: 1120,
+      },
+      'port-forward': {
+        component: markRaw(PortForwardView),
+        height: 680,
+        icon: 'port-forward',
+        id: 'port-forward',
+        minHeight: 520,
+        minWidth: 840,
+        title: '端口转发',
+        width: 1040,
       },
       editor: {
         component: markRaw(TextEditorView),

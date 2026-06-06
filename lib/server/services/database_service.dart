@@ -48,6 +48,20 @@ class DatabaseService {
         createdAt INTEGER
       )
     ''');
+
+    _db.execute('''
+      CREATE TABLE IF NOT EXISTS port_forwards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        bindHost TEXT NOT NULL,
+        localPort INTEGER NOT NULL,
+        remoteHost TEXT NOT NULL,
+        remotePort INTEGER NOT NULL,
+        createdAt INTEGER,
+        updatedAt INTEGER
+      )
+    ''');
   }
 
   void close() {

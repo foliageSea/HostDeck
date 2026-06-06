@@ -6,6 +6,7 @@ import '../controllers/terminal_controller.dart';
 import '../controllers/server_controller.dart';
 import '../controllers/docker_controller.dart';
 import '../controllers/runtime_controller.dart';
+import '../controllers/port_forward_controller.dart';
 
 class ApiRoutes {
   final AuthController authController;
@@ -15,6 +16,7 @@ class ApiRoutes {
   final ServerController serverController;
   final DockerController dockerController;
   final RuntimeController runtimeController;
+  final PortForwardController portForwardController;
 
   ApiRoutes({
     required this.authController,
@@ -24,6 +26,7 @@ class ApiRoutes {
     required this.serverController,
     required this.dockerController,
     required this.runtimeController,
+    required this.portForwardController,
   });
 
   Router get router {
@@ -42,6 +45,14 @@ class ApiRoutes {
     // Runtime
     router.get('/api/runtime/sessions', runtimeController.listSessions);
     router.get('/api/ws/runtime', runtimeController.wsSessions);
+
+    // Port forwards
+    router.get('/api/port-forwards', portForwardController.list);
+    router.post('/api/port-forwards', portForwardController.create);
+    router.put('/api/port-forwards/<id>', portForwardController.update);
+    router.delete('/api/port-forwards/<id>', portForwardController.delete);
+    router.post('/api/port-forwards/<id>/start', portForwardController.start);
+    router.post('/api/port-forwards/<id>/stop', portForwardController.stop);
 
     // System
     router.get('/api/status', systemController.status);
