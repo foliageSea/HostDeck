@@ -91,7 +91,7 @@ const contextMenu = ref<{
 } | null>(null);
 const isFavoriteSidebarVisible = useLocalStorage(
   FAVORITE_SIDEBAR_VISIBLE_STORAGE_KEY,
-  true,
+  false,
 );
 
 const selectedFile = computed(() => fileStore.selectedFile);
