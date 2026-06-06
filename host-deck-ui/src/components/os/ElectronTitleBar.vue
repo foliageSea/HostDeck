@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const isMaximized = ref(false)
+const isMac = computed(() => window.hostDeck?.platform === 'darwin')
 
 async function minimizeWindow() {
   await window.hostDeck?.window?.minimize()
@@ -23,7 +24,7 @@ async function openInBrowser() {
 
 <template>
   <header class="electron-titlebar">
-    <div class="electron-titlebar__controls" aria-label="窗口控制">
+    <div v-if="!isMac" class="electron-titlebar__controls" aria-label="窗口控制">
       <button class="electron-titlebar__button electron-titlebar__button--close" type="button" aria-label="关闭" @click="closeWindow" />
       <button class="electron-titlebar__button electron-titlebar__button--minimize" type="button" aria-label="最小化" @click="minimizeWindow" />
       <button class="electron-titlebar__button electron-titlebar__button--maximize" type="button" :aria-label="isMaximized ? '还原' : '最大化'" @click="toggleMaximizeWindow" />
