@@ -76,12 +76,17 @@ const showRenameDialog = ref(false);
 const showExtractDialog = ref(false);
 const showDeleteDialog = ref(false);
 const showPropertiesDialog = ref(false);
+const showPermissionDialog = ref(false);
 const deletingFiles = ref(false);
 const extractingArchive = ref(false);
 const calculatingDirectorySize = ref(false);
+const changingPermission = ref(false);
 const propertiesFile = ref<FileItem | null>(null);
 const propertiesItemPath = ref("");
 const calculatedDirectorySize = ref<number | null>(null);
+const permissionFile = ref<FileItem | null>(null);
+const permissionItemPath = ref("");
+const permissionRecursive = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const directoryInputRef = ref<HTMLInputElement | null>(null);
 const contextMenu = ref<{
@@ -193,6 +198,30 @@ const uploadOptions = computed(() => [
   { label: "上传文件", key: "file", disabled: isUploading.value },
   { label: "上传目录", key: "directory", disabled: isUploading.value },
 ]);
+type PermissionSubject = "owner" | "group" | "others";
+type PermissionAction = "read" | "write" | "execute";
+type PermissionMatrix = Record<
+  PermissionSubject,
+  Record<PermissionAction, boolean>
+>;
+
+const permissionSubjects: { key: PermissionSubject; label: string }[] = [
+  { key: "owner", label: "所有者" },
+  { key: "group", label: "用户组" },
+  { key: "others", label: "其他人" },
+];
+const permissionActions: { key: PermissionAction; label: string }[] = [
+  { key: "read", label: "读取" },
+  { key: "write", label: "写入" },
+  { key: "execute", label: "执行" },
+];
+const permissionPresets = [
+  { label: "普通文件 644", mode: "644" },
+  { label: "可执行/目录 755", mode: "755" },
+  { label: "私密文件 600", mode: "600" },
+  { label: "私密目录 700", mode: "700" },
+];
+const permissionMatrix = ref(createPermissionMatrix());
 const canExtractSelectedArchive = computed(() => {
   const file = selectedFile.value;
   return (
@@ -250,6 +279,11 @@ const contextMenuOptions = computed(() => {
         label: "删除",
         key: "delete",
         disabled: selectedFiles.value.length === 0,
+      },
+      {
+        label: "修改权限",
+        key: "chmod",
+        disabled: selectedFiles.value.length !== 1,
       },
       {
         label: "属性",
@@ -331,6 +365,14 @@ const propertiesPath = computed(() =>
 const propertiesPermission = computed(() =>
   getPermissionFromLongname(propertiesFile.value?.longname),
 );
+const permissionCurrentText = computed(() =>
+  getPermissionFromLongname(permissionFile.value?.longname),
+);
+const isPermissionParsed = computed(() => permissionCurrentText.value !== "-");
+const hasSpecialPermissionBits = computed(() =>
+  /[sStT]/.test(permissionCurrentText.value),
+);
+const permissionMode = computed(() => getModeFromPermissionMatrix());
 const propertiesSizeText = computed(() => {
   const file = propertiesFile.value;
   if (!file) {
@@ -463,6 +505,67 @@ function getPermissionFromLongname(longname?: string) {
   return permission && /^[dlpscb-][rwxStTs-]{9}$/.test(permission)
     ? permission
     : "-";
+}
+
+function createPermissionMatrix(): PermissionMatrix {
+  return {
+    owner: { read: false, write: false, execute: false },
+    group: { read: false, write: false, execute: false },
+    others: { read: false, write: false, execute: false },
+  };
+}
+
+function getModeFromPermissionMatrix() {
+  return permissionSubjects
+    .map(({ key }) => {
+      const value = permissionMatrix.value[key];
+      return (
+        (value.read ? 4 : 0) +
+        (value.write ? 2 : 0) +
+        (value.execute ? 1 : 0)
+      ).toString();
+    })
+    .join("");
+}
+
+function applyPermissionMode(mode: string) {
+  const normalizedMode = mode.length === 4 ? mode.slice(1) : mode;
+  const nextMatrix = createPermissionMatrix();
+
+  permissionSubjects.forEach(({ key }, index) => {
+    const digit = Number(normalizedMode[index] ?? "0");
+    nextMatrix[key] = {
+      read: (digit & 4) !== 0,
+      write: (digit & 2) !== 0,
+      execute: (digit & 1) !== 0,
+    };
+  });
+
+  permissionMatrix.value = nextMatrix;
+}
+
+function getModeFromPermission(permission: string) {
+  if (!/^[dlpscb-][rwxStTs-]{9}$/.test(permission)) {
+    return null;
+  }
+
+  const value = permission.slice(1);
+  const digits = [0, 3, 6].map((start) => {
+    const read = value[start] === "r" ? 4 : 0;
+    const write = value[start + 1] === "w" ? 2 : 0;
+    const execute = /[xst]/.test(value[start + 2] ?? "") ? 1 : 0;
+    return (read + write + execute).toString();
+  });
+
+  return digits.join("");
+}
+
+function setPermissionChecked(
+  subject: PermissionSubject,
+  action: PermissionAction,
+  checked: boolean,
+) {
+  permissionMatrix.value[subject][action] = checked;
 }
 
 function handleFileClick(file: FileItem, event: MouseEvent) {
@@ -667,6 +770,11 @@ function handleContextMenuSelect(key: string | number) {
 
   if (key === "properties") {
     openPropertiesDialog();
+    return;
+  }
+
+  if (key === "chmod") {
+    openPermissionDialog();
     return;
   }
 
@@ -974,6 +1082,102 @@ function openPropertiesDialog() {
   );
   calculatedDirectorySize.value = null;
   showPropertiesDialog.value = true;
+}
+
+function openPermissionDialog(file = selectedFile.value, path?: string) {
+  if (!file) {
+    return;
+  }
+
+  permissionFile.value = file;
+  permissionItemPath.value = path ?? resolve(fileStore.currentPath, file.filename);
+  permissionRecursive.value = false;
+
+  const currentMode = getModeFromPermission(
+    getPermissionFromLongname(file.longname),
+  );
+  if (currentMode) {
+    applyPermissionMode(currentMode);
+  } else {
+    permissionMatrix.value = createPermissionMatrix();
+  }
+
+  showPermissionDialog.value = true;
+}
+
+async function refreshAfterPermissionChange(filename: string) {
+  await fileStore.fetchFiles();
+  fileStore.setSelectedNames([filename]);
+
+  const refreshedFile = fileStore.files.find((file) => file.filename === filename);
+  if (!refreshedFile) {
+    return;
+  }
+
+  permissionFile.value = refreshedFile;
+  if (propertiesFile.value?.filename === filename) {
+    propertiesFile.value = refreshedFile;
+  }
+}
+
+function getPermissionErrorMessage(error: unknown, recursive: boolean) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return recursive ? "递归权限修改失败。" : "权限修改失败。";
+}
+
+async function applyPermissionChange() {
+  if (
+    !fileStore.connectionId ||
+    !permissionFile.value ||
+    changingPermission.value
+  ) {
+    return;
+  }
+
+  const targetFile = permissionFile.value;
+  const targetPath = permissionItemPath.value;
+  const mode = permissionMode.value;
+  const recursive = permissionRecursive.value && targetFile.isDirectory;
+
+  changingPermission.value = true;
+  try {
+    await filesApi.chmod(fileStore.connectionId, targetPath, mode, recursive);
+    showPermissionDialog.value = false;
+    await refreshAfterPermissionChange(targetFile.filename);
+    getUiApi().message.success(
+      recursive ? "递归权限修改成功。" : "权限修改成功。",
+    );
+  } catch (error) {
+    console.error("Failed to change file permission", error);
+    getUiApi().message.error(getPermissionErrorMessage(error, recursive));
+  } finally {
+    changingPermission.value = false;
+  }
+}
+
+function confirmPermissionChange() {
+  const targetFile = permissionFile.value;
+  if (!targetFile) {
+    return;
+  }
+
+  if (!permissionRecursive.value || !targetFile.isDirectory) {
+    void applyPermissionChange();
+    return;
+  }
+
+  getUiApi().dialog.warning({
+    title: "确认递归修改权限",
+    content: `将递归修改 ${permissionItemPath.value} 下所有文件和子目录权限，此操作可能影响程序运行或安全策略。是否继续？`,
+    positiveText: "继续修改",
+    negativeText: "取消",
+    onPositiveClick: () => {
+      void applyPermissionChange();
+    },
+  });
 }
 
 async function calculateDirectorySize() {
@@ -2137,6 +2341,13 @@ watch(
           <NButton
             quaternary
             round
+            :disabled="selectedFiles.length !== 1"
+            @click="openPermissionDialog()"
+            >权限</NButton
+          >
+          <NButton
+            quaternary
+            round
             :disabled="selectedFiles.length === 0"
             type="error"
             @click="showDeleteDialog = true"
@@ -2360,9 +2571,18 @@ watch(
         </div>
         <div class="property-row">
           <span class="property-label">权限</span>
-          <span class="property-value font-mono">{{
-            propertiesPermission
-          }}</span>
+          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-[8px]">
+            <span class="property-value flex-none font-mono">{{
+              propertiesPermission
+            }}</span>
+            <NButton
+              quaternary
+              round
+              size="small"
+              @click="openPermissionDialog(propertiesFile, propertiesPath)"
+              >修改</NButton
+            >
+          </div>
         </div>
         <div class="property-row">
           <span class="property-label">修改时间</span>
@@ -2376,6 +2596,130 @@ watch(
             propertiesFile.longname || "-"
           }}</span>
         </div>
+      </div>
+    </NModal>
+
+    <NModal
+      v-model:show="showPermissionDialog"
+      preset="card"
+      title="修改权限"
+      style="width: min(560px, calc(100vw - 24px))"
+    >
+      <div v-if="permissionFile" class="flex flex-col gap-[14px]">
+        <div class="flex flex-col gap-[8px]">
+          <div class="property-row">
+            <span class="property-label">名称</span>
+            <span class="property-value">{{ permissionFile.filename }}</span>
+          </div>
+          <div class="property-row">
+            <span class="property-label">路径</span>
+            <span class="property-value break-all">{{ permissionItemPath }}</span>
+          </div>
+          <div class="property-row">
+            <span class="property-label">当前权限</span>
+            <span class="property-value font-mono">{{
+              permissionCurrentText
+            }}</span>
+          </div>
+        </div>
+
+        <NAlert v-if="!isPermissionParsed" type="warning" :bordered="false">
+          无法解析当前权限，请手动选择要应用的权限。
+        </NAlert>
+        <NAlert
+          v-else-if="hasSpecialPermissionBits"
+          type="warning"
+          :bordered="false"
+        >
+          当前包含特殊权限位，应用后将只设置读取、写入和执行权限。
+        </NAlert>
+
+        <div class="flex flex-col gap-[10px]">
+          <div
+            class="grid grid-cols-[88px_repeat(3,minmax(0,1fr))] items-center gap-[8px] text-[13px]"
+          >
+            <span />
+            <span
+              v-for="action in permissionActions"
+              :key="action.key"
+              class="text-center font-600"
+            >
+              {{ action.label }}
+            </span>
+            <template v-for="subject in permissionSubjects" :key="subject.key">
+              <span class="font-600">{{ subject.label }}</span>
+              <NCheckbox
+                v-for="action in permissionActions"
+                :key="`${subject.key}-${action.key}`"
+                class="justify-center"
+                :checked="permissionMatrix[subject.key][action.key]"
+                @update:checked="
+                  (checked: boolean) =>
+                    setPermissionChecked(subject.key, action.key, checked)
+                "
+              />
+            </template>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-[8px]">
+          <NButton
+            v-for="preset in permissionPresets"
+            :key="preset.mode"
+            quaternary
+            round
+            size="small"
+            @click="applyPermissionMode(preset.mode)"
+          >
+            {{ preset.label }}
+          </NButton>
+        </div>
+
+        <NAlert
+          v-if="permissionFile.isDirectory"
+          type="info"
+          :bordered="false"
+        >
+          <div class="flex flex-col gap-[8px]">
+            <NCheckbox v-model:checked="permissionRecursive">
+              递归应用到目录内所有文件和子目录
+            </NCheckbox>
+            <span v-if="permissionRecursive">
+              递归修改会影响该目录下全部项目，请确认权限策略后再应用。
+            </span>
+          </div>
+        </NAlert>
+
+        <div
+          class="rounded-[12px] px-[12px] py-[10px] text-[13px]"
+          :class="
+            settingsStore.isDark
+              ? 'bg-[rgba(15,23,42,0.54)] text-[rgba(226,232,240,0.96)]'
+              : 'bg-[rgba(241,245,249,0.92)] text-[rgba(51,65,85,0.96)]'
+          "
+        >
+          将应用权限：<span class="font-mono font-700">{{
+            permissionMode
+          }}</span>
+        </div>
+
+        <NSpace justify="end">
+          <NButton
+            quaternary
+            round
+            :disabled="changingPermission"
+            @click="showPermissionDialog = false"
+            >取消</NButton
+          >
+          <NButton
+            quaternary
+            round
+            type="primary"
+            :loading="changingPermission"
+            @click="confirmPermissionChange"
+            >应用权限</NButton
+          >
+        </NSpace>
       </div>
     </NModal>
 

@@ -72,6 +72,7 @@ class ApiRoutes {
     router.post('/api/files/batch-download', fileController.batchDownload);
     router.post('/api/files/rename', fileController.rename);
     router.post('/api/files/mkdir', fileController.mkdir);
+    router.post('/api/files/chmod', fileController.chmod);
     router.post('/api/files/copy', fileController.copy);
     router.post('/api/files/extract', fileController.extract);
 

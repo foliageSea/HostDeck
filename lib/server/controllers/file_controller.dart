@@ -357,6 +357,34 @@ class FileController {
     }
   }
 
+  Future<Response> chmod(Request request) async {
+    late final SshSession session;
+    try {
+      session = await _resolveSession(request);
+    } catch (error) {
+      return _sessionErrorResponse(error);
+    }
+
+    try {
+      final body = await request.readAsString();
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final path = data['path']?.toString().trim() ?? '';
+      final mode = data['mode']?.toString().trim() ?? '';
+      final recursive = data['recursive'] == true;
+
+      if (path.isEmpty || mode.isEmpty) {
+        return Result.fail(400, 'Missing path or mode');
+      }
+
+      await _fileService.chmod(session, path, mode, recursive: recursive);
+      return Result.ok('Permission changed');
+    } on ArgumentError catch (e) {
+      return Result.fail(400, e.message?.toString() ?? e.toString());
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
   Future<Response> copy(Request request) async {
     late final SshSession session;
     try {

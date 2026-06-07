@@ -41,6 +41,15 @@ class FileService {
     return _repository.mkdir(session, path);
   }
 
+  Future<void> chmod(
+    SshSession session,
+    String path,
+    String mode, {
+    bool recursive = false,
+  }) {
+    return _repository.chmod(session, path, mode, recursive: recursive);
+  }
+
   Future<void> copy(SshSession session, String source, String target) {
     return _repository.copy(session, source, target);
   }

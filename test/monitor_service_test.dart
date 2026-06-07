@@ -71,6 +71,13 @@ Inter-|   Receive                                                |  Transmit
   Future<void> mkdir(SshSession session, String path) =>
       throw UnimplementedError();
   @override
+  Future<void> chmod(
+    SshSession session,
+    String path,
+    String mode, {
+    bool recursive = false,
+  }) => throw UnimplementedError();
+  @override
   Future<void> copy(SshSession session, String source, String target) =>
       throw UnimplementedError();
   @override

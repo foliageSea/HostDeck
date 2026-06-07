@@ -170,6 +170,21 @@ class SshRepository {
     await sftp.mkdir(path);
   }
 
+  Future<void> chmod(
+    SshSession session,
+    String path,
+    String mode, {
+    bool recursive = false,
+  }) async {
+    if (!RegExp(r'^[0-7]{3,4}$').hasMatch(mode)) {
+      throw ArgumentError('Invalid permission mode');
+    }
+
+    final recursiveFlag = recursive ? ' -R' : '';
+    final command = 'chmod$recursiveFlag $mode ${_shellQuote(path)}';
+    await _runCheckedShellCommand(session, command);
+  }
+
   Future<void> copy(SshSession session, String source, String target) async {
     // 使用 cp -r 命令进行复制，这比 SFTP 读写更高效
     final cmd = 'cp -r ${_shellQuote(source)} ${_shellQuote(target)}';

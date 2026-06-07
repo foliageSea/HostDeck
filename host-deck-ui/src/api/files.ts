@@ -47,6 +47,13 @@ export const filesApi = {
     return response.data
   },
 
+  chmod: async (connectionId: string, path: string, mode: string, recursive = false) => {
+    const response = await http.post('/api/files/chmod', { mode, path, recursive }, {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
   rename: async (connectionId: string, oldPath: string, newPath: string) => {
     const response = await http.post('/api/files/rename', { newPath, oldPath }, {
       params: { connectionId },
