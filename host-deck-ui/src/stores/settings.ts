@@ -1,15 +1,11 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
+import { settingsApi } from '@/api/settings'
 import {
   createDefaultWallpaperSettings,
   type WallpaperSettings,
   type WallpaperTarget,
 } from '@/lib/wallpapers'
-import {
-  deleteStoredWallpaperDataUrl,
-  getStoredWallpaperDataUrl,
-  setStoredWallpaperDataUrl,
-} from '@/lib/wallpaper-storage'
 
 const THEME_STORAGE_KEY = 'host-deck-ui.theme'
 const PRIMARY_COLOR_STORAGE_KEY = 'host-deck-ui.primaryColor'
@@ -25,6 +21,7 @@ const DEFAULT_TERMINAL_FONT_FAMILY = 'Consolas, "Cascadia Mono", "Courier New", 
 const DEFAULT_EDITOR_FONT_SIZE = 14
 const DEFAULT_EDITOR_FONT_FAMILY = 'Consolas, "Cascadia Mono", "Courier New", monospace'
 const DEFAULT_PRIMARY_COLOR = '#0891b2'
+const WALLPAPER_PERSIST_DEBOUNCE_MS = 300
 
 type ThemeMode = 'dark' | 'light' | 'system'
 
@@ -145,14 +142,7 @@ function resolveStoredWallpaper(storageKey: string): WallpaperSettings {
 }
 
 function serializeWallpaperSettings(value: WallpaperSettings): WallpaperSettings {
-  if (value.mode !== 'custom') {
-    return value
-  }
-
-  return {
-    ...value,
-    customDataUrl: null,
-  }
+  return value
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -164,7 +154,11 @@ export const useSettingsStore = defineStore('settings', () => {
   const editorFontSize = ref(resolveStoredEditorFontSize())
   const editorFontFamily = ref(resolveStoredEditorFontFamily())
   const desktopWallpaper = ref<WallpaperSettings>(resolveStoredWallpaper(DESKTOP_WALLPAPER_STORAGE_KEY))
-  const loginWallpaper = ref<WallpaperSettings>(resolveStoredWallpaper(LOGIN_WALLPAPER_STORAGE_KEY))
+  const loginWallpaper = computed(() => desktopWallpaper.value)
+  const isInitializing = ref(false)
+  const hasInitialized = ref(false)
+  const suspendWallpaperPersistence = ref(false)
+  let wallpaperPersistTimer: number | null = null
 
   const isDark = computed(() => {
     if (themeMode.value === 'system') {
@@ -189,42 +183,58 @@ export const useSettingsStore = defineStore('settings', () => {
       JSON.stringify(serializeWallpaperSettings(value)),
     )
 
-    if (value.mode === 'custom' && value.customDataUrl) {
-      await setStoredWallpaperDataUrl(target, value.customDataUrl)
-      return
-    }
-
-    if (value.mode === 'custom') {
-      return
-    }
-
-    await deleteStoredWallpaperDataUrl(target)
-  }
-
-  async function hydrateCustomWallpaper(target: WallpaperTarget) {
-    const wallpaper = target === 'desktop' ? desktopWallpaper : loginWallpaper
-    if (wallpaper.value.mode !== 'custom') {
-      return
-    }
-
-    if (wallpaper.value.customDataUrl) {
-      await setStoredWallpaperDataUrl(target, wallpaper.value.customDataUrl)
-      return
-    }
-
-    const storedDataUrl = await getStoredWallpaperDataUrl(target)
-    if (!storedDataUrl) {
-      return
-    }
-
-    wallpaper.value = {
-      ...wallpaper.value,
-      customDataUrl: storedDataUrl,
+    if (target === 'desktop') {
+      window.localStorage.setItem(
+        LOGIN_WALLPAPER_STORAGE_KEY,
+        JSON.stringify(serializeWallpaperSettings(value)),
+      )
     }
   }
 
-  void hydrateCustomWallpaper('desktop')
-  void hydrateCustomWallpaper('login')
+  async function persistWallpapers() {
+    if (suspendWallpaperPersistence.value) {
+      return
+    }
+
+    await settingsApi.saveUiSettings({
+      desktopWallpaper: serializeWallpaperSettings(desktopWallpaper.value),
+      loginWallpaper: serializeWallpaperSettings(desktopWallpaper.value),
+    })
+  }
+
+  function scheduleWallpaperPersistence() {
+    if (wallpaperPersistTimer !== null) {
+      window.clearTimeout(wallpaperPersistTimer)
+    }
+
+    wallpaperPersistTimer = window.setTimeout(() => {
+      wallpaperPersistTimer = null
+      void persistWallpapers()
+    }, WALLPAPER_PERSIST_DEBOUNCE_MS)
+  }
+
+  async function initialize() {
+    if (isInitializing.value || hasInitialized.value) {
+      return
+    }
+
+    isInitializing.value = true
+    try {
+      const data = await settingsApi.getUiSettings()
+      suspendWallpaperPersistence.value = true
+      if (data.desktopWallpaper) {
+        desktopWallpaper.value = normalizeWallpaperSettings(data.desktopWallpaper)
+      }
+      else if (data.loginWallpaper) {
+        desktopWallpaper.value = normalizeWallpaperSettings(data.loginWallpaper)
+      }
+    }
+    finally {
+      suspendWallpaperPersistence.value = false
+      isInitializing.value = false
+      hasInitialized.value = true
+    }
+  }
 
   watch(
     themeMode,
@@ -278,14 +288,9 @@ export const useSettingsStore = defineStore('settings', () => {
     desktopWallpaper,
     (value) => {
       void syncWallpaperStorage('desktop', value)
-    },
-    { deep: true, immediate: true },
-  )
-
-  watch(
-    loginWallpaper,
-    (value) => {
-      void syncWallpaperStorage('login', value)
+      if (hasInitialized.value) {
+        scheduleWallpaperPersistence()
+      }
     },
     { deep: true, immediate: true },
   )
@@ -337,7 +342,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function setLoginWallpaper(value: WallpaperSettings) {
-    loginWallpaper.value = normalizeWallpaperSettings(value)
+    desktopWallpaper.value = normalizeWallpaperSettings(value)
   }
 
   function resetDesktopWallpaper() {
@@ -345,14 +350,16 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function resetLoginWallpaper() {
-    loginWallpaper.value = createDefaultWallpaperSettings()
+    desktopWallpaper.value = createDefaultWallpaperSettings()
   }
 
   return {
     desktopWallpaper,
     editorFontFamily,
     editorFontSize,
+    initialize,
     isDark,
+    isInitializing,
     loginWallpaper,
     primaryColor,
     resetDesktopWallpaper,

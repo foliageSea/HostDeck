@@ -49,7 +49,7 @@ const selectedServer = computed(() =>
   sshStore.savedServers.find((server) => server.id === selectedServerId.value) ?? null,
 )
 const loginWallpaperStyle = computed(() =>
-  createWallpaperStyle('login', settingsStore.desktopWallpaper, settingsStore.isDark),
+  createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
 )
 const loginWallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
 const isVideoWallpaper = computed(() =>
@@ -57,6 +57,19 @@ const isVideoWallpaper = computed(() =>
   && settingsStore.desktopWallpaper.customType === 'video'
   && Boolean(settingsStore.desktopWallpaper.customDataUrl),
 )
+const loginVideoWallpaperUrl = computed(() => {
+  const wallpaperUrl = settingsStore.desktopWallpaper.customDataUrl
+  if (!wallpaperUrl || !wallpaperUrl.startsWith('/') || !import.meta.env.DEV || !import.meta.env.VITE_DEV_PROXY_TARGET) {
+    return wallpaperUrl ?? undefined
+  }
+
+  try {
+    return new URL(wallpaperUrl, import.meta.env.VITE_DEV_PROXY_TARGET).toString()
+  }
+  catch {
+    return wallpaperUrl
+  }
+})
 const serverEditorTitle = computed(() => (serverEditorMode.value === 'create' ? '新建服务器' : '编辑服务器'))
 
 function getServerAvatarText(server: SavedServer) {
@@ -282,7 +295,7 @@ onMounted(async () => {
     <video
       v-if="isVideoWallpaper"
       class="absolute inset-0 h-full w-full object-cover"
-      :src="settingsStore.desktopWallpaper.customDataUrl ?? undefined"
+      :src="loginVideoWallpaperUrl"
       :style="{ filter: loginWallpaperFilter }"
       autoplay
       muted

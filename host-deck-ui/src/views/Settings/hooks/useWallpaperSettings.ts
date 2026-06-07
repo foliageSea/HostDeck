@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { settingsApi } from '@/api/settings'
 import type { WallpaperCustomType, WallpaperSettings, WallpaperTarget } from '@/lib/wallpapers'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
@@ -60,7 +61,7 @@ export function useWallpaperSettings() {
     updateWallpaperSettings(target, nextValue)
   }
 
-  function handleWallpaperUpload(target: WallpaperTarget, event: Event) {
+  async function handleWallpaperUpload(target: WallpaperTarget, event: Event) {
     const input = event.target as HTMLInputElement
     const file = input.files?.[0]
     input.value = ''
@@ -85,21 +86,14 @@ export function useWallpaperSettings() {
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : ''
-      if (!result) {
-        getUiApi().message.error('读取文件失败。')
-        return
-      }
-
-      applyCustomWallpaper(target, result, customType)
+    try {
+      const uploadedWallpaper = await settingsApi.uploadWallpaper(target, file)
+      applyCustomWallpaper(target, uploadedWallpaper.url, uploadedWallpaper.customType)
       getUiApi().message.success(target === 'desktop' ? '桌面壁纸已更新。' : '登录页壁纸已更新。')
     }
-    reader.onerror = () => {
-      getUiApi().message.error('读取文件失败。')
+    catch (error) {
+      getUiApi().message.error(error instanceof Error ? error.message : '上传壁纸失败。')
     }
-    reader.readAsDataURL(file)
   }
 
   function isPresetActive(target: WallpaperTarget, presetId: string) {

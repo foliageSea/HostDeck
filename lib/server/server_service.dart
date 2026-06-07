@@ -5,6 +5,8 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
 import 'package:logging/logging.dart';
+import 'package:mime/mime.dart';
+import 'package:path/path.dart' as p;
 
 import 'repositories/ssh_repository.dart';
 import 'repositories/port_forward_repository.dart';
@@ -24,7 +26,9 @@ import 'controllers/server_controller.dart';
 import 'controllers/docker_controller.dart';
 import 'controllers/runtime_controller.dart';
 import 'controllers/port_forward_controller.dart';
+import 'controllers/settings_controller.dart';
 import 'routes/api_routes.dart';
+import '../utils/app_settings.dart';
 
 class ServerService {
   final _log = Logger('ServerService');
@@ -60,6 +64,7 @@ class ServerService {
 
     // 1. Initialize dependencies
     _dbService = DatabaseService(dataDir: dataDir);
+    AppSettings.configure(dataDir: dataDir);
     try {
       await _dbService!.init();
       _log.info('Database initialized.');
@@ -90,6 +95,7 @@ class ServerService {
     final serverController = ServerController(serverRepository);
     final dockerController = DockerController(sshService, dockerService);
     final runtimeController = RuntimeController(sshService);
+    final settingsController = SettingsController();
     final portForwardController = PortForwardController(
       portForwardRepository,
       portForwardService,
@@ -104,11 +110,13 @@ class ServerService {
       serverController: serverController,
       dockerController: dockerController,
       runtimeController: runtimeController,
+      settingsController: settingsController,
       portForwardController: portForwardController,
     );
 
     // 4. Setup Static Handler
     Handler? staticHandler;
+    final wallpaperDir = await AppSettings.resolveWallpaperDirectory();
     if (staticPath.isNotEmpty) {
       staticHandler = createStaticHandler(
         staticPath,
@@ -133,8 +141,39 @@ class ServerService {
       return Response.notFound('Not found');
     }
 
+    Future<Response?> serveWallpaper(Request request) async {
+      if (!request.url.path.startsWith('wallpapers/')) {
+        return null;
+      }
+
+      final relativePath = request.url.path.substring('wallpapers/'.length);
+      if (relativePath.isEmpty ||
+          p.isAbsolute(relativePath) ||
+          relativePath.contains('/') ||
+          relativePath.contains(r'\')) {
+        return Response.notFound('Not found');
+      }
+
+      final file = File(p.join(wallpaperDir.path, relativePath));
+      if (!await file.exists()) {
+        return Response.notFound('Not found');
+      }
+
+      final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+      return Response.ok(
+        file.openRead(),
+        headers: {
+          'content-type': mimeType,
+          'cache-control': 'public, max-age=31536000, immutable',
+        },
+      );
+    }
+
     // 5. Setup Cascade
     var cascade = Cascade().add(apiRoutes.router.call);
+    cascade = cascade.add((request) async {
+      return await serveWallpaper(request) ?? Response.notFound('Not found');
+    });
 
     if (staticHandler != null) {
       cascade = cascade.add(staticHandler);

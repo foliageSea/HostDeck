@@ -25,6 +25,10 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           ws: true,
         },
+        "/wallpapers": {
+          target: proxyTarget,
+          changeOrigin: true,
+        },
         "/api/ws/terminal": {
           target: proxyTarget,
           changeOrigin: true,

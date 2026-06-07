@@ -25,6 +25,19 @@ const isVideoWallpaper = computed(() =>
   && settingsStore.desktopWallpaper.customType === 'video'
   && Boolean(settingsStore.desktopWallpaper.customDataUrl),
 )
+const desktopVideoWallpaperUrl = computed(() => {
+  const wallpaperUrl = settingsStore.desktopWallpaper.customDataUrl
+  if (!wallpaperUrl || !wallpaperUrl.startsWith('/') || !import.meta.env.DEV || !import.meta.env.VITE_DEV_PROXY_TARGET) {
+    return wallpaperUrl ?? undefined
+  }
+
+  try {
+    return new URL(wallpaperUrl, import.meta.env.VITE_DEV_PROXY_TARGET).toString()
+  }
+  catch {
+    return wallpaperUrl
+  }
+})
 
 function selectWindow(index: number) {
   const targetWindow = switcherWindows.value[index]
@@ -120,7 +133,7 @@ onUnmounted(() => {
     <video
       v-if="isVideoWallpaper"
       class="absolute inset-0 h-full w-full object-cover"
-      :src="settingsStore.desktopWallpaper.customDataUrl ?? undefined"
+      :src="desktopVideoWallpaperUrl"
       :style="{ filter: desktopWallpaperFilter }"
       autoplay
       muted

@@ -7,6 +7,7 @@ import '../controllers/server_controller.dart';
 import '../controllers/docker_controller.dart';
 import '../controllers/runtime_controller.dart';
 import '../controllers/port_forward_controller.dart';
+import '../controllers/settings_controller.dart';
 
 class ApiRoutes {
   final AuthController authController;
@@ -16,6 +17,7 @@ class ApiRoutes {
   final ServerController serverController;
   final DockerController dockerController;
   final RuntimeController runtimeController;
+  final SettingsController settingsController;
   final PortForwardController portForwardController;
 
   ApiRoutes({
@@ -26,6 +28,7 @@ class ApiRoutes {
     required this.serverController,
     required this.dockerController,
     required this.runtimeController,
+    required this.settingsController,
     required this.portForwardController,
   });
 
@@ -45,6 +48,14 @@ class ApiRoutes {
     // Runtime
     router.get('/api/runtime/sessions', runtimeController.listSessions);
     router.get('/api/ws/runtime', runtimeController.wsSessions);
+
+    // Settings
+    router.get('/api/settings/ui', settingsController.getUiSettings);
+    router.put('/api/settings/ui', settingsController.saveUiSettings);
+    router.post(
+      '/api/settings/ui/wallpapers',
+      settingsController.uploadWallpaper,
+    );
 
     // Port forwards
     router.get('/api/port-forwards', portForwardController.list);

@@ -112,9 +112,9 @@ async function updateExternalAccess(value: boolean) {
       <NSpace vertical :size="24">
         <WallpaperSection
           target="desktop"
-          title="桌面壁纸"
-          default-label="跟随当前主题"
-          preset-label="桌面预设"
+          title="桌面与登录页壁纸"
+          default-label="桌面和登录页共用默认背景"
+          preset-label="桌面和登录页共用预设"
           :controller="controller"
         />
       </NSpace>

@@ -23,6 +23,24 @@ export const wallpaperPresets: WallpaperPreset[] = []
 
 const wallpaperPresetMap = new Map(wallpaperPresets.map((preset) => [preset.id, preset]))
 
+function resolveWallpaperUrl(url: string): string {
+  if (!url.startsWith('/')) {
+    return url
+  }
+
+  const devProxyTarget = import.meta.env.DEV ? import.meta.env.VITE_DEV_PROXY_TARGET?.trim() : ''
+  if (!devProxyTarget) {
+    return url
+  }
+
+  try {
+    return new URL(url, devProxyTarget).toString()
+  }
+  catch {
+    return url
+  }
+}
+
 export function createDefaultWallpaperSettings(): WallpaperSettings {
   return {
     mode: 'default',
@@ -38,11 +56,7 @@ export function createWallpaperFilter(settings: WallpaperSettings): string {
   return `brightness(${settings.brightness}%) contrast(${settings.contrast}%)`
 }
 
-export function getDefaultWallpaperBackground(target: WallpaperTarget, isDark: boolean): string {
-  if (target === 'login') {
-    return 'radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.2), transparent 24%), radial-gradient(circle at 80% 16%, rgba(168, 85, 247, 0.18), transparent 22%), linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.92))'
-  }
-
+export function getDefaultWallpaperBackground(isDark: boolean): string {
   if (isDark) {
     return 'radial-gradient(circle at 15% 18%, rgba(14, 165, 233, 0.18), transparent 24%), radial-gradient(circle at 85% 15%, rgba(168, 85, 247, 0.18), transparent 18%), radial-gradient(circle at 50% 85%, rgba(59, 130, 246, 0.12), transparent 24%), linear-gradient(160deg, #0f172a 0%, #111827 50%, #020617 100%)'
   }
@@ -51,19 +65,19 @@ export function getDefaultWallpaperBackground(target: WallpaperTarget, isDark: b
 }
 
 export function resolveWallpaperBackground(
-  target: WallpaperTarget,
+  _target: WallpaperTarget,
   settings: WallpaperSettings,
   isDark: boolean,
 ): string {
   if (settings.mode === 'custom' && settings.customDataUrl) {
-    return `url("${settings.customDataUrl}")`
+    return `url("${resolveWallpaperUrl(settings.customDataUrl)}")`
   }
 
   if (settings.mode === 'preset' && settings.presetId) {
-    return wallpaperPresetMap.get(settings.presetId)?.background ?? getDefaultWallpaperBackground(target, isDark)
+    return wallpaperPresetMap.get(settings.presetId)?.background ?? getDefaultWallpaperBackground(isDark)
   }
 
-  return getDefaultWallpaperBackground(target, isDark)
+  return getDefaultWallpaperBackground(isDark)
 }
 
 export function createWallpaperStyle(
