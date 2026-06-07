@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, screen, session, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const http = require('node:http')
@@ -11,6 +11,18 @@ const isPackaged = app.isPackaged
 
 let mainWindow
 let serverProcess
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function getDefaultWindowSize() {
+  const { width: workAreaWidth, height: workAreaHeight } = screen.getPrimaryDisplay().workAreaSize
+  return {
+    width: clamp(Math.round(workAreaWidth * 0.75), 1360, 1720),
+    height: clamp(Math.round(workAreaHeight * 0.82), 840, 1100),
+  }
+}
 
 function electronSettingsPath() {
   return path.join(app.getPath('userData'), 'electron-settings.json')
@@ -152,9 +164,11 @@ async function restartServer() {
 }
 
 function createWindow() {
+  const { width, height } = getDefaultWindowSize()
+
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
+    width,
+    height,
     minWidth: 1024,
     minHeight: 720,
     title: 'HostDeck',
