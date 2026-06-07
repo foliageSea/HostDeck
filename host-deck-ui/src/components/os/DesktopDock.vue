@@ -239,28 +239,34 @@ function handleContextMenuSelect(key: string | number) {
       @mouseenter="hoveredDockIndex = index"
       @mouseleave="hoveredDockIndex = null"
     >
-      <div
-        class="dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
-        :class="[
-          settingsStore.isDark
-            ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0]'
-            : 'bg-[rgba(241,245,249,0.88)] text-[#1e293b]',
-          isAppOpen(app.id)
-            ? settingsStore.isDark
-              ? 'bg-[rgba(51,65,85,0.92)]'
-              : 'bg-[rgba(226,232,240,0.96)]'
-            : '',
-          { 'dock-item-bounce': bouncingAppId === app.id },
-        ]"
-        :style="getDockItemStyle(index, app.id)"
-        type="button"
-        :title="app.title"
-        :aria-label="app.title"
-        @click="handleOpen($event, app.id)"
-        @contextmenu="handleContextMenu($event, app.id)" @keydown="handleTriggerKeydown($event, app.id)">
-        <AppIcon :color="getDockIconColor(app.id)" :name="app.icon" :size="24" />
-        <span v-if="isAppOpen(app.id)" class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]" aria-hidden="true" />
-      </div>
+      <NTooltip>
+        <template #trigger>
+          <div
+            class="dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
+            :class="[
+              settingsStore.isDark
+                ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0]'
+                : 'bg-[rgba(241,245,249,0.88)] text-[#1e293b]',
+              isAppOpen(app.id)
+                ? settingsStore.isDark
+                  ? 'bg-[rgba(51,65,85,0.92)]'
+                  : 'bg-[rgba(226,232,240,0.96)]'
+                : '',
+              { 'dock-item-bounce': bouncingAppId === app.id },
+            ]"
+            :style="getDockItemStyle(index, app.id)"
+            type="button"
+            :aria-label="app.title"
+            @click="handleOpen($event, app.id)"
+            @contextmenu="handleContextMenu($event, app.id)"
+            @keydown="handleTriggerKeydown($event, app.id)"
+          >
+            <AppIcon :color="getDockIconColor(app.id)" :name="app.icon" :size="24" />
+            <span v-if="isAppOpen(app.id)" class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]" aria-hidden="true" />
+          </div>
+        </template>
+        {{ app.title }}
+      </NTooltip>
 
     </div>
 
