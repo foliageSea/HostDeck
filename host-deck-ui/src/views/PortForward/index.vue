@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import type { FormInst, FormRules } from 'naive-ui'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import type { FormInst, FormItemRule, FormRules } from 'naive-ui'
 import { portForwardApi, type PortForwardPayload, type PortForwardRule, type PortForwardStatus } from '@/api/port-forward'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
@@ -25,12 +25,87 @@ const form = reactive({
   remotePort: 80,
 })
 
+function validateRequiredText(fieldName: string) {
+  return (_rule: FormItemRule, value: string) => {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      return new Error(`请输入${fieldName}`)
+    }
+
+    return true
+  }
+}
+
+function isValidIpv4(value: string) {
+  const segments = value.split('.')
+  if (segments.length !== 4) {
+    return false
+  }
+
+  return segments.every((segment) => {
+    if (!/^\d+$/.test(segment)) {
+      return false
+    }
+
+    const numericValue = Number(segment)
+    return numericValue >= 0 && numericValue <= 255
+  })
+}
+
+function validateHost(fieldName: string) {
+  return (_rule: FormItemRule, value: string) => {
+    const trimmedValue = value.trim()
+    if (!trimmedValue) {
+      return new Error(`请输入${fieldName}`)
+    }
+
+    if (trimmedValue !== 'localhost' && !isValidIpv4(trimmedValue)) {
+      return new Error(`${fieldName}仅支持 IPv4 或 localhost`)
+    }
+
+    return true
+  }
+}
+
+function validatePort(_rule: FormItemRule, value: number | null) {
+  if (!Number.isInteger(value) || value === null || value < 1 || value > 65535) {
+    return new Error('端口范围为 1-65535 的整数')
+  }
+
+  return true
+}
+
+function validateLocalEndpoint(_rule: FormItemRule, value: number | null) {
+  const portResult = validatePort(_rule, value)
+  if (portResult instanceof Error) {
+    return portResult
+  }
+
+  const bindHost = form.bindHost.trim()
+  if (!bindHost) {
+    return true
+  }
+
+  const duplicateRule = rules.value.find((rule) => {
+    if (editingId.value !== null && rule.id === editingId.value) {
+      return false
+    }
+
+    return rule.bindHost.trim() === bindHost && rule.localPort === value
+  })
+
+  if (duplicateRule) {
+    return new Error('该本地监听地址和端口已存在')
+  }
+
+  return true
+}
+
 const formRules: FormRules = {
-  bindHost: [{ required: true, message: '请输入本地绑定地址', trigger: ['input', 'blur'] }],
-  localPort: [{ required: true, type: 'number', min: 1, max: 65535, message: '端口范围为 1-65535', trigger: ['input', 'blur'] }],
-  name: [{ required: true, message: '请输入名称', trigger: ['input', 'blur'] }],
-  remoteHost: [{ required: true, message: '请输入远端主机', trigger: ['input', 'blur'] }],
-  remotePort: [{ required: true, type: 'number', min: 1, max: 65535, message: '端口范围为 1-65535', trigger: ['input', 'blur'] }],
+  bindHost: [{ required: true, validator: validateHost('本地绑定地址'), trigger: ['input', 'blur'] }],
+  localPort: [{ required: true, validator: validateLocalEndpoint, trigger: ['input', 'blur', 'change'] }],
+  name: [{ required: true, validator: validateRequiredText('名称'), trigger: ['input', 'blur'] }],
+  remoteHost: [{ required: true, validator: validateHost('远端主机'), trigger: ['input', 'blur'] }],
+  remotePort: [{ required: true, validator: validatePort, trigger: ['input', 'blur', 'change'] }],
 }
 
 const hasConnection = computed(() => Boolean(sshStore.connectionId && sshStore.isConnected))
@@ -121,6 +196,7 @@ async function fetchRules() {
 function openCreateDialog() {
   resetForm()
   dialogVisible.value = true
+  void nextTick(() => formRef.value?.restoreValidation())
 }
 
 function openEditDialog(rule: PortForwardRule) {
@@ -132,6 +208,7 @@ function openEditDialog(rule: PortForwardRule) {
   form.remoteHost = rule.remoteHost
   form.remotePort = rule.remotePort
   dialogVisible.value = true
+  void nextTick(() => formRef.value?.restoreValidation())
 }
 
 async function submitForm() {
