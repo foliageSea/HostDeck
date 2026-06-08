@@ -813,10 +813,18 @@ export const useDesktopStore = defineStore('desktop', {
       const windowId = `${appId}-${Date.now()}`
       const minWidth = app.minWidth ?? 320
       const minHeight = app.minHeight ?? 240
+      const width = Math.max(app.width ?? 800, minWidth)
+      const height = Math.max(app.height ?? 600, minHeight)
+      const topBarHeight = 40
+      const dockSafeArea = 84
+      const edgeGap = 16
+      const availableHeight = Math.max(0, window.innerHeight - topBarHeight - dockSafeArea)
+      const centeredX = Math.round((window.innerWidth - width) / 2)
+      const centeredY = Math.round((availableHeight - height) / 2)
       const windowState: WindowState = {
         appId,
         component: app.component,
-        height: Math.max(app.height ?? 600, minHeight),
+        height,
         icon: app.icon,
         isClosing: false,
         id: windowId,
@@ -836,9 +844,9 @@ export const useDesktopStore = defineStore('desktop', {
             }
           : props,
         title: typeof props?.title === 'string' ? props.title : app.title,
-        width: Math.max(app.width ?? 800, minWidth),
-        x: 80 + this.windows.length * 24,
-        y: 72 + this.windows.length * 24,
+        width,
+        x: Math.max(edgeGap, centeredX),
+        y: Math.max(edgeGap, centeredY),
         zIndex: this.nextZIndex++,
       }
 
