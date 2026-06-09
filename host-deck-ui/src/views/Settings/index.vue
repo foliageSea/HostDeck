@@ -68,83 +68,91 @@ async function updateExternalAccess(value: boolean) {
 </script>
 
 <template>
-  <div class="settings-view scrollbar-none grid h-full gap-[20px] overflow-y-auto p-[20px] lt-md:p-[16px]">
-    <NCard title="基础设置" size="large">
-      <NForm label-placement="top">
-        <NFormItem label="主题模式">
-          <NRadioGroup :value="settingsStore.themeMode" @update:value="settingsStore.setTheme">
-            <NSpace>
-              <NRadio value="system">跟随系统</NRadio>
-              <NRadio value="dark">深色</NRadio>
-              <NRadio value="light">浅色</NRadio>
-            </NSpace>
-          </NRadioGroup>
-        </NFormItem>
-        <NFormItem label="主题色">
-          <div class="flex flex-wrap items-center gap-[12px]">
-            <div class="w-[180px]">
-              <NColorPicker
-                :value="settingsStore.primaryColor"
-                :show-alpha="false"
-                :modes="['hex']"
-                @update:value="settingsStore.setPrimaryColor"
-              />
-            </div>
-            <div class="flex items-center gap-[8px]">
-              <button
-                v-for="color in primaryColorPresets"
-                :key="color"
-                type="button"
-                class="h-[28px] w-[28px] rounded-full border border-[rgba(148,163,184,0.28)] p-0 transition-[transform,box-shadow] duration-[160ms] ease-in-out hover:scale-[1.08] cursor-pointer"
-                :class="settingsStore.primaryColor === color ? 'shadow-[0_0_0_3px_var(--app-primary-soft)]' : ''"
-                :style="{ backgroundColor: color }"
-                :aria-label="`设置主题色 ${color}`"
-                @click="settingsStore.setPrimaryColor(color)"
-              />
-            </div>
-            <NButton secondary @click="settingsStore.resetPrimaryColor">恢复默认</NButton>
-          </div>
-        </NFormItem>
-      </NForm>
-    </NCard>
+  <div class="settings-view scrollbar-none h-full overflow-y-auto p-[20px] lt-md:p-[16px]">
+    <NTabs type="line" animated class="settings-tabs">
+      <NTabPane name="appearance" tab="外观">
+        <NCard title="基础设置" size="large">
+          <NForm label-placement="top">
+            <NFormItem label="主题模式">
+              <NRadioGroup :value="settingsStore.themeMode" @update:value="settingsStore.setTheme">
+                <NSpace>
+                  <NRadio value="system">跟随系统</NRadio>
+                  <NRadio value="dark">深色</NRadio>
+                  <NRadio value="light">浅色</NRadio>
+                </NSpace>
+              </NRadioGroup>
+            </NFormItem>
+            <NFormItem label="主题色">
+              <div class="flex flex-wrap items-center gap-[12px]">
+                <div class="w-[180px]">
+                  <NColorPicker
+                    :value="settingsStore.primaryColor"
+                    :show-alpha="false"
+                    :modes="['hex']"
+                    @update:value="settingsStore.setPrimaryColor"
+                  />
+                </div>
+                <div class="flex items-center gap-[8px]">
+                  <button
+                    v-for="color in primaryColorPresets"
+                    :key="color"
+                    type="button"
+                    class="h-[28px] w-[28px] cursor-pointer rounded-full border border-[rgba(148,163,184,0.28)] p-0 transition-[transform,box-shadow] duration-[160ms] ease-in-out hover:scale-[1.08]"
+                    :class="settingsStore.primaryColor === color ? 'shadow-[0_0_0_3px_var(--app-primary-soft)]' : ''"
+                    :style="{ backgroundColor: color }"
+                    :aria-label="`设置主题色 ${color}`"
+                    @click="settingsStore.setPrimaryColor(color)"
+                  />
+                </div>
+                <NButton secondary @click="settingsStore.resetPrimaryColor">恢复默认</NButton>
+              </div>
+            </NFormItem>
+          </NForm>
+        </NCard>
+      </NTabPane>
 
-    <NCard title="壁纸设置" size="large">
-      <NSpace vertical :size="24">
-        <WallpaperSection
-          target="desktop"
-          title="桌面与登录页壁纸"
-          default-label="桌面和登录页共用默认背景"
-          preset-label="桌面和登录页共用预设"
-          :controller="controller"
-        />
-      </NSpace>
-    </NCard>
+      <NTabPane name="wallpaper" tab="壁纸">
+        <NCard title="壁纸设置" size="large">
+          <NSpace vertical :size="24">
+            <WallpaperSection
+              target="desktop"
+              title="桌面与登录页壁纸"
+              default-label="桌面和登录页共用默认背景"
+              preset-label="桌面和登录页共用预设"
+              :controller="controller"
+            />
+          </NSpace>
+        </NCard>
+      </NTabPane>
 
-    <NCard v-if="canClearBrowserCache || canManageExternalAccess" title="应用维护" size="large">
-      <div class="flex flex-col gap-[12px]">
-        <div v-if="canManageExternalAccess" class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]">
-          <div>
-            <div class="text-[14px] font-600">允许外部访问</div>
-            <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
-              开启后内置后端将绑定 0.0.0.0，可通过本机局域网 IP 访问当前服务。
+      <NTabPane v-if="canClearBrowserCache || canManageExternalAccess" name="app" tab="应用">
+        <NCard title="应用维护" size="large">
+          <div class="flex flex-col gap-[12px]">
+            <div v-if="canManageExternalAccess" class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]">
+              <div>
+                <div class="text-[14px] font-600">允许外部访问</div>
+                <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
+                  开启后内置后端将绑定 0.0.0.0，可通过本机局域网 IP 访问当前服务。
+                </div>
+              </div>
+              <NSwitch :value="externalAccess" :loading="externalAccessLoading" @update:value="updateExternalAccess" />
+            </div>
+
+            <div v-if="canClearBrowserCache">
+              <div class="text-[14px] font-600">浏览器缓存</div>
+              <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
+                清理内置浏览器缓存，不影响登录信息、应用设置、壁纸和本地数据。
+              </div>
+            </div>
+            <div v-if="canClearBrowserCache">
+              <NButton type="warning" secondary :loading="clearingBrowserCache" @click="confirmClearBrowserCache">
+                清理浏览器缓存
+              </NButton>
             </div>
           </div>
-          <NSwitch :value="externalAccess" :loading="externalAccessLoading" @update:value="updateExternalAccess" />
-        </div>
-
-        <div v-if="canClearBrowserCache">
-          <div class="text-[14px] font-600">浏览器缓存</div>
-          <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
-            清理内置浏览器缓存，不影响登录信息、应用设置、壁纸和本地数据。
-          </div>
-        </div>
-        <div v-if="canClearBrowserCache">
-          <NButton type="warning" secondary :loading="clearingBrowserCache" @click="confirmClearBrowserCache">
-            清理浏览器缓存
-          </NButton>
-        </div>
-      </div>
-    </NCard>
+        </NCard>
+      </NTabPane>
+    </NTabs>
   </div>
 </template>
 
@@ -156,6 +164,10 @@ async function updateExternalAccess(value: boolean) {
 }
 
 .wallpaper-section + .wallpaper-section {
+  padding-top: 4px;
+}
+
+.settings-tabs :deep(.n-tabs-pane-wrapper) {
   padding-top: 4px;
 }
 
