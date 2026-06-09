@@ -81,10 +81,10 @@ function resetWallpaperEffects() {
       <div>
         <h3 class="m-0 text-[1rem]">{{ title }}</h3>
       </div>
-      <NSpace>
-        <NButton secondary @click="controller.openWallpaperPicker(target)">上传图片/视频</NButton>
-        <NButton tertiary @click="controller.resetWallpaper(target)">恢复默认</NButton>
-      </NSpace>
+      <div class="flex shrink-0 flex-nowrap items-center gap-[8px] lt-md:w-full">
+        <NButton class="whitespace-nowrap" secondary @click="controller.openWallpaperPicker(target)">上传图片/视频</NButton>
+        <NButton class="whitespace-nowrap" tertiary @click="controller.resetWallpaper(target)">恢复默认</NButton>
+      </div>
     </div>
 
     <input
