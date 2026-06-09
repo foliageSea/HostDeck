@@ -17,9 +17,9 @@ const DESKTOP_WALLPAPER_STORAGE_KEY = 'host-deck-ui.desktopWallpaper'
 const LOGIN_WALLPAPER_STORAGE_KEY = 'host-deck-ui.loginWallpaper'
 
 const DEFAULT_TERMINAL_FONT_SIZE = 14
-const DEFAULT_TERMINAL_FONT_FAMILY = 'Consolas, "Cascadia Mono", "Courier New", monospace'
+const DEFAULT_TERMINAL_FONT_FAMILY = '"Maple Mono"'
 const DEFAULT_EDITOR_FONT_SIZE = 14
-const DEFAULT_EDITOR_FONT_FAMILY = 'Consolas, "Cascadia Mono", "Courier New", monospace'
+const DEFAULT_EDITOR_FONT_FAMILY = '"Maple Mono"'
 const DEFAULT_PRIMARY_COLOR = '#0891b2'
 const WALLPAPER_PERSIST_DEBOUNCE_MS = 300
 

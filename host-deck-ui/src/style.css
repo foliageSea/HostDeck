@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'Maple Mono';
+  src: url('@/assets/MapleMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --app-primary-color: #2563eb;
   --app-primary-rgb: 37, 99, 235;
@@ -7,7 +15,7 @@
   --app-primary-soft-strong: rgba(37, 99, 235, 0.24);
   --electron-titlebar-height: 38px;
 
-  font-family: Inter, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Maple Mono', Inter, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;

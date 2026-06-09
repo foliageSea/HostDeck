@@ -363,7 +363,7 @@ watch(showSettings, (value) => {
           <div class="mb-[10px] text-[13px] text-[rgba(148,163,184,0.92)]">字体名称</div>
           <NInput
             :value="editorFontFamilyDraft"
-            placeholder="例如 Consolas, monospace"
+            placeholder='例如 "Maple Mono"'
             @update:value="(value: string) => editorFontFamilyDraft = value"
             @blur="() => {
               const nextValue = editorFontFamilyDraft.trim()
