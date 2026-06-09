@@ -182,6 +182,7 @@ function createWindow() {
       sandbox: true,
     },
   })
+  mainWindow.maximize()
 
   mainWindow.webContents.setWindowOpenHandler(({ url: nextUrl }) => {
     shell.openExternal(nextUrl)
