@@ -235,6 +235,10 @@ ipcMain.handle('app:open-devtools', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.webContents.openDevTools({ mode: 'detach' })
 })
 
+ipcMain.handle('app:force-reload', (event) => {
+  BrowserWindow.fromWebContents(event.sender)?.webContents.reloadIgnoringCache()
+})
+
 ipcMain.handle('app:clear-browser-cache', async () => {
   await session.defaultSession.clearCache()
 })

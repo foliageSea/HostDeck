@@ -17,6 +17,8 @@ const isElectron = computed(() => Boolean(window.hostDeck?.window))
 const theme = computed(() => (settingsStore.isDark ? darkTheme : null))
 const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   common: {
+    fontFamily: "'Maple Mono', Inter, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+    fontFamilyMono: "'Maple Mono', Consolas, 'Cascadia Mono', 'Courier New', monospace",
     primaryColor: settingsStore.primaryColor,
     primaryColorHover: settingsStore.primaryColor,
     primaryColorPressed: settingsStore.primaryColor,

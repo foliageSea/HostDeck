@@ -6,6 +6,7 @@ declare global {
       app?: {
         openInBrowser: () => Promise<void>
         openDevTools: () => Promise<void>
+        forceReload: () => Promise<void>
         clearBrowserCache: () => Promise<void>
         getExternalAccess: () => Promise<boolean>
         setExternalAccess: (enabled: boolean) => Promise<boolean>
