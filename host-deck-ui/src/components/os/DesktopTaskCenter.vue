@@ -158,7 +158,7 @@ function handleTaskCenterVisibilityChange(value: boolean) {
   <NPopover trigger="click" placement="bottom-end" :show="uploadCenterStore.panelOpen"
     @update:show="handleTaskCenterVisibilityChange">
     <template #trigger>
-      <NBadge :value="uploadCenterStore.activeTaskCount" :show="hasUnreadUploads" :max="99" processing>
+      <NBadge :value="uploadCenterStore.activeTaskCount" :show="hasUnreadUploads" :max="99" :offset="[-4, 6]" processing>
         <NButton quaternary circle>
           <template #icon>
             <NIcon :size="16">
