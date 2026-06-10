@@ -803,7 +803,11 @@ onUnmounted(() => {
           <AppIcon :color="desktopIconColors[item.icon]" :name="item.icon" :size="28" />
         </div>
         <div class="w-full">
-          <div class="truncate-line text-[13px] font-600">{{ item.label }}</div>
+          <div
+            class="truncate-line text-[13px] font-600 text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.65),0_2px_8px_rgba(0,0,0,0.35)]"
+          >
+            {{ item.label }}
+          </div>
         </div>
       </button>
 
