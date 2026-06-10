@@ -3,14 +3,17 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as monaco from 'monaco-editor'
 import { useSettingsStore } from '@/stores/settings'
 
-const props = withDefaults(defineProps<{
-  modelValue: string
-  language?: string
-  readonly?: boolean
-}>(), {
-  language: 'plaintext',
-  readonly: false,
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue: string
+    language?: string
+    readonly?: boolean
+  }>(),
+  {
+    language: 'plaintext',
+    readonly: false,
+  },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -33,7 +36,7 @@ function syncEditorContent(nextContent: string) {
   model.setValue(nextContent)
 }
 
-function updateEditorFontOptions(options: { fontFamily?: string, fontSize?: number }) {
+function updateEditorFontOptions(options: { fontFamily?: string; fontSize?: number }) {
   if (!editor) {
     return
   }
@@ -136,7 +139,14 @@ watch(
 </script>
 
 <template>
-  <div class="code-editor h-full min-h-0 overflow-hidden rounded-[18px] border shadow-[0_20px_48px_rgba(15,23,42,0.16)]" :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(2,6,23,0.46)]' : 'border-[rgba(148,163,184,0.2)] bg-[rgba(255,255,255,0.74)]'">
+  <div
+    class="code-editor h-full min-h-0 overflow-hidden rounded-[18px] border shadow-[0_20px_48px_rgba(15,23,42,0.16)]"
+    :class="
+      settingsStore.isDark
+        ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(2,6,23,0.46)]'
+        : 'border-[rgba(148,163,184,0.2)] bg-[rgba(255,255,255,0.74)]'
+    "
+  >
     <div ref="editorContainer" class="h-full min-h-0 overflow-hidden rounded-[inherit]" />
   </div>
 </template>

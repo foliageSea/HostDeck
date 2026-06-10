@@ -94,7 +94,8 @@ const desktopItems = computed<DesktopItem[]>(() => {
   const directoryItems = paths.map((path, index) => {
     const defaultPosition = getDefaultPosition(index)
     const storedPosition = storedDirectoryPositions[path]
-    const activeDrag = dragState.value?.id === getDesktopItemId('directory', path) ? dragState.value : null
+    const activeDrag =
+      dragState.value?.id === getDesktopItemId('directory', path) ? dragState.value : null
     const position = activeDrag
       ? { x: activeDrag.currentX, y: activeDrag.currentY }
       : storedPosition
@@ -116,7 +117,8 @@ const desktopItems = computed<DesktopItem[]>(() => {
   const portLinkItems = portLinks.map((link, index) => {
     const defaultPosition = getDefaultPosition(paths.length + index)
     const storedPosition = storedPortLinkPositions[link.id]
-    const activeDrag = dragState.value?.id === getDesktopItemId('port-link', link.id) ? dragState.value : null
+    const activeDrag =
+      dragState.value?.id === getDesktopItemId('port-link', link.id) ? dragState.value : null
     const position = activeDrag
       ? { x: activeDrag.currentX, y: activeDrag.currentY }
       : storedPosition
@@ -170,7 +172,11 @@ const dragPreviewPosition = computed(() => {
   )
 
   return getGridPositionByIndex(
-    resolveGridIndex(getGridIndex(desiredPosition.x, desiredPosition.y), occupiedIndexes, desktopItems.value.length + getGridRowCount()),
+    resolveGridIndex(
+      getGridIndex(desiredPosition.x, desiredPosition.y),
+      occupiedIndexes,
+      desktopItems.value.length + getGridRowCount(),
+    ),
   )
 })
 const contextMenuOptions = computed(() => {
@@ -183,13 +189,19 @@ const contextMenuOptions = computed(() => {
 
   if (contextMenu.value?.scope === 'selection' && selectedPaths.value.length > 0) {
     return [
-      { key: 'remove-selected', label: `移除所选 (${selectedPaths.value.length})`, props: { style: 'color: #dc2626;' } },
+      {
+        key: 'remove-selected',
+        label: `移除所选 (${selectedPaths.value.length})`,
+        props: { style: 'color: #dc2626;' },
+      },
     ]
   }
 
   return []
 })
-const primaryRgb = computed(() => `var(--app-primary-rgb, ${settingsStore.isDark ? '96, 165, 250' : '37, 99, 235'})`)
+const primaryRgb = computed(
+  () => `var(--app-primary-rgb, ${settingsStore.isDark ? '96, 165, 250' : '37, 99, 235'})`,
+)
 const gridOverlayStyle = computed(() => ({
   backgroundImage: `radial-gradient(circle, rgba(${primaryRgb.value}, ${settingsStore.isDark ? '0.18' : '0.16'}) 1.5px, transparent 1.5px)`,
   backgroundPosition: `${DESKTOP_ICON_PADDING + DESKTOP_ICON_WIDTH / 2}px ${DESKTOP_ICON_PADDING + DESKTOP_ICON_HEIGHT / 2}px`,
@@ -221,7 +233,9 @@ const selectionBoxStyle = computed(() => {
     width: `${Math.max(0, right - left)}px`,
   }
 })
-const showContextMenu = computed(() => Boolean(contextMenu.value) && contextMenuOptions.value.length > 0)
+const showContextMenu = computed(
+  () => Boolean(contextMenu.value) && contextMenuOptions.value.length > 0,
+)
 
 watch(desktopItems, (items) => {
   const availablePaths = new Set(items.map((item) => item.id))
@@ -237,8 +251,14 @@ function closeContextMenu() {
 }
 
 function clampPosition(x: number, y: number) {
-  const maxX = Math.max(DESKTOP_ICON_PADDING, contentBounds.value.width - DESKTOP_ICON_WIDTH - DESKTOP_ICON_PADDING)
-  const maxY = Math.max(DESKTOP_ICON_PADDING, contentBounds.value.height - DESKTOP_ICON_HEIGHT - DESKTOP_ICON_PADDING)
+  const maxX = Math.max(
+    DESKTOP_ICON_PADDING,
+    contentBounds.value.width - DESKTOP_ICON_WIDTH - DESKTOP_ICON_PADDING,
+  )
+  const maxY = Math.max(
+    DESKTOP_ICON_PADDING,
+    contentBounds.value.height - DESKTOP_ICON_HEIGHT - DESKTOP_ICON_PADDING,
+  )
 
   return {
     x: Math.min(Math.max(x, DESKTOP_ICON_PADDING), maxX),
@@ -257,10 +277,16 @@ function getGridRowCount() {
 
 function getGridIndex(x: number, y: number) {
   const rowCount = getGridRowCount()
-  const column = Math.max(0, Math.round((x - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)))
+  const column = Math.max(
+    0,
+    Math.round((x - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)),
+  )
   const row = Math.min(
     rowCount - 1,
-    Math.max(0, Math.round((y - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y))),
+    Math.max(
+      0,
+      Math.round((y - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)),
+    ),
   )
 
   return column * rowCount + row
@@ -277,7 +303,11 @@ function getGridPositionByIndex(index: number): GridPosition {
   }
 }
 
-function resolveGridIndex(preferredIndex: number, occupiedIndexes: Set<number>, searchSpan: number) {
+function resolveGridIndex(
+  preferredIndex: number,
+  occupiedIndexes: Set<number>,
+  searchSpan: number,
+) {
   if (!occupiedIndexes.has(preferredIndex)) {
     return preferredIndex
   }
@@ -298,17 +328,25 @@ function resolveGridIndex(preferredIndex: number, occupiedIndexes: Set<number>, 
   return preferredIndex + maxDistance + 1
 }
 
-function resolveGridPosition(position: GridPosition, occupiedIndexes: Set<number>, searchSpan: number): GridPosition {
+function resolveGridPosition(
+  position: GridPosition,
+  occupiedIndexes: Set<number>,
+  searchSpan: number,
+): GridPosition {
   const index = resolveGridIndex(getGridIndex(position.x, position.y), occupiedIndexes, searchSpan)
   occupiedIndexes.add(index)
   return getGridPositionByIndex(index)
 }
 
 function snapPosition(x: number, y: number) {
-  const snappedX = DESKTOP_ICON_PADDING
-    + Math.round((x - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)) * (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)
-  const snappedY = DESKTOP_ICON_PADDING
-    + Math.round((y - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)) * (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)
+  const snappedX =
+    DESKTOP_ICON_PADDING +
+    Math.round((x - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)) *
+      (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)
+  const snappedY =
+    DESKTOP_ICON_PADDING +
+    Math.round((y - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)) *
+      (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)
 
   return clampPosition(snappedX, snappedY)
 }
@@ -354,7 +392,12 @@ function isDirectoryTarget(target: EventTarget | null) {
 }
 
 function isRectIntersecting(left: DOMRect, right: DOMRect) {
-  return left.left < right.right && left.right > right.left && left.top < right.bottom && left.bottom > right.top
+  return (
+    left.left < right.right &&
+    left.right > right.left &&
+    left.top < right.bottom &&
+    left.bottom > right.top
+  )
 }
 
 function getPathsInsideSelection(state: SelectionState) {
@@ -423,7 +466,10 @@ function handlePointerMove(event: PointerEvent) {
   state.currentX = event.clientX
   state.currentY = event.clientY
 
-  if (!state.active && Math.hypot(state.currentX - state.startX, state.currentY - state.startY) >= 4) {
+  if (
+    !state.active &&
+    Math.hypot(state.currentX - state.startX, state.currentY - state.startY) >= 4
+  ) {
     state.active = true
   }
 
@@ -438,7 +484,10 @@ function finishSelection(event: PointerEvent) {
     return
   }
 
-  if (event.currentTarget instanceof HTMLElement && event.currentTarget.hasPointerCapture(event.pointerId)) {
+  if (
+    event.currentTarget instanceof HTMLElement &&
+    event.currentTarget.hasPointerCapture(event.pointerId)
+  ) {
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
@@ -497,7 +546,9 @@ function removeDesktopItems(paths: string[]) {
     return
   }
 
-  const items = paths.map((path) => getDesktopItemById(path)).filter((item): item is DesktopItem => Boolean(item))
+  const items = paths
+    .map((path) => getDesktopItemById(path))
+    .filter((item): item is DesktopItem => Boolean(item))
   const directoryPaths = items.filter((item) => item.type === 'directory').map((item) => item.path)
   const portLinkIds = items.filter((item) => item.type === 'port-link').map((item) => item.path)
 
@@ -510,7 +561,9 @@ function removeDesktopItems(paths: string[]) {
 
   selectedPaths.value = selectedPaths.value.filter((path) => !paths.includes(path))
   closeContextMenu()
-  getUiApi().message.success(paths.length === 1 ? '已从桌面移除该项目。' : `已从桌面移除 ${paths.length} 个项目。`)
+  getUiApi().message.success(
+    paths.length === 1 ? '已从桌面移除该项目。' : `已从桌面移除 ${paths.length} 个项目。`,
+  )
 }
 
 function handleDirectoryContextMenu(path: string, event: MouseEvent) {
@@ -617,12 +670,16 @@ function finishDirectoryDrag(event: PointerEvent) {
     return
   }
 
-  if (event.currentTarget instanceof HTMLElement && event.currentTarget.hasPointerCapture(event.pointerId)) {
+  if (
+    event.currentTarget instanceof HTMLElement &&
+    event.currentTarget.hasPointerCapture(event.pointerId)
+  ) {
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
   if (state.moved) {
-    const snappedPosition = dragPreviewPosition.value ?? snapPosition(state.currentX, state.currentY)
+    const snappedPosition =
+      dragPreviewPosition.value ?? snapPosition(state.currentX, state.currentY)
     const item = getDesktopItemById(state.id)
     if (item?.type === 'directory') {
       desktopStore.setPinnedDirectoryPosition(item.path, snappedPosition.x, snappedPosition.y)
@@ -642,9 +699,13 @@ function handleContextMenuSelect(key: string | number) {
   }
 
   if (key === 'remove') {
-    removeDesktopItems(contextMenu.value?.path && isDirectorySelected(contextMenu.value.path)
-      ? [...selectedPaths.value]
-      : contextMenu.value?.path ? [contextMenu.value.path] : [])
+    removeDesktopItems(
+      contextMenu.value?.path && isDirectorySelected(contextMenu.value.path)
+        ? [...selectedPaths.value]
+        : contextMenu.value?.path
+          ? [contextMenu.value.path]
+          : [],
+    )
     return
   }
 
@@ -712,7 +773,9 @@ onUnmounted(() => {
               ? 'border-[rgba(148,163,184,0.26)] bg-[rgba(15,23,42,0.46)] outline outline-1 outline-offset-2 outline-[var(--app-primary-border)]'
               : 'border-[rgba(100,116,139,0.36)] bg-[var(--app-primary-soft-strong)] outline outline-1 outline-offset-2 outline-[var(--app-primary-border)]'
             : '',
-          dragState?.id === item.id ? 'z-[7] cursor-grabbing opacity-80 shadow-[0_20px_40px_rgba(15,23,42,0.18)] transition-none' : '',
+          dragState?.id === item.id
+            ? 'z-[7] cursor-grabbing opacity-80 shadow-[0_20px_40px_rgba(15,23,42,0.18)] transition-none'
+            : '',
         ]"
         :style="{
           left: `${item.x}px`,

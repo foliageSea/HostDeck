@@ -49,7 +49,11 @@ export function useWallpaperSettings() {
     input?.click()
   }
 
-  function applyCustomWallpaper(target: WallpaperTarget, dataUrl: string, customType: WallpaperCustomType) {
+  function applyCustomWallpaper(
+    target: WallpaperTarget,
+    dataUrl: string,
+    customType: WallpaperCustomType,
+  ) {
     const nextValue: WallpaperSettings = {
       ...getWallpaperSettings(target),
       mode: 'custom',
@@ -90,8 +94,7 @@ export function useWallpaperSettings() {
       const uploadedWallpaper = await settingsApi.uploadWallpaper(target, file)
       applyCustomWallpaper(target, uploadedWallpaper.url, uploadedWallpaper.customType)
       getUiApi().message.success(target === 'desktop' ? '桌面壁纸已更新。' : '登录页壁纸已更新。')
-    }
-    catch (error) {
+    } catch (error) {
       getUiApi().message.error(error instanceof Error ? error.message : '上传壁纸失败。')
     }
   }

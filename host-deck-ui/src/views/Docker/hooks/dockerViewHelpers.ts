@@ -1,4 +1,8 @@
-import type { DockerComposeProject, DockerComposeProjectPayload, DockerComposeService } from '@/api/docker'
+import type {
+  DockerComposeProject,
+  DockerComposeProjectPayload,
+  DockerComposeService,
+} from '@/api/docker'
 
 import type { DockerTabName } from './dockerViewTypes'
 
@@ -41,7 +45,9 @@ export function getComposeConfigFiles(project: DockerComposeProject) {
     .filter(Boolean)
 }
 
-export function getComposeProjectPayload(project: DockerComposeProject): DockerComposeProjectPayload | null {
+export function getComposeProjectPayload(
+  project: DockerComposeProject,
+): DockerComposeProjectPayload | null {
   const configFiles = getComposeConfigFiles(project)
   if (!project.name || configFiles.length === 0) {
     return null

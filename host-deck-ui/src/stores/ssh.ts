@@ -193,7 +193,11 @@ export const useSshStore = defineStore('ssh', () => {
       }
 
       try {
-        const payload = JSON.parse(event.data) as { code?: number; data?: MonitorResponse; message?: string }
+        const payload = JSON.parse(event.data) as {
+          code?: number
+          data?: MonitorResponse
+          message?: string
+        }
         if (payload.code === 200 && payload.data) {
           monitorError.value = null
           monitorData.value = payload.data
@@ -258,7 +262,13 @@ export const useSshStore = defineStore('ssh', () => {
     }
   }
 
-  function setSession(nextConnectionId: string, nextHost: string, nextPort: number, nextUsername: string, payload?: ConnectParams) {
+  function setSession(
+    nextConnectionId: string,
+    nextHost: string,
+    nextPort: number,
+    nextUsername: string,
+    payload?: ConnectParams,
+  ) {
     connectionId.value = nextConnectionId
     host.value = nextHost
     port.value = nextPort

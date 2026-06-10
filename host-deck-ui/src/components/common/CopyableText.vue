@@ -63,5 +63,4 @@ async function copyText() {
 .copyable-text__value:hover {
   text-decoration: underline;
 }
-
 </style>

@@ -195,7 +195,11 @@ export function getFileIcon(file: FileIconTarget) {
   }
 
   const normalizedName = file.filename.toLowerCase()
-  return filenameIcons[normalizedName] ?? extensionIcons[getFileExtension(normalizedName)] ?? defaultFileIcon
+  return (
+    filenameIcons[normalizedName] ??
+    extensionIcons[getFileExtension(normalizedName)] ??
+    defaultFileIcon
+  )
 }
 
 export function getFileIconClass(file: FileIconTarget) {

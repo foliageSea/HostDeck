@@ -26,9 +26,14 @@ const videoContainerRef = ref<HTMLElement | null>(null)
 let playerInstance: InstanceType<typeof Player> | null = null
 let playerInitToken = 0
 
-const currentIndex = computed(() => props.playlist?.findIndex((item) => item.path === activePath.value) ?? -1)
+const currentIndex = computed(
+  () => props.playlist?.findIndex((item) => item.path === activePath.value) ?? -1,
+)
 const hasPrev = computed(() => currentIndex.value > 0)
-const hasNext = computed(() => currentIndex.value >= 0 && !!props.playlist && currentIndex.value < props.playlist.length - 1)
+const hasNext = computed(
+  () =>
+    currentIndex.value >= 0 && !!props.playlist && currentIndex.value < props.playlist.length - 1,
+)
 const filename = computed(() => activePath.value.split('/').pop() || activePath.value)
 const extension = computed(() => filename.value.split('.').pop()?.toLowerCase() || '')
 const hasPlaylist = computed(() => !!props.playlist?.length)
@@ -57,7 +62,8 @@ const mediaType = computed<'image' | 'video' | 'unknown'>(() => {
 })
 
 const fileUrl = computed(
-  () => `/api/files/read?connectionId=${props.connectionId}&path=${encodeURIComponent(activePath.value)}`,
+  () =>
+    `/api/files/read?connectionId=${props.connectionId}&path=${encodeURIComponent(activePath.value)}`,
 )
 
 function changeFile(index: number) {
@@ -104,7 +110,12 @@ async function initializePlayer() {
 
   await nextTick()
 
-  if (initToken !== playerInitToken || mediaType.value !== 'video' || hasError.value || !videoContainerRef.value) {
+  if (
+    initToken !== playerInitToken ||
+    mediaType.value !== 'video' ||
+    hasError.value ||
+    !videoContainerRef.value
+  ) {
     return
   }
 
@@ -154,14 +165,28 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col"
-    :class="settingsStore.isDark ? 'bg-[#020617]' : 'bg-[linear-gradient(180deg,#f8fafc_0%,#e2e8f0_100%)]'">
-    <div class="media-toolbar flex items-center justify-between gap-[12px] border-b px-[14px] py-[12px]"
-      :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] text-[#e2e8f0]' : 'border-[rgba(148,163,184,0.22)] text-[#1e293b]'">
+  <div
+    class="flex h-full flex-col"
+    :class="
+      settingsStore.isDark ? 'bg-[#020617]' : 'bg-[linear-gradient(180deg,#f8fafc_0%,#e2e8f0_100%)]'
+    "
+  >
+    <div
+      class="media-toolbar flex items-center justify-between gap-[12px] border-b px-[14px] py-[12px]"
+      :class="
+        settingsStore.isDark
+          ? 'border-[rgba(148,163,184,0.14)] text-[#e2e8f0]'
+          : 'border-[rgba(148,163,184,0.22)] text-[#1e293b]'
+      "
+    >
       <div class="flex min-w-0 items-baseline gap-[10px]">
         <strong class="truncate-line">{{ filename }}</strong>
-        <span v-if="playlistSummary" class="flex-none text-[12px]"
-          :class="settingsStore.isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'">{{ playlistSummary }}</span>
+        <span
+          v-if="playlistSummary"
+          class="flex-none text-[12px]"
+          :class="settingsStore.isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'"
+          >{{ playlistSummary }}</span
+        >
       </div>
 
       <NSpace>
@@ -193,11 +218,18 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="media-content flex min-h-0 flex-1 overflow-hidden">
-      <div class="media-stage relative flex min-h-0 min-w-0 flex-1 items-center justify-center"
-        :class="mediaType === 'video' && !hasError ? 'media-stage--video p-[8px]' : 'p-[8px]'">
+      <div
+        class="media-stage relative flex min-h-0 min-w-0 flex-1 items-center justify-center"
+        :class="mediaType === 'video' && !hasError ? 'media-stage--video p-[8px]' : 'p-[8px]'"
+      >
         <NTooltip v-if="hasPlaylist" placement="right">
           <template #trigger>
-            <NButton circle class="media-nav-button media-nav-button--prev" :disabled="!hasPrev" @click="openPrevious">
+            <NButton
+              circle
+              class="media-nav-button media-nav-button--prev"
+              :disabled="!hasPrev"
+              @click="openPrevious"
+            >
               <template #icon>
                 <NIcon size="24">
                   <ChevronLeft />
@@ -208,17 +240,36 @@ onBeforeUnmount(() => {
           上一项
         </NTooltip>
 
-        <img v-if="mediaType === 'image' && !hasError" :src="fileUrl" :alt="filename"
-          class="max-h-full max-w-full object-contain bg-black" @error="hasError = true" />
+        <img
+          v-if="mediaType === 'image' && !hasError"
+          :src="fileUrl"
+          :alt="filename"
+          class="max-h-full max-w-full object-contain bg-black"
+          @error="hasError = true"
+        />
 
-        <div v-else-if="mediaType === 'video' && !hasError" ref="videoContainerRef" title=""
-          class="media-video-player h-full min-h-[260px] w-full overflow-hidden rounded-[16px] bg-black" />
+        <div
+          v-else-if="mediaType === 'video' && !hasError"
+          ref="videoContainerRef"
+          title=""
+          class="media-video-player h-full min-h-[260px] w-full overflow-hidden rounded-[16px] bg-black"
+        />
 
-        <NResult v-else status="warning" title="无法预览该文件" description="当前仅支持基础图片和视频预览。" />
+        <NResult
+          v-else
+          status="warning"
+          title="无法预览该文件"
+          description="当前仅支持基础图片和视频预览。"
+        />
 
         <NTooltip v-if="hasPlaylist" placement="left">
           <template #trigger>
-            <NButton circle class="media-nav-button media-nav-button--next" :disabled="!hasNext" @click="openNext">
+            <NButton
+              circle
+              class="media-nav-button media-nav-button--next"
+              :disabled="!hasNext"
+              @click="openNext"
+            >
               <template #icon>
                 <NIcon size="24">
                   <ChevronRight />
@@ -231,17 +282,32 @@ onBeforeUnmount(() => {
       </div>
 
       <Transition name="media-sidebar-slide">
-        <aside v-if="shouldShowSidebar" class="media-sidebar flex w-[252px] min-w-[220px] flex-col border-l"
-          :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.76)]' : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.82)]'">
-          <div class="flex items-center justify-between gap-[10px] px-[12px] pb-[10px] pt-[12px] text-[13px] font-600"
-            :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#1e293b]'">
+        <aside
+          v-if="shouldShowSidebar"
+          class="media-sidebar flex w-[252px] min-w-[220px] flex-col border-l"
+          :class="
+            settingsStore.isDark
+              ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.76)]'
+              : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.82)]'
+          "
+        >
+          <div
+            class="flex items-center justify-between gap-[10px] px-[12px] pb-[10px] pt-[12px] text-[13px] font-600"
+            :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#1e293b]'"
+          >
             <span>文件列表</span>
-            <span class="text-[12px] font-500" :class="settingsStore.isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'">{{
-              props.playlist?.length ?? 0 }} 项</span>
+            <span
+              class="text-[12px] font-500"
+              :class="settingsStore.isDark ? 'text-[#94a3b8]' : 'text-[#64748b]'"
+              >{{ props.playlist?.length ?? 0 }} 项</span
+            >
           </div>
 
           <div class="flex min-h-0 flex-1 flex-col gap-[8px] overflow-auto px-[10px] pb-[12px]">
-            <button v-for="(item, index) in props.playlist" :key="item.path" type="button"
+            <button
+              v-for="(item, index) in props.playlist"
+              :key="item.path"
+              type="button"
               class="grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-[8px] rounded-[12px] border px-[10px] py-[9px] text-left transition-[background,border-color,color] duration-[180ms] ease-in-out"
               :class="[
                 settingsStore.isDark
@@ -252,10 +318,19 @@ onBeforeUnmount(() => {
                     ? 'border-[rgba(96,165,250,0.7)] bg-[rgba(37,99,235,0.18)] text-white'
                     : 'bg-[rgba(59,130,246,0.14)] text-[#1d4ed8]'
                   : '',
-              ]" :title="item.filename" @click="changeFile(index)">
-              <span class="rounded-full px-[6px] py-[2px] text-[11px] leading-[1.4]"
-                :class="settingsStore.isDark ? 'bg-[rgba(59,130,246,0.14)] text-[#93c5fd]' : 'bg-[rgba(37,99,235,0.1)] text-[#2563eb]'">{{
-                  item.type === 'video' ? '视频' : '图片' }}</span>
+              ]"
+              :title="item.filename"
+              @click="changeFile(index)"
+            >
+              <span
+                class="rounded-full px-[6px] py-[2px] text-[11px] leading-[1.4]"
+                :class="
+                  settingsStore.isDark
+                    ? 'bg-[rgba(59,130,246,0.14)] text-[#93c5fd]'
+                    : 'bg-[rgba(37,99,235,0.1)] text-[#2563eb]'
+                "
+                >{{ item.type === 'video' ? '视频' : '图片' }}</span
+              >
               <span class="truncate-line">{{ item.filename }}</span>
             </button>
           </div>

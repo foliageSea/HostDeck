@@ -10,8 +10,17 @@ const settingsStore = useSettingsStore()
 </script>
 
 <template>
-  <NModal v-model:show="controller.imageHistoryVisible" preset="card" :title="controller.imageHistoryTitle" style="width: min(960px, 92vw)">
-    <NSpin :show="controller.imageHistoryLoading" class="history-table-shell" :class="settingsStore.isDark ? 'history-theme-dark' : 'history-theme-light'">
+  <NModal
+    v-model:show="controller.imageHistoryVisible"
+    preset="card"
+    :title="controller.imageHistoryTitle"
+    style="width: min(960px, 92vw)"
+  >
+    <NSpin
+      :show="controller.imageHistoryLoading"
+      class="history-table-shell"
+      :class="settingsStore.isDark ? 'history-theme-dark' : 'history-theme-light'"
+    >
       <NDataTable
         class="history-table"
         :single-line="false"

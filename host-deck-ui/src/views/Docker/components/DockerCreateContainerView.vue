@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { LogoDocker } from '@vicons/ionicons5'
-import {
-  dockerApi,
-  type DockerCreateContainerPayload,
-  type DockerImage,
-} from '@/api/docker'
+import { dockerApi, type DockerCreateContainerPayload, type DockerImage } from '@/api/docker'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -49,7 +45,9 @@ const createImageOptions = computed(() =>
       }
     }),
 )
-const selectedImage = computed(() => images.value.find((item) => `${item.repository}:${item.tag}` === createForm.value.image))
+const selectedImage = computed(() =>
+  images.value.find((item) => `${item.repository}:${item.tag}` === createForm.value.image),
+)
 
 function requireConnectionId() {
   const connectionId = activeConnectionId.value
@@ -75,12 +73,13 @@ function setTextIfChanged(target: { value: string }, lines: string[]) {
 }
 
 function sanitizePathSegment(value: string) {
-  return value
-    .trim()
-    .replace(/^[a-z]+:\/\//i, '')
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'container'
+  return (
+    value
+      .trim()
+      .replace(/^[a-z]+:\/\//i, '')
+      .replace(/[^a-zA-Z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'container'
+  )
 }
 
 function getImageVolumeDefaults(image: DockerImage, volumes: string[]) {
@@ -140,7 +139,9 @@ async function loadImageDefaults(image: DockerImage | undefined) {
   } catch (error) {
     if (requestId === imageDefaultsRequestId) {
       console.error('Failed to load Docker image create defaults', error)
-      getUiApi().message.warning(error instanceof Error ? error.message : '提取镜像端口和目录失败。')
+      getUiApi().message.warning(
+        error instanceof Error ? error.message : '提取镜像端口和目录失败。',
+      )
     }
   } finally {
     if (requestId === imageDefaultsRequestId) {
@@ -194,11 +195,19 @@ watch(selectedImage, (image) => {
 <template>
   <div
     class="flex h-full flex-col overflow-hidden"
-    :class="settingsStore.isDark ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.18),rgba(15,23,42,0.06))]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(226,232,240,0.36))]'"
+    :class="
+      settingsStore.isDark
+        ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.18),rgba(15,23,42,0.06))]'
+        : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(226,232,240,0.36))]'
+    "
   >
     <div
       class="flex shrink-0 flex-wrap items-center justify-between gap-[12px] border-b px-[18px] py-[14px]"
-      :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] text-[#e2e8f0]' : 'border-[rgba(148,163,184,0.22)] text-[#1e293b]'"
+      :class="
+        settingsStore.isDark
+          ? 'border-[rgba(148,163,184,0.14)] text-[#e2e8f0]'
+          : 'border-[rgba(148,163,184,0.22)] text-[#1e293b]'
+      "
     >
       <div class="min-w-0">
         <div class="mb-[4px] flex items-center gap-[8px]">
@@ -211,7 +220,10 @@ watch(selectedImage, (image) => {
     </div>
 
     <NSpin :show="loadingImages" class="create-container-body min-h-0 flex-1 overflow-hidden">
-      <div class="h-full min-h-0 overflow-auto p-[18px] app-scrollbar" :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'">
+      <div
+        class="h-full min-h-0 overflow-auto p-[18px] app-scrollbar"
+        :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'"
+      >
         <NForm label-placement="top">
           <NGrid :cols="2" :x-gap="12" responsive="screen">
             <NFormItemGi label="镜像">
@@ -256,7 +268,12 @@ watch(selectedImage, (image) => {
           </NFormItem>
 
           <NFormItem label="环境变量">
-            <NInput v-model:value="createEnvText" type="textarea" :rows="3" placeholder="每行一条，例如 NODE_ENV=production" />
+            <NInput
+              v-model:value="createEnvText"
+              type="textarea"
+              :rows="3"
+              placeholder="每行一条，例如 NODE_ENV=production"
+            />
           </NFormItem>
 
           <NFormItem label="卷挂载">
@@ -270,11 +287,21 @@ watch(selectedImage, (image) => {
           </NFormItem>
 
           <NFormItem label="启动命令 CMD">
-            <NInput v-model:value="createCmdText" type="textarea" :rows="2" placeholder="每行一个参数" />
+            <NInput
+              v-model:value="createCmdText"
+              type="textarea"
+              :rows="2"
+              placeholder="每行一个参数"
+            />
           </NFormItem>
 
           <NFormItem label="Entrypoint">
-            <NInput v-model:value="createEntrypointText" type="textarea" :rows="2" placeholder="每行一个参数" />
+            <NInput
+              v-model:value="createEntrypointText"
+              type="textarea"
+              :rows="2"
+              placeholder="每行一个参数"
+            />
           </NFormItem>
         </NForm>
       </div>
@@ -282,11 +309,17 @@ watch(selectedImage, (image) => {
 
     <div
       class="flex shrink-0 justify-end border-t px-[18px] py-[12px] backdrop-blur-[14px] shadow-[0_-16px_36px_rgba(15,23,42,0.12)]"
-      :class="settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.62)]' : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.68)]'"
+      :class="
+        settingsStore.isDark
+          ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.62)]'
+          : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.68)]'
+      "
     >
       <NSpace>
         <NButton @click="closeWindow">取消</NButton>
-        <NButton type="primary" :loading="creatingContainer" @click="submitCreateContainer">创建</NButton>
+        <NButton type="primary" :loading="creatingContainer" @click="submitCreateContainer"
+          >创建</NButton
+        >
       </NSpace>
     </div>
   </div>

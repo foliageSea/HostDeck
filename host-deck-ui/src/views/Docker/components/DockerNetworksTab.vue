@@ -103,7 +103,9 @@ function parseKeyValueMap(value: string) {
 
         return [line.slice(0, index).trim(), line.slice(index + 1).trim()] as const
       })
-      .filter((entry): entry is readonly [string, string] => Boolean(entry && entry[0] && entry[1])),
+      .filter((entry): entry is readonly [string, string] =>
+        Boolean(entry && entry[0] && entry[1]),
+      ),
   )
 }
 
@@ -143,7 +145,11 @@ async function loadContainerOptions(network: DockerNetwork, disconnect: boolean)
   containerOptionsLoading.value = true
   try {
     const containers = await loadAllContainers()
-    if (requestId !== containerOptionsRequestId || selectedNetwork.value?.id !== network.id || connectForm.disconnect !== disconnect) {
+    if (
+      requestId !== containerOptionsRequestId ||
+      selectedNetwork.value?.id !== network.id ||
+      connectForm.disconnect !== disconnect
+    ) {
       return
     }
 
@@ -207,7 +213,10 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+  <div
+    class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden"
+    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'"
+  >
     <DockerTabToolbar>
       <template #left>
         <NInput
@@ -220,12 +229,16 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 
       <template #actions>
         <NButton type="primary" @click="openCreateDialog">新建网络</NButton>
-        <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks">刷新网络</NButton>
+        <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks"
+          >刷新网络</NButton
+        >
         <NButton quaternary @click="controller.confirmPruneNetworks">清理未使用</NButton>
       </template>
 
       <template #meta>
-        <NTag round size="small">显示 {{ controller.filteredNetworks.length }} / {{ controller.networks.length }}</NTag>
+        <NTag round size="small"
+          >显示 {{ controller.filteredNetworks.length }} / {{ controller.networks.length }}</NTag
+        >
       </template>
     </DockerTabToolbar>
 
@@ -242,8 +255,18 @@ function getConnectedContainersTitle(network: DockerNetwork) {
       >
         <template #header>
           <div class="min-w-0">
-            <div class="truncate text-[15px] font-600" :title="network.name">{{ network.name }}</div>
-            <div class="mt-[4px] truncate text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'" :title="network.id">
+            <div class="truncate text-[15px] font-600" :title="network.name">
+              {{ network.name }}
+            </div>
+            <div
+              class="mt-[4px] truncate text-[12px]"
+              :class="
+                settingsStore.isDark
+                  ? 'text-[rgba(226,232,240,0.58)]'
+                  : 'text-[rgba(100,116,139,0.88)]'
+              "
+              :title="network.id"
+            >
               {{ network.id.slice(0, 18) }}
             </div>
           </div>
@@ -271,10 +294,17 @@ function getConnectedContainersTitle(network: DockerNetwork) {
             <span>容器名称</span>
             <div class="docker-chip-list" :title="getConnectedContainersTitle(network)">
               <template v-if="network.connectedContainerNames?.length">
-                <NTag v-for="name in network.connectedContainerNames.slice(0, 4)" :key="name" size="small" round>
+                <NTag
+                  v-for="name in network.connectedContainerNames.slice(0, 4)"
+                  :key="name"
+                  size="small"
+                  round
+                >
                   {{ name }}
                 </NTag>
-                <span v-if="network.connectedContainerNames.length > 4">等 {{ network.connectedContainerNames.length }} 个</span>
+                <span v-if="network.connectedContainerNames.length > 4"
+                  >等 {{ network.connectedContainerNames.length }} 个</span
+                >
               </template>
               <template v-else>-</template>
             </div>
@@ -287,16 +317,33 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 
         <template #footer>
           <div class="docker-card-actions">
-            <NButton size="tiny" quaternary @click="controller.viewNetworkInspect(network)">Inspect</NButton>
-            <NButton size="tiny" quaternary @click="openConnectDialog(network, false)">连接容器</NButton>
-            <NButton size="tiny" quaternary @click="openConnectDialog(network, true)">断开容器</NButton>
-            <NButton size="tiny" quaternary type="error" @click="controller.confirmRemoveNetwork(network)">删除</NButton>
+            <NButton size="tiny" quaternary @click="controller.viewNetworkInspect(network)"
+              >Inspect</NButton
+            >
+            <NButton size="tiny" quaternary @click="openConnectDialog(network, false)"
+              >连接容器</NButton
+            >
+            <NButton size="tiny" quaternary @click="openConnectDialog(network, true)"
+              >断开容器</NButton
+            >
+            <NButton
+              size="tiny"
+              quaternary
+              type="error"
+              @click="controller.confirmRemoveNetwork(network)"
+              >删除</NButton
+            >
           </div>
         </template>
       </NCard>
     </div>
 
-    <NModal v-model:show="createVisible" preset="card" title="新建 Docker 网络" style="width: min(560px, 92vw)">
+    <NModal
+      v-model:show="createVisible"
+      preset="card"
+      title="新建 Docker 网络"
+      style="width: min(560px, 92vw)"
+    >
       <NForm label-placement="top">
         <NFormItem label="网络名称">
           <NInput v-model:value="createForm.name" placeholder="例如 app-network" />
@@ -347,7 +394,8 @@ function getConnectedContainersTitle(network: DockerNetwork) {
                       <Help />
                     </NIcon>
                   </template>
-                  允许独立容器加入。主要用于 overlay/Swarm 网络，开启后可手动把普通容器连接到该网络。
+                  允许独立容器加入。主要用于 overlay/Swarm
+                  网络，开启后可手动把普通容器连接到该网络。
                 </NTooltip>
               </span>
             </template>
@@ -404,7 +452,12 @@ function getConnectedContainersTitle(network: DockerNetwork) {
       <template #action>
         <NSpace justify="end">
           <NButton @click="connectVisible = false">取消</NButton>
-          <NButton type="primary" :loading="connectSubmitting" :disabled="containerOptionsLoading || !connectForm.container" @click="submitConnection">
+          <NButton
+            type="primary"
+            :loading="connectSubmitting"
+            :disabled="containerOptionsLoading || !connectForm.container"
+            @click="submitConnection"
+          >
             {{ connectForm.disconnect ? '断开' : '连接' }}
           </NButton>
         </NSpace>
@@ -419,7 +472,11 @@ function getConnectedContainersTitle(network: DockerNetwork) {
   --docker-card-bg: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.46));
   --docker-card-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
   --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.42);
-  --docker-card-bg-hover: linear-gradient(145deg, rgba(15, 23, 42, 0.84), rgba(var(--app-primary-rgb), 0.28));
+  --docker-card-bg-hover: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.84),
+    rgba(var(--app-primary-rgb), 0.28)
+  );
   --docker-card-field-bg: rgba(15, 23, 42, 0.38);
   --docker-card-label-color: rgba(226, 232, 240, 0.52);
   --docker-card-value-color: rgba(248, 250, 252, 0.9);
@@ -430,7 +487,11 @@ function getConnectedContainersTitle(network: DockerNetwork) {
   --docker-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
   --docker-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
   --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.34);
-  --docker-card-bg-hover: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(var(--app-primary-rgb), 0.14));
+  --docker-card-bg-hover: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(var(--app-primary-rgb), 0.14)
+  );
   --docker-card-field-bg: rgba(241, 245, 249, 0.92);
   --docker-card-label-color: rgba(100, 116, 139, 0.9);
   --docker-card-value-color: rgba(30, 41, 59, 0.92);

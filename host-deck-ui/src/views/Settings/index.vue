@@ -10,27 +10,23 @@ const clearingBrowserCache = ref(false)
 const externalAccess = ref(false)
 const externalAccessLoading = ref(false)
 const canClearBrowserCache = computed(() => Boolean(window.hostDeck?.app?.clearBrowserCache))
-const canManageExternalAccess = computed(() => Boolean(window.hostDeck?.app?.getExternalAccess && window.hostDeck?.app?.setExternalAccess))
+const canManageExternalAccess = computed(() =>
+  Boolean(window.hostDeck?.app?.getExternalAccess && window.hostDeck?.app?.setExternalAccess),
+)
 
 onMounted(async () => {
   if (!canManageExternalAccess.value) return
 
-  externalAccess.value = await window.hostDeck?.app?.getExternalAccess() ?? false
+  externalAccess.value = (await window.hostDeck?.app?.getExternalAccess()) ?? false
 })
 
-const primaryColorPresets = [
-  '#2563eb',
-  '#0891b2',
-  '#059669',
-  '#7c3aed',
-  '#db2777',
-  '#ea580c',
-]
+const primaryColorPresets = ['#2563eb', '#0891b2', '#059669', '#7c3aed', '#db2777', '#ea580c']
 
 function confirmClearBrowserCache() {
   const dialog = getUiApi().dialog.warning({
     title: '清理浏览器缓存',
-    content: '将清理 Electron 内置浏览器缓存，不会删除登录信息、应用设置、壁纸或本地数据。是否继续？',
+    content:
+      '将清理 Electron 内置浏览器缓存，不会删除登录信息、应用设置、壁纸或本地数据。是否继续？',
     positiveText: '清理缓存',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -39,11 +35,9 @@ function confirmClearBrowserCache() {
       try {
         await window.hostDeck?.app?.clearBrowserCache()
         getUiApi().message.success('浏览器缓存已清理。')
-      }
-      catch (error) {
+      } catch (error) {
         getUiApi().message.error(error instanceof Error ? error.message : '清理浏览器缓存失败。')
-      }
-      finally {
+      } finally {
         dialog.loading = false
         clearingBrowserCache.value = false
       }
@@ -54,14 +48,12 @@ function confirmClearBrowserCache() {
 async function updateExternalAccess(value: boolean) {
   externalAccessLoading.value = true
   try {
-    externalAccess.value = await window.hostDeck?.app?.setExternalAccess(value) ?? false
+    externalAccess.value = (await window.hostDeck?.app?.setExternalAccess(value)) ?? false
     getUiApi().message.success(externalAccess.value ? '已允许局域网访问。' : '已恢复仅本机访问。')
-  }
-  catch (error) {
+  } catch (error) {
     externalAccess.value = !value
     getUiApi().message.error(error instanceof Error ? error.message : '更新外部访问设置失败。')
-  }
-  finally {
+  } finally {
     externalAccessLoading.value = false
   }
 }
@@ -98,7 +90,11 @@ async function updateExternalAccess(value: boolean) {
                     :key="color"
                     type="button"
                     class="h-[28px] w-[28px] cursor-pointer rounded-full border border-[rgba(148,163,184,0.28)] p-0 transition-[transform,box-shadow] duration-[160ms] ease-in-out hover:scale-[1.08]"
-                    :class="settingsStore.primaryColor === color ? 'shadow-[0_0_0_3px_var(--app-primary-soft)]' : ''"
+                    :class="
+                      settingsStore.primaryColor === color
+                        ? 'shadow-[0_0_0_3px_var(--app-primary-soft)]'
+                        : ''
+                    "
                     :style="{ backgroundColor: color }"
                     :aria-label="`设置主题色 ${color}`"
                     @click="settingsStore.setPrimaryColor(color)"
@@ -128,14 +124,21 @@ async function updateExternalAccess(value: boolean) {
       <NTabPane v-if="canClearBrowserCache || canManageExternalAccess" name="app" tab="应用">
         <NCard title="应用维护" size="large">
           <div class="flex flex-col gap-[12px]">
-            <div v-if="canManageExternalAccess" class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]">
+            <div
+              v-if="canManageExternalAccess"
+              class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
+            >
               <div>
                 <div class="text-[14px] font-600">允许外部访问</div>
                 <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
                   开启后内置后端将绑定 0.0.0.0，可通过本机局域网 IP 访问当前服务。
                 </div>
               </div>
-              <NSwitch :value="externalAccess" :loading="externalAccessLoading" @update:value="updateExternalAccess" />
+              <NSwitch
+                :value="externalAccess"
+                :loading="externalAccessLoading"
+                @update:value="updateExternalAccess"
+              />
             </div>
 
             <div v-if="canClearBrowserCache">
@@ -145,7 +148,12 @@ async function updateExternalAccess(value: boolean) {
               </div>
             </div>
             <div v-if="canClearBrowserCache">
-              <NButton type="warning" secondary :loading="clearingBrowserCache" @click="confirmClearBrowserCache">
+              <NButton
+                type="warning"
+                secondary
+                :loading="clearingBrowserCache"
+                @click="confirmClearBrowserCache"
+              >
                 清理浏览器缓存
               </NButton>
             </div>
@@ -170,5 +178,4 @@ async function updateExternalAccess(value: boolean) {
 .settings-tabs :deep(.n-tabs-pane-wrapper) {
   padding-top: 4px;
 }
-
 </style>

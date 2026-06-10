@@ -46,7 +46,8 @@ function createWrapper(props: Partial<InstanceType<typeof FilePickerDialog>['$pr
         NButton: defineComponent({
           props: ['disabled'],
           emits: ['click'],
-          template: '<button :disabled="disabled" @click="$emit(\'click\', $event)"><slot name="icon" /><slot /></button>',
+          template:
+            '<button :disabled="disabled" @click="$emit(\'click\', $event)"><slot name="icon" /><slot /></button>',
         }),
         NIcon: defineComponent({
           template: '<span><slot /></span>',

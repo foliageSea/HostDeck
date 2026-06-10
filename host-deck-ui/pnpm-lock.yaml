@@ -84,6 +84,9 @@ importers:
       naive-ui:
         specifier: ^2.44.1
         version: 2.44.1(vue@3.5.32(typescript@6.0.2))
+      prettier:
+        specifier: ^3.8.4
+        version: 3.8.4
       typescript:
         specifier: ~6.0.2
         version: 6.0.2
@@ -2045,6 +2048,11 @@ packages:
   postject@1.0.0-alpha.6:
     resolution: {integrity: sha512-b9Eb8h2eVqNE8edvKdwqkrY6O7kAwmI8kcnBv1NScolYJbo59XUF0noFq+lxbC1yN20bmC0WBEbDC5H/7ASb0A==}
     engines: {node: '>=14.0.0'}
+    hasBin: true
+
+  prettier@3.8.4:
+    resolution: {integrity: sha512-N2MylSdi48+5N/6S5j+maeHbUSIzzZ5uOcX5Hm4QpV8Dkb1HFjfAKTKX6yNPJQD9AhcT3ifHNB66tWTTJDi11Q==}
+    engines: {node: '>=14'}
     hasBin: true
 
   proc-log@6.1.0:
@@ -4827,6 +4835,8 @@ snapshots:
     dependencies:
       commander: 9.5.0
     optional: true
+
+  prettier@3.8.4: {}
 
   proc-log@6.1.0: {}
 

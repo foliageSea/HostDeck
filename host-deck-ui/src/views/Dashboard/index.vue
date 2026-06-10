@@ -18,7 +18,7 @@ const sshStore = useSshStore()
 const settingsStore = useSettingsStore()
 
 const historyLimit = 200
-const rangeOptions: Array<{ key: RangeKey, label: string }> = [
+const rangeOptions: Array<{ key: RangeKey; label: string }> = [
   { key: '1m', label: '1 分钟' },
   { key: '5m', label: '5 分钟' },
   { key: '10m', label: '10 分钟' },
@@ -30,7 +30,9 @@ const smoothLines = ref(true)
 const samples = ref<MonitorResponse[]>([])
 
 const monitorError = computed(() => sshStore.monitorError)
-const currentSample = computed(() => sshStore.monitorData ?? samples.value[samples.value.length - 1] ?? null)
+const currentSample = computed(
+  () => sshStore.monitorData ?? samples.value[samples.value.length - 1] ?? null,
+)
 const hasSamples = computed(() => samples.value.length > 0)
 const lastUpdatedAt = computed(() => currentSample.value?.timestamp ?? null)
 
@@ -69,7 +71,9 @@ const latestUpdateText = computed(() => {
 })
 
 const visibleSamples = computed(() => samples.value.slice(-getRangeLimit(selectedRange.value)))
-const visibleRangeLabel = computed(() => rangeOptions.find((option) => option.key === selectedRange.value)?.label ?? '5 分钟')
+const visibleRangeLabel = computed(
+  () => rangeOptions.find((option) => option.key === selectedRange.value)?.label ?? '5 分钟',
+)
 const chartTimestamps = computed(() => visibleSamples.value.map((sample) => sample.timestamp))
 const cpuSeries = computed(() => visibleSamples.value.map((sample) => sample.cpuUsage ?? 0))
 const memorySeries = computed(() =>
@@ -81,8 +85,12 @@ const memorySeries = computed(() =>
     return (sample.ram.used / sample.ram.total) * 100
   }),
 )
-const uploadSeries = computed(() => visibleSamples.value.map((sample) => sample.network?.uploadSpeed ?? 0))
-const downloadSeries = computed(() => visibleSamples.value.map((sample) => sample.network?.downloadSpeed ?? 0))
+const uploadSeries = computed(() =>
+  visibleSamples.value.map((sample) => sample.network?.uploadSpeed ?? 0),
+)
+const downloadSeries = computed(() =>
+  visibleSamples.value.map((sample) => sample.network?.downloadSpeed ?? 0),
+)
 const cpuPeakDisplay = computed(() => formatPercent(getPeak(cpuSeries.value)))
 const cpuAverageDisplay = computed(() => formatPercent(getAverage(cpuSeries.value)))
 const memoryPeakDisplay = computed(() => formatPercent(getPeak(memorySeries.value)))
@@ -181,7 +189,9 @@ function normalizeSamples(items: MonitorResponse[]) {
     sampleMap.set(item.timestamp, item)
   }
 
-  return [...sampleMap.values()].sort((left, right) => left.timestamp - right.timestamp).slice(-historyLimit)
+  return [...sampleMap.values()]
+    .sort((left, right) => left.timestamp - right.timestamp)
+    .slice(-historyLimit)
 }
 
 function mergeSamples(items: MonitorResponse[]) {
@@ -294,16 +304,17 @@ function createChartOption(config: {
       right: 16,
       top: config.series.length > 1 ? 42 : 18,
     },
-    legend: config.series.length > 1
-      ? {
-          icon: 'circle',
-          right: 0,
-          textStyle: {
-            color: mutedTextColor,
-          },
-          top: 0,
-        }
-      : undefined,
+    legend:
+      config.series.length > 1
+        ? {
+            icon: 'circle',
+            right: 0,
+            textStyle: {
+              color: mutedTextColor,
+            },
+            top: 0,
+          }
+        : undefined,
     textStyle: {
       color: textColor,
       fontFamily: 'inherit',
@@ -329,12 +340,12 @@ function createChartOption(config: {
         for (const row of rows) {
           const seriesRow = row as { color?: string; seriesName?: string; value?: number }
           lines.push(
-            `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:140px;">`
-            + `<span style="display:flex;align-items:center;gap:8px;">`
-            + `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:${seriesRow.color ?? '#94a3b8'};"></span>`
-            + `${seriesRow.seriesName ?? '--'}</span>`
-            + `<strong>${config.formatValue(Number(seriesRow.value ?? 0))}</strong>`
-            + `</div>`,
+            `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:140px;">` +
+              `<span style="display:flex;align-items:center;gap:8px;">` +
+              `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:${seriesRow.color ?? '#94a3b8'};"></span>` +
+              `${seriesRow.seriesName ?? '--'}</span>` +
+              `<strong>${config.formatValue(Number(seriesRow.value ?? 0))}</strong>` +
+              `</div>`,
           )
         }
 
@@ -395,45 +406,95 @@ function createChartOption(config: {
 </script>
 
 <template>
-  <div class="monitor-view h-full overflow-auto p-[20px]" :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]'">
+  <div
+    class="monitor-view h-full overflow-auto p-[20px]"
+    :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]'"
+  >
     <div class="mb-[18px] flex items-start justify-between gap-[16px] lt-md:flex-col">
       <div>
-        <div class="text-[0.82rem] uppercase tracking-[0.24em]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.88)]'">
+        <div
+          class="text-[0.82rem] uppercase tracking-[0.24em]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.88)]'
+          "
+        >
           Performance Monitor
         </div>
         <h2 class="mb-[6px] mt-[10px] text-[26px] font-700">性能监控</h2>
       </div>
 
-      <div class="rounded-[18px] px-[16px] py-[14px] backdrop-blur-[16px]"
-        :class="settingsStore.isDark
-          ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.52)]'
-          : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'">
-        <div class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">最新采样</div>
+      <div
+        class="rounded-[18px] px-[16px] py-[14px] backdrop-blur-[16px]"
+        :class="
+          settingsStore.isDark
+            ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.52)]'
+            : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'
+        "
+      >
+        <div
+          class="text-[12px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'
+          "
+        >
+          最新采样
+        </div>
         <div class="mt-[6px] text-[18px] font-700">{{ latestUpdateText }}</div>
-        <div class="mt-[8px] text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(191,219,254,0.94)]' : 'text-[rgba(37,99,235,0.88)]'">
+        <div
+          class="mt-[8px] text-[12px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(191,219,254,0.94)]' : 'text-[rgba(37,99,235,0.88)]'
+          "
+        >
           {{ samples.length }} 个缓存点 · 当前显示 {{ visibleRangeLabel }} · 3 秒采样粒度
         </div>
       </div>
     </div>
 
-    <div class="mb-[16px] flex items-center justify-between gap-[12px] lt-md:flex-col lt-md:items-stretch">
+    <div
+      class="mb-[16px] flex items-center justify-between gap-[12px] lt-md:flex-col lt-md:items-stretch"
+    >
       <div class="flex flex-wrap items-center gap-[8px]">
-        <span class="text-[13px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.94)]' : 'text-[rgba(100,116,139,0.92)]'">时间范围</span>
+        <span
+          class="text-[13px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(148,163,184,0.94)]' : 'text-[rgba(100,116,139,0.92)]'
+          "
+          >时间范围</span
+        >
         <NButtonGroup>
-          <NButton v-for="option in rangeOptions" :key="option.key" size="small"
+          <NButton
+            v-for="option in rangeOptions"
+            :key="option.key"
+            size="small"
             :type="selectedRange === option.key ? 'primary' : 'default'"
-            :secondary="selectedRange !== option.key" @click="selectedRange = option.key">
+            :secondary="selectedRange !== option.key"
+            @click="selectedRange = option.key"
+          >
             {{ option.label }}
           </NButton>
         </NButtonGroup>
       </div>
 
-      <div class="flex items-center gap-[12px] rounded-[16px] px-[14px] py-[10px] backdrop-blur-[16px]"
-        :class="settingsStore.isDark
-          ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
-          : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'">
+      <div
+        class="flex items-center gap-[12px] rounded-[16px] px-[14px] py-[10px] backdrop-blur-[16px]"
+        :class="
+          settingsStore.isDark
+            ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
+            : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'
+        "
+      >
         <div>
-          <div class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">图表样式</div>
+          <div
+            class="text-[12px]"
+            :class="
+              settingsStore.isDark
+                ? 'text-[rgba(148,163,184,0.92)]'
+                : 'text-[rgba(100,116,139,0.92)]'
+            "
+          >
+            图表样式
+          </div>
           <div class="text-[14px] font-600">平滑曲线</div>
         </div>
         <NSwitch v-model:value="smoothLines" />
@@ -450,40 +511,76 @@ function createChartOption(config: {
     </div>
 
     <div class="stats-grid mb-[18px] grid gap-[14px]">
-      <div v-for="item in [
-        { label: 'CPU 使用率', value: cpuUsageDisplay, detail: `Load ${cpuLoad}` },
-        { label: '内存占用', value: ramUsageDisplay, detail: ramDetail },
-        { label: '上传速率', value: formatSpeed(uploadSpeed), detail: '当前发送带宽' },
-        { label: '下载速率', value: formatSpeed(downloadSpeed), detail: '当前接收带宽' },
-        { label: '磁盘占用', value: diskUsage, detail: '根目录空间使用' },
-      ]" :key="item.label" class="rounded-[20px] p-[16px] backdrop-blur-[16px]"
-        :class="settingsStore.isDark
-          ? 'border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(15,23,42,0.56))]'
-          : 'border border-[rgba(148,163,184,0.22)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.86))]'">
-        <div class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">{{ item.label }}</div>
+      <div
+        v-for="item in [
+          { label: 'CPU 使用率', value: cpuUsageDisplay, detail: `Load ${cpuLoad}` },
+          { label: '内存占用', value: ramUsageDisplay, detail: ramDetail },
+          { label: '上传速率', value: formatSpeed(uploadSpeed), detail: '当前发送带宽' },
+          { label: '下载速率', value: formatSpeed(downloadSpeed), detail: '当前接收带宽' },
+          { label: '磁盘占用', value: diskUsage, detail: '根目录空间使用' },
+        ]"
+        :key="item.label"
+        class="rounded-[20px] p-[16px] backdrop-blur-[16px]"
+        :class="
+          settingsStore.isDark
+            ? 'border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(15,23,42,0.56))]'
+            : 'border border-[rgba(148,163,184,0.22)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.86))]'
+        "
+      >
+        <div
+          class="text-[12px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'
+          "
+        >
+          {{ item.label }}
+        </div>
         <div class="mt-[10px] text-[30px] font-700 leading-[1.05]">{{ item.value }}</div>
-        <div class="mt-[10px] text-[13px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(51,65,85,0.8)]'">{{ item.detail }}</div>
+        <div
+          class="mt-[10px] text-[13px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(51,65,85,0.8)]'
+          "
+        >
+          {{ item.detail }}
+        </div>
       </div>
     </div>
 
-    <div v-if="historyLoading && !hasSamples"
+    <div
+      v-if="historyLoading && !hasSamples"
       class="flex min-h-[420px] items-center justify-center rounded-[24px] backdrop-blur-[16px]"
-      :class="settingsStore.isDark
-        ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
-        : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'">
+      :class="
+        settingsStore.isDark
+          ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
+          : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'
+      "
+    >
       <NSpin size="large" />
     </div>
 
-    <NEmpty v-else-if="!hasSamples" size="large"
+    <NEmpty
+      v-else-if="!hasSamples"
+      size="large"
       class="min-h-[420px] rounded-[24px] backdrop-blur-[16px]"
-      :class="settingsStore.isDark
-        ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
-        : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'" />
+      :class="
+        settingsStore.isDark
+          ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
+          : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'
+      "
+    />
 
     <div v-else class="chart-grid grid gap-[16px]">
       <NCard title="CPU 使用率趋势" :bordered="false" class="monitor-card">
         <template #header-extra>
-          <span class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">
+          <span
+            class="text-[12px]"
+            :class="
+              settingsStore.isDark
+                ? 'text-[rgba(148,163,184,0.92)]'
+                : 'text-[rgba(100,116,139,0.92)]'
+            "
+          >
             均值 {{ cpuAverageDisplay }} · 峰值 {{ cpuPeakDisplay }}
           </span>
         </template>
@@ -492,7 +589,14 @@ function createChartOption(config: {
 
       <NCard title="内存占用趋势" :bordered="false" class="monitor-card">
         <template #header-extra>
-          <span class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">
+          <span
+            class="text-[12px]"
+            :class="
+              settingsStore.isDark
+                ? 'text-[rgba(148,163,184,0.92)]'
+                : 'text-[rgba(100,116,139,0.92)]'
+            "
+          >
             均值 {{ memoryAverageDisplay }} · 峰值 {{ memoryPeakDisplay }}
           </span>
         </template>
@@ -501,7 +605,14 @@ function createChartOption(config: {
 
       <NCard title="网络吞吐趋势" :bordered="false" class="monitor-card chart-grid-span-2">
         <template #header-extra>
-          <span class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">
+          <span
+            class="text-[12px]"
+            :class="
+              settingsStore.isDark
+                ? 'text-[rgba(148,163,184,0.92)]'
+                : 'text-[rgba(100,116,139,0.92)]'
+            "
+          >
             上传均值 {{ uploadAverageDisplay }} · 下载均值 {{ downloadAverageDisplay }}
           </span>
         </template>

@@ -36,7 +36,13 @@ export interface PagedResponse<T, TSummary = Record<string, number>> {
   summary?: TSummary
 }
 
-export type DockerContainerStatusFilter = 'all' | 'running' | 'stopped' | 'paused' | 'restarting' | 'exited'
+export type DockerContainerStatusFilter =
+  | 'all'
+  | 'running'
+  | 'stopped'
+  | 'paused'
+  | 'restarting'
+  | 'exited'
 
 export interface DockerContainerListParams {
   page?: number
@@ -278,58 +284,88 @@ export const dockerApi = {
   },
 
   async listComposeServices(connectionId: string, payload: DockerComposeProjectPayload) {
-    const response = await http.post<DockerComposeService[]>('/api/docker/compose/project/services', payload, {
-      params: { connectionId },
-    })
+    const response = await http.post<DockerComposeService[]>(
+      '/api/docker/compose/project/services',
+      payload,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async upComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
-    const response = await http.post<{ success: boolean; output: string }>('/api/docker/compose/project/up', payload, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ success: boolean; output: string }>(
+      '/api/docker/compose/project/up',
+      payload,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async stopComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
-    const response = await http.post<{ success: boolean; output: string }>('/api/docker/compose/project/stop', payload, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ success: boolean; output: string }>(
+      '/api/docker/compose/project/stop',
+      payload,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async restartComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
-    const response = await http.post<{ success: boolean; output: string }>('/api/docker/compose/project/restart', payload, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ success: boolean; output: string }>(
+      '/api/docker/compose/project/restart',
+      payload,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async downComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
-    const response = await http.post<{ success: boolean; output: string }>('/api/docker/compose/project/down', payload, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ success: boolean; output: string }>(
+      '/api/docker/compose/project/down',
+      payload,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async getComposeLogs(connectionId: string, payload: DockerComposeProjectPayload, tail = 200) {
-    const response = await http.post<{ logs: string }>('/api/docker/compose/project/logs', payload, {
-      params: { connectionId, tail },
-    })
+    const response = await http.post<{ logs: string }>(
+      '/api/docker/compose/project/logs',
+      payload,
+      {
+        params: { connectionId, tail },
+      },
+    )
     return response.data
   },
 
   async listContainers(connectionId: string, params: DockerContainerListParams = {}) {
-    const response = await http.get<PagedResponse<DockerContainer, DockerContainerSummary>>('/api/docker/containers', {
-      params: { ...params, connectionId },
-    })
+    const response = await http.get<PagedResponse<DockerContainer, DockerContainerSummary>>(
+      '/api/docker/containers',
+      {
+        params: { ...params, connectionId },
+      },
+    )
     return response.data
   },
 
   async listImages(connectionId: string, params: DockerImageListParams = {}) {
-    const response = await http.get<PagedResponse<DockerImage, DockerImageSummary>>('/api/docker/images', {
-      params: { ...params, connectionId },
-    })
+    const response = await http.get<PagedResponse<DockerImage, DockerImageSummary>>(
+      '/api/docker/images',
+      {
+        params: { ...params, connectionId },
+      },
+    )
     return response.data
   },
 
@@ -341,37 +377,63 @@ export const dockerApi = {
   },
 
   async createNetwork(connectionId: string, payload: DockerCreateNetworkPayload) {
-    const response = await http.post<{ id: string; warning?: string }>('/api/docker/networks', payload, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ id: string; warning?: string }>(
+      '/api/docker/networks',
+      payload,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async inspectNetwork(connectionId: string, networkId: string) {
-    const response = await http.get<Record<string, unknown>>(`/api/docker/networks/${encodeURIComponent(networkId)}/inspect`, {
-      params: { connectionId },
-    })
+    const response = await http.get<Record<string, unknown>>(
+      `/api/docker/networks/${encodeURIComponent(networkId)}/inspect`,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
-  async connectNetwork(connectionId: string, networkId: string, payload: DockerNetworkContainerPayload) {
-    const response = await http.post<{ success: boolean }>(`/api/docker/networks/${encodeURIComponent(networkId)}/connect`, payload, {
-      params: { connectionId },
-    })
+  async connectNetwork(
+    connectionId: string,
+    networkId: string,
+    payload: DockerNetworkContainerPayload,
+  ) {
+    const response = await http.post<{ success: boolean }>(
+      `/api/docker/networks/${encodeURIComponent(networkId)}/connect`,
+      payload,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
-  async disconnectNetwork(connectionId: string, networkId: string, payload: DockerNetworkContainerPayload) {
-    const response = await http.post<{ success: boolean }>(`/api/docker/networks/${encodeURIComponent(networkId)}/disconnect`, payload, {
-      params: { connectionId },
-    })
+  async disconnectNetwork(
+    connectionId: string,
+    networkId: string,
+    payload: DockerNetworkContainerPayload,
+  ) {
+    const response = await http.post<{ success: boolean }>(
+      `/api/docker/networks/${encodeURIComponent(networkId)}/disconnect`,
+      payload,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async removeNetwork(connectionId: string, networkId: string) {
-    const response = await http.delete<{ success: boolean }>(`/api/docker/networks/${encodeURIComponent(networkId)}`, {
-      params: { connectionId },
-    })
+    const response = await http.delete<{ success: boolean }>(
+      `/api/docker/networks/${encodeURIComponent(networkId)}`,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
@@ -392,23 +454,33 @@ export const dockerApi = {
   },
 
   async createVolume(connectionId: string, payload: DockerCreateVolumePayload) {
-    const response = await http.post<{ name: string; mountpoint?: string; warning?: string }>('/api/docker/volumes', payload, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ name: string; mountpoint?: string; warning?: string }>(
+      '/api/docker/volumes',
+      payload,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async inspectVolume(connectionId: string, volumeName: string) {
-    const response = await http.get<Record<string, unknown>>(`/api/docker/volumes/${encodeURIComponent(volumeName)}/inspect`, {
-      params: { connectionId },
-    })
+    const response = await http.get<Record<string, unknown>>(
+      `/api/docker/volumes/${encodeURIComponent(volumeName)}/inspect`,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async removeVolume(connectionId: string, volumeName: string) {
-    const response = await http.delete<{ success: boolean }>(`/api/docker/volumes/${encodeURIComponent(volumeName)}`, {
-      params: { connectionId },
-    })
+    const response = await http.delete<{ success: boolean }>(
+      `/api/docker/volumes/${encodeURIComponent(volumeName)}`,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
@@ -422,37 +494,57 @@ export const dockerApi = {
   },
 
   async startContainer(connectionId: string, id: string) {
-    const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/start`, null, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ success: boolean }>(
+      `/api/docker/containers/${id}/start`,
+      null,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async stopContainer(connectionId: string, id: string) {
-    const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/stop`, null, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ success: boolean }>(
+      `/api/docker/containers/${id}/stop`,
+      null,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async restartContainer(connectionId: string, id: string) {
-    const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/restart`, null, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ success: boolean }>(
+      `/api/docker/containers/${id}/restart`,
+      null,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async pauseContainer(connectionId: string, id: string) {
-    const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/pause`, null, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ success: boolean }>(
+      `/api/docker/containers/${id}/pause`,
+      null,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async unpauseContainer(connectionId: string, id: string) {
-    const response = await http.post<{ success: boolean }>(`/api/docker/containers/${id}/unpause`, null, {
-      params: { connectionId },
-    })
+    const response = await http.post<{ success: boolean }>(
+      `/api/docker/containers/${id}/unpause`,
+      null,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
@@ -466,11 +558,12 @@ export const dockerApi = {
   },
 
   async recreateContainer(connectionId: string, id: string) {
-    const response = await http.post<{ oldContainerId: string; newContainerId: string; name: string; started: boolean }>(
-      `/api/docker/containers/${id}/recreate`,
-      null,
-      { params: { connectionId } },
-    )
+    const response = await http.post<{
+      oldContainerId: string
+      newContainerId: string
+      name: string
+      started: boolean
+    }>(`/api/docker/containers/${id}/recreate`, null, { params: { connectionId } })
     return response.data
   },
 
@@ -505,16 +598,22 @@ export const dockerApi = {
   },
 
   async inspectContainer(connectionId: string, containerId: string) {
-    const response = await http.get<DockerContainerInspect>(`/api/docker/containers/${containerId}/inspect`, {
-      params: { connectionId },
-    })
+    const response = await http.get<DockerContainerInspect>(
+      `/api/docker/containers/${containerId}/inspect`,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async getContainerStats(connectionId: string, containerId: string) {
-    const response = await http.get<DockerContainerStats>(`/api/docker/containers/${containerId}/stats`, {
-      params: { connectionId },
-    })
+    const response = await http.get<DockerContainerStats>(
+      `/api/docker/containers/${containerId}/stats`,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
@@ -580,33 +679,45 @@ export const dockerApi = {
     onDownloadProgress?: (event: AxiosProgressEvent) => void,
     signal?: AbortSignal,
   ) {
-    const response = await http.get<Blob>(`/api/docker/images/${encodeURIComponent(imageId)}/export`, {
-      onDownloadProgress,
-      params: { connectionId, image },
-      responseType: 'blob',
-      signal,
-    })
+    const response = await http.get<Blob>(
+      `/api/docker/images/${encodeURIComponent(imageId)}/export`,
+      {
+        onDownloadProgress,
+        params: { connectionId, image },
+        responseType: 'blob',
+        signal,
+      },
+    )
     return response.data
   },
 
   async getImageHistory(connectionId: string, imageId: string) {
-    const response = await http.get<DockerImageHistoryItem[]>(`/api/docker/images/${imageId}/history`, {
-      params: { connectionId },
-    })
+    const response = await http.get<DockerImageHistoryItem[]>(
+      `/api/docker/images/${imageId}/history`,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async getImageCreateDefaults(connectionId: string, imageId: string) {
-    const response = await http.get<DockerImageCreateDefaults>(`/api/docker/images/${imageId}/create-defaults`, {
-      params: { connectionId },
-    })
+    const response = await http.get<DockerImageCreateDefaults>(
+      `/api/docker/images/${imageId}/create-defaults`,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   async getImageContainers(connectionId: string, imageId: string) {
-    const response = await http.get<DockerImageContainerRef[]>(`/api/docker/images/${imageId}/containers`, {
-      params: { connectionId },
-    })
+    const response = await http.get<DockerImageContainerRef[]>(
+      `/api/docker/images/${imageId}/containers`,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
@@ -629,9 +740,12 @@ export const dockerApi = {
   },
 
   async removeStoppedContainers(connectionId: string) {
-    const response = await http.delete<{ success: boolean; removedCount: number }>('/api/docker/containers/stopped', {
-      params: { connectionId },
-    })
+    const response = await http.delete<{ success: boolean; removedCount: number }>(
+      '/api/docker/containers/stopped',
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 

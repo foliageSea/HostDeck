@@ -35,8 +35,7 @@ function resolveWallpaperUrl(url: string): string {
 
   try {
     return new URL(url, devProxyTarget).toString()
-  }
-  catch {
+  } catch {
     return url
   }
 }
@@ -74,7 +73,9 @@ export function resolveWallpaperBackground(
   }
 
   if (settings.mode === 'preset' && settings.presetId) {
-    return wallpaperPresetMap.get(settings.presetId)?.background ?? getDefaultWallpaperBackground(isDark)
+    return (
+      wallpaperPresetMap.get(settings.presetId)?.background ?? getDefaultWallpaperBackground(isDark)
+    )
   }
 
   return getDefaultWallpaperBackground(isDark)

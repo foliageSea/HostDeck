@@ -35,7 +35,10 @@ function normalizeWallpaperEffectValue(value: unknown): number {
 }
 
 function resolveStoredFontSize(): number {
-  const value = Number.parseInt(window.localStorage.getItem(TERMINAL_FONT_SIZE_STORAGE_KEY) ?? '', 10)
+  const value = Number.parseInt(
+    window.localStorage.getItem(TERMINAL_FONT_SIZE_STORAGE_KEY) ?? '',
+    10,
+  )
   if (Number.isFinite(value) && value >= 8 && value <= 40) {
     return value
   }
@@ -85,18 +88,22 @@ function normalizeWallpaperSettings(value: unknown): WallpaperSettings {
   }
 
   const candidate = value as Partial<WallpaperSettings>
-  const mode = candidate.mode === 'default' || candidate.mode === 'preset' || candidate.mode === 'custom'
-    ? candidate.mode
-    : 'default'
-  const presetId = typeof candidate.presetId === 'string' && candidate.presetId.trim() ? candidate.presetId : null
-  const customDataUrl = typeof candidate.customDataUrl === 'string' && candidate.customDataUrl.trim()
-    ? candidate.customDataUrl
-    : null
-  const customType = candidate.customType === 'image' || candidate.customType === 'video'
-    ? candidate.customType
-    : customDataUrl
-      ? 'image'
+  const mode =
+    candidate.mode === 'default' || candidate.mode === 'preset' || candidate.mode === 'custom'
+      ? candidate.mode
+      : 'default'
+  const presetId =
+    typeof candidate.presetId === 'string' && candidate.presetId.trim() ? candidate.presetId : null
+  const customDataUrl =
+    typeof candidate.customDataUrl === 'string' && candidate.customDataUrl.trim()
+      ? candidate.customDataUrl
       : null
+  const customType =
+    candidate.customType === 'image' || candidate.customType === 'video'
+      ? candidate.customType
+      : customDataUrl
+        ? 'image'
+        : null
   const brightness = normalizeWallpaperEffectValue(candidate.brightness)
   const contrast = normalizeWallpaperEffectValue(candidate.contrast)
 
@@ -135,8 +142,7 @@ function resolveStoredWallpaper(storageKey: string): WallpaperSettings {
 
   try {
     return normalizeWallpaperSettings(JSON.parse(value))
-  }
-  catch {
+  } catch {
     return createDefaultWallpaperSettings()
   }
 }
@@ -153,7 +159,9 @@ export const useSettingsStore = defineStore('settings', () => {
   const terminalFontFamily = ref(resolveStoredFontFamily())
   const editorFontSize = ref(resolveStoredEditorFontSize())
   const editorFontFamily = ref(resolveStoredEditorFontFamily())
-  const desktopWallpaper = ref<WallpaperSettings>(resolveStoredWallpaper(DESKTOP_WALLPAPER_STORAGE_KEY))
+  const desktopWallpaper = ref<WallpaperSettings>(
+    resolveStoredWallpaper(DESKTOP_WALLPAPER_STORAGE_KEY),
+  )
   const loginWallpaper = computed(() => desktopWallpaper.value)
   const isInitializing = ref(false)
   const hasInitialized = ref(false)
@@ -224,12 +232,10 @@ export const useSettingsStore = defineStore('settings', () => {
       suspendWallpaperPersistence.value = true
       if (data.desktopWallpaper) {
         desktopWallpaper.value = normalizeWallpaperSettings(data.desktopWallpaper)
-      }
-      else if (data.loginWallpaper) {
+      } else if (data.loginWallpaper) {
         desktopWallpaper.value = normalizeWallpaperSettings(data.loginWallpaper)
       }
-    }
-    finally {
+    } finally {
       suspendWallpaperPersistence.value = false
       isInitializing.value = false
       hasInitialized.value = true

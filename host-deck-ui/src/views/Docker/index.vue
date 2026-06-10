@@ -32,9 +32,11 @@ const controller: DockerViewController = reactive(useDockerView(props))
 <template>
   <div
     class="flex h-full min-h-0 flex-col gap-[16px] overflow-hidden p-[18px]"
-    :class="settingsStore.isDark
-      ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))]'
-      : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(226,232,240,0.38))]'"
+    :class="
+      settingsStore.isDark
+        ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))]'
+        : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(226,232,240,0.38))]'
+    "
   >
     <div class="flex flex-none flex-col gap-[16px]">
       <div class="flex flex-wrap items-start justify-between gap-[16px]">
@@ -44,12 +46,14 @@ const controller: DockerViewController = reactive(useDockerView(props))
             <h2 class="m-0 text-[20px]">Docker 管理</h2>
           </div>
         </div>
-
       </div>
-
     </div>
 
-    <NSpin :show="controller.loading" class="docker-body app-scrollbar" :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'">
+    <NSpin
+      :show="controller.loading"
+      class="docker-body app-scrollbar"
+      :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'"
+    >
       <NResult
         v-if="controller.dockerAvailable === false"
         status="warning"

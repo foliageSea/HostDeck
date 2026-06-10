@@ -41,44 +41,68 @@ export const filesApi = {
   },
 
   mkdir: async (connectionId: string, path: string) => {
-    const response = await http.post('/api/files/mkdir', { path }, {
-      params: { connectionId },
-    })
+    const response = await http.post(
+      '/api/files/mkdir',
+      { path },
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   chmod: async (connectionId: string, path: string, mode: string, recursive = false) => {
-    const response = await http.post('/api/files/chmod', { mode, path, recursive }, {
-      params: { connectionId },
-    })
+    const response = await http.post(
+      '/api/files/chmod',
+      { mode, path, recursive },
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   rename: async (connectionId: string, oldPath: string, newPath: string) => {
-    const response = await http.post('/api/files/rename', { newPath, oldPath }, {
-      params: { connectionId },
-    })
+    const response = await http.post(
+      '/api/files/rename',
+      { newPath, oldPath },
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   copy: async (connectionId: string, source: string, target: string) => {
-    const response = await http.post('/api/files/copy', { source, target }, {
-      params: { connectionId },
-    })
+    const response = await http.post(
+      '/api/files/copy',
+      { source, target },
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   extract: async (connectionId: string, archivePath: string, targetPath: string) => {
-    const response = await http.post('/api/files/extract', { archivePath, targetPath }, {
-      params: { connectionId },
-    })
+    const response = await http.post(
+      '/api/files/extract',
+      { archivePath, targetPath },
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
   },
 
   delete: async (connectionId: string, path: string) => {
-    const response = await http.post('/api/files/delete', {}, {
-      params: { connectionId, path },
-    })
+    const response = await http.post(
+      '/api/files/delete',
+      {},
+      {
+        params: { connectionId, path },
+      },
+    )
     return response.data
   },
 
@@ -139,12 +163,16 @@ export const filesApi = {
     onDownloadProgress?: (event: AxiosProgressEvent) => void,
     signal?: AbortSignal,
   ) => {
-    const response = await http.post<Blob>('/api/files/batch-download', { paths }, {
-      onDownloadProgress,
-      params: { connectionId },
-      responseType: 'blob',
-      signal,
-    })
+    const response = await http.post<Blob>(
+      '/api/files/batch-download',
+      { paths },
+      {
+        onDownloadProgress,
+        params: { connectionId },
+        responseType: 'blob',
+        signal,
+      },
+    )
     return response.data
   },
 }

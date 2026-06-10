@@ -53,9 +53,11 @@ const composeStatusType = computed(() => {
       size="small"
       :bordered="false"
       class="rounded-[20px]"
-      :class="settingsStore.isDark
-        ? 'bg-[linear-gradient(145deg,rgba(15,23,42,0.78),rgba(30,41,59,0.52))]'
-        : 'bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(241,245,249,0.94))]'"
+      :class="
+        settingsStore.isDark
+          ? 'bg-[linear-gradient(145deg,rgba(15,23,42,0.78),rgba(30,41,59,0.52))]'
+          : 'bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(241,245,249,0.94))]'
+      "
     >
       <DockerTabToolbar>
         <template #left>
@@ -63,7 +65,9 @@ const composeStatusType = computed(() => {
         </template>
 
         <template #actions>
-          <NButton quaternary size="small" :loading="controller.loading" @click="controller.refresh">刷新</NButton>
+          <NButton quaternary size="small" :loading="controller.loading" @click="controller.refresh"
+            >刷新</NButton
+          >
         </template>
 
         <template #meta>
@@ -85,7 +89,12 @@ const composeStatusType = computed(() => {
         class="rounded-[18px]"
         :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.84)]'"
       >
-        <div class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(100,116,139,0.92)]'">
+        <div
+          class="text-[12px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(100,116,139,0.92)]'
+          "
+        >
           {{ card.label }}
         </div>
         <div class="mt-[6px] text-[28px] font-700">{{ card.value }}</div>

@@ -40,9 +40,7 @@ const menuOptions = computed(() => [
   {
     key: 'view',
     label: '查看',
-    children: [
-      { key: 'settings', label: '设置' },
-    ],
+    children: [{ key: 'settings', label: '设置' }],
   },
 ])
 
@@ -121,7 +119,12 @@ function detectLanguage(path: string) {
   const lowerPath = path.toLowerCase()
   const name = lowerPath.split('/').pop() || lowerPath
 
-  if (lowerPath.endsWith('.d.ts') || lowerPath.endsWith('.ts') || lowerPath.endsWith('.mts') || lowerPath.endsWith('.cts')) {
+  if (
+    lowerPath.endsWith('.d.ts') ||
+    lowerPath.endsWith('.ts') ||
+    lowerPath.endsWith('.mts') ||
+    lowerPath.endsWith('.cts')
+  ) {
     return 'typescript'
   }
 
@@ -240,7 +243,7 @@ function closeWindow() {
 }
 
 async function reloadFile() {
-  if (!await confirmDiscardUnsavedChanges('重新加载将丢失当前未保存的修改，是否继续？')) {
+  if (!(await confirmDiscardUnsavedChanges('重新加载将丢失当前未保存的修改，是否继续？'))) {
     return
   }
 
@@ -301,23 +304,36 @@ watch(showSettings, (value) => {
     editorFontFamilyDraft.value = settingsStore.editorFontFamily
   }
 })
-
 </script>
 
 <template>
   <div
     class="text-editor-view relative flex h-full flex-col gap-[12px] overflow-hidden p-[12px]"
-    :class="settingsStore.isDark ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.18),rgba(15,23,42,0.06))]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(226,232,240,0.36))]'"
+    :class="
+      settingsStore.isDark
+        ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.18),rgba(15,23,42,0.06))]'
+        : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(226,232,240,0.36))]'
+    "
   >
     <div
       class="relative z-[1] flex h-[32px] shrink-0 items-center gap-[4px] overflow-visible px-[8px]"
       :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#1e293b]'"
     >
-      <NMenu class="notepad-menu" mode="horizontal" :options="menuOptions" responsive @update:value="handleActionSelect" />
+      <NMenu
+        class="notepad-menu"
+        mode="horizontal"
+        :options="menuOptions"
+        responsive
+        @update:value="handleActionSelect"
+      />
       <span
         v-if="hasUnsavedChanges"
         class="ml-[8px] shrink-0 whitespace-nowrap rounded-full px-[10px] py-[3px] text-[12px] font-600"
-        :class="settingsStore.isDark ? 'bg-[rgba(251,191,36,0.16)] text-[#fbbf24]' : 'bg-[rgba(245,158,11,0.14)] text-[#b45309]'"
+        :class="
+          settingsStore.isDark
+            ? 'bg-[rgba(251,191,36,0.16)] text-[#fbbf24]'
+            : 'bg-[rgba(245,158,11,0.14)] text-[#b45309]'
+        "
       >
         未保存
       </span>
@@ -338,7 +354,7 @@ watch(showSettings, (value) => {
       preset="card"
       title="编辑器设置"
       style="width: min(380px, calc(100vw - 24px))"
-      @update:show="(value: boolean) => showSettings = value"
+      @update:show="(value: boolean) => (showSettings = value)"
     >
       <NSpace vertical size="large">
         <div>
@@ -351,11 +367,13 @@ watch(showSettings, (value) => {
             :step="1"
             button-placement="both"
             placeholder="8 - 32"
-            @update:value="(value: number | null) => {
-              if (typeof value === 'number') {
-                settingsStore.setEditorFontSize(value)
+            @update:value="
+              (value: number | null) => {
+                if (typeof value === 'number') {
+                  settingsStore.setEditorFontSize(value)
+                }
               }
-            }"
+            "
           />
         </div>
 
@@ -364,13 +382,15 @@ watch(showSettings, (value) => {
           <NInput
             :value="editorFontFamilyDraft"
             placeholder='例如 "Maple Mono"'
-            @update:value="(value: string) => editorFontFamilyDraft = value"
-            @blur="() => {
-              const nextValue = editorFontFamilyDraft.trim()
-              if (nextValue) {
-                settingsStore.setEditorFontFamily(nextValue)
+            @update:value="(value: string) => (editorFontFamilyDraft = value)"
+            @blur="
+              () => {
+                const nextValue = editorFontFamilyDraft.trim()
+                if (nextValue) {
+                  settingsStore.setEditorFontFamily(nextValue)
+                }
               }
-            }"
+            "
           />
         </div>
 
@@ -428,5 +448,4 @@ watch(showSettings, (value) => {
 .font-size-input :deep(.n-input__input-el) {
   text-align: center;
 }
-
 </style>

@@ -22,11 +22,13 @@ function getConfigTitle(project: DockerComposeProject) {
 function isComposeProjectRunning(project: DockerComposeProject) {
   return project.status.toLowerCase().includes('running')
 }
-
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+  <div
+    class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden"
+    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'"
+  >
     <DockerTabToolbar>
       <template #left>
         <NInput
@@ -39,11 +41,16 @@ function isComposeProjectRunning(project: DockerComposeProject) {
 
       <template #actions>
         <NButton type="primary" @click="controller.openCreateComposeProject">新建编排</NButton>
-        <NButton quaternary :loading="controller.loading" @click="controller.refreshCompose">刷新编排</NButton>
+        <NButton quaternary :loading="controller.loading" @click="controller.refreshCompose"
+          >刷新编排</NButton
+        >
       </template>
 
       <template #meta>
-        <NTag round size="small">显示 {{ controller.filteredComposeProjects.length }} / {{ controller.composeProjects.length }}</NTag>
+        <NTag round size="small"
+          >显示 {{ controller.filteredComposeProjects.length }} /
+          {{ controller.composeProjects.length }}</NTag
+        >
       </template>
     </DockerTabToolbar>
 
@@ -53,36 +60,73 @@ function isComposeProjectRunning(project: DockerComposeProject) {
       title="Docker Compose 不可用"
     />
 
-    <NEmpty v-else-if="controller.filteredComposeProjects.length === 0">
-    </NEmpty>
+    <NEmpty v-else-if="controller.filteredComposeProjects.length === 0"> </NEmpty>
 
     <div v-else class="compose-project-list">
-      <div v-for="project in controller.filteredComposeProjects" :key="getProjectKey(project)" class="compose-project-card">
+      <div
+        v-for="project in controller.filteredComposeProjects"
+        :key="getProjectKey(project)"
+        class="compose-project-card"
+      >
         <div class="mb-[12px] flex flex-wrap items-center justify-between gap-[10px]">
           <div class="min-w-0 flex items-center gap-[10px]">
             <strong class="truncate text-[15px]" :title="project.name">{{ project.name }}</strong>
-            <NTag round size="small" :type="controller.getComposeStatusType(project)">{{ project.status || 'unknown' }}</NTag>
+            <NTag round size="small" :type="controller.getComposeStatusType(project)">{{
+              project.status || 'unknown'
+            }}</NTag>
           </div>
 
           <NSpace size="small">
-            <NButton v-if="isComposeProjectRunning(project)" size="tiny" quaternary :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'stop')">停止</NButton>
-            <NButton v-else size="tiny" quaternary :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'up')">启动</NButton>
-            <NButton size="tiny" quaternary :disabled="!isComposeProjectRunning(project)" :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'restart')">重启</NButton>
-            <NButton size="tiny" quaternary @click="controller.viewComposeLogs(project)">日志</NButton>
-            <NButton size="tiny" quaternary type="error" :loading="controller.composeActionLoadingMap[project.name]" @click="controller.confirmComposeProjectAction(project, 'down')">Down</NButton>
+            <NButton
+              v-if="isComposeProjectRunning(project)"
+              size="tiny"
+              quaternary
+              :loading="controller.composeActionLoadingMap[project.name]"
+              @click="controller.confirmComposeProjectAction(project, 'stop')"
+              >停止</NButton
+            >
+            <NButton
+              v-else
+              size="tiny"
+              quaternary
+              :loading="controller.composeActionLoadingMap[project.name]"
+              @click="controller.confirmComposeProjectAction(project, 'up')"
+              >启动</NButton
+            >
+            <NButton
+              size="tiny"
+              quaternary
+              :disabled="!isComposeProjectRunning(project)"
+              :loading="controller.composeActionLoadingMap[project.name]"
+              @click="controller.confirmComposeProjectAction(project, 'restart')"
+              >重启</NButton
+            >
+            <NButton size="tiny" quaternary @click="controller.viewComposeLogs(project)"
+              >日志</NButton
+            >
+            <NButton
+              size="tiny"
+              quaternary
+              type="error"
+              :loading="controller.composeActionLoadingMap[project.name]"
+              @click="controller.confirmComposeProjectAction(project, 'down')"
+              >Down</NButton
+            >
           </NSpace>
         </div>
 
-          <div class="compose-project-meta">
-            <div class="compose-project-field">
-              <span>配置文件</span>
-              <strong :title="getConfigTitle(project)">{{ project.configFiles || '-' }}</strong>
-            </div>
+        <div class="compose-project-meta">
+          <div class="compose-project-field">
+            <span>配置文件</span>
+            <strong :title="getConfigTitle(project)">{{ project.configFiles || '-' }}</strong>
           </div>
+        </div>
 
-          <div class="mt-[12px] flex flex-wrap items-center justify-end gap-[8px]">
-            <NButton size="small" quaternary @click="controller.openComposeServices(project)">详情</NButton>
-          </div>
+        <div class="mt-[12px] flex flex-wrap items-center justify-end gap-[8px]">
+          <NButton size="small" quaternary @click="controller.openComposeServices(project)"
+            >详情</NButton
+          >
+        </div>
       </div>
     </div>
   </div>

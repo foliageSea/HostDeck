@@ -1,8 +1,18 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-export type UploadTaskStatus = 'pending' | 'uploading' | 'downloading' | 'success' | 'error' | 'cancelled'
-export type UploadTaskSource = 'files' | 'files-download' | 'docker-image-import' | 'docker-image-export'
+export type UploadTaskStatus =
+  | 'pending'
+  | 'uploading'
+  | 'downloading'
+  | 'success'
+  | 'error'
+  | 'cancelled'
+export type UploadTaskSource =
+  | 'files'
+  | 'files-download'
+  | 'docker-image-import'
+  | 'docker-image-export'
 
 export interface UploadTaskItem {
   connectionId: string
@@ -168,11 +178,12 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     cancelledBatchIds.add(batchId)
     batchControllers.get(batchId)?.abort()
     batchControllers.delete(batchId)
-    batch.errorMessage = batch.source === 'docker-image-export'
-      ? '导出已中断。'
-      : batch.source === 'files-download'
-        ? '下载已中断。'
-        : '上传已中断。'
+    batch.errorMessage =
+      batch.source === 'docker-image-export'
+        ? '导出已中断。'
+        : batch.source === 'files-download'
+          ? '下载已中断。'
+          : '上传已中断。'
 
     for (const task of batch.tasks) {
       if (isTaskActive(task.status)) {

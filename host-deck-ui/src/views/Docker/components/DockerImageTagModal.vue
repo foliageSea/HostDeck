@@ -7,7 +7,12 @@ defineProps<{
 </script>
 
 <template>
-  <NModal v-model:show="controller.imageTagVisible" preset="card" title="镜像重新打标签" style="width: min(560px, 92vw)">
+  <NModal
+    v-model:show="controller.imageTagVisible"
+    preset="card"
+    title="镜像重新打标签"
+    style="width: min(560px, 92vw)"
+  >
     <NForm label-placement="top">
       <NFormItem label="源镜像">
         <NInput v-model:value="controller.imageTagSource" readonly />
@@ -20,7 +25,12 @@ defineProps<{
     <template #footer>
       <NSpace justify="end">
         <NButton @click="controller.imageTagVisible = false">取消</NButton>
-        <NButton type="primary" :loading="controller.imageTagging" @click="controller.submitTagImage">确认</NButton>
+        <NButton
+          type="primary"
+          :loading="controller.imageTagging"
+          @click="controller.submitTagImage"
+          >确认</NButton
+        >
       </NSpace>
     </template>
   </NModal>

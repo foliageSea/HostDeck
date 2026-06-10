@@ -31,11 +31,13 @@ const settingsStore = useSettingsStore()
           :step="1"
           button-placement="both"
           placeholder="8 - 32"
-          @update:value="(value: number | null) => {
-            if (typeof value === 'number') {
-              settingsStore.setTerminalFontSize(value)
+          @update:value="
+            (value: number | null) => {
+              if (typeof value === 'number') {
+                settingsStore.setTerminalFontSize(value)
+              }
             }
-          }"
+          "
         />
       </div>
 

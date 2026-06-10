@@ -28,7 +28,14 @@ defineEmits<{
           : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.82)] shadow-[0_28px_80px_rgba(148,163,184,0.24)]',
       ]"
     >
-      <div class="mb-[14px] text-[0.92rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.72)]' : 'text-[rgba(51,65,85,0.78)]'">切换窗口</div>
+      <div
+        class="mb-[14px] text-[0.92rem]"
+        :class="
+          settingsStore.isDark ? 'text-[rgba(226,232,240,0.72)]' : 'text-[rgba(51,65,85,0.78)]'
+        "
+      >
+        切换窗口
+      </div>
       <div class="flex flex-wrap gap-[14px]">
         <button
           v-for="(window, index) in windows"

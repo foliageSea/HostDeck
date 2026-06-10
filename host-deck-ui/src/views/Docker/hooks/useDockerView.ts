@@ -146,10 +146,14 @@ export function useDockerView(props: DockerViewProps) {
     { label: '已退出', value: 'exited' },
   ]
   const selectedStoppedIds = computed(() =>
-    containers.value.filter((item) => selectedContainerIds.value.includes(item.id) && item.state !== 'running').map((item) => item.id),
+    containers.value
+      .filter((item) => selectedContainerIds.value.includes(item.id) && item.state !== 'running')
+      .map((item) => item.id),
   )
   const selectedRunningIds = computed(() =>
-    containers.value.filter((item) => selectedContainerIds.value.includes(item.id) && item.state === 'running').map((item) => item.id),
+    containers.value
+      .filter((item) => selectedContainerIds.value.includes(item.id) && item.state === 'running')
+      .map((item) => item.id),
   )
   const filteredNetworks = computed(() => {
     const keyword = networkSearchKeyword.value.trim().toLowerCase()
@@ -158,7 +162,13 @@ export function useDockerView(props: DockerViewProps) {
     }
 
     return networks.value.filter((network) =>
-      [network.id, network.name, network.driver, network.scope, ...network.connectedContainerNames].some((value) => value.toLowerCase().includes(keyword)),
+      [
+        network.id,
+        network.name,
+        network.driver,
+        network.scope,
+        ...network.connectedContainerNames,
+      ].some((value) => value.toLowerCase().includes(keyword)),
     )
   })
   const filteredVolumes = computed(() => {
@@ -168,7 +178,9 @@ export function useDockerView(props: DockerViewProps) {
     }
 
     return volumes.value.filter((volume) =>
-      [volume.name, volume.driver, volume.scope, volume.mountpoint, String(volume.refCount)].some((value) => value.toLowerCase().includes(keyword)),
+      [volume.name, volume.driver, volume.scope, volume.mountpoint, String(volume.refCount)].some(
+        (value) => value.toLowerCase().includes(keyword),
+      ),
     )
   })
   const filteredComposeProjects = computed(() => {
@@ -178,7 +190,9 @@ export function useDockerView(props: DockerViewProps) {
     }
 
     return composeProjects.value.filter((project) =>
-      [project.name, project.status, project.configFiles, project.workingDir].some((value) => value.toLowerCase().includes(keyword)),
+      [project.name, project.status, project.configFiles, project.workingDir].some((value) =>
+        value.toLowerCase().includes(keyword),
+      ),
     )
   })
   const displayedLogs = computed(() => {
@@ -343,7 +357,7 @@ export function useDockerView(props: DockerViewProps) {
       return 0
     }
 
-    return Math.round(amount * (1024 ** unitIndex))
+    return Math.round(amount * 1024 ** unitIndex)
   }
 
   async function refreshLogs(silent = false) {
@@ -359,9 +373,13 @@ export function useDockerView(props: DockerViewProps) {
       }
 
       const connectionId = requireConnectionId()
-      const composePayload = logsComposeProject.value ? getComposeProjectPayload(logsComposeProject.value) : null
+      const composePayload = logsComposeProject.value
+        ? getComposeProjectPayload(logsComposeProject.value)
+        : null
       const result = composePayload
-        ? await queueDockerRequest(() => dockerApi.getComposeLogs(connectionId, composePayload, logsTail.value))
+        ? await queueDockerRequest(() =>
+            dockerApi.getComposeLogs(connectionId, composePayload, logsTail.value),
+          )
         : await queueDockerRequest(() =>
             dockerApi.getContainerLogsAdvanced(connectionId, logsContainerId.value, {
               tail: logsTail.value,
@@ -404,7 +422,10 @@ export function useDockerView(props: DockerViewProps) {
     loadedTabs.value = createLoadedTabs()
   }
 
-  async function loadContainersPage(page = containerPage.value, pageSize = containerPageSize.value) {
+  async function loadContainersPage(
+    page = containerPage.value,
+    pageSize = containerPageSize.value,
+  ) {
     const connectionId = requireConnectionId()
     const result = await queueDockerRequest(() =>
       dockerApi.listContainers(connectionId, {
@@ -424,7 +445,9 @@ export function useDockerView(props: DockerViewProps) {
       running: 0,
       stopped: 0,
     }
-    selectedContainerIds.value = selectedContainerIds.value.filter((id) => result.items.some((container) => container.id === id))
+    selectedContainerIds.value = selectedContainerIds.value.filter((id) =>
+      result.items.some((container) => container.id === id),
+    )
     statsMap.value = {}
     diagnosticsMap.value = {}
     containerResourceLoadingMap.value = {}
@@ -434,7 +457,11 @@ export function useDockerView(props: DockerViewProps) {
   async function loadImagesPage(page = imagePage.value, pageSize = imagePageSize.value) {
     const connectionId = requireConnectionId()
     const result = await queueDockerRequest(() =>
-      dockerApi.listImages(connectionId, { page, pageSize, keyword: imageSearchKeyword.value.trim() || undefined }),
+      dockerApi.listImages(connectionId, {
+        page,
+        pageSize,
+        keyword: imageSearchKeyword.value.trim() || undefined,
+      }),
     )
 
     images.value = result.items
@@ -470,10 +497,7 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   function markTabsStale(...tabs: DockerTabName[]) {
-    loadedTabs.value = tabs.reduce(
-      (result, tab) => ({ ...result, [tab]: false }),
-      loadedTabs.value,
-    )
+    loadedTabs.value = tabs.reduce((result, tab) => ({ ...result, [tab]: false }), loadedTabs.value)
   }
 
   function getTabLoadMessage(tab: DockerTabName) {
@@ -604,8 +628,12 @@ export function useDockerView(props: DockerViewProps) {
     try {
       const connectionId = requireConnectionId()
       const [stats, diagnostics] = await Promise.all([
-        queueDockerRequest(() => dockerApi.getContainerStats(connectionId, containerId)).catch(() => null),
-        queueDockerRequest(() => dockerApi.getContainerDiagnostics(connectionId, [containerId])).catch(() => []),
+        queueDockerRequest(() => dockerApi.getContainerStats(connectionId, containerId)).catch(
+          () => null,
+        ),
+        queueDockerRequest(() =>
+          dockerApi.getContainerDiagnostics(connectionId, [containerId]),
+        ).catch(() => []),
       ])
 
       if (stats) {
@@ -679,7 +707,10 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   async function handleContainerPageChange(page: number) {
-    await loadDockerSection(() => loadContainersPage(page, containerPageSize.value), '加载容器列表失败。')
+    await loadDockerSection(
+      () => loadContainersPage(page, containerPageSize.value),
+      '加载容器列表失败。',
+    )
   }
 
   async function handleContainerPageSizeChange(pageSize: number) {
@@ -728,7 +759,10 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
-  async function handleContainerAdvancedAction(container: DockerContainer, action: 'pause' | 'unpause') {
+  async function handleContainerAdvancedAction(
+    container: DockerContainer,
+    action: 'pause' | 'unpause',
+  ) {
     try {
       const connectionId = requireConnectionId()
 
@@ -766,7 +800,10 @@ export function useDockerView(props: DockerViewProps) {
     })
   }
 
-  function confirmContainerAction(container: DockerContainer, action: 'start' | 'stop' | 'restart' | 'remove') {
+  function confirmContainerAction(
+    container: DockerContainer,
+    action: 'start' | 'stop' | 'restart' | 'remove',
+  ) {
     const actionTextMap = {
       remove: '删除',
       restart: '重启',
@@ -818,7 +855,9 @@ export function useDockerView(props: DockerViewProps) {
 
     try {
       const connectionId = requireConnectionId()
-      inspectContent.value = await queueDockerRequest(() => dockerApi.inspectContainer(connectionId, container.id))
+      inspectContent.value = await queueDockerRequest(() =>
+        dockerApi.inspectContainer(connectionId, container.id),
+      )
     } catch (error) {
       console.error('Failed to inspect container', error)
       getUiApi().message.error(error instanceof Error ? error.message : 'Inspect 加载失败。')
@@ -865,7 +904,11 @@ export function useDockerView(props: DockerViewProps) {
     try {
       const connectionId = requireConnectionId()
       await queueDockerRequest(() =>
-        dockerApi.renameContainer(connectionId, renamingContainerId.value, renamingContainerName.value.trim()),
+        dockerApi.renameContainer(
+          connectionId,
+          renamingContainerId.value,
+          renamingContainerName.value.trim(),
+        ),
       )
       renameVisible.value = false
       getUiApi().message.success('容器重命名成功。')
@@ -881,7 +924,9 @@ export function useDockerView(props: DockerViewProps) {
   async function recreateContainer(container: DockerContainer) {
     try {
       const connectionId = requireConnectionId()
-      const result = await queueDockerRequest(() => dockerApi.recreateContainer(connectionId, container.id))
+      const result = await queueDockerRequest(() =>
+        dockerApi.recreateContainer(connectionId, container.id),
+      )
       getUiApi().message.success(`容器 ${result.name} 重建完成。`)
       await refreshTabsAfterChange('containers')
     } catch (error) {
@@ -985,7 +1030,10 @@ export function useDockerView(props: DockerViewProps) {
           status: 'error',
         })
       }
-      uploadCenterStore.markBatchError(batchId, error instanceof Error ? error.message : '镜像导出失败。')
+      uploadCenterStore.markBatchError(
+        batchId,
+        error instanceof Error ? error.message : '镜像导出失败。',
+      )
       console.error('Failed to export image', error)
       getUiApi().message.error(error instanceof Error ? error.message : '镜像导出失败。')
     } finally {
@@ -1006,7 +1054,9 @@ export function useDockerView(props: DockerViewProps) {
     imageTagging.value = true
     try {
       const connectionId = requireConnectionId()
-      await queueDockerRequest(() => dockerApi.tagImage(connectionId, imageTagSource.value.trim(), imageTagTarget.value.trim()))
+      await queueDockerRequest(() =>
+        dockerApi.tagImage(connectionId, imageTagSource.value.trim(), imageTagTarget.value.trim()),
+      )
       imageTagVisible.value = false
       getUiApi().message.success('镜像重新打标签成功。')
       await refreshTabsAfterChange('images')
@@ -1026,7 +1076,9 @@ export function useDockerView(props: DockerViewProps) {
 
     try {
       const connectionId = requireConnectionId()
-      imageHistoryItems.value = await queueDockerRequest(() => dockerApi.getImageHistory(connectionId, image.id))
+      imageHistoryItems.value = await queueDockerRequest(() =>
+        dockerApi.getImageHistory(connectionId, image.id),
+      )
     } catch (error) {
       console.error('Failed to load image history', error)
       getUiApi().message.error(error instanceof Error ? error.message : '获取镜像历史失败。')
@@ -1043,7 +1095,9 @@ export function useDockerView(props: DockerViewProps) {
 
     try {
       const connectionId = requireConnectionId()
-      imageRefsItems.value = await queueDockerRequest(() => dockerApi.getImageContainers(connectionId, image.id))
+      imageRefsItems.value = await queueDockerRequest(() =>
+        dockerApi.getImageContainers(connectionId, image.id),
+      )
     } catch (error) {
       console.error('Failed to load image refs', error)
       getUiApi().message.error(error instanceof Error ? error.message : '获取镜像引用容器失败。')
@@ -1167,7 +1221,10 @@ export function useDockerView(props: DockerViewProps) {
           status: 'error',
         })
       }
-      uploadCenterStore.markBatchError(batchId, error instanceof Error ? error.message : '镜像导入失败。')
+      uploadCenterStore.markBatchError(
+        batchId,
+        error instanceof Error ? error.message : '镜像导入失败。',
+      )
       console.error('Failed to import image', error)
       getUiApi().message.error(error instanceof Error ? error.message : '镜像导入失败。')
     } finally {
@@ -1176,7 +1233,10 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
-  async function handleComposeProjectAction(project: DockerComposeProject, action: 'up' | 'stop' | 'restart' | 'down') {
+  async function handleComposeProjectAction(
+    project: DockerComposeProject,
+    action: 'up' | 'stop' | 'restart' | 'down',
+  ) {
     const payload = getComposeProjectPayload(project)
     if (!payload) {
       getUiApi().message.warning('该编排项目缺少 compose 配置文件路径，无法执行操作。')
@@ -1219,7 +1279,10 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
-  function confirmComposeProjectAction(project: DockerComposeProject, action: 'up' | 'stop' | 'restart' | 'down') {
+  function confirmComposeProjectAction(
+    project: DockerComposeProject,
+    action: 'up' | 'stop' | 'restart' | 'down',
+  ) {
     const actionTextMap = {
       down: '下线',
       restart: '重启',
@@ -1298,7 +1361,9 @@ export function useDockerView(props: DockerViewProps) {
       return
     }
 
-    composeProjects.value = await queueDockerRequest(() => dockerApi.listComposeProjects(connectionId))
+    composeProjects.value = await queueDockerRequest(() =>
+      dockerApi.listComposeProjects(connectionId),
+    )
     if (composeProjects.value.length > 0 && !selectedComposeProjectName.value) {
       selectedComposeProjectName.value = composeProjects.value[0].name
     }
@@ -1318,7 +1383,9 @@ export function useDockerView(props: DockerViewProps) {
 
     try {
       const connectionId = requireConnectionId()
-      const services = await queueDockerRequest(() => dockerApi.listComposeServices(connectionId, payload))
+      const services = await queueDockerRequest(() =>
+        dockerApi.listComposeServices(connectionId, payload),
+      )
       composeServicesMap.value = {
         ...composeServicesMap.value,
         [project.name]: services,
@@ -1343,7 +1410,9 @@ export function useDockerView(props: DockerViewProps) {
     batchProcessing.value = true
     try {
       const connectionId = requireConnectionId()
-      const result = await queueDockerRequest(() => dockerApi.batchStartContainers(connectionId, selectedStoppedIds.value))
+      const result = await queueDockerRequest(() =>
+        dockerApi.batchStartContainers(connectionId, selectedStoppedIds.value),
+      )
       getUiApi().message.success(`批量启动完成，共处理 ${result.processed} 个容器。`)
       await refreshTabsAfterChange('containers')
     } catch (error) {
@@ -1363,7 +1432,9 @@ export function useDockerView(props: DockerViewProps) {
     batchProcessing.value = true
     try {
       const connectionId = requireConnectionId()
-      const result = await queueDockerRequest(() => dockerApi.batchStopContainers(connectionId, selectedRunningIds.value))
+      const result = await queueDockerRequest(() =>
+        dockerApi.batchStopContainers(connectionId, selectedRunningIds.value),
+      )
       getUiApi().message.success(`批量停止完成，共处理 ${result.processed} 个容器。`)
       await refreshTabsAfterChange('containers')
     } catch (error) {
@@ -1402,7 +1473,9 @@ export function useDockerView(props: DockerViewProps) {
     try {
       const connectionId = requireConnectionId()
       const result = await queueDockerRequest(() => dockerApi.createNetwork(connectionId, payload))
-      getUiApi().message.success(result.warning ? `网络已创建，返回警告：${result.warning}` : 'Docker 网络创建成功。')
+      getUiApi().message.success(
+        result.warning ? `网络已创建，返回警告：${result.warning}` : 'Docker 网络创建成功。',
+      )
       await refreshTabsAfterChange('networks')
       return true
     } catch (error) {
@@ -1416,7 +1489,9 @@ export function useDockerView(props: DockerViewProps) {
     try {
       const connectionId = requireConnectionId()
       const result = await queueDockerRequest(() => dockerApi.createVolume(connectionId, payload))
-      getUiApi().message.success(result.warning ? `存储卷已创建，返回警告：${result.warning}` : 'Docker 存储卷创建成功。')
+      getUiApi().message.success(
+        result.warning ? `存储卷已创建，返回警告：${result.warning}` : 'Docker 存储卷创建成功。',
+      )
       await refreshTabsAfterChange('volumes')
       return true
     } catch (error) {
@@ -1434,7 +1509,9 @@ export function useDockerView(props: DockerViewProps) {
 
     try {
       const connectionId = requireConnectionId()
-      inspectContent.value = await queueDockerRequest(() => dockerApi.inspectNetwork(connectionId, network.id))
+      inspectContent.value = await queueDockerRequest(() =>
+        dockerApi.inspectNetwork(connectionId, network.id),
+      )
     } catch (error) {
       console.error('Failed to inspect network', error)
       getUiApi().message.error(error instanceof Error ? error.message : '网络 Inspect 加载失败。')
@@ -1451,7 +1528,9 @@ export function useDockerView(props: DockerViewProps) {
 
     try {
       const connectionId = requireConnectionId()
-      inspectContent.value = await queueDockerRequest(() => dockerApi.inspectVolume(connectionId, volume.name))
+      inspectContent.value = await queueDockerRequest(() =>
+        dockerApi.inspectVolume(connectionId, volume.name),
+      )
     } catch (error) {
       console.error('Failed to inspect volume', error)
       getUiApi().message.error(error instanceof Error ? error.message : '存储卷 Inspect 加载失败。')
@@ -1502,7 +1581,12 @@ export function useDockerView(props: DockerViewProps) {
     })
   }
 
-  async function updateNetworkConnection(network: DockerNetwork, container: string, disconnect = false, force = false) {
+  async function updateNetworkConnection(
+    network: DockerNetwork,
+    container: string,
+    disconnect = false,
+    force = false,
+  ) {
     try {
       const connectionId = requireConnectionId()
       const trimmedContainer = container.trim()
@@ -1512,10 +1596,17 @@ export function useDockerView(props: DockerViewProps) {
       }
 
       if (disconnect) {
-        await queueDockerRequest(() => dockerApi.disconnectNetwork(connectionId, network.id, { container: trimmedContainer, force }))
+        await queueDockerRequest(() =>
+          dockerApi.disconnectNetwork(connectionId, network.id, {
+            container: trimmedContainer,
+            force,
+          }),
+        )
         getUiApi().message.success(`已将容器 ${trimmedContainer} 从网络 ${network.name} 断开。`)
       } else {
-        await queueDockerRequest(() => dockerApi.connectNetwork(connectionId, network.id, { container: trimmedContainer }))
+        await queueDockerRequest(() =>
+          dockerApi.connectNetwork(connectionId, network.id, { container: trimmedContainer }),
+        )
         getUiApi().message.success(`已将容器 ${trimmedContainer} 连接到网络 ${network.name}。`)
       }
 
@@ -1523,7 +1614,9 @@ export function useDockerView(props: DockerViewProps) {
       return true
     } catch (error) {
       console.error('Failed to update network connection', error)
-      getUiApi().message.error(error instanceof Error ? error.message : '更新 Docker 网络连接失败。')
+      getUiApi().message.error(
+        error instanceof Error ? error.message : '更新 Docker 网络连接失败。',
+      )
       return false
     }
   }
@@ -1580,13 +1673,16 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   function handleComposeCreated(event: Event) {
-    const detail = (event as CustomEvent<{ connectionId?: string; project?: DockerComposeProject }>).detail
+    const detail = (event as CustomEvent<{ connectionId?: string; project?: DockerComposeProject }>)
+      .detail
     if (detail?.connectionId && detail.connectionId !== activeConnectionId.value) {
       return
     }
 
     if (detail?.project) {
-      const nextProjects = composeProjects.value.filter((project) => project.name !== detail.project?.name)
+      const nextProjects = composeProjects.value.filter(
+        (project) => project.name !== detail.project?.name,
+      )
       composeProjects.value = [detail.project, ...nextProjects]
       selectedComposeProjectName.value = detail.project.name
       composeAvailable.value = true
@@ -1616,12 +1712,18 @@ export function useDockerView(props: DockerViewProps) {
 
   watch(containerStatusFilter, async () => {
     selectedContainerIds.value = []
-    await loadDockerSection(() => loadContainersPage(1, containerPageSize.value), '加载容器列表失败。')
+    await loadDockerSection(
+      () => loadContainersPage(1, containerPageSize.value),
+      '加载容器列表失败。',
+    )
   })
 
   watch(containerSearchKeyword, async () => {
     selectedContainerIds.value = []
-    await loadDockerSection(() => loadContainersPage(1, containerPageSize.value), '加载容器列表失败。')
+    await loadDockerSection(
+      () => loadContainersPage(1, containerPageSize.value),
+      '加载容器列表失败。',
+    )
   })
 
   watch(imageSearchKeyword, async () => {

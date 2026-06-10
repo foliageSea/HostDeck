@@ -64,7 +64,12 @@ function isFileTarget(target: EventTarget | null) {
 }
 
 function isRectIntersecting(left: DOMRect, right: DOMRect) {
-  return left.left < right.right && left.right > right.left && left.top < right.bottom && left.bottom > right.top
+  return (
+    left.left < right.right &&
+    left.right > right.left &&
+    left.top < right.bottom &&
+    left.bottom > right.top
+  )
 }
 
 function getNamesInsideSelection(state: SelectionState) {
@@ -135,7 +140,10 @@ function handlePointerMove(event: PointerEvent) {
   state.currentX = event.clientX
   state.currentY = event.clientY
 
-  if (!state.active && Math.hypot(state.currentX - state.startX, state.currentY - state.startY) >= 4) {
+  if (
+    !state.active &&
+    Math.hypot(state.currentX - state.startX, state.currentY - state.startY) >= 4
+  ) {
     state.active = true
   }
 
@@ -150,7 +158,10 @@ function finishSelection(event: PointerEvent) {
     return
   }
 
-  if (event.currentTarget instanceof HTMLElement && event.currentTarget.hasPointerCapture(event.pointerId)) {
+  if (
+    event.currentTarget instanceof HTMLElement &&
+    event.currentTarget.hasPointerCapture(event.pointerId)
+  ) {
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
@@ -185,7 +196,9 @@ onBeforeUnmount(() => {
     ref="contentRef"
     class="files-content relative min-h-0 flex-1 overflow-auto p-[4px]"
     :class="[
-      settingsStore.isDark ? 'app-scrollbar app-scrollbar-dark' : 'app-scrollbar app-scrollbar-light files-content-light',
+      settingsStore.isDark
+        ? 'app-scrollbar app-scrollbar-dark'
+        : 'app-scrollbar app-scrollbar-light files-content-light',
       { 'select-none': selectionState?.active },
     ]"
     @contextmenu="handleBlankContextMenu"
@@ -199,9 +212,16 @@ onBeforeUnmount(() => {
     </div>
 
     <template v-else>
-      <NEmpty v-if="files.length === 0" :description="emptyDescription ?? '当前目录没有文件'" class="flex h-full min-h-[260px] items-center justify-center" />
+      <NEmpty
+        v-if="files.length === 0"
+        :description="emptyDescription ?? '当前目录没有文件'"
+        class="flex h-full min-h-[260px] items-center justify-center"
+      />
 
-      <div v-else-if="viewMode === 'grid'" class="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-[12px]">
+      <div
+        v-else-if="viewMode === 'grid'"
+        class="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-[12px]"
+      >
         <div
           v-for="file in files"
           :key="file.filename"
@@ -223,7 +243,16 @@ onBeforeUnmount(() => {
             <component :is="getFileIcon(file).icon" />
           </NIcon>
           <div class="max-w-full truncate-line">{{ file.filename }}</div>
-          <div class="text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ file.isDirectory ? '目录' : formatFileSize(file.size) }}</div>
+          <div
+            class="text-[12px]"
+            :class="
+              settingsStore.isDark
+                ? 'text-[rgba(148,163,184,0.9)]'
+                : 'text-[rgba(100,116,139,0.92)]'
+            "
+          >
+            {{ file.isDirectory ? '目录' : formatFileSize(file.size) }}
+          </div>
         </div>
       </div>
 
@@ -251,13 +280,33 @@ onBeforeUnmount(() => {
             </NIcon>
             <span class="truncate-line">{{ file.filename }}</span>
           </div>
-          <span class="file-row-size text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ file.isDirectory ? '-' : formatFileSize(file.size) }}</span>
-          <span class="file-row-time text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'">{{ formatModifyTime(file.modifyTime) }}</span>
+          <span
+            class="file-row-size text-[12px]"
+            :class="
+              settingsStore.isDark
+                ? 'text-[rgba(148,163,184,0.9)]'
+                : 'text-[rgba(100,116,139,0.92)]'
+            "
+            >{{ file.isDirectory ? '-' : formatFileSize(file.size) }}</span
+          >
+          <span
+            class="file-row-time text-[12px]"
+            :class="
+              settingsStore.isDark
+                ? 'text-[rgba(148,163,184,0.9)]'
+                : 'text-[rgba(100,116,139,0.92)]'
+            "
+            >{{ formatModifyTime(file.modifyTime) }}</span
+          >
         </div>
       </div>
     </template>
 
-    <div v-if="selectionState?.active" class="pointer-events-none absolute z-5 rounded-[8px] border border-[var(--app-primary-border-strong)] bg-[var(--app-primary-soft)] shadow-[inset_0_0_0_1px_var(--app-primary-soft)]" :style="selectionBoxStyle" />
+    <div
+      v-if="selectionState?.active"
+      class="pointer-events-none absolute z-5 rounded-[8px] border border-[var(--app-primary-border-strong)] bg-[var(--app-primary-soft)] shadow-[inset_0_0_0_1px_var(--app-primary-soft)]"
+      :style="selectionBoxStyle"
+    />
   </div>
 </template>
 

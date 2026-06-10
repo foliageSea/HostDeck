@@ -7,7 +7,12 @@ defineProps<{
 </script>
 
 <template>
-  <NModal v-model:show="controller.imageRefsVisible" preset="card" :title="controller.imageRefsTitle" style="width: min(960px, 92vw)">
+  <NModal
+    v-model:show="controller.imageRefsVisible"
+    preset="card"
+    :title="controller.imageRefsTitle"
+    style="width: min(960px, 92vw)"
+  >
     <NSpin :show="controller.imageRefsLoading">
       <NDataTable
         :single-line="false"

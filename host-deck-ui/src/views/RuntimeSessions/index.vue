@@ -29,7 +29,11 @@ const sessionColumns: DataTableColumns<RuntimeSessionSummary> = [
   { title: 'Session ID', key: 'sessionId' },
   { title: '类型', key: 'type' },
   { title: 'Shell', key: 'hasShell', render: (row) => (row.hasShell ? '是' : '否') },
-  { title: 'Client 状态', key: 'clientClosed', render: (row) => (row.clientClosed ? '已关闭' : '活跃') },
+  {
+    title: 'Client 状态',
+    key: 'clientClosed',
+    render: (row) => (row.clientClosed ? '已关闭' : '活跃'),
+  },
 ]
 const clientRows = computed<RuntimeClientRow[]>(() => {
   const groupedSessions = new Map<string, RuntimeSessionSummary[]>()
@@ -63,7 +67,10 @@ const clientRows = computed<RuntimeClientRow[]>(() => {
     })
   }
 
-  return rows.sort((left, right) => right.sessionCount - left.sessionCount || left.connectionId.localeCompare(right.connectionId))
+  return rows.sort(
+    (left, right) =>
+      right.sessionCount - left.sessionCount || left.connectionId.localeCompare(right.connectionId),
+  )
 })
 const clientColumns: DataTableColumns<RuntimeClientRow> = [
   {
@@ -215,40 +222,74 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="runtime-view flex h-full flex-col gap-[16px] overflow-auto p-[20px]"
-    :class="settingsStore.isDark ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.14),rgba(15,23,42,0.04))]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.68),rgba(226,232,240,0.34))]'">
+  <div
+    class="runtime-view flex h-full flex-col gap-[16px] overflow-auto p-[20px]"
+    :class="
+      settingsStore.isDark
+        ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.14),rgba(15,23,42,0.04))]'
+        : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.68),rgba(226,232,240,0.34))]'
+    "
+  >
     <div class="flex items-start justify-between gap-[12px] lt-md:flex-col lt-md:items-stretch">
       <div>
         <div class="text-[24px] font-700">运行态会话</div>
       </div>
 
       <div class="flex items-center gap-[12px] lt-md:justify-between">
-        <span class="text-[12px]"
-          :class="settingsStore.isDark ? 'text-[rgba(96,165,250,0.92)]' : 'text-[rgba(37,99,235,0.92)]'">
+        <span
+          class="text-[12px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(96,165,250,0.92)]' : 'text-[rgba(37,99,235,0.92)]'
+          "
+        >
           {{ formatWsStatus(wsStatus) }}
         </span>
-        <span class="text-[12px]"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">
+        <span
+          class="text-[12px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'
+          "
+        >
           最近刷新：{{ formatRefreshAt(refreshAt) }}
         </span>
-        <NButton secondary :loading="loading" :disabled="wsStatus !== 'connected'" @click="requestRefresh">立即刷新</NButton>
+        <NButton
+          secondary
+          :loading="loading"
+          :disabled="wsStatus !== 'connected'"
+          @click="requestRefresh"
+          >立即刷新</NButton
+        >
       </div>
     </div>
 
     <div class="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-[16px] lt-md:grid-cols-1">
-      <NCard :bordered="false" class="rounded-[18px]"
-        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'">
-        <div class="text-[13px]"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">
+      <NCard
+        :bordered="false"
+        class="rounded-[18px]"
+        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'"
+      >
+        <div
+          class="text-[13px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'
+          "
+        >
           Clients
         </div>
         <div class="mt-[8px] text-[34px] font-700">{{ snapshot?.totalClients ?? 0 }}</div>
       </NCard>
 
-      <NCard :bordered="false" class="rounded-[18px]"
-        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'">
-        <div class="text-[13px]"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'">
+      <NCard
+        :bordered="false"
+        class="rounded-[18px]"
+        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'"
+      >
+        <div
+          class="text-[13px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'
+          "
+        >
           Sessions
         </div>
         <div class="mt-[8px] text-[34px] font-700">{{ snapshot?.totalSessions ?? 0 }}</div>
@@ -256,8 +297,12 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="flex-1 min-h-0">
-      <NCard title="Clients / Sessions" :bordered="false" class="rounded-[18px] min-h-0"
-        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'">
+      <NCard
+        title="Clients / Sessions"
+        :bordered="false"
+        class="rounded-[18px] min-h-0"
+        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'"
+      >
         <NDataTable
           :bordered="false"
           :single-line="false"

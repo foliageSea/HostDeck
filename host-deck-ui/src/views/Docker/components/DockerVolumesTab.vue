@@ -13,9 +13,7 @@ const createVisible = ref(false)
 const createSubmitting = ref(false)
 const createOptionsText = ref('')
 const createLabelsText = ref('')
-const volumeDriverOptions = [
-  { label: 'local', value: 'local' },
-]
+const volumeDriverOptions = [{ label: 'local', value: 'local' }]
 const createForm = reactive({
   name: '',
   driver: 'local',
@@ -43,7 +41,9 @@ function parseKeyValueMap(value: string) {
 
         return [line.slice(0, index).trim(), line.slice(index + 1).trim()] as const
       })
-      .filter((entry): entry is readonly [string, string] => Boolean(entry && entry[0] && entry[1])),
+      .filter((entry): entry is readonly [string, string] =>
+        Boolean(entry && entry[0] && entry[1]),
+      ),
   )
 }
 
@@ -70,7 +70,10 @@ async function submitCreate() {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden" :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+  <div
+    class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden"
+    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'"
+  >
     <DockerTabToolbar>
       <template #left>
         <NInput
@@ -83,12 +86,16 @@ async function submitCreate() {
 
       <template #actions>
         <NButton type="primary" @click="openCreateDialog">新建存储卷</NButton>
-        <NButton quaternary :loading="controller.loading" @click="controller.refreshVolumes">刷新存储卷</NButton>
+        <NButton quaternary :loading="controller.loading" @click="controller.refreshVolumes"
+          >刷新存储卷</NButton
+        >
         <NButton quaternary @click="controller.confirmPruneVolumes">清理未使用</NButton>
       </template>
 
       <template #meta>
-        <NTag round size="small">显示 {{ controller.filteredVolumes.length }} / {{ controller.volumes.length }}</NTag>
+        <NTag round size="small"
+          >显示 {{ controller.filteredVolumes.length }} / {{ controller.volumes.length }}</NTag
+        >
       </template>
     </DockerTabToolbar>
 
@@ -106,7 +113,14 @@ async function submitCreate() {
         <template #header>
           <div class="min-w-0">
             <div class="truncate text-[15px] font-600" :title="volume.name">{{ volume.name }}</div>
-            <div class="mt-[4px] truncate text-[12px]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'">
+            <div
+              class="mt-[4px] truncate text-[12px]"
+              :class="
+                settingsStore.isDark
+                  ? 'text-[rgba(226,232,240,0.58)]'
+                  : 'text-[rgba(100,116,139,0.88)]'
+              "
+            >
               {{ volume.driver }} / {{ volume.scope }}
             </div>
           </div>
@@ -143,14 +157,27 @@ async function submitCreate() {
 
         <template #footer>
           <div class="docker-card-actions">
-            <NButton size="tiny" quaternary @click="controller.viewVolumeInspect(volume)">Inspect</NButton>
-            <NButton size="tiny" quaternary type="error" @click="controller.confirmRemoveVolume(volume)">删除</NButton>
+            <NButton size="tiny" quaternary @click="controller.viewVolumeInspect(volume)"
+              >Inspect</NButton
+            >
+            <NButton
+              size="tiny"
+              quaternary
+              type="error"
+              @click="controller.confirmRemoveVolume(volume)"
+              >删除</NButton
+            >
           </div>
         </template>
       </NCard>
     </div>
 
-    <NModal v-model:show="createVisible" preset="card" title="新建 Docker 存储卷" style="width: min(560px, 92vw)">
+    <NModal
+      v-model:show="createVisible"
+      preset="card"
+      title="新建 Docker 存储卷"
+      style="width: min(560px, 92vw)"
+    >
       <NForm label-placement="top">
         <NFormItem label="存储卷名称">
           <NInput v-model:value="createForm.name" placeholder="例如 app-data" />
@@ -191,7 +218,11 @@ async function submitCreate() {
   --docker-card-bg: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.46));
   --docker-card-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
   --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.42);
-  --docker-card-bg-hover: linear-gradient(145deg, rgba(15, 23, 42, 0.84), rgba(var(--app-primary-rgb), 0.28));
+  --docker-card-bg-hover: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.84),
+    rgba(var(--app-primary-rgb), 0.28)
+  );
   --docker-card-field-bg: rgba(15, 23, 42, 0.38);
   --docker-card-label-color: rgba(226, 232, 240, 0.52);
   --docker-card-value-color: rgba(248, 250, 252, 0.9);
@@ -202,7 +233,11 @@ async function submitCreate() {
   --docker-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
   --docker-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
   --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.34);
-  --docker-card-bg-hover: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(var(--app-primary-rgb), 0.14));
+  --docker-card-bg-hover: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(var(--app-primary-rgb), 0.14)
+  );
   --docker-card-field-bg: rgba(241, 245, 249, 0.92);
   --docker-card-label-color: rgba(100, 116, 139, 0.9);
   --docker-card-value-color: rgba(30, 41, 59, 0.92);

@@ -43,7 +43,9 @@ export const portForwardApi = {
     return response.data
   },
   start: async (id: number, connectionId: string) => {
-    const response = await http.post<PortForwardRule>(`/api/port-forwards/${id}/start`, { connectionId })
+    const response = await http.post<PortForwardRule>(`/api/port-forwards/${id}/start`, {
+      connectionId,
+    })
     return response.data
   },
   stop: async (id: number) => {

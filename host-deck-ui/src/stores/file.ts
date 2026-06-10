@@ -71,8 +71,14 @@ export function createFileStore(connection: FileStoreConnection) {
   const currentConnectionId = computed(() => connection.connectionId)
   const loading = ref(false)
   const viewMode = useLocalStorage<FileViewMode>(VIEW_MODE_STORAGE_KEY, 'grid')
-  const sortState = useLocalStorage<FileSortState>(SORT_STORAGE_KEY, { direction: 'asc', key: 'name' })
-  const favoritePathsByConnection = useLocalStorage<FavoritePathsByConnection>(FAVORITE_PATHS_STORAGE_KEY, {})
+  const sortState = useLocalStorage<FileSortState>(SORT_STORAGE_KEY, {
+    direction: 'asc',
+    key: 'name',
+  })
+  const favoritePathsByConnection = useLocalStorage<FavoritePathsByConnection>(
+    FAVORITE_PATHS_STORAGE_KEY,
+    {},
+  )
   const selectedNames = ref<string[]>([])
   const lastSelectedName = ref<string | null>(null)
   const search = ref('')
@@ -99,7 +105,9 @@ export function createFileStore(connection: FileStoreConnection) {
   const hasSelection = computed(() => selectedNames.value.length > 0)
 
   const favoriteConnectionKey = computed(() => getFavoriteConnectionKey())
-  const favoritePaths = computed(() => favoritePathsByConnection.value[favoriteConnectionKey.value] ?? [])
+  const favoritePaths = computed(
+    () => favoritePathsByConnection.value[favoriteConnectionKey.value] ?? [],
+  )
 
   watch(favoriteConnectionKey, migrateLegacyFavoritePaths, { immediate: true })
 
@@ -195,7 +203,9 @@ export function createFileStore(connection: FileStoreConnection) {
       files.value = response
       currentPath.value = targetPath
 
-      selectedNames.value = selectedNames.value.filter((selectedName) => response.some((file) => file.filename === selectedName))
+      selectedNames.value = selectedNames.value.filter((selectedName) =>
+        response.some((file) => file.filename === selectedName),
+      )
       if (selectedNames.value.length === 0) {
         lastSelectedName.value = null
       }

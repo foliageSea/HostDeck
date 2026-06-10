@@ -4,7 +4,11 @@ import { computed, ref, watch } from 'vue'
 import { filesApi, type FileItem } from '@/api/files'
 import { dirname, resolve } from '@/utils/path'
 import FileBrowserContent from './FileBrowserContent.vue'
-import type { FilePickerConfirmPayload, FilePickerMode, FilePickerSelection } from './filePickerTypes'
+import type {
+  FilePickerConfirmPayload,
+  FilePickerMode,
+  FilePickerSelection,
+} from './filePickerTypes'
 
 const props = withDefaults(
   defineProps<{
@@ -67,14 +71,18 @@ const displayFiles = computed(() => {
   return sortedFiles.value.filter((file) => file.filename.toLocaleLowerCase().includes(keyword))
 })
 
-const emptyDescription = computed(() => (searchKeyword.value.trim() ? '没有匹配的文件' : '当前目录没有文件'))
+const emptyDescription = computed(() =>
+  searchKeyword.value.trim() ? '没有匹配的文件' : '当前目录没有文件',
+)
 
 const selectedItems = computed(() => {
   const selectedNameSet = new Set(selectedNames.value)
   return displayFiles.value.filter((file) => selectedNameSet.has(file.filename))
 })
 
-const canSelectCurrentDirectory = computed(() => props.mode === 'directory' || props.mode === 'both')
+const canSelectCurrentDirectory = computed(
+  () => props.mode === 'directory' || props.mode === 'both',
+)
 
 const selectableItems = computed(() => selectedItems.value.filter((file) => isSelectable(file)))
 
@@ -327,7 +335,13 @@ function confirmSelection() {
     <div class="flex h-[min(680px,calc(100vh-180px))] min-h-[420px] flex-col gap-[12px]">
       <div class="flex flex-col gap-[10px] md:flex-row md:items-center">
         <div class="flex min-w-0 flex-1 items-center gap-[8px]">
-          <NButton quaternary round size="small" :disabled="loading || currentPath === '/'" @click="navigateUp">
+          <NButton
+            quaternary
+            round
+            size="small"
+            :disabled="loading || currentPath === '/'"
+            @click="navigateUp"
+          >
             <template #icon>
               <NIcon>
                 <ArrowUp />
@@ -353,7 +367,13 @@ function confirmSelection() {
               </NIcon>
             </template>
           </NInput>
-          <NButton quaternary round size="small" :disabled="loading || !connectionId" @click="loadFiles(currentPath)">
+          <NButton
+            quaternary
+            round
+            size="small"
+            :disabled="loading || !connectionId"
+            @click="loadFiles(currentPath)"
+          >
             <template #icon>
               <NIcon>
                 <Renew />
@@ -400,7 +420,9 @@ function confirmSelection() {
         @select-names="handleSelectNames"
       />
 
-      <div class="flex flex-col gap-[10px] border-t border-[rgba(148,163,184,0.22)] pt-[12px] md:flex-row md:items-center md:justify-between">
+      <div
+        class="flex flex-col gap-[10px] border-t border-[rgba(148,163,184,0.22)] pt-[12px] md:flex-row md:items-center md:justify-between"
+      >
         <div class="min-w-0 text-[13px] text-[rgba(100,116,139,0.92)]">
           <span v-if="selectedItems.length > 0">已选 {{ selectedItems.length }} 项</span>
           <span v-else-if="canSelectCurrentDirectory">将选择当前目录：{{ currentPath }}</span>
@@ -408,7 +430,13 @@ function confirmSelection() {
         </div>
         <div class="flex justify-end gap-[8px]">
           <NButton quaternary round @click="handleShowUpdate(false)">取消</NButton>
-          <NButton quaternary round type="primary" :disabled="confirmDisabled" @click="confirmSelection">
+          <NButton
+            quaternary
+            round
+            type="primary"
+            :disabled="confirmDisabled"
+            @click="confirmSelection"
+          >
             {{ confirmText }}
           </NButton>
         </div>
@@ -429,8 +457,21 @@ function confirmSelection() {
           @keyup.enter="confirmCreateDirectory"
         />
         <div class="flex justify-end gap-[8px]">
-          <NButton quaternary round :disabled="creatingDirectory" @click="showCreateDirectoryDialog = false">取消</NButton>
-          <NButton quaternary round type="primary" :loading="creatingDirectory" @click="confirmCreateDirectory">创建</NButton>
+          <NButton
+            quaternary
+            round
+            :disabled="creatingDirectory"
+            @click="showCreateDirectoryDialog = false"
+            >取消</NButton
+          >
+          <NButton
+            quaternary
+            round
+            type="primary"
+            :loading="creatingDirectory"
+            @click="confirmCreateDirectory"
+            >创建</NButton
+          >
         </div>
       </div>
     </NModal>

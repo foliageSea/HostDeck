@@ -5,7 +5,13 @@ export interface DockerViewProps {
   username?: string
 }
 
-export type DockerTabName = 'overview' | 'containers' | 'images' | 'networks' | 'volumes' | 'compose'
+export type DockerTabName =
+  | 'overview'
+  | 'containers'
+  | 'images'
+  | 'networks'
+  | 'volumes'
+  | 'compose'
 
 export interface DangerActionConfirmOptions {
   title: string

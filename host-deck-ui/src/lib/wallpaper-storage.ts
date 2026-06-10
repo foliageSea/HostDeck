@@ -29,33 +29,36 @@ function runTransaction<T>(
   mode: IDBTransactionMode,
   runner: (store: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T> {
-  return openWallpaperDatabase().then((database) => new Promise<T>((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, mode)
-    const store = transaction.objectStore(STORE_NAME)
-    const request = runner(store)
+  return openWallpaperDatabase().then(
+    (database) =>
+      new Promise<T>((resolve, reject) => {
+        const transaction = database.transaction(STORE_NAME, mode)
+        const store = transaction.objectStore(STORE_NAME)
+        const request = runner(store)
 
-    request.onerror = () => {
-      reject(request.error ?? new Error('Wallpaper storage request failed.'))
-    }
+        request.onerror = () => {
+          reject(request.error ?? new Error('Wallpaper storage request failed.'))
+        }
 
-    request.onsuccess = () => {
-      resolve(request.result)
-    }
+        request.onsuccess = () => {
+          resolve(request.result)
+        }
 
-    transaction.oncomplete = () => {
-      database.close()
-    }
+        transaction.oncomplete = () => {
+          database.close()
+        }
 
-    transaction.onerror = () => {
-      reject(transaction.error ?? new Error('Wallpaper storage transaction failed.'))
-      database.close()
-    }
+        transaction.onerror = () => {
+          reject(transaction.error ?? new Error('Wallpaper storage transaction failed.'))
+          database.close()
+        }
 
-    transaction.onabort = () => {
-      reject(transaction.error ?? new Error('Wallpaper storage transaction aborted.'))
-      database.close()
-    }
-  }))
+        transaction.onabort = () => {
+          reject(transaction.error ?? new Error('Wallpaper storage transaction aborted.'))
+          database.close()
+        }
+      }),
+  )
 }
 
 export function getStoredWallpaperDataUrl(target: WallpaperTarget): Promise<string | null> {

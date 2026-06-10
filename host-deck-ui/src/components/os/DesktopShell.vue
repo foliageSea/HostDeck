@@ -20,21 +20,26 @@ const desktopWallpaperStyle = computed(() =>
   createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
 )
 const desktopWallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
-const isVideoWallpaper = computed(() =>
-  settingsStore.desktopWallpaper.mode === 'custom'
-  && settingsStore.desktopWallpaper.customType === 'video'
-  && Boolean(settingsStore.desktopWallpaper.customDataUrl),
+const isVideoWallpaper = computed(
+  () =>
+    settingsStore.desktopWallpaper.mode === 'custom' &&
+    settingsStore.desktopWallpaper.customType === 'video' &&
+    Boolean(settingsStore.desktopWallpaper.customDataUrl),
 )
 const desktopVideoWallpaperUrl = computed(() => {
   const wallpaperUrl = settingsStore.desktopWallpaper.customDataUrl
-  if (!wallpaperUrl || !wallpaperUrl.startsWith('/') || !import.meta.env.DEV || !import.meta.env.VITE_DEV_PROXY_TARGET) {
+  if (
+    !wallpaperUrl ||
+    !wallpaperUrl.startsWith('/') ||
+    !import.meta.env.DEV ||
+    !import.meta.env.VITE_DEV_PROXY_TARGET
+  ) {
     return wallpaperUrl ?? undefined
   }
 
   try {
     return new URL(wallpaperUrl, import.meta.env.VITE_DEV_PROXY_TARGET).toString()
-  }
-  catch {
+  } catch {
     return wallpaperUrl
   }
 })
@@ -82,7 +87,9 @@ function handleKeyDown(event: KeyboardEvent) {
     return
   }
 
-  const isSwitchKey = (event.ctrlKey && event.key === 'Tab') || (event.altKey && (event.key === '`' || event.key === 'q'))
+  const isSwitchKey =
+    (event.ctrlKey && event.key === 'Tab') ||
+    (event.altKey && (event.key === '`' || event.key === 'q'))
   if (!isSwitchKey) {
     return
   }
@@ -103,7 +110,8 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 
   if (event.shiftKey) {
-    switcherIndex.value = (switcherIndex.value - 1 + switcherWindows.value.length) % switcherWindows.value.length
+    switcherIndex.value =
+      (switcherIndex.value - 1 + switcherWindows.value.length) % switcherWindows.value.length
     return
   }
 
@@ -129,7 +137,8 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="desktop-shell relative h-full min-h-screen overflow-hidden [--desktop-topbar-height:40px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:12px] [--desktop-dock-height:72px] [--desktop-dock-safe-area:calc(var(--desktop-dock-bottom-gap)_+_var(--desktop-dock-height))]">
+    class="desktop-shell relative h-full min-h-screen overflow-hidden [--desktop-topbar-height:40px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:12px] [--desktop-dock-height:72px] [--desktop-dock-safe-area:calc(var(--desktop-dock-bottom-gap)_+_var(--desktop-dock-height))]"
+  >
     <video
       v-if="isVideoWallpaper"
       class="absolute inset-0 h-full w-full object-cover"
@@ -140,7 +149,11 @@ onUnmounted(() => {
       loop
       playsinline
     />
-    <div v-else class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="desktopWallpaperStyle" />
+    <div
+      v-else
+      class="absolute inset-0 bg-cover bg-center bg-no-repeat"
+      :style="desktopWallpaperStyle"
+    />
     <div class="absolute inset-0 [backdrop-filter:saturate(108%)]" />
 
     <DesktopTopBar />
@@ -154,8 +167,12 @@ onUnmounted(() => {
 
     <DesktopDock />
 
-    <DesktopWindowSwitcher v-if="switcherVisible" :windows="switcherWindows" :selected-index="switcherIndex"
-      @select="selectWindow" />
+    <DesktopWindowSwitcher
+      v-if="switcherVisible"
+      :windows="switcherWindows"
+      :selected-index="switcherIndex"
+      @select="selectWindow"
+    />
 
     <!-- <div
       class="desktop-status-card absolute bottom-[var(--desktop-dock-safe-area)] right-[24px] z-[15] w-[280px] rounded-[18px] p-[16px] backdrop-blur-[16px]"

@@ -65,19 +65,35 @@ function getImageName(image: DockerImage) {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col overflow-hidden"
-    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
-    <input ref="imageImportInputRef" type="file" hidden accept=".tar,.tar.gz,.tgz,application/x-tar,application/gzip,application/x-gzip"
-      @change="handleImageImportChange" />
+  <div
+    class="flex h-full min-h-0 flex-col overflow-hidden"
+    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'"
+  >
+    <input
+      ref="imageImportInputRef"
+      type="file"
+      hidden
+      accept=".tar,.tar.gz,.tgz,application/x-tar,application/gzip,application/x-gzip"
+      @change="handleImageImportChange"
+    />
 
     <DockerTabToolbar>
       <template #left>
         <div class="flex items-center gap-1">
-          <NInput :value="controller.imageSearchKeyword" clearable class="w-[min(220px,60vw)] lt-sm:w-full"
-            placeholder="搜索镜像"  @update:value="controller.setImageSearchKeyword" />
-          <NInput :value="controller.pullImageName" class="w-[min(320px,60vw)] lt-sm:w-full"
-            placeholder="例如 nginx:latest" @update:value="controller.pullImageName = $event"
-            @keydown.enter.prevent="controller.pullImage">
+          <NInput
+            :value="controller.imageSearchKeyword"
+            clearable
+            class="w-[min(220px,60vw)] lt-sm:w-full"
+            placeholder="搜索镜像"
+            @update:value="controller.setImageSearchKeyword"
+          />
+          <NInput
+            :value="controller.pullImageName"
+            class="w-[min(320px,60vw)] lt-sm:w-full"
+            placeholder="例如 nginx:latest"
+            @update:value="controller.pullImageName = $event"
+            @keydown.enter.prevent="controller.pullImage"
+          >
             <template #prefix>
               <NIcon>
                 <Download />
@@ -104,35 +120,54 @@ function getImageName(image: DockerImage) {
           </template>
           拉取镜像
         </NButton>
-        <NButton quaternary :loading="controller.loading" @click="controller.refreshImages">刷新</NButton>
+        <NButton quaternary :loading="controller.loading" @click="controller.refreshImages"
+          >刷新</NButton
+        >
       </template>
 
       <template #meta>
         <NTag round size="small">镜像 {{ controller.imageSummary.total }}</NTag>
-        <NTag round size="small">显示 {{ controller.imageTotal }} / {{ controller.imageSummary.total }}</NTag>
+        <NTag round size="small"
+          >显示 {{ controller.imageTotal }} / {{ controller.imageSummary.total }}</NTag
+        >
       </template>
     </DockerTabToolbar>
 
     <div class="docker-card-shell">
-
       <NEmpty v-if="controller.images.length === 0" />
 
       <div v-else class="docker-card-list">
-        <NCard v-for="image in controller.images" :key="image.id" class="docker-card"
-          content-class="docker-card-content" size="small" :bordered="false">
+        <NCard
+          v-for="image in controller.images"
+          :key="image.id"
+          class="docker-card"
+          content-class="docker-card-content"
+          size="small"
+          :bordered="false"
+        >
           <template #header>
             <div class="min-w-0">
-              <div class="truncate text-[15px] font-600" :title="getImageName(image)">{{ getImageName(image) }}</div>
-              <div class="mt-[4px] truncate text-[12px]"
-                :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'"
-                :title="image.id">
+              <div class="truncate text-[15px] font-600" :title="getImageName(image)">
+                {{ getImageName(image) }}
+              </div>
+              <div
+                class="mt-[4px] truncate text-[12px]"
+                :class="
+                  settingsStore.isDark
+                    ? 'text-[rgba(226,232,240,0.58)]'
+                    : 'text-[rgba(100,116,139,0.88)]'
+                "
+                :title="image.id"
+              >
                 {{ image.id.slice(0, 18) }}
               </div>
             </div>
           </template>
 
           <template #header-extra>
-            <NTag round size="small" :type="getImageStatusType(image)">{{ getImageStatus(image) }}</NTag>
+            <NTag round size="small" :type="getImageStatusType(image)">{{
+              getImageStatus(image)
+            }}</NTag>
           </template>
 
           <div class="docker-card-fields">
@@ -156,22 +191,44 @@ function getImageName(image: DockerImage) {
 
           <template #footer>
             <div class="docker-card-actions">
-              <NButton size="tiny" quaternary @click="controller.openImageTagDialog(image)">Tag</NButton>
-              <NButton size="tiny" quaternary :loading="controller.imageExportingMap[image.id]"
-                @click="controller.exportImage(image)">导出</NButton>
-              <NButton size="tiny" quaternary @click="controller.viewImageHistory(image)">历史</NButton>
-              <NButton size="tiny" quaternary @click="controller.viewImageRefs(image)">引用</NButton>
-              <NButton size="tiny" quaternary type="error" @click="controller.confirmRemoveImage(image)">删除</NButton>
+              <NButton size="tiny" quaternary @click="controller.openImageTagDialog(image)"
+                >Tag</NButton
+              >
+              <NButton
+                size="tiny"
+                quaternary
+                :loading="controller.imageExportingMap[image.id]"
+                @click="controller.exportImage(image)"
+                >导出</NButton
+              >
+              <NButton size="tiny" quaternary @click="controller.viewImageHistory(image)"
+                >历史</NButton
+              >
+              <NButton size="tiny" quaternary @click="controller.viewImageRefs(image)"
+                >引用</NButton
+              >
+              <NButton
+                size="tiny"
+                quaternary
+                type="error"
+                @click="controller.confirmRemoveImage(image)"
+                >删除</NButton
+              >
             </div>
           </template>
         </NCard>
       </div>
 
       <div v-if="controller.imageTotal > 0" class="docker-card-pagination">
-        <NPagination :page="controller.imagePagination.page" :page-size="controller.imagePagination.pageSize"
-          :item-count="controller.imagePagination.itemCount" :page-sizes="controller.imagePagination.pageSizes"
-          show-size-picker @update:page="controller.handleImagePageChange"
-          @update:page-size="controller.handleImagePageSizeChange" />
+        <NPagination
+          :page="controller.imagePagination.page"
+          :page-size="controller.imagePagination.pageSize"
+          :item-count="controller.imagePagination.itemCount"
+          :page-sizes="controller.imagePagination.pageSizes"
+          show-size-picker
+          @update:page="controller.handleImagePageChange"
+          @update:page-size="controller.handleImagePageSizeChange"
+        />
       </div>
     </div>
   </div>
@@ -183,7 +240,11 @@ function getImageName(image: DockerImage) {
   --docker-card-bg: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.46));
   --docker-card-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
   --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.42);
-  --docker-card-bg-hover: linear-gradient(145deg, rgba(15, 23, 42, 0.84), rgba(var(--app-primary-rgb), 0.28));
+  --docker-card-bg-hover: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.84),
+    rgba(var(--app-primary-rgb), 0.28)
+  );
   --docker-card-field-bg: rgba(15, 23, 42, 0.38);
   --docker-card-label-color: rgba(226, 232, 240, 0.52);
   --docker-card-value-color: rgba(248, 250, 252, 0.9);
@@ -196,7 +257,11 @@ function getImageName(image: DockerImage) {
   --docker-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
   --docker-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
   --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.34);
-  --docker-card-bg-hover: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(var(--app-primary-rgb), 0.14));
+  --docker-card-bg-hover: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(var(--app-primary-rgb), 0.14)
+  );
   --docker-card-field-bg: rgba(241, 245, 249, 0.92);
   --docker-card-label-color: rgba(100, 116, 139, 0.9);
   --docker-card-value-color: rgba(30, 41, 59, 0.92);

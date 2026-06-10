@@ -45,9 +45,24 @@ async function forceReload() {
 <template>
   <header class="electron-titlebar">
     <div v-if="!isMac" class="electron-titlebar__controls" aria-label="窗口控制">
-      <button class="electron-titlebar__button electron-titlebar__button--close" type="button" aria-label="关闭" @click="closeWindow" />
-      <button class="electron-titlebar__button electron-titlebar__button--minimize" type="button" aria-label="最小化" @click="minimizeWindow" />
-      <button class="electron-titlebar__button electron-titlebar__button--maximize" type="button" :aria-label="isMaximized ? '还原' : '最大化'" @click="toggleMaximizeWindow" />
+      <button
+        class="electron-titlebar__button electron-titlebar__button--close"
+        type="button"
+        aria-label="关闭"
+        @click="closeWindow"
+      />
+      <button
+        class="electron-titlebar__button electron-titlebar__button--minimize"
+        type="button"
+        aria-label="最小化"
+        @click="minimizeWindow"
+      />
+      <button
+        class="electron-titlebar__button electron-titlebar__button--maximize"
+        type="button"
+        :aria-label="isMaximized ? '还原' : '最大化'"
+        @click="toggleMaximizeWindow"
+      />
     </div>
     <div class="electron-titlebar__drag-region">
       <span class="electron-titlebar__title">HostDeck</span>
@@ -55,24 +70,49 @@ async function forceReload() {
     <div class="electron-titlebar__actions">
       <Transition name="electron-titlebar-actions">
         <div v-if="areActionsExpanded" class="electron-titlebar__action-list">
-          <button class="electron-titlebar__action" type="button" aria-label="强制刷新" title="强制刷新" @click="forceReload">
+          <button
+            class="electron-titlebar__action"
+            type="button"
+            aria-label="强制刷新"
+            title="强制刷新"
+            @click="forceReload"
+          >
             <NIcon :size="15">
               <Renew />
             </NIcon>
           </button>
-          <button class="electron-titlebar__action" type="button" aria-label="打开开发者工具" title="打开开发者工具" @click="openDevTools">
+          <button
+            class="electron-titlebar__action"
+            type="button"
+            aria-label="打开开发者工具"
+            title="打开开发者工具"
+            @click="openDevTools"
+          >
             <NIcon :size="15">
               <Debug />
             </NIcon>
           </button>
-          <button class="electron-titlebar__action" type="button" aria-label="在外部浏览器打开" title="在外部浏览器打开" @click="openInBrowser">
+          <button
+            class="electron-titlebar__action"
+            type="button"
+            aria-label="在外部浏览器打开"
+            title="在外部浏览器打开"
+            @click="openInBrowser"
+          >
             <NIcon :size="15">
               <Launch />
             </NIcon>
           </button>
         </div>
       </Transition>
-      <button class="electron-titlebar__action" type="button" aria-label="更多操作" title="更多操作" :aria-expanded="areActionsExpanded" @click="toggleActions">
+      <button
+        class="electron-titlebar__action"
+        type="button"
+        aria-label="更多操作"
+        title="更多操作"
+        :aria-expanded="areActionsExpanded"
+        @click="toggleActions"
+      >
         <NIcon :size="15">
           <OverflowMenuHorizontal />
         </NIcon>
@@ -192,7 +232,10 @@ async function forceReload() {
 
 .electron-titlebar-actions-enter-active,
 .electron-titlebar-actions-leave-active {
-  transition: opacity 0.16s ease, transform 0.16s ease, max-width 0.16s ease;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    max-width 0.16s ease;
 }
 
 .electron-titlebar-actions-enter-from,

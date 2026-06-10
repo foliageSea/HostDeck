@@ -40,11 +40,15 @@ const contextMenuOptions = computed(() => {
   const hasWindows = getAppWindows(appId).length > 0
   return [
     { key: 'new', label: '新建窗口', disabled: !desktopStore.canOpenWindow(appId) },
-    ...(hasWindows ? [{ key: 'close-all', label: '关闭全部窗口', props: { style: 'color: #dc2626;' } }] : []),
+    ...(hasWindows
+      ? [{ key: 'close-all', label: '关闭全部窗口', props: { style: 'color: #dc2626;' } }]
+      : []),
   ]
 })
 
-const dockApps = computed<AppConfig[]>(() => Object.values(desktopStore.apps).filter((app) => !app.hide))
+const dockApps = computed<AppConfig[]>(() =>
+  Object.values(desktopStore.apps).filter((app) => !app.hide),
+)
 const selectorWindows = computed(() => {
   const appId = selectorAppId.value
   return appId ? getAppWindows(appId) : []
@@ -262,12 +266,15 @@ function handleContextMenuSelect(key: string | number) {
             @keydown="handleTriggerKeydown($event, app.id)"
           >
             <AppIcon :color="getDockIconColor(app.id)" :name="app.icon" :size="24" />
-            <span v-if="isAppOpen(app.id)" class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]" aria-hidden="true" />
+            <span
+              v-if="isAppOpen(app.id)"
+              class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]"
+              aria-hidden="true"
+            />
           </div>
         </template>
         {{ app.title }}
       </NTooltip>
-
     </div>
 
     <Teleport to="body">
@@ -281,11 +288,18 @@ function handleContextMenuSelect(key: string | number) {
             : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.94)] shadow-[0_24px_70px_rgba(148,163,184,0.22)]',
         ]"
         :style="{
-        left: `${selectorPosition.x}px`,
-        top: `${selectorPosition.y}px`,
-      }"
+          left: `${selectorPosition.x}px`,
+          top: `${selectorPosition.y}px`,
+        }"
       >
-        <div class="mb-[8px] text-[0.78rem]" :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.62)]' : 'text-[rgba(71,85,105,0.84)]'">选择窗口</div>
+        <div
+          class="mb-[8px] text-[0.78rem]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(226,232,240,0.62)]' : 'text-[rgba(71,85,105,0.84)]'
+          "
+        >
+          选择窗口
+        </div>
         <button
           v-for="window in selectorWindows"
           :key="window.id"
@@ -296,20 +310,39 @@ function handleContextMenuSelect(key: string | number) {
               ? 'bg-[rgba(30,41,59,0.7)] text-[#e2e8f0] hover:bg-[rgba(51,65,85,0.92)]'
               : 'bg-[rgba(241,245,249,0.92)] text-[#1e293b] hover:bg-[rgba(226,232,240,0.96)]',
           ]"
-          @click="activateWindow(window.id)">
+          @click="activateWindow(window.id)"
+        >
           <span>{{ window.title }}</span>
-          <span v-if="desktopStore.activeWindowId === window.id" class="h-[8px] w-[8px] rounded-full bg-[var(--app-primary-color)]" />
+          <span
+            v-if="desktopStore.activeWindowId === window.id"
+            class="h-[8px] w-[8px] rounded-full bg-[var(--app-primary-color)]"
+          />
         </button>
         <div class="mt-[8px] flex gap-[8px]">
-          <NButton secondary size="small" :disabled="!desktopStore.canOpenWindow(selectorAppId)" @click="openNewWindow(selectorAppId)">新建窗口</NButton>
-          <NButton tertiary size="small" type="error" @click="closeAppWindows(selectorAppId)">关闭全部</NButton>
+          <NButton
+            secondary
+            size="small"
+            :disabled="!desktopStore.canOpenWindow(selectorAppId)"
+            @click="openNewWindow(selectorAppId)"
+            >新建窗口</NButton
+          >
+          <NButton tertiary size="small" type="error" @click="closeAppWindows(selectorAppId)"
+            >关闭全部</NButton
+          >
         </div>
       </div>
     </Teleport>
 
-    <NDropdown placement="bottom-start" trigger="manual" :show="Boolean(contextMenu)" :x="contextMenu?.x ?? 0"
-      :y="contextMenu?.y ?? 0" :options="contextMenuOptions" @clickoutside="closeContextMenu"
-      @select="handleContextMenuSelect" />
+    <NDropdown
+      placement="bottom-start"
+      trigger="manual"
+      :show="Boolean(contextMenu)"
+      :x="contextMenu?.x ?? 0"
+      :y="contextMenu?.y ?? 0"
+      :options="contextMenuOptions"
+      @clickoutside="closeContextMenu"
+      @select="handleContextMenuSelect"
+    />
   </footer>
 </template>
 
@@ -362,5 +395,4 @@ function handleContextMenuSelect(key: string | number) {
     height: 46px;
   }
 }
-
 </style>

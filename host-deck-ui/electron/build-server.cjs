@@ -38,7 +38,14 @@ if (pubGetStatus !== 0) {
   console.warn('flutter pub get failed; continuing with existing .dart_tool/package_config.json.')
 }
 
-run('dart', ['build', 'cli', '--target', path.join(repoRoot, 'bin', 'server.dart'), '--output', outputDir])
+run('dart', [
+  'build',
+  'cli',
+  '--target',
+  path.join(repoRoot, 'bin', 'server.dart'),
+  '--output',
+  outputDir,
+])
 
 if (!fs.existsSync(serverExe)) {
   console.error('Server executable was not generated: ' + serverExe)

@@ -1,6 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Settings, ChartLine, Document, Image, Folder, Launch, Logout, Terminal, ApplicationWeb, Connect } from '@vicons/carbon'
+import {
+  Settings,
+  ChartLine,
+  Document,
+  Image,
+  Folder,
+  Launch,
+  Logout,
+  Terminal,
+  ApplicationWeb,
+  Connect,
+} from '@vicons/carbon'
 import { LogoDocker } from '@vicons/ionicons5'
 import type { Component } from 'vue'
 import type { AppIconKey } from '@/types/desktop'
@@ -33,11 +44,18 @@ const iconMap: Record<AppIconKey, Component> = {
 }
 
 const icon = computed(() => iconMap[props.name])
-const iconImageSrc = computed(() => props.name === 'opencode' ? '/opencode.ico' : null)
+const iconImageSrc = computed(() => (props.name === 'opencode' ? '/opencode.ico' : null))
 </script>
 
 <template>
-  <img v-if="iconImageSrc" :src="iconImageSrc" :width="size" :height="size" alt="" aria-hidden="true">
+  <img
+    v-if="iconImageSrc"
+    :src="iconImageSrc"
+    :width="size"
+    :height="size"
+    alt=""
+    aria-hidden="true"
+  />
   <NIcon v-else :color="color" :size="size">
     <component :is="icon" />
   </NIcon>

@@ -26,7 +26,7 @@ interface TerminalProps {
 function buildTerminalTheme(isDark: boolean) {
   if (isDark) {
     return {
-      background: '#050816',
+      background: '#05081600',
       black: '#0f172a',
       blue: '#60a5fa',
       brightBlack: '#475569',
@@ -50,7 +50,7 @@ function buildTerminalTheme(isDark: boolean) {
   }
 
   return {
-    background: '#f8fafc',
+    background: '#f8fafc00',
     black: '#0f172a',
     blue: '#2563eb',
     brightBlack: '#64748b',
@@ -97,7 +97,13 @@ export function useTerminalSession(props: TerminalProps) {
   function fitTerminal() {
     fitAddon?.fit()
     if (terminalRef.value && socket?.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ cols: terminalRef.value.cols, rows: terminalRef.value.rows, type: 'resize' }))
+      socket.send(
+        JSON.stringify({
+          cols: terminalRef.value.cols,
+          rows: terminalRef.value.rows,
+          type: 'resize',
+        }),
+      )
     }
   }
 
@@ -124,7 +130,9 @@ export function useTerminalSession(props: TerminalProps) {
     }
 
     desktopStore.windows
-      .filter((window) => window.appId === 'iframe-app' && window.props?.url === props.openIframeUrl)
+      .filter(
+        (window) => window.appId === 'iframe-app' && window.props?.url === props.openIframeUrl,
+      )
       .forEach((window) => {
         desktopStore.closeWindow(window.id)
       })
@@ -262,14 +270,16 @@ export function useTerminalSession(props: TerminalProps) {
   }
 
   function createTerminal() {
-    terminalRef.value = markRaw(new Terminal({
-      allowProposedApi: true,
-      cursorBlink: true,
-      cursorStyle: 'bar',
-      fontFamily: settingsStore.terminalFontFamily,
-      fontSize: settingsStore.terminalFontSize,
-      theme: buildTerminalTheme(settingsStore.isDark),
-    }))
+    terminalRef.value = markRaw(
+      new Terminal({
+        allowProposedApi: true,
+        cursorBlink: true,
+        cursorStyle: 'bar',
+        fontFamily: settingsStore.terminalFontFamily,
+        fontSize: settingsStore.terminalFontSize,
+        theme: buildTerminalTheme(settingsStore.isDark),
+      }),
+    )
 
     terminalRef.value.attachCustomKeyEventHandler((event) => {
       if (event.type !== 'keydown' || event.metaKey) {
@@ -277,7 +287,8 @@ export function useTerminalSession(props: TerminalProps) {
       }
 
       const key = event.key.toLowerCase()
-      const isPasteShortcut = key === 'v' && !event.shiftKey && !event.metaKey && (event.ctrlKey !== event.altKey)
+      const isPasteShortcut =
+        key === 'v' && !event.shiftKey && !event.metaKey && event.ctrlKey !== event.altKey
       const isCopyShortcut = key === 'c' && event.altKey && !event.ctrlKey && !event.shiftKey
 
       if (isPasteShortcut || isCopyShortcut) {
@@ -297,10 +308,12 @@ export function useTerminalSession(props: TerminalProps) {
     })
 
     fitAddon = markRaw(new FitAddon())
-    webLinksAddon = markRaw(new WebLinksAddon((event, uri) => {
-      event.preventDefault()
-      window.open(uri, '_blank', 'noopener')
-    }))
+    webLinksAddon = markRaw(
+      new WebLinksAddon((event, uri) => {
+        event.preventDefault()
+        window.open(uri, '_blank', 'noopener')
+      }),
+    )
 
     terminalRef.value.loadAddon(fitAddon)
     terminalRef.value.loadAddon(webLinksAddon)
@@ -392,7 +405,8 @@ export function useTerminalSession(props: TerminalProps) {
   })
 
   onBeforeUnmount(async () => {
-    const sessionIdToClose = ownedSessionId ?? (props.closeSessionOnUnmount ? props.sessionId ?? null : null)
+    const sessionIdToClose =
+      ownedSessionId ?? (props.closeSessionOnUnmount ? (props.sessionId ?? null) : null)
 
     resizeObserver?.disconnect()
     clearStartupTimers()
@@ -413,7 +427,6 @@ export function useTerminalSession(props: TerminalProps) {
         console.error('Failed to delete terminal session', error)
       }
     }
-
   })
 
   return {

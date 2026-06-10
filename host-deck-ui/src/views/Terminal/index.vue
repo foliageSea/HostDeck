@@ -70,15 +70,26 @@ async function copySelection() {
 </script>
 
 <template>
-  <div class="relative flex h-full flex-col" :class="[
-    settingsStore.isDark
-      ? 'bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.55),#020617_72%)]'
-      : 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.82),#f8fafc_72%)]',
-  ]" @mousedown="showCopyButton = false" @mouseup="openCopyButton">
+  <div
+    class="relative flex h-full flex-col"
+    :class="[
+      settingsStore.isDark
+        ? 'bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.55),#020617_72%)]'
+        : 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.82),#f8fafc_72%)]',
+    ]"
+    @mousedown="showCopyButton = false"
+    @mouseup="openCopyButton"
+  >
     <div class="absolute right-[20px] top-[18px] z-10">
       <NTooltip trigger="hover">
         <template #trigger>
-          <NButton quaternary circle size="small" aria-label="终端设置" @click="showSettings = true">
+          <NButton
+            quaternary
+            circle
+            size="small"
+            aria-label="终端设置"
+            @click="showSettings = true"
+          >
             <template #icon>
               <NIcon :size="16">
                 <Settings />
@@ -92,18 +103,20 @@ async function copySelection() {
 
     <div
       class="terminal-surface min-h-0 flex-1 overflow-hidden rounded-[18px] border mx-[12px] mb-[12px] mt-[10px]"
-      :class="[
-        settingsStore.isDark
-          ? 'border-[rgba(148,163,184,0.14)] bg-[#050816] shadow-[0_20px_48px_rgba(2,6,23,0.32)]'
-          : 'border-[rgba(148,163,184,0.24)] bg-[#f8fafc] shadow-[0_18px_42px_rgba(15,23,42,0.12)]',
-      ]"
     >
-      <div ref="terminalContainer" class="terminal-host h-full min-h-0 overflow-hidden rounded-[inherit] px-2" />
+      <div
+        ref="terminalContainer"
+        class="terminal-host h-full min-h-0 overflow-hidden rounded-[inherit] px-2"
+      />
     </div>
 
     <Teleport to="body">
-      <div v-if="showCopyButton" class="fixed z-[9999] translate-x-[-50%] translate-y-[calc(-100%_-_8px)]"
-        :style="copyButtonStyle" @mousedown.stop>
+      <div
+        v-if="showCopyButton"
+        class="fixed z-[9999] translate-x-[-50%] translate-y-[calc(-100%_-_8px)]"
+        :style="copyButtonStyle"
+        @mousedown.stop
+      >
         <NButton size="small" type="primary" @click.stop="copySelection">复制</NButton>
       </div>
     </Teleport>
@@ -117,6 +130,7 @@ async function copySelection() {
 .terminal-host :deep(.xterm-viewport),
 .terminal-host :deep(.xterm-screen) {
   border-radius: inherit;
+  background-color: transparent;
 }
 
 .terminal-host :deep(.xterm-viewport) {

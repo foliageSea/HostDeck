@@ -86,7 +86,9 @@ function getPortsTitle(container: DockerContainer) {
 
 function getContainerNetworksTitle(container: DockerContainer) {
   return container.networks.length
-    ? container.networks.map((item) => `${item.name}${item.ipAddress ? ` (${item.ipAddress})` : ''}`).join('\n')
+    ? container.networks
+        .map((item) => `${item.name}${item.ipAddress ? ` (${item.ipAddress})` : ''}`)
+        .join('\n')
     : '无网络信息'
 }
 
@@ -104,24 +106,40 @@ function isPaused(container: DockerContainer) {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col overflow-hidden"
-    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'">
+  <div
+    class="flex h-full min-h-0 flex-col overflow-hidden"
+    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'"
+  >
     <DockerTabToolbar>
       <template #left>
-        <div class="flex gap-1 items-center"> 
-          <NInput :value="controller.containerSearchKeyword" clearable class="w-[min(220px,60vw)] lt-sm:w-full"
-            placeholder="搜索容器"  @update:value="controller.setContainerSearchKeyword" />
-          <NSelect :value="controller.containerStatusFilter" class="w-[128px]"
-            :options="controller.containerStatusOptions" 
-            @update:value="controller.setContainerStatusFilter" />
-          <NDropdown trigger="click" :options="containerMoreActionOptions" @select="handleContainerMoreAction">
+        <div class="flex gap-1 items-center">
+          <NInput
+            :value="controller.containerSearchKeyword"
+            clearable
+            class="w-[min(220px,60vw)] lt-sm:w-full"
+            placeholder="搜索容器"
+            @update:value="controller.setContainerSearchKeyword"
+          />
+          <NSelect
+            :value="controller.containerStatusFilter"
+            class="w-[128px]"
+            :options="controller.containerStatusOptions"
+            @update:value="controller.setContainerStatusFilter"
+          />
+          <NDropdown
+            trigger="click"
+            :options="containerMoreActionOptions"
+            @select="handleContainerMoreAction"
+          >
             <NButton quaternary :loading="controller.batchProcessing">操作</NButton>
           </NDropdown>
         </div>
       </template>
 
       <template #actions>
-        <NButton quaternary :loading="controller.loading" @click="controller.refreshContainers">刷新</NButton>
+        <NButton quaternary :loading="controller.loading" @click="controller.refreshContainers"
+          >刷新</NButton
+        >
         <NButton quaternary @click="controller.openCreateContainer">
           <template #icon>
             <NIcon>
@@ -134,7 +152,9 @@ function isPaused(container: DockerContainer) {
 
       <template #meta>
         <NTag round size="small">已选 {{ controller.selectedContainerIds.length }}</NTag>
-        <NTag round size="small">显示 {{ controller.containerTotal }} / {{ controller.containerSummary.total }}</NTag>
+        <NTag round size="small"
+          >显示 {{ controller.containerTotal }} / {{ controller.containerSummary.total }}</NTag
+        >
       </template>
     </DockerTabToolbar>
 
@@ -142,26 +162,49 @@ function isPaused(container: DockerContainer) {
       <NEmpty v-if="controller.containers.length === 0" />
 
       <div v-else class="docker-card-list">
-        <NCard v-for="container in controller.containers" :key="container.id" class="docker-card"
-          content-class="docker-card-content" size="small" :bordered="false">
+        <NCard
+          v-for="container in controller.containers"
+          :key="container.id"
+          class="docker-card"
+          content-class="docker-card-content"
+          size="small"
+          :bordered="false"
+        >
           <template #header>
             <div class="min-w-0 flex items-start gap-[10px]">
-              <NCheckbox :checked="isContainerSelected(container.id)" class="mt-[2px]"
-                @update:checked="toggleContainerSelection(container.id, $event)" />
+              <NCheckbox
+                :checked="isContainerSelected(container.id)"
+                class="mt-[2px]"
+                @update:checked="toggleContainerSelection(container.id, $event)"
+              />
               <div class="min-w-0 flex-1">
-                <div class="truncate text-[15px] font-600" :title="container.name">{{ container.name }}</div>
-                <div class="mt-[4px] min-w-0 text-[12px]"
-                  :class="settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(100,116,139,0.88)]'"
-                  :title="container.id">
-                  <CopyableText :text="container.id" :display-text="container.id.slice(0, 12)"
-                    success-message="已复制容器 ID。" error-message="复制容器 ID 失败。" />
+                <div class="truncate text-[15px] font-600" :title="container.name">
+                  {{ container.name }}
+                </div>
+                <div
+                  class="mt-[4px] min-w-0 text-[12px]"
+                  :class="
+                    settingsStore.isDark
+                      ? 'text-[rgba(226,232,240,0.58)]'
+                      : 'text-[rgba(100,116,139,0.88)]'
+                  "
+                  :title="container.id"
+                >
+                  <CopyableText
+                    :text="container.id"
+                    :display-text="container.id.slice(0, 12)"
+                    success-message="已复制容器 ID。"
+                    error-message="复制容器 ID 失败。"
+                  />
                 </div>
               </div>
             </div>
           </template>
 
           <template #header-extra>
-            <NTag round size="small" :type="getContainerStatusType(container)">{{ container.status }}</NTag>
+            <NTag round size="small" :type="getContainerStatusType(container)">{{
+              container.status
+            }}</NTag>
           </template>
 
           <div class="docker-card-fields">
@@ -171,10 +214,16 @@ function isPaused(container: DockerContainer) {
             </div>
             <div class="docker-card-field">
               <span>资源</span>
-              <strong v-if="controller.containerResourceLoadedMap[container.id]">{{ getContainerResource(container)
+              <strong v-if="controller.containerResourceLoadedMap[container.id]">{{
+                getContainerResource(container)
               }}</strong>
-              <NButton v-else text type="primary" :loading="controller.containerResourceLoadingMap[container.id]"
-                @click="controller.refreshContainerResource(container.id)">
+              <NButton
+                v-else
+                text
+                type="primary"
+                :loading="controller.containerResourceLoadingMap[container.id]"
+                @click="controller.refreshContainerResource(container.id)"
+              >
                 获取资源
               </NButton>
             </div>
@@ -186,10 +235,17 @@ function isPaused(container: DockerContainer) {
               <span>网络</span>
               <div class="docker-card-chip-list" :title="getContainerNetworksTitle(container)">
                 <template v-if="container.networks.length">
-                  <NTag v-for="network in container.networks.slice(0, 3)" :key="network.name" size="small" round>
+                  <NTag
+                    v-for="network in container.networks.slice(0, 3)"
+                    :key="network.name"
+                    size="small"
+                    round
+                  >
                     {{ network.name }}
                   </NTag>
-                  <span v-if="container.networks.length > 3">等 {{ container.networks.length }} 项</span>
+                  <span v-if="container.networks.length > 3"
+                    >等 {{ container.networks.length }} 项</span
+                  >
                 </template>
                 <template v-else>-</template>
               </div>
@@ -198,12 +254,19 @@ function isPaused(container: DockerContainer) {
               <span>IP</span>
               <div class="docker-card-chip-list" :title="getContainerNetworkIpsTitle(container)">
                 <template v-if="container.networks.some((item) => item.ipAddress)">
-                  <NTag v-for="network in container.networks.filter((item) => item.ipAddress).slice(0, 3)"
-                    :key="`${network.name}-${network.ipAddress}`" size="small" round type="info">
+                  <NTag
+                    v-for="network in container.networks
+                      .filter((item) => item.ipAddress)
+                      .slice(0, 3)"
+                    :key="`${network.name}-${network.ipAddress}`"
+                    size="small"
+                    round
+                    type="info"
+                  >
                     {{ network.ipAddress }}
                   </NTag>
                   <span v-if="container.networks.filter((item) => item.ipAddress).length > 3">
-                    等 {{container.networks.filter((item) => item.ipAddress).length}} 项
+                    等 {{ container.networks.filter((item) => item.ipAddress).length }} 项
                   </span>
                 </template>
                 <template v-else>-</template>
@@ -213,21 +276,48 @@ function isPaused(container: DockerContainer) {
               <span>端口</span>
               <div class="docker-card-port-list" :title="getPortsTitle(container)">
                 <template v-if="container.ports.length">
-                  <span v-for="port in container.ports.slice(0, 3)" :key="port" class="docker-card-port-item">
-                    <NButton class="mr-1" text type="primary" size="tiny"
+                  <span
+                    v-for="port in container.ports.slice(0, 3)"
+                    :key="port"
+                    class="docker-card-port-item"
+                  >
+                    <NButton
+                      class="mr-1"
+                      text
+                      type="primary"
+                      size="tiny"
                       :disabled="!controller.getContainerPortUrl(port)"
-                      :title="controller.getContainerPortUrl(port) ? `打开 ${controller.getContainerPortUrl(port)}` : `${port} 未映射宿主机端口`"
-                      @click.stop="controller.openContainerPort(port)">
+                      :title="
+                        controller.getContainerPortUrl(port)
+                          ? `打开 ${controller.getContainerPortUrl(port)}`
+                          : `${port} 未映射宿主机端口`
+                      "
+                      @click.stop="controller.openContainerPort(port)"
+                    >
                       {{ port }}
                     </NButton>
-                    <NButton text size="tiny" :disabled="!controller.getContainerPortUrl(port)"
-                      :aria-label="controller.isContainerPortPinned(port) ? '从桌面移除端口链接' : '添加端口链接到桌面'"
-                      :title="controller.isContainerPortPinned(port) ? '从桌面移除端口链接' : '添加端口链接到桌面'"
+                    <NButton
+                      text
+                      size="tiny"
+                      :disabled="!controller.getContainerPortUrl(port)"
+                      :aria-label="
+                        controller.isContainerPortPinned(port)
+                          ? '从桌面移除端口链接'
+                          : '添加端口链接到桌面'
+                      "
+                      :title="
+                        controller.isContainerPortPinned(port)
+                          ? '从桌面移除端口链接'
+                          : '添加端口链接到桌面'
+                      "
                       :type="controller.isContainerPortPinned(port) ? 'success' : 'default'"
-                      @click.stop="controller.toggleContainerPortDesktopPin(container, port)">
+                      @click.stop="controller.toggleContainerPortDesktopPin(container, port)"
+                    >
                       <template #icon>
                         <NIcon>
-                          <component :is="controller.isContainerPortPinned(port) ? PinFilled : Pin" />
+                          <component
+                            :is="controller.isContainerPortPinned(port) ? PinFilled : Pin"
+                          />
                         </NIcon>
                       </template>
                     </NButton>
@@ -241,28 +331,64 @@ function isPaused(container: DockerContainer) {
 
           <template #footer>
             <div class="docker-card-actions">
-              <NButton v-if="container.state === 'running'" size="tiny" quaternary
-                @click="controller.confirmContainerAction(container, 'stop')">
+              <NButton
+                v-if="container.state === 'running'"
+                size="tiny"
+                quaternary
+                @click="controller.confirmContainerAction(container, 'stop')"
+              >
                 停止
               </NButton>
-              <NButton v-else size="tiny" quaternary @click="controller.confirmContainerAction(container, 'start')">启动
+              <NButton
+                v-else
+                size="tiny"
+                quaternary
+                @click="controller.confirmContainerAction(container, 'start')"
+                >启动
               </NButton>
-              <NButton size="tiny" quaternary @click="controller.confirmContainerAction(container, 'restart')">重启
+              <NButton
+                size="tiny"
+                quaternary
+                @click="controller.confirmContainerAction(container, 'restart')"
+                >重启
               </NButton>
-              <NButton size="tiny" quaternary :disabled="container.state !== 'running'"
-                @click="controller.handleContainerAdvancedAction(container, isPaused(container) ? 'unpause' : 'pause')">
+              <NButton
+                size="tiny"
+                quaternary
+                :disabled="container.state !== 'running'"
+                @click="
+                  controller.handleContainerAdvancedAction(
+                    container,
+                    isPaused(container) ? 'unpause' : 'pause',
+                  )
+                "
+              >
                 {{ isPaused(container) ? '恢复' : '暂停' }}
               </NButton>
               <NButton size="tiny" quaternary @click="controller.viewLogs(container)">日志</NButton>
-              <NButton size="tiny" quaternary @click="controller.viewInspect(container)">Inspect</NButton>
-              <NButton size="tiny" quaternary @click="controller.openRenameDialog(container)">重命名</NButton>
-              <NButton size="tiny" quaternary @click="controller.recreateContainer(container)">重建</NButton>
-              <NButton size="tiny" quaternary :disabled="container.state !== 'running'"
-                @click="controller.enterShell(container)">
+              <NButton size="tiny" quaternary @click="controller.viewInspect(container)"
+                >Inspect</NButton
+              >
+              <NButton size="tiny" quaternary @click="controller.openRenameDialog(container)"
+                >重命名</NButton
+              >
+              <NButton size="tiny" quaternary @click="controller.recreateContainer(container)"
+                >重建</NButton
+              >
+              <NButton
+                size="tiny"
+                quaternary
+                :disabled="container.state !== 'running'"
+                @click="controller.enterShell(container)"
+              >
                 Shell
               </NButton>
-              <NButton size="tiny" quaternary type="error"
-                @click="controller.confirmContainerAction(container, 'remove')">
+              <NButton
+                size="tiny"
+                quaternary
+                type="error"
+                @click="controller.confirmContainerAction(container, 'remove')"
+              >
                 删除
               </NButton>
             </div>
@@ -271,10 +397,15 @@ function isPaused(container: DockerContainer) {
       </div>
 
       <div v-if="controller.containerTotal > 0" class="docker-card-pagination">
-        <NPagination :page="controller.containerPagination.page" :page-size="controller.containerPagination.pageSize"
-          :item-count="controller.containerPagination.itemCount" :page-sizes="controller.containerPagination.pageSizes"
-          show-size-picker @update:page="controller.handleContainerPageChange"
-          @update:page-size="controller.handleContainerPageSizeChange" />
+        <NPagination
+          :page="controller.containerPagination.page"
+          :page-size="controller.containerPagination.pageSize"
+          :item-count="controller.containerPagination.itemCount"
+          :page-sizes="controller.containerPagination.pageSizes"
+          show-size-picker
+          @update:page="controller.handleContainerPageChange"
+          @update:page-size="controller.handleContainerPageSizeChange"
+        />
       </div>
     </div>
   </div>
@@ -286,7 +417,11 @@ function isPaused(container: DockerContainer) {
   --docker-card-bg: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.46));
   --docker-card-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
   --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.42);
-  --docker-card-bg-hover: linear-gradient(145deg, rgba(15, 23, 42, 0.84), rgba(var(--app-primary-rgb), 0.28));
+  --docker-card-bg-hover: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.84),
+    rgba(var(--app-primary-rgb), 0.28)
+  );
   --docker-card-field-bg: rgba(15, 23, 42, 0.38);
   --docker-card-label-color: rgba(226, 232, 240, 0.52);
   --docker-card-value-color: rgba(248, 250, 252, 0.9);
@@ -299,7 +434,11 @@ function isPaused(container: DockerContainer) {
   --docker-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
   --docker-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
   --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.34);
-  --docker-card-bg-hover: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(var(--app-primary-rgb), 0.14));
+  --docker-card-bg-hover: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(var(--app-primary-rgb), 0.14)
+  );
   --docker-card-field-bg: rgba(241, 245, 249, 0.92);
   --docker-card-label-color: rgba(100, 116, 139, 0.9);
   --docker-card-value-color: rgba(30, 41, 59, 0.92);

@@ -12,7 +12,9 @@ const props = defineProps<{
 }>()
 
 const wallpaperSettings = computed(() =>
-  props.target === 'desktop' ? props.controller.settingsStore.desktopWallpaper : props.controller.settingsStore.loginWallpaper,
+  props.target === 'desktop'
+    ? props.controller.settingsStore.desktopWallpaper
+    : props.controller.settingsStore.loginWallpaper,
 )
 const isDark = computed(() => props.controller.settingsStore.isDark)
 const wallpaperOptionCardClass = computed(() =>
@@ -23,7 +25,7 @@ const wallpaperOptionCardClass = computed(() =>
 const wallpaperOptionCardActiveClass = computed(() =>
   isDark.value
     ? 'border-[rgba(96,165,250,0.44)] shadow-[0_0_0_1px_rgba(96,165,250,0.26),0_18px_36px_rgba(30,64,175,0.18)]'
-    : 'border-[rgba(59,130,246,0.42)] shadow-[0_0_0_1px_rgba(96,165,250,0.22),0_18px_34px_rgba(59,130,246,0.12)]'
+    : 'border-[rgba(59,130,246,0.42)] shadow-[0_0_0_1px_rgba(96,165,250,0.22),0_18px_34px_rgba(59,130,246,0.12)]',
 )
 const wallpaperPreviewClass = computed(() =>
   isDark.value
@@ -82,33 +84,48 @@ function resetWallpaperEffects() {
         <h3 class="m-0 text-[1rem]">{{ title }}</h3>
       </div>
       <div class="flex shrink-0 flex-nowrap items-center gap-[8px] lt-md:w-full">
-        <NButton class="whitespace-nowrap" secondary @click="controller.openWallpaperPicker(target)">上传图片/视频</NButton>
-        <NButton class="whitespace-nowrap" tertiary @click="controller.resetWallpaper(target)">恢复默认</NButton>
+        <NButton class="whitespace-nowrap" secondary @click="controller.openWallpaperPicker(target)"
+          >上传图片/视频</NButton
+        >
+        <NButton class="whitespace-nowrap" tertiary @click="controller.resetWallpaper(target)"
+          >恢复默认</NButton
+        >
       </div>
     </div>
 
     <input
-      :ref="(el) => {
-        if (target === 'desktop') {
-          controller.desktopWallpaperInput.value = el as HTMLInputElement | null
-        } else {
-          controller.loginWallpaperInput.value = el as HTMLInputElement | null
+      :ref="
+        (el) => {
+          if (target === 'desktop') {
+            controller.desktopWallpaperInput.value = el as HTMLInputElement | null
+          } else {
+            controller.loginWallpaperInput.value = el as HTMLInputElement | null
+          }
         }
-      }"
+      "
       class="hidden"
       type="file"
       accept="image/*,video/*"
       @change="controller.handleWallpaperUpload(target, $event)"
-    >
+    />
 
     <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-[14px]">
       <button
         type="button"
         class="cursor-pointer rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-1px]"
-        :class="[wallpaperOptionCardClass, controller.isDefaultActive(target) ? wallpaperOptionCardActiveClass : '']"
+        :class="[
+          wallpaperOptionCardClass,
+          controller.isDefaultActive(target) ? wallpaperOptionCardActiveClass : '',
+        ]"
         @click="controller.resetWallpaper(target)"
       >
-        <div class="wallpaper-preview-default relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat" :class="[wallpaperPreviewClass, target === 'desktop' ? 'desktop-default-preview' : 'login-default-preview']" />
+        <div
+          class="wallpaper-preview-default relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
+          :class="[
+            wallpaperPreviewClass,
+            target === 'desktop' ? 'desktop-default-preview' : 'login-default-preview',
+          ]"
+        />
         <div class="mt-[10px] grid gap-[4px]">
           <strong class="text-[0.94rem]" :class="headingTextClass">默认</strong>
           <span class="text-[0.84rem]" :class="secondaryTextClass">{{ defaultLabel }}</span>
@@ -120,10 +137,17 @@ function resetWallpaperEffects() {
         :key="`${target}-${preset.id}`"
         type="button"
         class="cursor-pointer rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-1px]"
-        :class="[wallpaperOptionCardClass, controller.isPresetActive(target, preset.id) ? wallpaperOptionCardActiveClass : '']"
+        :class="[
+          wallpaperOptionCardClass,
+          controller.isPresetActive(target, preset.id) ? wallpaperOptionCardActiveClass : '',
+        ]"
         @click="controller.setPresetWallpaper(target, preset.id)"
       >
-        <div class="relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat" :class="wallpaperPreviewClass" :style="{ background: preset.background }" />
+        <div
+          class="relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
+          :class="wallpaperPreviewClass"
+          :style="{ background: preset.background }"
+        />
         <div class="mt-[10px] grid gap-[4px]">
           <strong class="text-[0.94rem]" :class="headingTextClass">{{ preset.label }}</strong>
           <span class="text-[0.84rem]" :class="secondaryTextClass">{{ presetLabel }}</span>
@@ -132,14 +156,25 @@ function resetWallpaperEffects() {
 
       <div
         class="cursor-default rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out"
-        :class="[wallpaperOptionCardClass, controller.isCustomActive(target) ? wallpaperOptionCardActiveClass : '']"
+        :class="[
+          wallpaperOptionCardClass,
+          controller.isCustomActive(target) ? wallpaperOptionCardActiveClass : '',
+        ]"
       >
         <div
           class="relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
           :class="wallpaperPreviewClass"
-          :style="wallpaperSettings.customDataUrl && wallpaperSettings.customType !== 'video'
-            ? { backgroundColor: isDark ? '#020617' : '#e2e8f0', backgroundImage: `url(${wallpaperSettings.customDataUrl})`, backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundSize: 'contain' }
-            : undefined"
+          :style="
+            wallpaperSettings.customDataUrl && wallpaperSettings.customType !== 'video'
+              ? {
+                  backgroundColor: isDark ? '#020617' : '#e2e8f0',
+                  backgroundImage: `url(${wallpaperSettings.customDataUrl})`,
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: 'contain',
+                }
+              : undefined
+          "
         >
           <video
             v-if="wallpaperSettings.customDataUrl && wallpaperSettings.customType === 'video'"
@@ -150,7 +185,12 @@ function resetWallpaperEffects() {
             loop
             playsinline
           />
-          <span v-if="!wallpaperSettings.customDataUrl" class="absolute inset-0 flex items-center justify-center text-[0.84rem]" :class="customEmptyMaskClass">未上传</span>
+          <span
+            v-if="!wallpaperSettings.customDataUrl"
+            class="absolute inset-0 flex items-center justify-center text-[0.84rem]"
+            :class="customEmptyMaskClass"
+            >未上传</span
+          >
         </div>
         <div class="mt-[10px] grid gap-[4px]">
           <strong class="text-[0.94rem]" :class="headingTextClass">自定义媒体</strong>
@@ -159,7 +199,10 @@ function resetWallpaperEffects() {
       </div>
     </div>
 
-    <div class="mt-[20px] rounded-[18px] border p-[16px] backdrop-blur-[20px] lt-md:p-[14px]" :class="effectPanelClass">
+    <div
+      class="mt-[20px] rounded-[18px] border p-[16px] backdrop-blur-[20px] lt-md:p-[14px]"
+      :class="effectPanelClass"
+    >
       <div class="mb-[14px] flex items-start justify-between gap-[12px] lt-md:flex-col">
         <div>
           <h4 class="m-0 text-[0.96rem] font-600" :class="headingTextClass">背景效果</h4>
@@ -169,7 +212,10 @@ function resetWallpaperEffects() {
 
       <NSpace vertical size="large">
         <div>
-          <div class="mb-[10px] flex items-center justify-between gap-[12px] text-[0.88rem]" :class="sliderLabelClass">
+          <div
+            class="mb-[10px] flex items-center justify-between gap-[12px] text-[0.88rem]"
+            :class="sliderLabelClass"
+          >
             <span>亮度</span>
             <strong>{{ wallpaperSettings.brightness }}%</strong>
           </div>
@@ -183,7 +229,10 @@ function resetWallpaperEffects() {
         </div>
 
         <div>
-          <div class="mb-[10px] flex items-center justify-between gap-[12px] text-[0.88rem]" :class="sliderLabelClass">
+          <div
+            class="mb-[10px] flex items-center justify-between gap-[12px] text-[0.88rem]"
+            :class="sliderLabelClass"
+          >
             <span>对比度</span>
             <strong>{{ wallpaperSettings.contrast }}%</strong>
           </div>

@@ -95,8 +95,14 @@ function handleResize(event: MouseEvent) {
     return
   }
 
-  const nextWidth = Math.max(props.window.minWidth, resizeStartWidth + event.clientX - resizeStartClientX)
-  const nextHeight = Math.max(props.window.minHeight, resizeStartHeight + event.clientY - resizeStartClientY)
+  const nextWidth = Math.max(
+    props.window.minWidth,
+    resizeStartWidth + event.clientX - resizeStartClientX,
+  )
+  const nextHeight = Math.max(
+    props.window.minHeight,
+    resizeStartHeight + event.clientY - resizeStartClientY,
+  )
   desktopStore.updateWindowSize(props.window.id, nextWidth, nextHeight)
 }
 
@@ -140,7 +146,8 @@ onUnmounted(() => {
         'desktop-window--opening': !window.isClosing,
         'pointer-events-none opacity-0 scale-[0.94] translate-y-[12px]': window.isClosing,
         'h-auto rounded-none shadow-none': window.isMaximized,
-        'invisible pointer-events-none opacity-0 scale-[0.92] translate-y-[14px]': window.isMinimized,
+        'invisible pointer-events-none opacity-0 scale-[0.92] translate-y-[14px]':
+          window.isMinimized,
         'transition-none': (isDragging || isResizing) && !window.isClosing,
       },
     ]"
@@ -159,9 +166,21 @@ onUnmounted(() => {
       @dblclick="maximizeWindow"
     >
       <div class="flex items-center gap-[8px]" @mousedown.stop>
-        <button class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#ff5f57] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer" type="button" @click="closeWindow" />
-        <button v-if="window.minimizable" class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#febc2e] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer" type="button" @click="minimizeWindow" />
-        <span v-else class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 bg-[rgba(148,163,184,0.32)] p-0" />
+        <button
+          class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#ff5f57] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer"
+          type="button"
+          @click="closeWindow"
+        />
+        <button
+          v-if="window.minimizable"
+          class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#febc2e] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer"
+          type="button"
+          @click="minimizeWindow"
+        />
+        <span
+          v-else
+          class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 bg-[rgba(148,163,184,0.32)] p-0"
+        />
         <button
           class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#28c840] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer"
           type="button"
@@ -178,9 +197,15 @@ onUnmounted(() => {
       </div>
 
       <div class="invisible flex items-center gap-[8px]" aria-hidden="true">
-        <span class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0" />
-        <span class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0" />
-        <span class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0" />
+        <span
+          class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0"
+        />
+        <span
+          class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0"
+        />
+        <span
+          class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0"
+        />
       </div>
     </header>
 
@@ -191,7 +216,11 @@ onUnmounted(() => {
       <component :is="window.component" :window-id="window.id" v-bind="window.props" />
     </div>
 
-    <div v-if="!window.isMaximized" class="absolute bottom-0 right-0 h-[18px] w-[18px] cursor-nwse-resize" @mousedown.prevent="startResize" />
+    <div
+      v-if="!window.isMaximized"
+      class="absolute bottom-0 right-0 h-[18px] w-[18px] cursor-nwse-resize"
+      @mousedown.prevent="startResize"
+    />
   </section>
 </template>
 

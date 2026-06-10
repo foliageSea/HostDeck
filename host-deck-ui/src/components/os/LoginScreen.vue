@@ -45,32 +45,39 @@ const serverForm = reactive<ServerFormState>({
   username: '',
 })
 
-const selectedServer = computed(() =>
-  sshStore.savedServers.find((server) => server.id === selectedServerId.value) ?? null,
+const selectedServer = computed(
+  () => sshStore.savedServers.find((server) => server.id === selectedServerId.value) ?? null,
 )
 const loginWallpaperStyle = computed(() =>
   createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
 )
 const loginWallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
-const isVideoWallpaper = computed(() =>
-  settingsStore.desktopWallpaper.mode === 'custom'
-  && settingsStore.desktopWallpaper.customType === 'video'
-  && Boolean(settingsStore.desktopWallpaper.customDataUrl),
+const isVideoWallpaper = computed(
+  () =>
+    settingsStore.desktopWallpaper.mode === 'custom' &&
+    settingsStore.desktopWallpaper.customType === 'video' &&
+    Boolean(settingsStore.desktopWallpaper.customDataUrl),
 )
 const loginVideoWallpaperUrl = computed(() => {
   const wallpaperUrl = settingsStore.desktopWallpaper.customDataUrl
-  if (!wallpaperUrl || !wallpaperUrl.startsWith('/') || !import.meta.env.DEV || !import.meta.env.VITE_DEV_PROXY_TARGET) {
+  if (
+    !wallpaperUrl ||
+    !wallpaperUrl.startsWith('/') ||
+    !import.meta.env.DEV ||
+    !import.meta.env.VITE_DEV_PROXY_TARGET
+  ) {
     return wallpaperUrl ?? undefined
   }
 
   try {
     return new URL(wallpaperUrl, import.meta.env.VITE_DEV_PROXY_TARGET).toString()
-  }
-  catch {
+  } catch {
     return wallpaperUrl
   }
 })
-const serverEditorTitle = computed(() => (serverEditorMode.value === 'create' ? '新建服务器' : '编辑服务器'))
+const serverEditorTitle = computed(() =>
+  serverEditorMode.value === 'create' ? '新建服务器' : '编辑服务器',
+)
 
 function selectFirstAvailableServer() {
   const firstServer = sshStore.savedServers[0]
@@ -189,7 +196,11 @@ const saveServerMutation = useMutation<SavedServer | void, Error, void>({
       applyServer(savedServer)
     }
 
-    if (!isCreating && editingServerId.value !== null && selectedServerId.value === editingServerId.value) {
+    if (
+      !isCreating &&
+      editingServerId.value !== null &&
+      selectedServerId.value === editingServerId.value
+    ) {
       applyConnectionForm({
         host: serverForm.host,
         password: serverForm.password || undefined,
@@ -286,7 +297,11 @@ onMounted(async () => {
       loop
       playsinline
     />
-    <div v-else class="absolute inset-0 bg-cover bg-center bg-no-repeat" :style="loginWallpaperStyle" />
+    <div
+      v-else
+      class="absolute inset-0 bg-cover bg-center bg-no-repeat"
+      :style="loginWallpaperStyle"
+    />
     <div class="relative z-1 grid min-h-screen place-items-center p-[40px] lt-lg:p-[20px]">
       <section
         class="w-full max-w-[520px] rounded-[24px] p-[24px] backdrop-blur-[18px]"
@@ -297,7 +312,12 @@ onMounted(async () => {
       >
         <div class="mb-[22px] flex items-center justify-between gap-[16px]">
           <div>
-            <h2 class="mb-[4px] mt-0" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">选择主机登录</h2>
+            <h2
+              class="mb-[4px] mt-0"
+              :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
+            >
+              选择主机登录
+            </h2>
           </div>
           <NSpace :wrap="false" :size="10">
             <NButton text @click="openCreateServerModal">新建</NButton>
@@ -327,16 +347,29 @@ onMounted(async () => {
             >
               <div class="min-w-0 flex-1">
                 <div class="flex items-center justify-between gap-[12px]">
-                  <div class="truncate text-[0.98rem] font-600" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">
+                  <div
+                    class="truncate text-[0.98rem] font-600"
+                    :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
+                  >
                     {{ server.name || server.host }}
                   </div>
                 </div>
-                <div class="mt-[4px] truncate text-[0.82rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.7)]' : 'text-[rgba(51,65,85,0.76)]'">
+                <div
+                  class="mt-[4px] truncate text-[0.82rem]"
+                  :class="
+                    settingsStore.isDark
+                      ? 'text-[rgba(203,213,225,0.7)]'
+                      : 'text-[rgba(51,65,85,0.76)]'
+                  "
+                >
                   {{ server.username }}@{{ server.host }}:{{ server.port }}
                 </div>
               </div>
               <NSpace :size="8" :wrap="false" align="center" class="flex-none" @click.stop>
-                <div v-if="server.id === selectedServerId" class="self-center rounded-full px-[8px] py-[2px] text-[0.72rem] font-600 text-[var(--app-primary-color)] selected-server-badge">
+                <div
+                  v-if="server.id === selectedServerId"
+                  class="self-center rounded-full px-[8px] py-[2px] text-[0.72rem] font-600 text-[var(--app-primary-color)] selected-server-badge"
+                >
                   已选择
                 </div>
                 <NButton quaternary size="small" @click="openEditServerModal(server)">
@@ -347,7 +380,12 @@ onMounted(async () => {
                   @positive-click="handleDeleteServer(server.id)"
                 >
                   <template #trigger>
-                    <NButton quaternary type="error" size="small" :disabled="server.id === undefined">
+                    <NButton
+                      quaternary
+                      type="error"
+                      size="small"
+                      :disabled="server.id === undefined"
+                    >
                       删除
                     </NButton>
                   </template>
@@ -372,7 +410,12 @@ onMounted(async () => {
         </template>
       </section>
 
-      <NModal v-model:show="serverEditorVisible" preset="card" :title="serverEditorTitle" style="width: min(560px, 92vw)">
+      <NModal
+        v-model:show="serverEditorVisible"
+        preset="card"
+        :title="serverEditorTitle"
+        style="width: min(560px, 92vw)"
+      >
         <NForm label-placement="top" :model="serverForm" @submit.prevent="handleSaveServer">
           <NFormItem label="名称" path="name">
             <NInput v-model:value="serverForm.name" placeholder="我的服务器" />
@@ -392,7 +435,12 @@ onMounted(async () => {
               <NInput v-model:value="serverForm.username" placeholder="root" />
             </NFormItemGi>
             <NFormItemGi label="密码" path="password">
-              <NInput v-model:value="serverForm.password" type="password" show-password-on="click" placeholder="可选" />
+              <NInput
+                v-model:value="serverForm.password"
+                type="password"
+                show-password-on="click"
+                placeholder="可选"
+              />
             </NFormItemGi>
           </NGrid>
 
@@ -406,9 +454,7 @@ onMounted(async () => {
           </NFormItem>
 
           <div class="flex justify-end gap-[12px]">
-            <NButton @click="handleCloseServerEditor">
-              取消
-            </NButton>
+            <NButton @click="handleCloseServerEditor"> 取消 </NButton>
             <NButton
               attr-type="submit"
               type="primary"
@@ -426,7 +472,7 @@ onMounted(async () => {
 
 <style scoped>
 .form-panel-shake {
-  animation: panel-shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+  animation: panel-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
 .server-list-item-selected {
@@ -455,5 +501,4 @@ onMounted(async () => {
     transform: translateX(5px);
   }
 }
-
 </style>

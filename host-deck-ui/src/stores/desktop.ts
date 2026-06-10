@@ -30,10 +30,13 @@ const PINNED_PORT_LINK_POSITIONS_STORAGE_KEY = 'host-deck:desktop:pinned-port-li
 const sessionWindowAppIds = new Set<DesktopAppId>(['terminal', 'opencode'])
 
 type PinnedDirectoriesByConnection = Record<string, string[]>
-type PinnedDirectoryPositions = Record<string, {
-  x: number
-  y: number
-}>
+type PinnedDirectoryPositions = Record<
+  string,
+  {
+    x: number
+    y: number
+  }
+>
 type WindowBeforeCloseHandler = () => boolean | Promise<boolean>
 type PinnedDirectoryPositionsByConnection = Record<string, PinnedDirectoryPositions>
 
@@ -58,7 +61,13 @@ function normalizePinnedDirectoriesRecord(value: unknown): PinnedDirectoriesByCo
     Object.entries(value).map(([key, paths]) => [
       key,
       Array.isArray(paths)
-        ? Array.from(new Set(paths.filter((path): path is string => typeof path === 'string').map((path) => normalize(path))))
+        ? Array.from(
+            new Set(
+              paths
+                .filter((path): path is string => typeof path === 'string')
+                .map((path) => normalize(path)),
+            ),
+          )
         : [],
     ]),
   )
@@ -97,7 +106,11 @@ function normalizePinnedPortLinksRecord(value: unknown): PinnedPortLinksByConnec
               }
 
               const candidate = link as Partial<PinnedPortLink>
-              return typeof candidate.id === 'string' && typeof candidate.label === 'string' && typeof candidate.url === 'string'
+              return (
+                typeof candidate.id === 'string' &&
+                typeof candidate.label === 'string' &&
+                typeof candidate.url === 'string'
+              )
             })
             .map((link) => ({
               host: typeof link.host === 'string' ? link.host : '',
@@ -129,7 +142,9 @@ function loadPinnedPortLinks(): PinnedPortLinksByConnection {
   }
 }
 
-function normalizePinnedDirectoryPositionsRecord(value: unknown): PinnedDirectoryPositionsByConnection {
+function normalizePinnedDirectoryPositionsRecord(
+  value: unknown,
+): PinnedDirectoryPositionsByConnection {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {}
   }
@@ -145,7 +160,12 @@ function normalizePinnedDirectoryPositionsRecord(value: unknown): PinnedDirector
         Object.fromEntries(
           Object.entries(positions)
             .filter(([path, position]) => {
-              if (typeof path !== 'string' || !position || typeof position !== 'object' || Array.isArray(position)) {
+              if (
+                typeof path !== 'string' ||
+                !position ||
+                typeof position !== 'object' ||
+                Array.isArray(position)
+              ) {
                 return false
               }
 
@@ -468,18 +488,21 @@ export const useDesktopStore = defineStore('desktop', {
         title: '设置',
         width: 480,
       },
-
     } as Record<DesktopAppId, AppConfig>,
     nextZIndex: 100,
     pinnedDirectoriesByConnection: loadPinnedDirectories() as PinnedDirectoriesByConnection,
-    pinnedDirectoryPositionsByConnection: loadPinnedDirectoryPositions() as PinnedDirectoryPositionsByConnection,
-    pinnedPortLinkPositionsByConnection: loadPinnedPortLinkPositions() as PinnedPortLinkPositionsByConnection,
+    pinnedDirectoryPositionsByConnection:
+      loadPinnedDirectoryPositions() as PinnedDirectoryPositionsByConnection,
+    pinnedPortLinkPositionsByConnection:
+      loadPinnedPortLinkPositions() as PinnedPortLinkPositionsByConnection,
     pinnedPortLinksByConnection: loadPinnedPortLinks() as PinnedPortLinksByConnection,
     windows: [] as WindowState[],
   }),
 
   getters: {
-    sessionWindowCount: (state): number => state.windows.filter((window) => isSessionWindowAppId(window.appId) && !window.isClosing).length,
+    sessionWindowCount: (state): number =>
+      state.windows.filter((window) => isSessionWindowAppId(window.appId) && !window.isClosing)
+        .length,
   },
 
   actions: {
@@ -489,22 +512,22 @@ export const useDesktopStore = defineStore('desktop', {
 
     getPinnedDirectories() {
       const connectionKey = getPinnedDirectoryConnectionKey()
-      return connectionKey ? this.pinnedDirectoriesByConnection[connectionKey] ?? [] : []
+      return connectionKey ? (this.pinnedDirectoriesByConnection[connectionKey] ?? []) : []
     },
 
     getPinnedDirectoryPositions() {
       const connectionKey = getPinnedDirectoryConnectionKey()
-      return connectionKey ? this.pinnedDirectoryPositionsByConnection[connectionKey] ?? {} : {}
+      return connectionKey ? (this.pinnedDirectoryPositionsByConnection[connectionKey] ?? {}) : {}
     },
 
     getPinnedPortLinkPositions() {
       const connectionKey = getPinnedDirectoryConnectionKey()
-      return connectionKey ? this.pinnedPortLinkPositionsByConnection[connectionKey] ?? {} : {}
+      return connectionKey ? (this.pinnedPortLinkPositionsByConnection[connectionKey] ?? {}) : {}
     },
 
     getPinnedPortLinks() {
       const connectionKey = getPinnedDirectoryConnectionKey()
-      return connectionKey ? this.pinnedPortLinksByConnection[connectionKey] ?? [] : []
+      return connectionKey ? (this.pinnedPortLinksByConnection[connectionKey] ?? []) : []
     },
 
     isDirectoryPinned(path: string) {
@@ -568,9 +591,7 @@ export const useDesktopStore = defineStore('desktop', {
         return
       }
 
-      const normalizedPaths = Array.from(
-        new Set(paths.map((path) => normalize(path))),
-      )
+      const normalizedPaths = Array.from(new Set(paths.map((path) => normalize(path))))
       const nextPinnedDirectories = { ...this.pinnedDirectoriesByConnection }
       const nextPinnedDirectoryPositions = { ...this.pinnedDirectoryPositionsByConnection }
       const currentPositions = this.pinnedDirectoryPositionsByConnection[connectionKey] ?? {}
@@ -652,7 +673,11 @@ export const useDesktopStore = defineStore('desktop', {
 
     togglePortLinkPin(link: PinnedPortLink) {
       if (this.isPortLinkPinned(link.url)) {
-        this.unpinPortLinkFromDesktop(this.getPinnedPortLinks().filter((item) => item.url === link.url).map((item) => item.id))
+        this.unpinPortLinkFromDesktop(
+          this.getPinnedPortLinks()
+            .filter((item) => item.url === link.url)
+            .map((item) => item.id),
+        )
         return false
       }
 
@@ -661,8 +686,12 @@ export const useDesktopStore = defineStore('desktop', {
     },
 
     unpinDirectoryFromDesktop(paths: string | string[]) {
-      const targetPaths = new Set((Array.isArray(paths) ? paths : [paths]).map((path) => normalize(path)))
-      this.setPinnedDirectories(this.getPinnedDirectories().filter((path) => !targetPaths.has(path)))
+      const targetPaths = new Set(
+        (Array.isArray(paths) ? paths : [paths]).map((path) => normalize(path)),
+      )
+      this.setPinnedDirectories(
+        this.getPinnedDirectories().filter((path) => !targetPaths.has(path)),
+      )
     },
 
     unpinPortLinkFromDesktop(ids: string | string[]) {
@@ -676,7 +705,9 @@ export const useDesktopStore = defineStore('desktop', {
       const nextPinnedPortLinks = { ...this.pinnedPortLinksByConnection }
       const nextPinnedPortLinkPositions = { ...this.pinnedPortLinkPositionsByConnection }
       const retainedPositions = Object.fromEntries(
-        Object.entries(nextPinnedPortLinkPositions[connectionKey] ?? {}).filter(([id]) => !targetIds.has(id)),
+        Object.entries(nextPinnedPortLinkPositions[connectionKey] ?? {}).filter(
+          ([id]) => !targetIds.has(id),
+        ),
       )
 
       if (nextLinks.length === 0) {
@@ -833,16 +864,17 @@ export const useDesktopStore = defineStore('desktop', {
         minimizable: app.minimizable ?? true,
         minHeight,
         minWidth,
-        props: appId === 'opencode'
-          ? {
-              openIframeAfterMs: 2000,
-              openIframeTitle: 'OpenCode Web',
-              openIframeUrl: buildOpenCodeWebUrl(),
-              shutdownCommand: "pkill -f 'opencode web .*--port 4096' || true",
-              startupCommand: 'opencode web --hostname 0.0.0.0 --port 4096',
-              ...props,
-            }
-          : props,
+        props:
+          appId === 'opencode'
+            ? {
+                openIframeAfterMs: 2000,
+                openIframeTitle: 'OpenCode Web',
+                openIframeUrl: buildOpenCodeWebUrl(),
+                shutdownCommand: "pkill -f 'opencode web .*--port 4096' || true",
+                startupCommand: 'opencode web --hostname 0.0.0.0 --port 4096',
+                ...props,
+              }
+            : props,
         title: typeof props?.title === 'string' ? props.title : app.title,
         width,
         x: Math.max(edgeGap, centeredX),
