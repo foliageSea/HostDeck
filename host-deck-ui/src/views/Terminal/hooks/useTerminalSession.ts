@@ -26,7 +26,7 @@ interface TerminalProps {
 function buildTerminalTheme(isDark: boolean) {
   if (isDark) {
     return {
-      background: '#05081600',
+      background: '#050816',
       black: '#0f172a',
       blue: '#60a5fa',
       brightBlack: '#475569',
@@ -50,7 +50,7 @@ function buildTerminalTheme(isDark: boolean) {
   }
 
   return {
-    background: '#f8fafc00',
+    background: '#f8fafc',
     black: '#0f172a',
     blue: '#2563eb',
     brightBlack: '#64748b',
