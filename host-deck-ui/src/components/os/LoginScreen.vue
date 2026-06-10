@@ -72,22 +72,6 @@ const loginVideoWallpaperUrl = computed(() => {
 })
 const serverEditorTitle = computed(() => (serverEditorMode.value === 'create' ? '新建服务器' : '编辑服务器'))
 
-function getServerAvatarText(server: SavedServer) {
-  const source = server.username || server.name || server.host
-  return source.trim().slice(0, 1).toUpperCase() || '?'
-}
-
-function getServerAvatarGradient(server: SavedServer) {
-  const source = `${server.username}${server.id ?? ''}${server.host}${server.name}`
-  let hash = 0
-  for (let index = 0; index < source.length; index += 1) {
-    hash = source.charCodeAt(index) + ((hash << 5) - hash)
-  }
-
-  const hue = Math.abs(hash) % 360
-  return `linear-gradient(135deg, hsl(${hue} 82% 62%), hsl(${(hue + 42) % 360} 78% 48%))`
-}
-
 function selectFirstAvailableServer() {
   const firstServer = sshStore.savedServers[0]
   if (firstServer) {
@@ -321,71 +305,49 @@ onMounted(async () => {
           </NSpace>
         </div>
 
-        <NEmpty v-if="sshStore.savedServers.length === 0" description="暂无服务器头像" size="large">
+        <NEmpty v-if="sshStore.savedServers.length === 0" description="暂无服务器配置" size="large">
           <template #extra>
             <NButton type="primary" @click="openCreateServerModal">添加服务器</NButton>
           </template>
         </NEmpty>
 
         <template v-else>
-          <div class="mb-[22px] grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-[14px]">
+          <div class="mb-[22px] flex max-h-[360px] flex-col gap-[10px] overflow-y-auto pr-[2px]">
             <div
               v-for="server in sshStore.savedServers"
               :key="server.id ?? `${server.host}-${server.port}`"
-              class="group server-card rounded-[24px] border border-transparent px-[12px] py-[16px] text-center transition-[transform,background-color,border-color] duration-[180ms] ease-in-out hover:translate-y-[-3px]"
+              class="group server-list-item flex cursor-pointer items-center justify-between gap-[12px] rounded-[18px] border border-transparent px-[16px] py-[13px] text-left transition-[transform,background-color,border-color,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-2px] lt-sm:items-start"
               :class="[
                 settingsStore.isDark
                   ? 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
                   : 'bg-[rgba(255,255,255,0.46)] hover:bg-[rgba(255,255,255,0.78)]',
-                { 'server-card-selected': server.id === selectedServerId },
+                { 'server-list-item-selected': server.id === selectedServerId },
               ]"
               @click="applyServer(server)"
             >
-              <div class="mx-auto mb-[10px] grid h-[58px] w-[58px] place-items-center rounded-full shadow-[0_14px_28px_rgba(15,23,42,0.24)] transition-transform duration-[180ms] group-hover:scale-[1.05]">
-                <div
-                  class="grid h-full w-full place-items-center rounded-full text-[1.45rem] font-800 text-white"
-                  :style="{ background: getServerAvatarGradient(server) }"
-                >
-                  {{ getServerAvatarText(server) }}
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-[12px]">
+                  <div class="truncate text-[0.98rem] font-600" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">
+                    {{ server.name || server.host }}
+                  </div>
+                </div>
+                <div class="mt-[4px] truncate text-[0.82rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.7)]' : 'text-[rgba(51,65,85,0.76)]'">
+                  {{ server.username }}@{{ server.host }}:{{ server.port }}
                 </div>
               </div>
-              <div class="truncate font-600" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">
-                {{ server.username }}
-              </div>
-              <div class="mt-[3px] truncate text-[0.78rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.68)]' : 'text-[rgba(51,65,85,0.76)]'">
-                {{ server.name || server.host }}
-              </div>
-              <div class="mt-[3px] text-[0.72rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.5)]' : 'text-[rgba(51,65,85,0.58)]'">
-                端口 {{ server.port }}
-              </div>
-            </div>
-          </div>
-
-          <div
-            class="mb-[18px] rounded-[18px] p-[14px]"
-            :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.38)]' : 'bg-[rgba(255,255,255,0.48)]'"
-          >
-            <div class="flex items-center justify-between gap-[12px]">
-              <div class="min-w-0">
-                <div class="text-[0.78rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.58)]' : 'text-[rgba(51,65,85,0.62)]'">当前登录</div>
-                <div class="mt-[3px] truncate text-[1rem] font-600" :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'">
-                  {{ selectedServer?.name || selectedServer?.host }}
+              <NSpace :size="8" :wrap="false" align="center" class="flex-none" @click.stop>
+                <div v-if="server.id === selectedServerId" class="self-center rounded-full px-[8px] py-[2px] text-[0.72rem] font-600 text-[var(--app-primary-color)] selected-server-badge">
+                  已选择
                 </div>
-                <div class="mt-[3px] truncate text-[0.85rem]" :class="settingsStore.isDark ? 'text-[rgba(203,213,225,0.72)]' : 'text-[rgba(51,65,85,0.78)]'">
-                  {{ selectedServer?.username }}@{{ selectedServer?.host }}:{{ selectedServer?.port }}
-                </div>
-              </div>
-
-              <NSpace :size="8" @click.stop>
-                <NButton quaternary size="small" :disabled="!selectedServer" @click="selectedServer && openEditServerModal(selectedServer)">
+                <NButton quaternary size="small" @click="openEditServerModal(server)">
                   编辑
                 </NButton>
                 <NPopconfirm
-                  :positive-button-props="{ loading: deletingServerId === selectedServer?.id }"
-                  @positive-click="handleDeleteServer(selectedServer?.id)"
+                  :positive-button-props="{ loading: deletingServerId === server.id }"
+                  @positive-click="handleDeleteServer(server.id)"
                 >
                   <template #trigger>
-                    <NButton quaternary type="error" size="small" :disabled="!selectedServer">
+                    <NButton quaternary type="error" size="small" :disabled="server.id === undefined">
                       删除
                     </NButton>
                   </template>
@@ -467,8 +429,14 @@ onMounted(async () => {
   animation: panel-shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
 }
 
-.server-card-selected {
+.server-list-item-selected {
   border-color: var(--app-primary-color);
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.18);
+  background: color-mix(in srgb, var(--app-primary-color) 16%, transparent) !important;
+}
+
+.selected-server-badge {
+  background: color-mix(in srgb, var(--app-primary-color) 14%, transparent);
 }
 
 @keyframes panel-shake {
