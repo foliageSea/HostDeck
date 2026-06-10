@@ -231,6 +231,10 @@ ipcMain.handle('app:open-in-browser', async (event) => {
   await shell.openExternal(url)
 })
 
+ipcMain.handle('app:open-devtools', (event) => {
+  BrowserWindow.fromWebContents(event.sender)?.webContents.openDevTools({ mode: 'detach' })
+})
+
 ipcMain.handle('app:clear-browser-cache', async () => {
   await session.defaultSession.clearCache()
 })

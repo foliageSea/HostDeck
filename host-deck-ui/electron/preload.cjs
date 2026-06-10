@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('hostDeck', {
   app: {
     openInBrowser: () => ipcRenderer.invoke('app:open-in-browser'),
+    openDevTools: () => ipcRenderer.invoke('app:open-devtools'),
     clearBrowserCache: () => ipcRenderer.invoke('app:clear-browser-cache'),
     getExternalAccess: () => ipcRenderer.invoke('app:get-external-access'),
     setExternalAccess: (enabled) => ipcRenderer.invoke('app:set-external-access', enabled),
