@@ -177,6 +177,7 @@ function handleTaskCenterVisibilityChange(value: boolean) {
         :show="hasUnreadUploads"
         :max="99"
         :offset="[-4, 6]"
+        :color="settingsStore.primaryColor"
         processing
       >
         <NButton quaternary circle>
