@@ -906,6 +906,18 @@ export const useDesktopStore = defineStore('desktop', {
       this.focusWindow(id)
     },
 
+    refreshIframeWindow(id: string) {
+      const targetWindow = this.windows.find((window) => window.id === id)
+      if (!targetWindow || targetWindow.appId !== 'iframe-app') {
+        return
+      }
+
+      targetWindow.props = {
+        ...targetWindow.props,
+        refreshToken: Date.now(),
+      }
+    },
+
     setWindowBeforeClose(id: string, handler?: WindowBeforeCloseHandler) {
       const targetWindow = this.windows.find((window) => window.id === id)
       if (!targetWindow) {

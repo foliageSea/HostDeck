@@ -1,15 +1,29 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 
 const props = defineProps<{
+  refreshToken?: number
   title?: string
   url: string
 }>()
 
 const settingsStore = useSettingsStore()
+const frameKey = ref(0)
 const isLoaded = ref(false)
 const frameTitle = computed(() => props.title || props.url)
+
+watch(
+  () => props.refreshToken,
+  (refreshToken, previousRefreshToken) => {
+    if (refreshToken === undefined || refreshToken === previousRefreshToken) {
+      return
+    }
+
+    isLoaded.value = false
+    frameKey.value += 1
+  },
+)
 </script>
 
 <template>
@@ -26,6 +40,7 @@ const frameTitle = computed(() => props.title || props.url)
     </div>
 
     <iframe
+      :key="frameKey"
       class="h-full w-full border-0"
       :class="isLoaded ? 'opacity-100' : 'opacity-0'"
       :src="url"

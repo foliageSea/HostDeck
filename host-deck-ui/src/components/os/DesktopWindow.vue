@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
+import { Renew } from '@vicons/carbon'
 import AppIcon from '@/components/common/AppIcon.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useDesktopStore, type WindowState } from '@/stores/desktop'
@@ -59,6 +60,10 @@ function minimizeWindow() {
 
 function closeWindow() {
   void desktopStore.requestCloseWindow(props.window.id)
+}
+
+function refreshIframeWindow() {
+  desktopStore.refreshIframeWindow(props.window.id)
 }
 
 function handleDrag(event: MouseEvent) {
@@ -196,16 +201,24 @@ onUnmounted(() => {
         <span class="overflow-hidden text-ellipsis">{{ window.title }}</span>
       </div>
 
-      <div class="invisible flex items-center gap-[8px]" aria-hidden="true">
-        <span
-          class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0"
-        />
-        <span
-          class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0"
-        />
-        <span
-          class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 p-0"
-        />
+      <div class="flex min-w-[36px] items-center justify-end gap-[8px]" @mousedown.stop>
+        <button
+          v-if="window.appId === 'iframe-app'"
+          class="inline-flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-full border-0 p-0 transition-[background,transform,color] duration-[180ms] ease-in-out hover:scale-[1.04]"
+          :class="
+            settingsStore.isDark
+              ? 'bg-[rgba(148,163,184,0.12)] text-[rgba(226,232,240,0.88)] hover:bg-[rgba(148,163,184,0.2)]'
+              : 'bg-[rgba(15,23,42,0.08)] text-[rgba(15,23,42,0.74)] hover:bg-[rgba(15,23,42,0.13)]'
+          "
+          type="button"
+          title="刷新"
+          aria-label="刷新"
+          @click="refreshIframeWindow"
+        >
+          <NIcon :size="16">
+            <Renew />
+          </NIcon>
+        </button>
       </div>
     </header>
 
