@@ -172,6 +172,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 720,
     title: 'HostDeck',
+    icon: path.join(__dirname, '..', 'public', 'favicon.png'),
     frame: false,
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: 16, y: 14 },

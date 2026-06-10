@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="host-deck-ui/public/favicon.png" alt="HostDeck" width="96" height="96" />
+</p>
+
 # HostDeck
 
 `host_deck` 是 HostDeck 的当前 Dart 包名。HostDeck 是一个跨平台远程主机工作台，当前由四部分组成：

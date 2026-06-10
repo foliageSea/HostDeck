@@ -311,9 +311,12 @@ onMounted(async () => {
         ]"
       >
         <div class="mb-[22px] flex items-center justify-between gap-[16px]">
-          <div>
+          <div class="flex min-w-0 items-center gap-[12px]">
+            <div class="login-brand-icon flex-none" aria-hidden="true">
+              <img src="/favicon.png" alt="" />
+            </div>
             <h2
-              class="mb-[4px] mt-0"
+              class="m-0 truncate"
               :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
             >
               选择主机登录
@@ -483,6 +486,23 @@ onMounted(async () => {
 
 .selected-server-badge {
   background: color-mix(in srgb, var(--app-primary-color) 14%, transparent);
+}
+
+.login-brand-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+}
+
+.login-brand-icon img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
 }
 
 @keyframes panel-shake {

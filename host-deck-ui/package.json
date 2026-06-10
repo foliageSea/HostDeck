@@ -68,6 +68,7 @@
       "electron/main.cjs",
       "electron/loading.html",
       "electron/preload.cjs",
+      "public/favicon.png",
       "package.json"
     ],
     "extraResources": [
@@ -81,6 +82,7 @@
       }
     ],
     "win": {
+      "icon": "public/favicon.png",
       "target": [
         "nsis",
         "zip"

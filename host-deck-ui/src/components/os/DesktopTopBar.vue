@@ -109,7 +109,19 @@ function disconnect() {
         : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.58)] text-[#1e293b]',
     ]"
   >
-    <div class="flex min-w-0 items-center gap-[8px]" />
+    <div class="flex min-w-0 items-center gap-[8px]">
+      <div
+        class="flex min-w-0 items-center gap-[8px] rounded-[12px] px-[8px] py-[3px]"
+        :class="
+          settingsStore.isDark
+            ? 'bg-[rgba(15,23,42,0.26)] text-[rgba(226,232,240,0.9)]'
+            : 'bg-[rgba(255,255,255,0.46)] text-[rgba(30,41,59,0.9)]'
+        "
+      >
+        <img class="h-[22px] w-[22px] flex-none object-contain" src="/favicon.png" alt="HostDeck" />
+        <span class="truncate text-[12px] font-700 tracking-[0.02em] lt-sm:hidden">HostDeck</span>
+      </div>
+    </div>
 
     <div
       class="flex min-w-0 items-center justify-center gap-[8px] text-[0.88rem]"
