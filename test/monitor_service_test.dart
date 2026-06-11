@@ -49,6 +49,17 @@ Inter-|   Receive                                                |  Transmit
   eth0: $rx 1446736    0    0    0     0          0         0 $tx 1034567    0    0    0     0       0          0
 """;
     }
+    if (command.contains('hostname=%s')) {
+      return """
+hostname=software-order-1
+distribution=Ubuntu 22.04.3 LTS
+kernel=5.15.0-179-generic
+architecture=x86_64
+hostAddress=192.168.0.221
+bootTime=2026-05-26 16:26:13
+uptime=2 weeks, 1 day, 3 hours, 12 minutes
+""";
+    }
     return "";
   }
 
@@ -142,6 +153,16 @@ void main() {
     expect(status.ram.total, equals(8000));
     expect(status.ram.used, equals(4000));
     expect(status.disk, equals('45%'));
+    expect(status.systemInfo?.hostname, equals('software-order-1'));
+    expect(status.systemInfo?.distribution, equals('Ubuntu 22.04.3 LTS'));
+    expect(status.systemInfo?.kernel, equals('5.15.0-179-generic'));
+    expect(status.systemInfo?.architecture, equals('x86_64'));
+    expect(status.systemInfo?.hostAddress, equals('192.168.0.221'));
+    expect(status.systemInfo?.bootTime, equals('2026-05-26 16:26:13'));
+    expect(
+      status.systemInfo?.uptime,
+      equals('2 weeks, 1 day, 3 hours, 12 minutes'),
+    );
   });
 
   test('MonitorService calculates network speed', () async {

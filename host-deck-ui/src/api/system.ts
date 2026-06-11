@@ -16,6 +16,15 @@ export interface MonitorResponse {
     uploadSpeed: number
     downloadSpeed: number
   }
+  systemInfo?: {
+    hostname: string
+    distribution: string
+    kernel: string
+    architecture: string
+    hostAddress: string
+    bootTime: string
+    uptime: string
+  }
 }
 
 export const systemApi = {

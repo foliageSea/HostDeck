@@ -5,6 +5,7 @@ class SystemStatus {
   final RamStatus ram;
   final String disk;
   final NetworkStatus? network;
+  final SystemInfo? systemInfo;
 
   SystemStatus({
     required this.timestamp,
@@ -13,6 +14,7 @@ class SystemStatus {
     required this.ram,
     required this.disk,
     this.network,
+    this.systemInfo,
   });
 
   Map<String, dynamic> toJson() => {
@@ -22,6 +24,37 @@ class SystemStatus {
     'ram': ram.toJson(),
     'disk': disk,
     if (network != null) 'network': network!.toJson(),
+    if (systemInfo != null) 'systemInfo': systemInfo!.toJson(),
+  };
+}
+
+class SystemInfo {
+  final String hostname;
+  final String distribution;
+  final String kernel;
+  final String architecture;
+  final String hostAddress;
+  final String bootTime;
+  final String uptime;
+
+  SystemInfo({
+    required this.hostname,
+    required this.distribution,
+    required this.kernel,
+    required this.architecture,
+    required this.hostAddress,
+    required this.bootTime,
+    required this.uptime,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'hostname': hostname,
+    'distribution': distribution,
+    'kernel': kernel,
+    'architecture': architecture,
+    'hostAddress': hostAddress,
+    'bootTime': bootTime,
+    'uptime': uptime,
   };
 }
 

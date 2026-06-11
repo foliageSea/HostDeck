@@ -35,6 +35,16 @@ const currentSample = computed(
 )
 const hasSamples = computed(() => samples.value.length > 0)
 const lastUpdatedAt = computed(() => currentSample.value?.timestamp ?? null)
+const systemInfo = computed(() => currentSample.value?.systemInfo ?? null)
+const systemInfoItems = computed(() => [
+  { label: '主机名称', value: systemInfo.value?.hostname ?? '--' },
+  { label: '发行版本', value: systemInfo.value?.distribution ?? '--' },
+  { label: '内核版本', value: systemInfo.value?.kernel ?? '--' },
+  { label: '系统类型', value: systemInfo.value?.architecture ?? '--' },
+  { label: '主机地址', value: systemInfo.value?.hostAddress ?? '--' },
+  { label: '启动时间', value: systemInfo.value?.bootTime ?? '--' },
+  { label: '运行时间', value: systemInfo.value?.uptime ?? '--' },
+])
 
 const cpuLoad = computed(() => currentSample.value?.cpu || '0.0')
 const cpuUsagePercent = computed(() => currentSample.value?.cpuUsage ?? 0)
@@ -412,15 +422,7 @@ function createChartOption(config: {
   >
     <div class="mb-[18px] flex items-start justify-between gap-[16px] lt-md:flex-col">
       <div>
-        <div
-          class="text-[0.82rem] uppercase tracking-[0.24em]"
-          :class="
-            settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.88)]'
-          "
-        >
-          Performance Monitor
-        </div>
-        <h2 class="mb-[6px] mt-[10px] text-[26px] font-700">性能监控</h2>
+        <h2 class="mb-[6px] text-[26px] font-700">性能监控</h2>
       </div>
 
       <div
@@ -508,6 +510,58 @@ function createChartOption(config: {
       <NAlert v-if="monitorError" type="error" :show-icon="true" title="实时监控异常">
         {{ monitorError }}
       </NAlert>
+    </div>
+
+    <div
+      class="mb-[18px] rounded-[24px] p-[18px] backdrop-blur-[16px]"
+      :class="
+        settingsStore.isDark
+          ? 'border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.68),rgba(15,23,42,0.5))]'
+          : 'border border-[rgba(148,163,184,0.22)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.82))]'
+      "
+    >
+      <div
+        class="mb-[14px] flex items-center justify-between gap-[12px] lt-md:flex-col lt-md:items-start"
+      >
+        <div>
+          <div class="text-[18px] font-700">主机信息</div>
+        </div>
+        <div
+          class="rounded-full px-[12px] py-[6px] text-[12px] font-600"
+          :class="
+            settingsStore.isDark
+              ? 'bg-[rgba(59,130,246,0.16)] text-[rgba(191,219,254,0.96)]'
+              : 'bg-[rgba(37,99,235,0.1)] text-[rgba(29,78,216,0.92)]'
+          "
+        >
+          {{ systemInfo?.hostname ?? '等待采样' }}
+        </div>
+      </div>
+
+      <div class="system-info-grid grid gap-[12px]">
+        <div
+          v-for="item in systemInfoItems"
+          :key="item.label"
+          class="rounded-[16px] px-[14px] py-[12px]"
+          :class="
+            settingsStore.isDark
+              ? 'border border-[rgba(148,163,184,0.12)] bg-[rgba(15,23,42,0.42)]'
+              : 'border border-[rgba(148,163,184,0.16)] bg-[rgba(255,255,255,0.62)]'
+          "
+        >
+          <div
+            class="text-[12px]"
+            :class="
+              settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.9)]'
+            "
+          >
+            {{ item.label }}
+          </div>
+          <div class="mt-[8px] break-words text-[15px] font-600 leading-[1.35]">
+            {{ item.value }}
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="stats-grid mb-[18px] grid gap-[14px]">
@@ -657,6 +711,10 @@ function createChartOption(config: {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.system-info-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .chart-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -676,6 +734,10 @@ function createChartOption(config: {
 }
 
 @media (max-width: 1280px) {
+  .system-info-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .stats-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -683,6 +745,7 @@ function createChartOption(config: {
 
 @media (max-width: 980px) {
   .chart-grid,
+  .system-info-grid,
   .stats-grid {
     grid-template-columns: 1fr;
   }

@@ -37,8 +37,18 @@ class MonitorService {
     final netResult = await _repository
         .exec(session, "cat /proc/net/dev")
         .catchError((_) => "");
+    final systemInfoResult = await _repository
+        .exec(session, _systemInfoCommand)
+        .catchError((_) => "");
 
-    final results = [ramResult, diskResult, uptimeResult, topResult, netResult];
+    final results = [
+      ramResult,
+      diskResult,
+      uptimeResult,
+      topResult,
+      netResult,
+      systemInfoResult,
+    ];
 
     // Parse RAM
     // Mem: 7963 3855 ...
@@ -165,6 +175,47 @@ class MonitorService {
       ram: RamStatus(total: totalRam, used: usedRam),
       disk: diskUsage,
       network: networkStatus,
+      systemInfo: _parseSystemInfo(results[5]),
+    );
+  }
+
+  static const String _systemInfoCommand = r'''
+printf 'hostname=%s\n' "$(hostname 2>/dev/null)"
+if [ -r /etc/os-release ]; then
+  . /etc/os-release
+  printf 'distribution=%s\n' "${PRETTY_NAME:-${NAME:-}}"
+else
+  printf 'distribution=%s\n' "$(lsb_release -ds 2>/dev/null)"
+fi
+printf 'kernel=%s\n' "$(uname -r 2>/dev/null)"
+printf 'architecture=%s\n' "$(uname -m 2>/dev/null)"
+printf 'hostAddress=%s\n' "$(hostname -I 2>/dev/null | awk '{print $1}')"
+printf 'bootTime=%s\n' "$(uptime -s 2>/dev/null)"
+printf 'uptime=%s\n' "$(uptime -p 2>/dev/null | sed 's/^up //')"
+''';
+
+  SystemInfo _parseSystemInfo(String value) {
+    final fields = <String, String>{};
+
+    for (final line in value.split('\n')) {
+      final index = line.indexOf('=');
+      if (index <= 0) {
+        continue;
+      }
+
+      final key = line.substring(0, index).trim();
+      final fieldValue = line.substring(index + 1).trim();
+      fields[key] = fieldValue.isEmpty ? '--' : fieldValue;
+    }
+
+    return SystemInfo(
+      hostname: fields['hostname'] ?? '--',
+      distribution: fields['distribution'] ?? '--',
+      kernel: fields['kernel'] ?? '--',
+      architecture: fields['architecture'] ?? '--',
+      hostAddress: fields['hostAddress'] ?? '--',
+      bootTime: fields['bootTime'] ?? '--',
+      uptime: fields['uptime'] ?? '--',
     );
   }
 }
