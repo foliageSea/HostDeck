@@ -80,7 +80,11 @@ class ServerService {
     final monitorService = MonitorService(sshRepository);
     final fileService = FileService(sshRepository);
     final dockerService = DockerService(sshRepository);
-    final portForwardService = PortForwardService(sshService);
+    portForwardRepository.setAllDisabled();
+    final portForwardService = PortForwardService(
+      sshService,
+      onRunningChanged: portForwardRepository.setEnabled,
+    );
     _portForwardService = portForwardService;
 
     // 2. Initialize Controllers

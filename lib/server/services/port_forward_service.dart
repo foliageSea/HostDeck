@@ -7,12 +7,18 @@ import 'package:logging/logging.dart';
 import '../models/port_forward_rule.dart';
 import 'ssh_service.dart';
 
+typedef PortForwardRunningChanged = void Function(int ruleId, bool running);
+
 class PortForwardService {
   final SshService _sshService;
+  final PortForwardRunningChanged? _onRunningChanged;
   final _log = Logger('PortForwardService');
   final Map<int, _ActivePortForward> _activeForwards = {};
 
-  PortForwardService(this._sshService) {
+  PortForwardService(
+    this._sshService, {
+    PortForwardRunningChanged? onRunningChanged,
+  }) : _onRunningChanged = onRunningChanged {
     _sshService.addDisconnectListener(stopByConnection);
   }
 
@@ -59,6 +65,7 @@ class PortForwardService {
       startedAt: DateTime.now().millisecondsSinceEpoch,
     );
     _activeForwards[id] = active;
+    _onRunningChanged?.call(id, true);
 
     active.subscription = server.listen(
       (socket) => _handleSocket(client, rule, active, socket),
@@ -69,6 +76,7 @@ class PortForwardService {
       onDone: () {
         if (_activeForwards[id] == active) {
           _activeForwards.remove(id);
+          _onRunningChanged?.call(id, false);
         }
       },
       cancelOnError: false,
@@ -82,6 +90,7 @@ class PortForwardService {
     }
 
     await active.close();
+    _onRunningChanged?.call(ruleId, false);
   }
 
   Future<void> stopByConnection(String connectionId) async {

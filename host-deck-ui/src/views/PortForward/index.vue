@@ -126,7 +126,7 @@ const connectionText = computed(() => {
   return `${sshStore.username}@${sshStore.host}:${sshStore.port}`
 })
 const runningCount = computed(() => rules.value.filter((rule) => rule.status === 'running').length)
-const enabledCount = computed(() => rules.value.filter((rule) => rule.enabled).length)
+const totalCount = computed(() => rules.value.length)
 
 function statusType(status: PortForwardStatus) {
   if (status === 'running') {
@@ -324,8 +324,8 @@ onMounted(() => {
         </div>
       </NCard>
       <NCard size="small">
-        <div class="text-[12px] text-[rgba(100,116,139,0.86)]">启用配置</div>
-        <div class="mt-[8px] text-[26px] font-700">{{ enabledCount }}</div>
+        <div class="text-[12px] text-[rgba(100,116,139,0.86)]">转发配置</div>
+        <div class="mt-[8px] text-[26px] font-700">{{ totalCount }}</div>
       </NCard>
       <NCard size="small">
         <div class="text-[12px] text-[rgba(100,116,139,0.86)]">运行中</div>
@@ -425,7 +425,7 @@ onMounted(() => {
             <NInputNumber v-model:value="form.remotePort" class="w-full" :min="1" :max="65535" />
           </NFormItem>
         </div>
-        <NFormItem label="保存后启用">
+        <NFormItem label="保存并启动">
           <NSwitch v-model:value="form.enabled" />
         </NFormItem>
       </NForm>

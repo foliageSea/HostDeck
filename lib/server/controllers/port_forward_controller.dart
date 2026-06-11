@@ -29,8 +29,7 @@ class PortForwardController {
       var rule = _repository.addRule(inputRule.copyWith(enabled: false));
       if (inputRule.enabled) {
         await _service.start(_requireConnectionId(data), rule);
-        _repository.setEnabled(rule.id!, true);
-        rule = _repository.getRule(rule.id!) ?? rule.copyWith(enabled: true);
+        rule = _repository.getRule(rule.id!) ?? rule;
       }
       return Result.ok(_ruleWithStatus(rule));
     } catch (e) {
@@ -56,7 +55,6 @@ class PortForwardController {
       await _service.stop(id);
       if (inputRule.enabled) {
         await _service.start(_requireConnectionId(data), rule);
-        _repository.setEnabled(id, true);
       }
 
       final nextRule = _repository.getRule(id) ?? inputRule;
@@ -98,11 +96,7 @@ class PortForwardController {
       }
 
       final data = await _readJson(request);
-      await _service.start(
-        _requireConnectionId(data),
-        rule.copyWith(enabled: true),
-      );
-      _repository.setEnabled(id, true);
+      await _service.start(_requireConnectionId(data), rule);
       return Result.ok(_ruleWithStatus(_repository.getRule(id) ?? rule));
     } catch (e) {
       return Result.fail(500, e.toString());
@@ -117,7 +111,6 @@ class PortForwardController {
       }
 
       await _service.stop(id);
-      _repository.setEnabled(id, false);
       final rule = _repository.getRule(id);
       return Result.ok(
         rule == null ? {'success': true} : _ruleWithStatus(rule),
@@ -143,8 +136,12 @@ class PortForwardController {
     return connectionId;
   }
 
-  Map<String, dynamic> _ruleWithStatus(PortForwardRule rule) => {
-    ...rule.toJson(),
-    ..._service.statusFor(rule.id ?? -1),
-  };
+  Map<String, dynamic> _ruleWithStatus(PortForwardRule rule) {
+    final status = _service.statusFor(rule.id ?? -1);
+    return {
+      ...rule.toJson(),
+      ...status,
+      'enabled': status['status'] == 'running',
+    };
+  }
 }

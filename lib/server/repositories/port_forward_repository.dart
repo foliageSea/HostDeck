@@ -78,6 +78,13 @@ class PortForwardRepository {
     return _dbService.db.updatedRows > 0;
   }
 
+  void setAllDisabled() {
+    _dbService.db.execute(
+      'UPDATE port_forwards SET enabled = 0, updatedAt = ? WHERE enabled != 0',
+      [DateTime.now().millisecondsSinceEpoch],
+    );
+  }
+
   bool deleteRule(int id) {
     _dbService.db.execute('DELETE FROM port_forwards WHERE id = ?', [id]);
     return _dbService.db.updatedRows > 0;
