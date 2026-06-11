@@ -306,9 +306,6 @@ onMounted(() => {
     <div class="flex flex-wrap items-start justify-between gap-[12px]">
       <div>
         <div class="text-[24px] font-700 leading-tight">端口转发</div>
-        <div class="mt-[6px] text-[13px] text-[rgba(100,116,139,0.92)]">
-          将本机端口通过当前 SSH 连接映射到远端服务，适合访问远端 Web、数据库或调试服务。
-        </div>
       </div>
       <NSpace>
         <NButton secondary :loading="loading" @click="fetchRules">刷新</NButton>
