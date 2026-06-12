@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, session, shell } = require('electron')
+const { app, BrowserWindow, WebContentsView, ipcMain, screen, session, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const http = require('node:http')
@@ -11,6 +11,12 @@ const isPackaged = app.isPackaged
 
 let mainWindow
 let serverProcess
+let applicationUrl = null
+let activeTabId = null
+let nextTabId = 1
+const tabs = new Map()
+
+const tabBarHeight = 42
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
@@ -147,9 +153,189 @@ function loadingPagePath() {
   return path.join(__dirname, 'loading.html')
 }
 
+function tabsPagePath() {
+  return path.join(__dirname, 'tabs.html')
+}
+
 function showLoadingPage() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   mainWindow.loadFile(loadingPagePath())
+}
+
+function getWindowFromSender(sender) {
+  return BrowserWindow.fromWebContents(sender) ?? mainWindow ?? null
+}
+
+function serializeTabs() {
+  return {
+    activeTabId,
+    tabs: Array.from(tabs.values()).map((tab) => ({
+      customTitle: tab.customTitle,
+      id: tab.id,
+      isActive: tab.id === activeTabId,
+      isLoading: tab.isLoading,
+      title: tab.title,
+      url: tab.view.webContents.getURL(),
+    })),
+  }
+}
+
+function sendTabsChanged() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send('tabs:changed', serializeTabs())
+}
+
+function layoutActiveTab() {
+  if (!mainWindow || mainWindow.isDestroyed() || !activeTabId) return
+
+  const activeTab = tabs.get(activeTabId)
+  if (!activeTab) return
+
+  const bounds = mainWindow.getContentBounds()
+  activeTab.view.setBounds({
+    x: 0,
+    y: tabBarHeight,
+    width: bounds.width,
+    height: Math.max(0, bounds.height - tabBarHeight),
+  })
+}
+
+function attachTabView(tab) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.contentView.addChildView(tab.view)
+  layoutActiveTab()
+}
+
+function detachTabView(tab) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  try {
+    mainWindow.contentView.removeChildView(tab.view)
+  } catch {
+    // The view may already be detached during shutdown or fast tab switching.
+  }
+}
+
+function updateTabTitle(tab, title) {
+  if (tab.customTitle) return
+
+  const normalizedTitle = typeof title === 'string' && title.trim() ? title.trim() : 'HostDeck'
+  if (tab.title === normalizedTitle) return
+
+  tab.title = normalizedTitle
+  sendTabsChanged()
+}
+
+function createTab(url = applicationUrl) {
+  if (!url) throw new Error('Application URL has not been initialized.')
+
+  const id = `tab-${nextTabId++}`
+  const view = new WebContentsView({
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  const tab = {
+    customTitle: null,
+    id,
+    isLoading: true,
+    title: 'HostDeck',
+    view,
+  }
+
+  tabs.set(id, tab)
+
+  view.webContents.setWindowOpenHandler(({ url: nextUrl }) => {
+    shell.openExternal(nextUrl)
+    return { action: 'deny' }
+  })
+  view.webContents.on('page-title-updated', (event, title) => {
+    event.preventDefault()
+    updateTabTitle(tab, title)
+  })
+  view.webContents.on('did-start-loading', () => {
+    tab.isLoading = true
+    sendTabsChanged()
+  })
+  view.webContents.on('did-stop-loading', () => {
+    tab.isLoading = false
+    updateTabTitle(tab, view.webContents.getTitle())
+    sendTabsChanged()
+  })
+  view.webContents.on('did-fail-load', () => {
+    tab.isLoading = false
+    sendTabsChanged()
+  })
+  view.webContents.on('destroyed', () => {
+    tabs.delete(id)
+    if (activeTabId === id) activeTabId = null
+    sendTabsChanged()
+  })
+
+  view.webContents.loadURL(url)
+  activateTab(id)
+  return id
+}
+
+function activateTab(id) {
+  const nextTab = tabs.get(id)
+  if (!nextTab || activeTabId === id) return serializeTabs()
+
+  const previousTab = activeTabId ? tabs.get(activeTabId) : null
+  if (previousTab) detachTabView(previousTab)
+
+  activeTabId = id
+  attachTabView(nextTab)
+  nextTab.view.webContents.focus()
+  sendTabsChanged()
+  return serializeTabs()
+}
+
+function closeTab(id) {
+  const targetTab = tabs.get(id)
+  if (!targetTab) return serializeTabs()
+
+  const wasActive = activeTabId === id
+  detachTabView(targetTab)
+  tabs.delete(id)
+  targetTab.view.webContents.close()
+
+  if (wasActive) {
+    activeTabId = null
+    const nextTab = tabs.values().next().value
+    if (nextTab) {
+      activateTab(nextTab.id)
+    } else {
+      sendTabsChanged()
+    }
+  } else {
+    sendTabsChanged()
+  }
+
+  return serializeTabs()
+}
+
+function renameTab(id, title) {
+  const targetTab = tabs.get(id)
+  if (!targetTab) return serializeTabs()
+
+  const normalizedTitle = typeof title === 'string' ? title.trim() : ''
+  targetTab.customTitle = normalizedTitle || null
+  targetTab.title = targetTab.customTitle || targetTab.view.webContents.getTitle() || 'HostDeck'
+  sendTabsChanged()
+  return serializeTabs()
+}
+
+function getActiveTab() {
+  return activeTabId ? tabs.get(activeTabId) : null
+}
+
+function requireActiveTab() {
+  const tab = getActiveTab()
+  if (!tab) throw new Error('No active tab.')
+  return tab
 }
 
 async function restartServer() {
@@ -157,9 +343,11 @@ async function restartServer() {
 
   await stopServer()
   const url = startServer()
-  showLoadingPage()
   await waitFor(url)
-  mainWindow?.loadURL(url)
+  applicationUrl = url
+  for (const tab of tabs.values()) {
+    tab.view.webContents.loadURL(url)
+  }
   return url
 }
 
@@ -177,7 +365,7 @@ function createWindow() {
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: 16, y: 14 },
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, 'tabs-preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -185,12 +373,10 @@ function createWindow() {
   })
   mainWindow.maximize()
 
-  mainWindow.webContents.setWindowOpenHandler(({ url: nextUrl }) => {
-    shell.openExternal(nextUrl)
-    return { action: 'deny' }
-  })
-
   showLoadingPage()
+  mainWindow.on('resize', layoutActiveTab)
+  mainWindow.on('maximize', layoutActiveTab)
+  mainWindow.on('unmaximize', layoutActiveTab)
   mainWindow.on('closed', () => {
     mainWindow = null
   })
@@ -199,16 +385,20 @@ function createWindow() {
 async function loadApplication() {
   const url = useDevServer ? await devServerUrl() : startServer()
   await waitFor(url)
-  if (mainWindow && !mainWindow.isDestroyed()) await mainWindow.loadURL(url)
+  applicationUrl = url
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    await mainWindow.loadFile(tabsPagePath())
+    createTab(url)
+  }
   return url
 }
 
 ipcMain.handle('window:minimize', (event) => {
-  BrowserWindow.fromWebContents(event.sender)?.minimize()
+  getWindowFromSender(event.sender)?.minimize()
 })
 
 ipcMain.handle('window:toggle-maximize', (event) => {
-  const window = BrowserWindow.fromWebContents(event.sender)
+  const window = getWindowFromSender(event.sender)
   if (!window) return false
 
   if (window.isMaximized()) {
@@ -221,22 +411,34 @@ ipcMain.handle('window:toggle-maximize', (event) => {
 })
 
 ipcMain.handle('window:close', (event) => {
-  BrowserWindow.fromWebContents(event.sender)?.close()
+  getWindowFromSender(event.sender)?.close()
 })
 
 ipcMain.handle('app:open-in-browser', async (event) => {
-  const window = BrowserWindow.fromWebContents(event.sender)
-  const url = window?.webContents.getURL()
+  const activeTab = getActiveTab()
+  const url = activeTab?.view.webContents.getURL()
   if (!url) return
 
   await shell.openExternal(url)
 })
 
 ipcMain.handle('app:open-devtools', (event) => {
+  const activeTab = getActiveTab()
+  if (activeTab) {
+    activeTab.view.webContents.openDevTools({ mode: 'detach' })
+    return
+  }
+
   BrowserWindow.fromWebContents(event.sender)?.webContents.openDevTools({ mode: 'detach' })
 })
 
 ipcMain.handle('app:force-reload', (event) => {
+  const activeTab = getActiveTab()
+  if (activeTab) {
+    activeTab.view.webContents.reloadIgnoringCache()
+    return
+  }
+
   BrowserWindow.fromWebContents(event.sender)?.webContents.reloadIgnoringCache()
 })
 
@@ -254,6 +456,29 @@ ipcMain.handle('app:set-external-access', async (_event, enabled) => {
   return settings.allowExternalAccess
 })
 
+ipcMain.handle('tabs:list', () => serializeTabs())
+
+ipcMain.handle('tabs:create', () => createTab())
+
+ipcMain.handle('tabs:activate', (_event, id) => activateTab(id))
+
+ipcMain.handle('tabs:close', (_event, id) => closeTab(id))
+
+ipcMain.handle('tabs:rename', (_event, id, title) => renameTab(id, title))
+
+ipcMain.handle('tabs:reload-active', () => {
+  requireActiveTab().view.webContents.reloadIgnoringCache()
+})
+
+ipcMain.handle('tabs:open-active-devtools', () => {
+  requireActiveTab().view.webContents.openDevTools({ mode: 'detach' })
+})
+
+ipcMain.handle('tabs:open-active-in-browser', async () => {
+  const url = requireActiveTab().view.webContents.getURL()
+  if (url) await shell.openExternal(url)
+})
+
 app.whenReady().then(async () => {
   createWindow()
   const url = await loadApplication()
@@ -261,7 +486,9 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
-      mainWindow?.loadURL(url)
+      applicationUrl = url
+      mainWindow?.loadFile(tabsPagePath())
+      createTab(url)
     }
   })
 })

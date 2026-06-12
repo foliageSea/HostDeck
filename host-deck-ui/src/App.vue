@@ -27,6 +27,9 @@ const settingsStore = useSettingsStore()
 const uploadCenterStore = useUploadCenterStore()
 
 const isElectron = computed(() => Boolean(window.hostDeck?.window))
+const shouldShowElectronTitleBar = computed(
+  () => isElectron.value && window.hostDeck?.shellMode !== 'native-tabs',
+)
 const theme = computed(() => (settingsStore.isDark ? darkTheme : null))
 const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   common: {
@@ -52,6 +55,11 @@ watchEffect(() => {
 
   document.documentElement.dataset.theme = settingsStore.isDark ? 'dark' : 'light'
   document.documentElement.dataset.electron = isElectron.value ? 'true' : 'false'
+  if (window.hostDeck?.shellMode) {
+    document.documentElement.dataset.electronShell = window.hostDeck.shellMode
+  } else {
+    delete document.documentElement.dataset.electronShell
+  }
   document.documentElement.style.setProperty('--app-primary-color', settingsStore.primaryColor)
   document.documentElement.style.setProperty('--app-primary-rgb', primaryRgb)
   document.documentElement.style.setProperty('--app-primary-border', `rgba(${primaryRgb}, 0.55)`)
@@ -106,7 +114,7 @@ onBeforeUnmount(() => {
           <NMessageProvider>
             <NGlobalStyle />
             <UiApiBridge />
-            <ElectronTitleBar v-if="isElectron" />
+            <ElectronTitleBar v-if="shouldShowElectronTitleBar" />
             <div class="app-root min-h-screen">
               <Transition name="fade" mode="out-in">
                 <DesktopShell v-if="sshStore.isConnected" />

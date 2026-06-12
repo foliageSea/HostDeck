@@ -67,7 +67,9 @@
     "files": [
       "electron/main.cjs",
       "electron/loading.html",
+      "electron/tabs.html",
       "electron/preload.cjs",
+      "electron/tabs-preload.cjs",
       "public/favicon.png",
       "package.json"
     ],

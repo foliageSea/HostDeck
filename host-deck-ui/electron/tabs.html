@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HostDeck</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        --titlebar-height: 42px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #0f172a;
+        color: #e2e8f0;
+        user-select: none;
+      }
+
+      .tab-shell {
+        position: fixed;
+        inset: 0 0 auto;
+        z-index: 1000;
+        display: flex;
+        height: var(--titlebar-height);
+        align-items: stretch;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+        -webkit-app-region: drag;
+      }
+
+      .window-controls {
+        display: flex;
+        flex: none;
+        gap: 8px;
+        align-items: center;
+        padding: 0 10px 0 14px;
+        -webkit-app-region: no-drag;
+      }
+
+      .window-control {
+        width: 12px;
+        height: 12px;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+        cursor: default;
+      }
+
+      .window-control.close {
+        background: #ff5f57;
+      }
+
+      .window-control.minimize {
+        background: #ffbd2e;
+      }
+
+      .window-control.maximize {
+        background: #28c840;
+      }
+
+      .tabs {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        align-items: center;
+        gap: 2px;
+        padding: 5px 8px 5px 0;
+      }
+
+      .tab-list {
+        display: flex;
+        align-self: flex-end;
+        min-width: 0;
+        flex: 1;
+        align-items: flex-end;
+        gap: 2px;
+        overflow: hidden;
+      }
+
+      .tab {
+        position: relative;
+        display: flex;
+        min-width: 120px;
+        max-width: 240px;
+        height: 34px;
+        flex: 1 1 180px;
+        align-items: center;
+        gap: 8px;
+        overflow: hidden;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 0;
+        background: rgba(30, 41, 59, 0.72);
+        color: rgba(226, 232, 240, 0.72);
+        padding: 0 8px 0 12px;
+        text-align: left;
+        cursor: default;
+        transition:
+          background 160ms ease,
+          border-color 160ms ease,
+          box-shadow 160ms ease,
+          color 160ms ease,
+          opacity 160ms ease,
+          transform 160ms ease;
+        -webkit-app-region: no-drag;
+      }
+
+      .tab:hover {
+        background: rgba(51, 65, 85, 0.86);
+        color: #f8fafc;
+      }
+
+      .tab.active {
+        border-color: rgba(56, 189, 248, 0.34);
+        background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), #020617 72%);
+        color: #f8fafc;
+        box-shadow:
+          0 -1px 0 rgba(56, 189, 248, 0.82) inset,
+          0 -10px 22px rgba(56, 189, 248, 0.08);
+        transform: translateY(-1px);
+      }
+
+      .tab-title {
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .tab-title-input {
+        min-width: 0;
+        flex: 1;
+        height: 24px;
+        border: 1px solid rgba(56, 189, 248, 0.56);
+        border-radius: 6px;
+        outline: none;
+        background: rgba(2, 6, 23, 0.72);
+        color: #f8fafc;
+        padding: 0 6px;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        -webkit-app-region: no-drag;
+      }
+
+      .tab-status {
+        width: 8px;
+        height: 8px;
+        flex: none;
+        border-radius: 999px;
+        background: #38bdf8;
+        opacity: 0;
+      }
+
+      .tab.loading .tab-status {
+        opacity: 1;
+        animation: pulse 0.9s ease-in-out infinite;
+      }
+
+      .tab-close,
+      .toolbar-button,
+      .new-tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        color: currentColor;
+        cursor: default;
+        -webkit-app-region: no-drag;
+      }
+
+      .tab-close {
+        width: 22px;
+        height: 22px;
+        flex: none;
+        border-radius: 999px;
+        background: transparent;
+        opacity: 0.68;
+      }
+
+      .tab-close:hover {
+        background: rgba(148, 163, 184, 0.18);
+        opacity: 1;
+      }
+
+      .new-tab,
+      .toolbar-button {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border-radius: 10px;
+        background: transparent;
+        font-size: 18px;
+        line-height: 1;
+        opacity: 0.76;
+      }
+
+      .toolbar-button {
+        font-size: 16px;
+      }
+
+      .icon {
+        display: block;
+        width: 16px;
+        height: 16px;
+        flex: none;
+        fill: currentColor;
+        pointer-events: none;
+      }
+
+      .tab-close .icon {
+        width: 14px;
+        height: 14px;
+      }
+
+      .icon.devtools-icon {
+        width: 18px;
+        height: 18px;
+      }
+
+      .new-tab:hover,
+      .toolbar-button:hover {
+        background: rgba(148, 163, 184, 0.14);
+        opacity: 1;
+      }
+
+      .toolbar {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: 2px;
+        padding: 5px 10px 5px 0;
+        -webkit-app-region: no-drag;
+      }
+
+      .empty-state {
+        position: fixed;
+        inset: var(--titlebar-height) 0 0;
+        display: none;
+        place-items: center;
+        background:
+          radial-gradient(circle at top, rgba(56, 189, 248, 0.18), transparent 32rem),
+          #020617;
+      }
+
+      .empty-state.visible {
+        display: grid;
+      }
+
+      .empty-card {
+        width: min(420px, calc(100vw - 48px));
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 22px;
+        background: rgba(15, 23, 42, 0.78);
+        padding: 28px;
+        text-align: center;
+        box-shadow: 0 24px 80px rgba(2, 6, 23, 0.34);
+      }
+
+      .empty-title {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .empty-description {
+        margin: 10px 0 22px;
+        color: rgba(226, 232, 240, 0.68);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+
+      .empty-action {
+        height: 38px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 12px;
+        background: #38bdf8;
+        color: #082f49;
+        font-weight: 700;
+        cursor: default;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(0.8);
+          opacity: 0.42;
+        }
+
+        50% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="tab-shell">
+      <div class="window-controls" id="window-controls">
+        <button class="window-control close" type="button" aria-label="关闭窗口"></button>
+        <button class="window-control minimize" type="button" aria-label="最小化窗口"></button>
+        <button class="window-control maximize" type="button" aria-label="最大化窗口"></button>
+      </div>
+      <div class="tabs">
+        <div class="tab-list" id="tab-list"></div>
+        <button class="new-tab" id="new-tab" type="button" title="新建 Tab" aria-label="新建 Tab">
+          <svg class="icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M17 15V8h-2v7H8v2h7v7h2v-7h7v-2z" />
+          </svg>
+        </button>
+      </div>
+      <div class="toolbar">
+        <button class="toolbar-button" id="reload-tab" type="button" title="刷新当前 Tab" aria-label="刷新当前 Tab">
+          <svg class="icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M26 18a10 10 0 1 1-2.93-7.07L20 14h8V6l-3.51 3.51A12 12 0 1 0 28 18z" />
+          </svg>
+        </button>
+        <button class="toolbar-button" id="open-browser" type="button" title="在外部浏览器打开" aria-label="在外部浏览器打开">
+          <svg class="icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M26 28H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10v2H6v20h20V16h2v10a2 2 0 0 1-2 2Z" />
+            <path d="M20 2v2h6.59L18 12.59 19.41 14 28 5.41V12h2V2H20z" />
+          </svg>
+        </button>
+        <button class="toolbar-button" id="open-devtools" type="button" title="打开当前 Tab 开发者工具" aria-label="打开当前 Tab 开发者工具">
+          <svg class="icon devtools-icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M12.59 20.59 8 16l4.59-4.59L11.17 10 5.17 16l6 6 1.42-1.41zM19.41 20.59 24 16l-4.59-4.59L20.83 10l6 6-6 6-1.42-1.41zM14 24l-1.93-.52L18 8l1.93.52L14 24z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="empty-state" id="empty-state">
+      <section class="empty-card">
+        <h1 class="empty-title">没有打开的 HostDeck Tab</h1>
+        <p class="empty-description">新建一个原生 Electron Tab，加载独立的 HostDeck 运维页面。</p>
+        <button class="empty-action" id="empty-new-tab" type="button">新建 Tab</button>
+      </section>
+    </main>
+
+    <script>
+      const api = window.hostDeckTabs
+      const tabList = document.getElementById('tab-list')
+      const emptyState = document.getElementById('empty-state')
+      const isMac = api.platform === 'darwin'
+      let editingTabId = null
+
+      document.getElementById('window-controls').style.display = isMac ? 'none' : 'flex'
+
+      function render(state) {
+        tabList.replaceChildren()
+        emptyState.classList.toggle('visible', state.tabs.length === 0)
+
+        for (const tab of state.tabs) {
+          const button = document.createElement('button')
+          button.className = ['tab', tab.isActive ? 'active' : '', tab.isLoading ? 'loading' : '']
+            .filter(Boolean)
+            .join(' ')
+          button.type = 'button'
+          button.title = tab.title || 'HostDeck'
+          button.addEventListener('click', () => api.activate(tab.id))
+          button.addEventListener('dblclick', (event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            editingTabId = tab.id
+            render(state)
+          })
+
+          const status = document.createElement('span')
+          status.className = 'tab-status'
+          button.append(status)
+
+          if (editingTabId === tab.id) {
+            const titleInput = document.createElement('input')
+            titleInput.className = 'tab-title-input'
+            titleInput.value = tab.title || 'HostDeck'
+            titleInput.setAttribute('aria-label', 'Tab 标题')
+            titleInput.addEventListener('click', (event) => event.stopPropagation())
+            titleInput.addEventListener('dblclick', (event) => event.stopPropagation())
+            titleInput.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                titleInput.blur()
+                return
+              }
+
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                editingTabId = null
+                render(state)
+              }
+            })
+            titleInput.addEventListener('blur', () => {
+              if (editingTabId !== tab.id) return
+              editingTabId = null
+              api.rename(tab.id, titleInput.value)
+            })
+            button.append(titleInput)
+            requestAnimationFrame(() => {
+              titleInput.focus()
+              titleInput.select()
+            })
+          } else {
+            const title = document.createElement('span')
+            title.className = 'tab-title'
+            title.textContent = tab.title || 'HostDeck'
+            button.append(title)
+          }
+
+          const close = document.createElement('span')
+          close.className = 'tab-close'
+          close.innerHTML = '<svg class="icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M24 9.4 22.6 8 16 14.6 9.4 8 8 9.4l6.6 6.6L8 22.6 9.4 24l6.6-6.6 6.6 6.6 1.4-1.4-6.6-6.6L24 9.4z" /></svg>'
+          close.setAttribute('role', 'button')
+          close.setAttribute('aria-label', `关闭 ${tab.title || 'HostDeck'}`)
+          close.addEventListener('click', (event) => {
+            event.stopPropagation()
+            api.close(tab.id)
+          })
+          button.append(close)
+
+          tabList.append(button)
+        }
+      }
+
+      function bind(id, handler) {
+        document.getElementById(id).addEventListener('click', handler)
+      }
+
+      bind('new-tab', () => api.create())
+      bind('empty-new-tab', () => api.create())
+      bind('reload-tab', () => api.reloadActive())
+      bind('open-browser', () => api.openActiveInBrowser())
+      bind('open-devtools', () => api.openActiveDevTools())
+      document.querySelector('.window-control.close').addEventListener('click', () => api.window.close())
+      document.querySelector('.window-control.minimize').addEventListener('click', () => api.window.minimize())
+      document.querySelector('.window-control.maximize').addEventListener('click', () => api.window.toggleMaximize())
+
+      api.onChanged(render)
+      api.list().then(render)
+    </script>
+  </body>
+</html>
