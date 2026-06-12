@@ -281,46 +281,32 @@
         inset: var(--titlebar-height) 0 0;
         display: none;
         place-items: center;
-        background:
-          radial-gradient(circle at top, rgba(56, 189, 248, 0.18), transparent 32rem),
-          #020617;
+        background: #020617;
       }
 
       .empty-state.visible {
         display: grid;
       }
 
-      .empty-card {
-        width: min(420px, calc(100vw - 48px));
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 22px;
-        background: rgba(15, 23, 42, 0.78);
-        padding: 28px;
-        text-align: center;
-        box-shadow: 0 24px 80px rgba(2, 6, 23, 0.34);
-      }
-
-      .empty-title {
-        margin: 0;
-        font-size: 20px;
-      }
-
-      .empty-description {
-        margin: 10px 0 22px;
-        color: rgba(226, 232, 240, 0.68);
-        font-size: 14px;
-        line-height: 1.7;
-      }
-
       .empty-action {
-        height: 38px;
-        padding: 0 18px;
-        border: 0;
-        border-radius: 12px;
-        background: #38bdf8;
-        color: #082f49;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 40px;
+        padding: 0 16px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.72);
+        color: #e2e8f0;
         font-weight: 700;
         cursor: default;
+        -webkit-app-region: no-drag;
+      }
+
+      .empty-action:hover {
+        border-color: rgba(56, 189, 248, 0.48);
+        background: rgba(30, 41, 59, 0.86);
+        color: #f8fafc;
       }
 
       @keyframes pulse {
@@ -369,11 +355,10 @@
     </header>
 
     <main class="empty-state" id="empty-state">
-      <section class="empty-card">
-        <h1 class="empty-title">没有打开的 HostDeck Tab</h1>
-        <p class="empty-description">新建一个原生 Electron Tab，加载独立的 HostDeck 运维页面。</p>
-        <button class="empty-action" id="empty-new-tab" type="button">新建 Tab</button>
-      </section>
+      <button class="empty-action" id="empty-new-tab" type="button">
+        <iconify-icon class="icon" icon="lucide:plus" aria-hidden="true"></iconify-icon>
+        <span>新建 Tab</span>
+      </button>
     </main>
 
     <script>
