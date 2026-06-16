@@ -6,8 +6,6 @@ import type { useWallpaperSettings } from '../hooks/useWallpaperSettings'
 const props = defineProps<{
   target: WallpaperTarget
   title: string
-  defaultLabel: string
-  presetLabel: string
   controller: ReturnType<typeof useWallpaperSettings>
 }>()
 
@@ -34,9 +32,6 @@ const wallpaperPreviewClass = computed(() =>
 )
 const headingTextClass = computed(() =>
   isDark.value ? 'text-[rgba(241,245,249,0.96)]' : 'text-[rgba(15,23,42,0.92)]',
-)
-const secondaryTextClass = computed(() =>
-  isDark.value ? 'text-[rgba(148,163,184,0.94)]' : 'text-[rgba(100,116,139,0.92)]',
 )
 const effectPanelClass = computed(() =>
   isDark.value
@@ -85,10 +80,10 @@ function resetWallpaperEffects() {
       </div>
       <div class="flex shrink-0 flex-nowrap items-center gap-[8px] lt-md:w-full">
         <NButton class="whitespace-nowrap" secondary @click="controller.openWallpaperPicker(target)"
-          >上传图片/视频</NButton
+          >上传</NButton
         >
         <NButton class="whitespace-nowrap" tertiary @click="controller.resetWallpaper(target)"
-          >恢复默认</NButton
+          >恢复</NButton
         >
       </div>
     </div>
@@ -126,9 +121,8 @@ function resetWallpaperEffects() {
             target === 'desktop' ? 'desktop-default-preview' : 'login-default-preview',
           ]"
         />
-        <div class="mt-[10px] grid gap-[4px]">
+        <div class="mt-[10px]">
           <strong class="text-[0.94rem]" :class="headingTextClass">默认</strong>
-          <span class="text-[0.84rem]" :class="secondaryTextClass">{{ defaultLabel }}</span>
         </div>
       </button>
 
@@ -148,9 +142,8 @@ function resetWallpaperEffects() {
           :class="wallpaperPreviewClass"
           :style="{ background: preset.background }"
         />
-        <div class="mt-[10px] grid gap-[4px]">
+        <div class="mt-[10px]">
           <strong class="text-[0.94rem]" :class="headingTextClass">{{ preset.label }}</strong>
-          <span class="text-[0.84rem]" :class="secondaryTextClass">{{ presetLabel }}</span>
         </div>
       </button>
 
@@ -192,9 +185,8 @@ function resetWallpaperEffects() {
             >未上传</span
           >
         </div>
-        <div class="mt-[10px] grid gap-[4px]">
+        <div class="mt-[10px]">
           <strong class="text-[0.94rem]" :class="headingTextClass">自定义媒体</strong>
-          <span class="text-[0.84rem]" :class="secondaryTextClass">最大 100MB，图片或视频</span>
         </div>
       </div>
     </div>
