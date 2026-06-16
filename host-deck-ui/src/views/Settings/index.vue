@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Renew } from '@vicons/carbon'
 import { computed, onMounted, ref } from 'vue'
 import { getUiApi } from '@/lib/ui'
 import WallpaperSection from './components/WallpaperSection.vue'
@@ -102,7 +103,23 @@ async function updateExternalAccess(value: boolean) {
                     @click="settingsStore.setPrimaryColor(color)"
                   />
                 </div>
-                <NButton secondary @click="settingsStore.resetPrimaryColor">恢复默认</NButton>
+                <NTooltip>
+                  <template #trigger>
+                    <NButton
+                      circle
+                      secondary
+                      aria-label="恢复默认主题色"
+                      @click="settingsStore.resetPrimaryColor"
+                    >
+                      <template #icon>
+                        <NIcon>
+                          <Renew />
+                        </NIcon>
+                      </template>
+                    </NButton>
+                  </template>
+                  恢复默认
+                </NTooltip>
               </div>
             </NFormItem>
           </NForm>

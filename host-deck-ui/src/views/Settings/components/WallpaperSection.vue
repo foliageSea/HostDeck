@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Renew, Upload } from '@vicons/carbon'
 import { computed } from 'vue'
 import { wallpaperPresets, type WallpaperSettings, type WallpaperTarget } from '@/lib/wallpapers'
 import type { useWallpaperSettings } from '../hooks/useWallpaperSettings'
@@ -79,12 +80,40 @@ function resetWallpaperEffects() {
         <h3 class="m-0 text-[1rem]">{{ title }}</h3>
       </div>
       <div class="flex shrink-0 flex-nowrap items-center gap-[8px] lt-md:w-full">
-        <NButton class="whitespace-nowrap" secondary @click="controller.openWallpaperPicker(target)"
-          >上传</NButton
-        >
-        <NButton class="whitespace-nowrap" tertiary @click="controller.resetWallpaper(target)"
-          >恢复</NButton
-        >
+        <NTooltip>
+          <template #trigger>
+            <NButton
+              circle
+              secondary
+              aria-label="上传壁纸"
+              @click="controller.openWallpaperPicker(target)"
+            >
+              <template #icon>
+                <NIcon>
+                  <Upload />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
+          上传
+        </NTooltip>
+        <NTooltip>
+          <template #trigger>
+            <NButton
+              circle
+              tertiary
+              aria-label="恢复默认壁纸"
+              @click="controller.resetWallpaper(target)"
+            >
+              <template #icon>
+                <NIcon>
+                  <Renew />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
+          恢复
+        </NTooltip>
       </div>
     </div>
 
@@ -199,7 +228,18 @@ function resetWallpaperEffects() {
         <div>
           <h4 class="m-0 text-[0.96rem] font-600" :class="headingTextClass">背景效果</h4>
         </div>
-        <NButton tertiary @click="resetWallpaperEffects">重置效果</NButton>
+        <NTooltip>
+          <template #trigger>
+            <NButton circle tertiary aria-label="重置背景效果" @click="resetWallpaperEffects">
+              <template #icon>
+                <NIcon>
+                  <Renew />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
+          重置效果
+        </NTooltip>
       </div>
 
       <NSpace vertical size="large">
