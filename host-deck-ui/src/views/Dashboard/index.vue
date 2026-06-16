@@ -425,32 +425,41 @@ function createChartOption(config: {
         <h2 class="mb-[6px] text-[26px] font-700">性能监控</h2>
       </div>
 
-      <div
-        class="rounded-[18px] px-[16px] py-[14px] backdrop-blur-[16px]"
-        :class="
-          settingsStore.isDark
-            ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.52)]'
-            : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'
-        "
-      >
-        <div
-          class="text-[12px]"
-          :class="
-            settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'
-          "
-        >
-          最新采样
+      <NTooltip placement="bottom-end" trigger="hover" :show-arrow="true">
+        <template #trigger>
+          <div
+            class="flex cursor-default items-center justify-center rounded-full p-[10px] backdrop-blur-[16px] transition-colors"
+            :class="
+              settingsStore.isDark
+                ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.52)] hover:bg-[rgba(15,23,42,0.72)]'
+                : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)] hover:bg-[rgba(255,255,255,0.92)]'
+            "
+          >
+            <NIcon
+              size="20"
+              :color="settingsStore.isDark ? 'rgba(148,163,184,0.9)' : 'rgba(100,116,139,0.9)'"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8.009 8.009 0 0 1-8 8zm.5-13h-1v6l5.25 3.15.75-1.23-4.5-2.67V7z"
+                />
+              </svg>
+            </NIcon>
+          </div>
+        </template>
+        <div class="min-w-[200px] py-[2px]">
+          <div
+            class="mb-[6px] text-[11px] font-600 uppercase tracking-wider opacity-60"
+          >
+            最新采样
+          </div>
+          <div class="text-[16px] font-700">{{ latestUpdateText }}</div>
+          <div class="mt-[8px] text-[12px] opacity-70">
+            {{ samples.length }} 个缓存点 · 当前显示 {{ visibleRangeLabel }}
+          </div>
+          <div class="mt-[2px] text-[12px] opacity-70">3 秒采样粒度</div>
         </div>
-        <div class="mt-[6px] text-[18px] font-700">{{ latestUpdateText }}</div>
-        <div
-          class="mt-[8px] text-[12px]"
-          :class="
-            settingsStore.isDark ? 'text-[rgba(191,219,254,0.94)]' : 'text-[rgba(37,99,235,0.88)]'
-          "
-        >
-          {{ samples.length }} 个缓存点 · 当前显示 {{ visibleRangeLabel }} · 3 秒采样粒度
-        </div>
-      </div>
+      </NTooltip>
     </div>
 
     <div
