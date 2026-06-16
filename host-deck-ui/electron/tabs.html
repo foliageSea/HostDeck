@@ -42,7 +42,7 @@
         flex: none;
         gap: 8px;
         align-items: center;
-        padding: 0 10px 0 14px;
+        padding: 0 20px 0 14px;
         -webkit-app-region: no-drag;
       }
 
@@ -73,36 +73,35 @@
         min-width: 0;
         flex: 1;
         align-items: center;
-        gap: 2px;
-        padding: 5px 2px 5px 0;
+        gap: 4px;
+        padding: 0 2px 0 0;
       }
 
       .tab-list {
         display: flex;
-        align-self: flex-end;
+        align-self: center;
         min-width: 0;
         flex: 1;
-        align-items: flex-end;
-        gap: 2px;
+        align-items: center;
+        gap: 4px;
         overflow: hidden;
       }
 
       .tab {
         position: relative;
         display: flex;
-        min-width: 120px;
-        max-width: 240px;
-        height: 34px;
-        flex: 1 1 180px;
+        min-width: 100px;
+        max-width: 220px;
+        height: 28px;
+        flex: 1 1 160px;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         overflow: hidden;
         border: 1px solid transparent;
-        border-bottom: 0;
-        border-radius: 0;
-        background: rgba(30, 41, 59, 0.72);
-        color: rgba(226, 232, 240, 0.72);
-        padding: 0 8px 0 12px;
+        border-radius: 999px;
+        background: transparent;
+        color: rgba(226, 232, 240, 0.6);
+        padding: 0 8px 0 10px;
         text-align: left;
         cursor: default;
         transition:
@@ -110,24 +109,23 @@
           border-color 160ms ease,
           box-shadow 160ms ease,
           color 160ms ease,
-          opacity 160ms ease,
-          transform 160ms ease;
+          opacity 160ms ease;
         -webkit-app-region: no-drag;
       }
 
       .tab:hover {
-        background: rgba(51, 65, 85, 0.86);
+        background: rgba(51, 65, 85, 0.72);
         color: #f8fafc;
+        border-color: rgba(148, 163, 184, 0.14);
       }
 
       .tab.active {
-        border-color: rgba(56, 189, 248, 0.34);
-        background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), #020617 72%);
+        border-color: rgba(56, 189, 248, 0.28);
+        background: rgba(30, 41, 59, 0.92);
         color: #f8fafc;
         box-shadow:
-          0 -1px 0 rgba(56, 189, 248, 0.82) inset,
-          0 -10px 22px rgba(56, 189, 248, 0.08);
-        transform: translateY(-1px);
+          0 0 0 1px rgba(56, 189, 248, 0.18) inset,
+          0 2px 8px rgba(0, 0, 0, 0.32);
       }
 
       .tab-title {
