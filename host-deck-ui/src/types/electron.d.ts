@@ -49,4 +49,6 @@ declare global {
       url: string
     }>
   }
+
+  const __APP_VERSION__: string
 }

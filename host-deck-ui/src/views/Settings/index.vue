@@ -4,6 +4,8 @@ import { getUiApi } from '@/lib/ui'
 import WallpaperSection from './components/WallpaperSection.vue'
 import { useWallpaperSettings } from './hooks/useWallpaperSettings'
 
+const appVersion = __APP_VERSION__
+
 const controller = useWallpaperSettings()
 const { settingsStore } = controller
 const clearingBrowserCache = ref(false)
@@ -125,6 +127,17 @@ async function updateExternalAccess(value: boolean) {
         <NCard title="应用维护" size="large">
           <div class="flex flex-col gap-[12px]">
             <div
+              class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
+            >
+              <div>
+                <div class="text-[14px] font-600">前端版本</div>
+                <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
+                  当前 UI 版本
+                </div>
+              </div>
+              <NTag type="info" size="small" :bordered="false">v{{ appVersion }}</NTag>
+            </div>
+            <div
               v-if="canManageExternalAccess"
               class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
             >
@@ -141,13 +154,16 @@ async function updateExternalAccess(value: boolean) {
               />
             </div>
 
-            <div v-if="canClearBrowserCache">
-              <div class="text-[14px] font-600">浏览器缓存</div>
-              <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
-                清理内置浏览器缓存，不影响登录信息、应用设置、壁纸和本地数据。
+            <div
+              v-if="canClearBrowserCache"
+              class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
+            >
+              <div>
+                <div class="text-[14px] font-600">浏览器缓存</div>
+                <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
+                  清理内置浏览器缓存，不影响登录信息、应用设置、壁纸和本地数据。
+                </div>
               </div>
-            </div>
-            <div v-if="canClearBrowserCache">
               <NButton
                 type="warning"
                 secondary
