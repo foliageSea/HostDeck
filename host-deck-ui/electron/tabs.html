@@ -11,6 +11,7 @@
         font-family:
           Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
         --titlebar-height: 42px;
+        --mac-traffic-light-space: 88px;
       }
 
       * {
@@ -75,6 +76,10 @@
         align-items: center;
         gap: 4px;
         padding: 0 2px 0 0;
+      }
+
+      body.is-mac .tabs {
+        padding-left: var(--mac-traffic-light-space);
       }
 
       .tab-list {
@@ -274,6 +279,16 @@
         display: none;
       }
 
+      @media (max-width: 720px) {
+        body.is-mac {
+          --mac-traffic-light-space: 76px;
+        }
+
+        .tab {
+          min-width: 88px;
+        }
+      }
+
       .empty-state {
         position: fixed;
         inset: var(--titlebar-height) 0 0;
@@ -369,6 +384,7 @@
       const isMac = api.platform === 'darwin'
       let editingTabId = null
 
+      document.body.classList.toggle('is-mac', isMac)
       document.getElementById('window-controls').style.display = isMac ? 'none' : 'flex'
 
       function render(state) {

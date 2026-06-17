@@ -353,6 +353,8 @@ async function restartServer() {
 
 function createWindow() {
   const { width, height } = getDefaultWindowSize()
+  const macWindowOptions =
+    process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 15 } } : {}
 
   mainWindow = new BrowserWindow({
     width,
@@ -363,7 +365,7 @@ function createWindow() {
     icon: path.join(__dirname, '..', 'public', 'favicon.png'),
     frame: false,
     titleBarStyle: 'hidden',
-    trafficLightPosition: { x: 16, y: 14 },
+    ...macWindowOptions,
     webPreferences: {
       preload: path.join(__dirname, 'tabs-preload.cjs'),
       contextIsolation: true,
