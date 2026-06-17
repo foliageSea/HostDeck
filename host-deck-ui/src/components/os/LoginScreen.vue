@@ -219,8 +219,19 @@ const saveServerMutation = useMutation<SavedServer | void, Error, void>({
   },
 })
 
+const testConnectionMutation = useMutation<{ success: boolean }, Error, ConnectParams>({
+  mutationFn: authApi.testConnect,
+  onSuccess: () => {
+    getUiApi().message.success('连接测试成功！')
+  },
+  onError: (error) => {
+    getUiApi().message.error(error.message || '连接测试失败')
+  },
+})
+
 const isConnecting = computed(() => connectMutation.isPending.value)
 const isSavingServer = computed(() => saveServerMutation.isPending.value)
+const isTesting = computed(() => testConnectionMutation.isPending.value)
 
 function handleConnect() {
   if (!selectedServer.value) {
@@ -234,6 +245,16 @@ function handleConnect() {
     port: connectionForm.port,
     privateKey: connectionForm.privateKey || undefined,
     username: connectionForm.username,
+  })
+}
+
+function handleTestConnection() {
+  testConnectionMutation.mutate({
+    host: serverForm.host,
+    password: serverForm.password || undefined,
+    port: serverForm.port,
+    privateKey: serverForm.privateKey || undefined,
+    username: serverForm.username,
   })
 }
 
@@ -457,6 +478,13 @@ onMounted(async () => {
           </NFormItem>
 
           <div class="flex justify-end gap-[12px]">
+            <NButton
+              :loading="isTesting"
+              :disabled="!serverForm.host || !serverForm.username"
+              @click="handleTestConnection"
+            >
+              测试连接
+            </NButton>
             <NButton @click="handleCloseServerEditor"> 取消 </NButton>
             <NButton
               attr-type="submit"

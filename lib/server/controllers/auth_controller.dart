@@ -34,6 +34,27 @@ class AuthController {
     }
   }
 
+  Future<Response> testConnect(Request request) async {
+    try {
+      final payload = await request.readAsString();
+      final data = jsonDecode(payload);
+
+      final connectionId = await _sshService.connect(
+        host: data['host'],
+        port: int.parse(data['port'].toString()),
+        username: data['username'],
+        password: data['password'],
+        privateKey: data['privateKey'],
+      );
+
+      await _sshService.disconnect(connectionId);
+      return Result.ok({'success': true});
+    } catch (e) {
+      _log.severe('Test Connect Error: $e');
+      return Result.fail(500, e.toString());
+    }
+  }
+
   Future<Response> disconnect(Request request) async {
     try {
       final connectionId = request.url.queryParameters['connectionId'];
