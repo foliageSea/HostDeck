@@ -438,6 +438,7 @@ export const useDesktopStore = defineStore('desktop', {
       'runtime-sessions': {
         component: markRaw(RuntimeSessionsView),
         height: 720,
+        hide: true,
         icon: 'runtime',
         id: 'runtime-sessions',
         minHeight: 520,
@@ -481,6 +482,7 @@ export const useDesktopStore = defineStore('desktop', {
       settings: {
         component: markRaw(SettingsView),
         height: 600,
+        hide: true,
         icon: 'settings',
         id: 'settings',
         minHeight: 460,

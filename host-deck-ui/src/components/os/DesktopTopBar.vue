@@ -6,6 +6,7 @@ import DesktopTaskCenter from '@/components/os/DesktopTaskCenter.vue'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
+import type { DesktopAppId } from '@/types/desktop'
 
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
@@ -44,6 +45,10 @@ const sessionStatusMeta = computed(() => {
     label: '当前未连接 SSH 会话',
   }
 })
+const appMenuOptions = computed(() => [
+  { key: 'runtime-sessions', label: '会话管理' },
+  { key: 'settings', label: '设置' },
+])
 const monitorData = computed(() => sshStore.monitorData)
 const monitorError = computed(() => sshStore.monitorError)
 const cpuUsage = computed(() => {
@@ -81,6 +86,10 @@ function formatSpeed(value: number) {
   return `${value.toFixed(0)} B/s`
 }
 
+function handleAppMenuSelect(key: string | number) {
+  desktopStore.openWindow(key as DesktopAppId)
+}
+
 function disconnect() {
   const dialog = getUiApi().dialog.warning({
     title: '断开连接',
@@ -110,17 +119,21 @@ function disconnect() {
     ]"
   >
     <div class="flex min-w-0 items-center gap-[8px]">
-      <div
-        class="flex min-w-0 items-center gap-[8px] rounded-[12px] px-[8px] py-[3px]"
-        :class="
-          settingsStore.isDark
-            ? 'bg-[rgba(15,23,42,0.26)] text-[rgba(226,232,240,0.9)]'
-            : 'bg-[rgba(255,255,255,0.46)] text-[rgba(30,41,59,0.9)]'
-        "
-      >
-        <img class="h-[22px] w-[22px] flex-none object-contain" src="/favicon.png" alt="HostDeck" />
-        <span class="truncate text-[12px] font-700 tracking-[0.02em] lt-sm:hidden">HostDeck</span>
-      </div>
+      <NDropdown :options="appMenuOptions" trigger="click" @select="handleAppMenuSelect">
+        <button
+          type="button"
+          class="flex min-w-0 items-center gap-[8px] rounded-[12px] border-0 px-[8px] py-[3px] cursor-pointer transition-colors"
+          :class="
+            settingsStore.isDark
+              ? 'bg-[rgba(15,23,42,0.26)] text-[rgba(226,232,240,0.9)] hover:bg-[rgba(30,41,59,0.54)]'
+              : 'bg-[rgba(255,255,255,0.46)] text-[rgba(30,41,59,0.9)] hover:bg-[rgba(255,255,255,0.76)]'
+          "
+          aria-label="打开 HostDeck 菜单"
+        >
+          <img class="h-[22px] w-[22px] flex-none object-contain" src="/favicon.png" alt="HostDeck" />
+          <span class="truncate text-[12px] font-700 tracking-[0.02em] lt-sm:hidden">HostDeck</span>
+        </button>
+      </NDropdown>
     </div>
 
     <div
