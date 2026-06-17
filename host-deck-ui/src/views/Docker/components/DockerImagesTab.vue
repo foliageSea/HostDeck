@@ -237,14 +237,10 @@ function getImageName(image: DockerImage) {
 <style scoped>
 .docker-theme-dark {
   --docker-card-border: rgba(148, 163, 184, 0.16);
-  --docker-card-bg: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.46));
-  --docker-card-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
+  --docker-card-bg: transparent;
+  --docker-card-shadow: none;
   --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.42);
-  --docker-card-bg-hover: linear-gradient(
-    145deg,
-    rgba(15, 23, 42, 0.84),
-    rgba(var(--app-primary-rgb), 0.28)
-  );
+  --docker-card-bg-hover: transparent;
   --docker-card-field-bg: rgba(15, 23, 42, 0.38);
   --docker-card-label-color: rgba(226, 232, 240, 0.52);
   --docker-card-value-color: rgba(248, 250, 252, 0.9);
@@ -254,14 +250,10 @@ function getImageName(image: DockerImage) {
 
 .docker-theme-light {
   --docker-card-border: rgba(148, 163, 184, 0.22);
-  --docker-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
-  --docker-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  --docker-card-bg: transparent;
+  --docker-card-shadow: none;
   --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.34);
-  --docker-card-bg-hover: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.98),
-    rgba(var(--app-primary-rgb), 0.14)
-  );
+  --docker-card-bg-hover: transparent;
   --docker-card-field-bg: rgba(241, 245, 249, 0.92);
   --docker-card-label-color: rgba(100, 116, 139, 0.9);
   --docker-card-value-color: rgba(30, 41, 59, 0.92);
