@@ -1,29 +1,31 @@
 import '../models/server_config.dart';
 import '../services/database_service.dart';
+import '../../utils/crypto_helper.dart';
 
 class ServerRepository {
   final DatabaseService _dbService;
 
   ServerRepository(this._dbService);
 
+  /// Builds a ServerConfig row and decrypts sensitive fields.
+  ServerConfig _rowToConfig(Map<String, dynamic> row) {
+    return ServerConfig(
+      id: row['id'] as int,
+      name: row['name'] as String,
+      host: row['host'] as String,
+      port: row['port'] as int,
+      username: row['username'] as String,
+      password: CryptoHelper.decrypt(row['password'] as String?),
+      privateKey: CryptoHelper.decrypt(row['privateKey'] as String?),
+      createdAt: row['createdAt'] as int?,
+    );
+  }
+
   List<ServerConfig> getAllServers() {
     final result = _dbService.db.select(
       'SELECT * FROM servers ORDER BY createdAt DESC',
     );
-    return result
-        .map(
-          (row) => ServerConfig(
-            id: row['id'] as int,
-            name: row['name'] as String,
-            host: row['host'] as String,
-            port: row['port'] as int,
-            username: row['username'] as String,
-            password: row['password'] as String?,
-            privateKey: row['privateKey'] as String?,
-            createdAt: row['createdAt'] as int?,
-          ),
-        )
-        .toList();
+    return result.map((row) => _rowToConfig(row)).toList();
   }
 
   ServerConfig? getServer(int id) {
@@ -31,17 +33,7 @@ class ServerRepository {
       id,
     ]);
     if (result.isEmpty) return null;
-    final row = result.first;
-    return ServerConfig(
-      id: row['id'] as int,
-      name: row['name'] as String,
-      host: row['host'] as String,
-      port: row['port'] as int,
-      username: row['username'] as String,
-      password: row['password'] as String?,
-      privateKey: row['privateKey'] as String?,
-      createdAt: row['createdAt'] as int?,
-    );
+    return _rowToConfig(result.first);
   }
 
   ServerConfig addServer(ServerConfig server) {
@@ -55,8 +47,8 @@ class ServerRepository {
         server.host,
         server.port,
         server.username,
-        server.password,
-        server.privateKey,
+        CryptoHelper.encrypt(server.password),
+        CryptoHelper.encrypt(server.privateKey),
         now,
       ]);
       final id = _dbService.db.lastInsertRowId;
@@ -85,8 +77,8 @@ class ServerRepository {
         server.host,
         server.port,
         server.username,
-        server.password,
-        server.privateKey,
+        CryptoHelper.encrypt(server.password),
+        CryptoHelper.encrypt(server.privateKey),
         id,
       ]);
       return _dbService.db.updatedRows > 0;
