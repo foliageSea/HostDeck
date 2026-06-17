@@ -1,6 +1,7 @@
 import { http } from '@/lib/http'
 
 export interface ConnectParams {
+  serverId?: number
   host: string
   port: number
   username: string

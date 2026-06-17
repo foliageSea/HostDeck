@@ -39,7 +39,27 @@ class ServerController {
 
       final payload = await request.readAsString();
       final data = jsonDecode(payload);
-      final server = ServerConfig.fromJson(data);
+      final existing = _serverRepository.getServer(id);
+      if (existing == null) {
+        return Result.fail(404, 'Server not found');
+      }
+
+      final server = ServerConfig(
+        id: id,
+        name: data['name'] as String? ?? existing.name,
+        host: data['host'] as String? ?? existing.host,
+        port: data['port'] is int
+            ? data['port']
+            : int.tryParse(data['port']?.toString() ?? '') ?? existing.port,
+        username: data['username'] as String? ?? existing.username,
+        password: data.containsKey('password')
+            ? data['password'] as String?
+            : existing.password,
+        privateKey: data.containsKey('privateKey')
+            ? data['privateKey'] as String?
+            : existing.privateKey,
+        createdAt: existing.createdAt,
+      );
 
       final success = _serverRepository.updateServer(id, server);
       if (success) {

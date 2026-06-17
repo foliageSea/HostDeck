@@ -88,7 +88,11 @@ class ServerService {
     _portForwardService = portForwardService;
 
     // 2. Initialize Controllers
-    final authController = AuthController(sshService, monitorHistoryService);
+    final authController = AuthController(
+      sshService,
+      monitorHistoryService,
+      serverRepository,
+    );
     final systemController = SystemController(
       sshService,
       monitorService,

@@ -19,15 +19,17 @@ class ServerConfig {
     this.createdAt,
   });
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson({bool includeSecrets = false}) {
     return {
       'id': id,
       'name': name,
       'host': host,
       'port': port,
       'username': username,
-      'password': password,
-      'privateKey': privateKey,
+      if (includeSecrets) 'password': password,
+      if (includeSecrets) 'privateKey': privateKey,
+      'hasPassword': password != null && password!.isNotEmpty,
+      'hasPrivateKey': privateKey != null && privateKey!.isNotEmpty,
       'createdAt': createdAt,
     };
   }

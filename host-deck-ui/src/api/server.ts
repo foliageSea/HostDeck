@@ -9,6 +9,8 @@ export interface SavedServer {
   username: string
   password?: string
   privateKey?: string
+  hasPassword?: boolean
+  hasPrivateKey?: boolean
   createdAt?: number
 }
 

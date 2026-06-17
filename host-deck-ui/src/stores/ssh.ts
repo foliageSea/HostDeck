@@ -9,6 +9,13 @@ export { type SavedServer }
 
 type SessionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
 
+function omitSecrets(server: SavedServer): SavedServer {
+  const safeServer = { ...server }
+  delete safeServer.password
+  delete safeServer.privateKey
+  return safeServer
+}
+
 export const useSshStore = defineStore('ssh', () => {
   const connectionId = ref<string | null>(null)
   const isConnected = ref(false)
@@ -232,7 +239,7 @@ export const useSshStore = defineStore('ssh', () => {
 
   async function fetchServers() {
     try {
-      savedServers.value = await serverApi.list()
+      savedServers.value = (await serverApi.list()).map(omitSecrets)
     } catch (error) {
       console.error('Failed to fetch servers', error)
       getUiApi().message.error('加载服务器列表失败。')
@@ -241,8 +248,9 @@ export const useSshStore = defineStore('ssh', () => {
 
   async function addServer(server: Omit<SavedServer, 'id'>) {
     const nextServer = await serverApi.create(server)
-    savedServers.value.unshift(nextServer)
-    return nextServer
+    const safeServer = omitSecrets(nextServer)
+    savedServers.value.unshift(safeServer)
+    return safeServer
   }
 
   async function removeServer(id: number) {
@@ -257,7 +265,7 @@ export const useSshStore = defineStore('ssh', () => {
     if (targetIndex !== -1) {
       savedServers.value[targetIndex] = {
         ...savedServers.value[targetIndex],
-        ...payload,
+        ...omitSecrets(payload as SavedServer),
       }
     }
   }

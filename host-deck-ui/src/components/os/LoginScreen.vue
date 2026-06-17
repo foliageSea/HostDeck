@@ -91,18 +91,16 @@ function selectFirstAvailableServer() {
 
 function applyConnectionForm(server: Pick<SavedServer, keyof ConnectionFormState>) {
   connectionForm.host = server.host
-  connectionForm.password = server.password ?? ''
   connectionForm.port = server.port
-  connectionForm.privateKey = server.privateKey ?? ''
   connectionForm.username = server.username
 }
 
 function applyServerForm(server: SavedServer) {
   serverForm.host = server.host
   serverForm.name = server.name
-  serverForm.password = server.password ?? ''
+  serverForm.password = ''
   serverForm.port = server.port
-  serverForm.privateKey = server.privateKey ?? ''
+  serverForm.privateKey = ''
   serverForm.username = server.username
 }
 
@@ -152,10 +150,9 @@ const connectMutation = useMutation<ConnectResponse, Error, ConnectParams>({
       connectionForm.port,
       connectionForm.username,
       {
+        serverId: selectedServer.value?.id,
         host: connectionForm.host,
-        password: connectionForm.password || undefined,
         port: connectionForm.port,
-        privateKey: connectionForm.privateKey || undefined,
         username: connectionForm.username,
       },
     )
@@ -175,10 +172,10 @@ const saveServerMutation = useMutation<SavedServer | void, Error, void>({
     const payload = {
       host: serverForm.host,
       name: serverForm.name || `${serverForm.username}@${serverForm.host}`,
-      password: serverForm.password || undefined,
       port: serverForm.port,
-      privateKey: serverForm.privateKey || undefined,
       username: serverForm.username,
+      ...(serverForm.password ? { password: serverForm.password } : {}),
+      ...(serverForm.privateKey ? { privateKey: serverForm.privateKey } : {}),
     }
 
     if (editingServerId.value !== null && serverEditorMode.value === 'edit') {
@@ -203,9 +200,7 @@ const saveServerMutation = useMutation<SavedServer | void, Error, void>({
     ) {
       applyConnectionForm({
         host: serverForm.host,
-        password: serverForm.password || undefined,
         port: serverForm.port,
-        privateKey: serverForm.privateKey || undefined,
         username: serverForm.username,
       })
     }
@@ -232,6 +227,9 @@ const testConnectionMutation = useMutation<{ success: boolean }, Error, ConnectP
 const isConnecting = computed(() => connectMutation.isPending.value)
 const isSavingServer = computed(() => saveServerMutation.isPending.value)
 const isTesting = computed(() => testConnectionMutation.isPending.value)
+const canConnect = computed(
+  () => Boolean(selectedServer.value?.id && connectionForm.host && connectionForm.username),
+)
 
 function handleConnect() {
   if (!selectedServer.value) {
@@ -239,17 +237,25 @@ function handleConnect() {
     return
   }
 
+  if (selectedServer.value.id === undefined) {
+    getUiApi().message.warning('服务器配置尚未保存，请先保存后再连接。')
+    return
+  }
+
   connectMutation.mutate({
+    serverId: selectedServer.value.id,
     host: connectionForm.host,
-    password: connectionForm.password || undefined,
     port: connectionForm.port,
-    privateKey: connectionForm.privateKey || undefined,
     username: connectionForm.username,
   })
 }
 
 function handleTestConnection() {
+  const hasSecretInput = Boolean(serverForm.password || serverForm.privateKey)
   testConnectionMutation.mutate({
+    ...(!hasSecretInput && serverEditorMode.value === 'edit' && editingServerId.value !== null
+      ? { serverId: editingServerId.value }
+      : {}),
     host: serverForm.host,
     password: serverForm.password || undefined,
     port: serverForm.port,
@@ -426,7 +432,7 @@ onMounted(async () => {
               block
               size="large"
               :loading="isConnecting"
-              :disabled="!selectedServer || !connectionForm.host || !connectionForm.username"
+              :disabled="!canConnect"
             >
               连接
             </NButton>
@@ -463,7 +469,9 @@ onMounted(async () => {
                 v-model:value="serverForm.password"
                 type="password"
                 show-password-on="click"
-                placeholder="可选"
+                :placeholder="
+                  serverEditorMode === 'edit' ? '留空则保留已保存密码' : '可选'
+                "
               />
             </NFormItemGi>
           </NGrid>
@@ -473,7 +481,11 @@ onMounted(async () => {
               v-model:value="serverForm.privateKey"
               type="textarea"
               :rows="4"
-              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+              :placeholder="
+                serverEditorMode === 'edit'
+                  ? '留空则保留已保存私钥'
+                  : '-----BEGIN OPENSSH PRIVATE KEY-----'
+              "
             />
           </NFormItem>
 
