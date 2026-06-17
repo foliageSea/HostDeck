@@ -34,6 +34,7 @@ Docker 模块负责通过 SSH 连接访问远端 Docker Engine，提供容器、
 - `DELETE /api/docker/session`
 - `GET /api/docker/check`
 - `GET /api/docker/compose/check`
+- `POST /api/docker/build-cache/prune`
 
 Compose：
 

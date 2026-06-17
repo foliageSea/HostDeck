@@ -1663,6 +1663,46 @@ export function useDockerView(props: DockerViewProps) {
     })
   }
 
+  function formatBytes(value: number) {
+    if (!Number.isFinite(value) || value <= 0) {
+      return '0 B'
+    }
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB']
+    let size = value
+    let unitIndex = 0
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024
+      unitIndex += 1
+    }
+
+    return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+  }
+
+  async function pruneBuildCache(includeAll: boolean) {
+    try {
+      const connectionId = requireConnectionId()
+      const result = await queueDockerRequest(() => dockerApi.pruneBuildCache(connectionId, includeAll))
+      getUiApi().message.success(
+        `构建缓存清理完成，共删除 ${result.deletedCount} 条缓存，释放 ${formatBytes(result.spaceReclaimed)}。`,
+      )
+    } catch (error) {
+      console.error('Failed to prune build cache', error)
+      getUiApi().message.error(error instanceof Error ? error.message : 'Docker 构建缓存清理失败。')
+    }
+  }
+
+  function confirmPruneBuildCache(includeAll: boolean) {
+    confirmDangerAction({
+      title: includeAll ? '清理全部未使用构建缓存' : '清理构建缓存',
+      content: includeAll
+        ? '确认清理当前连接中的全部未使用 Docker 构建缓存？该操作可能让后续构建明显变慢。'
+        : '确认清理当前连接中可安全释放的 Docker 构建缓存？该操作不可撤销。',
+      positiveText: '清理',
+      action: () => pruneBuildCache(includeAll),
+    })
+  }
+
   function handleContainerCreated(event: Event) {
     const detail = (event as CustomEvent<{ connectionId?: string }>).detail
     if (detail?.connectionId && detail.connectionId !== activeConnectionId.value) {
@@ -1748,6 +1788,7 @@ export function useDockerView(props: DockerViewProps) {
     composeServiceLoadingMap,
     composeServicesMap,
     confirmComposeProjectAction,
+    confirmPruneBuildCache,
     confirmPruneImages,
     confirmPruneNetworks,
     confirmPruneVolumes,

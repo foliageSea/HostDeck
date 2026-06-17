@@ -29,6 +29,19 @@ class DockerService {
            engineRepository ?? DockerEngineRepository(repository),
        _mapper = mapper ?? DockerEngineMapper();
 
+  int _readInt(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
   String debugDecodeDockerLogs(Uint8List bytes) {
     return _decodeDockerLogs(bytes);
   }
@@ -373,6 +386,31 @@ class DockerService {
             .where((item) => item.isNotEmpty)
             .toList() ??
         <String>[];
+  }
+
+  /// 清理 Docker 构建缓存
+  Future<Map<String, dynamic>> pruneBuildCache(
+    SshSession session, {
+    bool includeAll = false,
+  }) async {
+    final result = await _engineRepository.requestJsonObject(
+      session,
+      method: 'POST',
+      path: '/build/prune',
+      queryParameters: {'all': includeAll ? '1' : '0'},
+    );
+    final deleted =
+        (result['CachesDeleted'] as List?)
+            ?.map((item) => item.toString())
+            .where((item) => item.isNotEmpty)
+            .toList() ??
+        <String>[];
+
+    return {
+      'deleted': deleted,
+      'deletedCount': deleted.length,
+      'spaceReclaimed': _readInt(result, 'SpaceReclaimed'),
+    };
   }
 
   /// 拉取镜像

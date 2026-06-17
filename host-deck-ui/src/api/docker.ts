@@ -493,6 +493,16 @@ export const dockerApi = {
     return response.data
   },
 
+  async pruneBuildCache(connectionId: string, includeAll = false) {
+    const response = await http.post<{
+      success: boolean
+      deleted: string[]
+      deletedCount: number
+      spaceReclaimed: number
+    }>('/api/docker/build-cache/prune', { includeAll }, { params: { connectionId } })
+    return response.data
+  },
+
   async startContainer(connectionId: string, id: string) {
     const response = await http.post<{ success: boolean }>(
       `/api/docker/containers/${id}/start`,

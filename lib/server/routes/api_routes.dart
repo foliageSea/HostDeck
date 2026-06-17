@@ -169,6 +169,10 @@ class ApiRoutes {
     router.delete('/api/docker/volumes/<name>', dockerController.removeVolume);
     router.post('/api/docker/volumes/prune', dockerController.pruneVolumes);
     router.post(
+      '/api/docker/build-cache/prune',
+      dockerController.pruneBuildCache,
+    );
+    router.post(
       '/api/docker/containers/<id>/start',
       dockerController.startContainer,
     );

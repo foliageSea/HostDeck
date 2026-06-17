@@ -44,8 +44,9 @@ class DatabaseService {
     ''');
 
     final versionResult = _db.select('SELECT version FROM schema_version');
-    final currentVersion =
-        versionResult.isEmpty ? 0 : (versionResult.first['version'] as int);
+    final currentVersion = versionResult.isEmpty
+        ? 0
+        : (versionResult.first['version'] as int);
 
     // v0 -> v1: Create base tables.
     if (currentVersion < 1) {
@@ -105,14 +106,12 @@ class DatabaseService {
         final rawPrivateKey = row['privateKey'] as String?;
 
         // Encrypt only plaintext values and keep encrypted values unchanged.
-        final encPassword =
-            CryptoHelper.isEncrypted(rawPassword)
-                ? rawPassword
-                : CryptoHelper.encrypt(rawPassword);
-        final encPrivateKey =
-            CryptoHelper.isEncrypted(rawPrivateKey)
-                ? rawPrivateKey
-                : CryptoHelper.encrypt(rawPrivateKey);
+        final encPassword = CryptoHelper.isEncrypted(rawPassword)
+            ? rawPassword
+            : CryptoHelper.encrypt(rawPassword);
+        final encPrivateKey = CryptoHelper.isEncrypted(rawPrivateKey)
+            ? rawPrivateKey
+            : CryptoHelper.encrypt(rawPrivateKey);
 
         stmt.execute([encPassword, encPrivateKey, id]);
       }

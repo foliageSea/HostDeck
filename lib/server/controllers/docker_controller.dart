@@ -686,6 +686,32 @@ class DockerController {
     });
   }
 
+  /// 清理 Docker 构建缓存
+  Future<Response> pruneBuildCache(Request request) async {
+    bool includeAll = false;
+    try {
+      final body = await request.readAsString();
+      if (body.trim().isNotEmpty) {
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        includeAll = data['includeAll'] == true;
+      }
+    } catch (_) {
+      includeAll = false;
+    }
+
+    return _withSession(request, (session) async {
+      try {
+        final result = await _dockerService.pruneBuildCache(
+          session,
+          includeAll: includeAll,
+        );
+        return Result.ok({'success': true, ...result});
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
   /// 拉取镜像
   Future<Response> pullImage(Request request) async {
     return _withSession(request, (session) async {

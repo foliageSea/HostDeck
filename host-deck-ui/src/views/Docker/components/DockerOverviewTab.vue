@@ -65,6 +65,12 @@ const composeStatusType = computed(() => {
         </template>
 
         <template #actions>
+          <NButton quaternary size="small" @click="controller.confirmPruneBuildCache(false)"
+            >清理构建缓存</NButton
+          >
+          <NButton quaternary size="small" type="error" @click="controller.confirmPruneBuildCache(true)"
+            >清理全部缓存</NButton
+          >
           <NButton quaternary size="small" :loading="controller.loading" @click="controller.refresh"
             >刷新</NButton
           >
