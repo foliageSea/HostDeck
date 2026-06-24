@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Logout, Moon, Sun } from '@vicons/carbon'
+import { computed, h } from 'vue'
+import { Logout, Moon, Settings, Sun, UserMultiple } from '@vicons/carbon'
+import { NIcon } from 'naive-ui'
+import type { DropdownOption } from 'naive-ui'
 import { getUiApi } from '@/lib/ui'
 import DesktopTaskCenter from '@/components/os/DesktopTaskCenter.vue'
 import { useDesktopStore } from '@/stores/desktop'
@@ -45,9 +47,13 @@ const sessionStatusMeta = computed(() => {
     label: '当前未连接 SSH 会话',
   }
 })
-const appMenuOptions = computed(() => [
-  { key: 'runtime-sessions', label: '会话管理' },
-  { key: 'settings', label: '设置' },
+function renderMenuIcon(icon: typeof Settings) {
+  return () => h(NIcon, { size: 16 }, { default: () => h(icon) })
+}
+
+const appMenuOptions = computed<DropdownOption[]>(() => [
+  { key: 'runtime-sessions', label: '会话管理', icon: renderMenuIcon(UserMultiple) },
+  { key: 'settings', label: '设置', icon: renderMenuIcon(Settings) },
 ])
 const monitorData = computed(() => sshStore.monitorData)
 const monitorError = computed(() => sshStore.monitorError)
