@@ -399,6 +399,16 @@
           button.type = 'button'
           button.title = tab.title || 'HostDeck'
           button.addEventListener('click', () => api.activate(tab.id))
+          button.addEventListener('mousedown', (event) => {
+            if (event.button !== 1) return
+            event.preventDefault()
+          })
+          button.addEventListener('auxclick', (event) => {
+            if (event.button !== 1) return
+            event.preventDefault()
+            event.stopPropagation()
+            api.close(tab.id)
+          })
           button.addEventListener('dblclick', (event) => {
             event.preventDefault()
             event.stopPropagation()
