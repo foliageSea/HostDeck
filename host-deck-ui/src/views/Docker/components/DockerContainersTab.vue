@@ -153,7 +153,7 @@ function isPaused(container: DockerContainer) {
     <div class="docker-card-shell">
       <NEmpty v-if="controller.containers.length === 0" />
 
-      <div v-else class="docker-card-list">
+      <div v-else class="docker-card-list app-scrollbar app-scrollbar-compact">
         <NCard
           v-for="container in controller.containers"
           :key="container.id"

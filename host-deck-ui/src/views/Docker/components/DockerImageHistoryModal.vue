@@ -18,8 +18,8 @@ const settingsStore = useSettingsStore()
   >
     <NSpin
       :show="controller.imageHistoryLoading"
-      class="history-table-shell"
-      :class="settingsStore.isDark ? 'history-theme-dark' : 'history-theme-light'"
+      class="history-table-shell app-scrollbar"
+      :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'"
     >
       <NDataTable
         class="history-table"
@@ -37,16 +37,6 @@ const settingsStore = useSettingsStore()
 </template>
 
 <style scoped>
-.history-theme-dark {
-  --history-scrollbar-thumb: rgba(148, 163, 184, 0.34);
-  --history-scrollbar-thumb-hover: rgba(96, 165, 250, 0.52);
-}
-
-.history-theme-light {
-  --history-scrollbar-thumb: rgba(100, 116, 139, 0.26);
-  --history-scrollbar-thumb-hover: rgba(59, 130, 246, 0.42);
-}
-
 .history-table-shell {
   display: block;
 }
@@ -57,7 +47,8 @@ const settingsStore = useSettingsStore()
 
 .history-table-shell :deep(.n-data-table-base-table-body) {
   scrollbar-width: thin;
-  scrollbar-color: var(--history-scrollbar-thumb) transparent;
+  scrollbar-color: var(--app-scrollbar-thumb) transparent;
+  overscroll-behavior: contain;
 }
 
 .history-table-shell :deep(.n-data-table-base-table-body::-webkit-scrollbar) {
@@ -74,10 +65,10 @@ const settingsStore = useSettingsStore()
   border: 3px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
-  background-color: var(--history-scrollbar-thumb);
+  background-color: var(--app-scrollbar-thumb);
 }
 
 .history-table-shell:hover :deep(.n-data-table-base-table-body::-webkit-scrollbar-thumb) {
-  background-color: var(--history-scrollbar-thumb-hover);
+  background-color: var(--app-scrollbar-thumb-hover);
 }
 </style>
