@@ -323,7 +323,7 @@ watch(showSettings, (value) => {
         ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.18),rgba(15,23,42,0.06))]'
         : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(226,232,240,0.36))]'
     "
-    @wheel="handleWheel"
+    @wheel.capture="handleWheel"
   >
     <div
       class="relative z-[1] flex h-[32px] shrink-0 items-center gap-[4px] overflow-visible px-[8px]"
