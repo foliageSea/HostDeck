@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, screen, session, shell } = require('electron')
+const { app, BrowserWindow, Menu, Tray, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const http = require('node:http')
@@ -14,6 +14,8 @@ let serverProcess
 let applicationUrl = null
 let activeTabId = null
 let nextTabId = 1
+let tray = null
+let isQuitting = false
 const tabs = new Map()
 
 const tabBarHeight = 42
@@ -52,6 +54,18 @@ function writeElectronSettings(settings) {
 
 function allowExternalAccess() {
   return readElectronSettings().allowExternalAccess === true
+}
+
+function closeAction() {
+  const value = readElectronSettings().closeAction
+  return value === 'minimizeToTray' ? value : 'ask'
+}
+
+function setCloseAction(value) {
+  const settings = readElectronSettings()
+  settings.closeAction = value === 'minimizeToTray' ? 'minimizeToTray' : 'ask'
+  writeElectronSettings(settings)
+  return settings.closeAction
 }
 
 function serverPort() {
@@ -160,6 +174,69 @@ function tabsPagePath() {
 function showLoadingPage() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   mainWindow.loadFile(loadingPagePath())
+}
+
+function trayIcon() {
+  const iconPath = path.join(__dirname, '..', 'public', 'favicon.png')
+  return nativeImage.createFromPath(iconPath)
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+}
+
+function minimizeToTray() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.hide()
+}
+
+async function confirmWindowClose(window) {
+  const { response } = await dialog.showMessageBox(window, {
+    type: 'question',
+    buttons: ['最小化到托盘', '退出', '取消'],
+    cancelId: 2,
+    defaultId: 0,
+    noLink: true,
+    title: '关闭 HostDeck',
+    message: '关闭窗口时执行什么操作？',
+    detail: '选择“最小化到托盘”后，应用会继续在后台运行，可从系统托盘重新打开。',
+  })
+
+  if (response === 0) {
+    minimizeToTray()
+    return
+  }
+
+  if (response === 1) {
+    isQuitting = true
+    window.close()
+  }
+}
+
+function ensureTray() {
+  if (tray) return tray
+
+  tray = new Tray(trayIcon())
+  tray.setToolTip('HostDeck')
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: '显示主窗口', click: showMainWindow },
+      {
+        label: '退出',
+        click: () => {
+          isQuitting = true
+          app.quit()
+        },
+      },
+    ]),
+  )
+  tray.on('double-click', showMainWindow)
+  tray.on('click', showMainWindow)
+
+  return tray
 }
 
 function getWindowFromSender(sender) {
@@ -376,6 +453,17 @@ function createWindow() {
   mainWindow.maximize()
 
   showLoadingPage()
+  mainWindow.on('close', (event) => {
+    if (isQuitting) return
+
+    event.preventDefault()
+    if (closeAction() === 'minimizeToTray') {
+      minimizeToTray()
+      return
+    }
+
+    void confirmWindowClose(mainWindow)
+  })
   mainWindow.on('resize', layoutActiveTab)
   mainWindow.on('maximize', layoutActiveTab)
   mainWindow.on('unmaximize', layoutActiveTab)
@@ -450,6 +538,10 @@ ipcMain.handle('app:clear-browser-cache', async () => {
 
 ipcMain.handle('app:get-external-access', () => allowExternalAccess())
 
+ipcMain.handle('app:get-close-action', () => closeAction())
+
+ipcMain.handle('app:set-close-action', async (_event, value) => setCloseAction(value))
+
 ipcMain.handle('app:set-external-access', async (_event, enabled) => {
   const settings = readElectronSettings()
   settings.allowExternalAccess = enabled === true
@@ -482,6 +574,7 @@ ipcMain.handle('tabs:open-active-in-browser', async () => {
 })
 
 app.whenReady().then(async () => {
+  ensureTray()
   createWindow()
   const url = await loadApplication()
 
@@ -496,9 +589,10 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  if (process.platform !== 'darwin' && isQuitting) app.quit()
 })
 
 app.on('before-quit', () => {
+  isQuitting = true
   stopServer()
 })

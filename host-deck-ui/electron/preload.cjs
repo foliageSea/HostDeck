@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('hostDeck', {
     clearBrowserCache: () => ipcRenderer.invoke('app:clear-browser-cache'),
     getExternalAccess: () => ipcRenderer.invoke('app:get-external-access'),
     setExternalAccess: (enabled) => ipcRenderer.invoke('app:set-external-access', enabled),
+    getCloseAction: () => ipcRenderer.invoke('app:get-close-action'),
+    setCloseAction: (value) => ipcRenderer.invoke('app:set-close-action', value),
   },
   platform: process.platform,
   shellMode: 'native-tabs',

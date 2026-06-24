@@ -1,5 +1,7 @@
 export {}
 
+type HostDeckCloseAction = 'ask' | 'minimizeToTray'
+
 declare global {
   interface Window {
     hostDeck?: {
@@ -10,6 +12,8 @@ declare global {
         clearBrowserCache: () => Promise<void>
         getExternalAccess: () => Promise<boolean>
         setExternalAccess: (enabled: boolean) => Promise<boolean>
+        getCloseAction: () => Promise<HostDeckCloseAction>
+        setCloseAction: (value: HostDeckCloseAction) => Promise<HostDeckCloseAction>
       }
       platform: string
       shellMode?: 'native-tabs'
