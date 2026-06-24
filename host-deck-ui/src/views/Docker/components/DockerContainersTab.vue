@@ -17,10 +17,6 @@ const containerMoreActionOptions = computed(() => [
   { key: 'batch-stop', label: '批量停止' },
   { key: 'divider', type: 'divider' },
   { key: 'cleanup-stopped', label: '清理已停止' },
-  { key: 'prune-dangling-images', label: '清理悬空镜像' },
-  { key: 'prune-unused-images', label: '清理无引用镜像' },
-  { key: 'prune-build-cache', label: '清理构建缓存' },
-  { key: 'prune-build-cache-all', label: '清理全部缓存' },
 ])
 
 function handleContainerMoreAction(key: string) {
@@ -33,18 +29,6 @@ function handleContainerMoreAction(key: string) {
       break
     case 'cleanup-stopped':
       props.controller.confirmRemoveStoppedContainers()
-      break
-    case 'prune-dangling-images':
-      props.controller.confirmPruneImages(false)
-      break
-    case 'prune-unused-images':
-      props.controller.confirmPruneImages(true)
-      break
-    case 'prune-build-cache':
-      props.controller.confirmPruneBuildCache(false)
-      break
-    case 'prune-build-cache-all':
-      props.controller.confirmPruneBuildCache(true)
       break
   }
 }

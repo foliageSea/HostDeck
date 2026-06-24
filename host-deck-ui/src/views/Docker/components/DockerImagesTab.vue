@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Download, Upload } from '@vicons/carbon'
 import type { DockerImage } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
@@ -12,6 +12,31 @@ const props = defineProps<{
 
 const settingsStore = useSettingsStore()
 const imageImportInputRef = ref<HTMLInputElement | null>(null)
+
+const imagePruneOptions = computed(() => [
+  { key: 'prune-dangling-images', label: '清理悬空镜像' },
+  { key: 'prune-unused-images', label: '清理无引用镜像' },
+  { key: 'divider', type: 'divider' },
+  { key: 'prune-build-cache', label: '清理构建缓存' },
+  { key: 'prune-build-cache-all', label: '清理全部缓存' },
+])
+
+function handleImagePruneAction(key: string) {
+  switch (key) {
+    case 'prune-dangling-images':
+      props.controller.confirmPruneImages(false)
+      break
+    case 'prune-unused-images':
+      props.controller.confirmPruneImages(true)
+      break
+    case 'prune-build-cache':
+      props.controller.confirmPruneBuildCache(false)
+      break
+    case 'prune-build-cache-all':
+      props.controller.confirmPruneBuildCache(true)
+      break
+  }
+}
 
 function openImageImportPicker() {
   if (props.controller.importingImage) {
@@ -104,6 +129,9 @@ function getImageName(image: DockerImage) {
       </template>
 
       <template #actions>
+        <NDropdown trigger="click" :options="imagePruneOptions" @select="handleImagePruneAction">
+          <NButton quaternary>清理</NButton>
+        </NDropdown>
         <NButton :loading="controller.importingImage" @click="openImageImportPicker">
           <template #icon>
             <NIcon>
