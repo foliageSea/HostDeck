@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron')
+const { app, BrowserWindow, Menu, Tray, WebContentsView, ipcMain, nativeImage, screen, session, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const http = require('node:http')
@@ -54,18 +54,6 @@ function writeElectronSettings(settings) {
 
 function allowExternalAccess() {
   return readElectronSettings().allowExternalAccess === true
-}
-
-function closeAction() {
-  const value = readElectronSettings().closeAction
-  return value === 'minimizeToTray' ? value : 'ask'
-}
-
-function setCloseAction(value) {
-  const settings = readElectronSettings()
-  settings.closeAction = value === 'minimizeToTray' ? 'minimizeToTray' : 'ask'
-  writeElectronSettings(settings)
-  return settings.closeAction
 }
 
 function serverPort() {
@@ -191,29 +179,6 @@ function showMainWindow() {
 function minimizeToTray() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   mainWindow.hide()
-}
-
-async function confirmWindowClose(window) {
-  const { response } = await dialog.showMessageBox(window, {
-    type: 'question',
-    buttons: ['最小化到托盘', '退出', '取消'],
-    cancelId: 2,
-    defaultId: 0,
-    noLink: true,
-    title: '关闭 HostDeck',
-    message: '关闭窗口时执行什么操作？',
-    detail: '选择“最小化到托盘”后，应用会继续在后台运行，可从系统托盘重新打开。',
-  })
-
-  if (response === 0) {
-    minimizeToTray()
-    return
-  }
-
-  if (response === 1) {
-    isQuitting = true
-    window.close()
-  }
 }
 
 function ensureTray() {
@@ -457,12 +422,7 @@ function createWindow() {
     if (isQuitting) return
 
     event.preventDefault()
-    if (closeAction() === 'minimizeToTray') {
-      minimizeToTray()
-      return
-    }
-
-    void confirmWindowClose(mainWindow)
+    minimizeToTray()
   })
   mainWindow.on('resize', layoutActiveTab)
   mainWindow.on('maximize', layoutActiveTab)
@@ -537,10 +497,6 @@ ipcMain.handle('app:clear-browser-cache', async () => {
 })
 
 ipcMain.handle('app:get-external-access', () => allowExternalAccess())
-
-ipcMain.handle('app:get-close-action', () => closeAction())
-
-ipcMain.handle('app:set-close-action', async (_event, value) => setCloseAction(value))
 
 ipcMain.handle('app:set-external-access', async (_event, enabled) => {
   const settings = readElectronSettings()

@@ -12,22 +12,14 @@ const { settingsStore } = controller
 const clearingBrowserCache = ref(false)
 const externalAccess = ref(false)
 const externalAccessLoading = ref(false)
-const closeAction = ref<'ask' | 'minimizeToTray'>('ask')
-const closeActionLoading = ref(false)
 const canClearBrowserCache = computed(() => Boolean(window.hostDeck?.app?.clearBrowserCache))
 const canManageExternalAccess = computed(() =>
   Boolean(window.hostDeck?.app?.getExternalAccess && window.hostDeck?.app?.setExternalAccess),
-)
-const canManageCloseAction = computed(() =>
-  Boolean(window.hostDeck?.app?.getCloseAction && window.hostDeck?.app?.setCloseAction),
 )
 
 onMounted(async () => {
   if (canManageExternalAccess.value) {
     externalAccess.value = (await window.hostDeck?.app?.getExternalAccess()) ?? false
-  }
-  if (canManageCloseAction.value) {
-    closeAction.value = (await window.hostDeck?.app?.getCloseAction()) ?? 'ask'
   }
 })
 
@@ -66,24 +58,6 @@ async function updateExternalAccess(value: boolean) {
     getUiApi().message.error(error instanceof Error ? error.message : '更新外部访问设置失败。')
   } finally {
     externalAccessLoading.value = false
-  }
-}
-
-async function updateCloseAction(value: boolean) {
-  closeActionLoading.value = true
-  const nextValue = value ? 'minimizeToTray' : 'ask'
-  try {
-    closeAction.value = (await window.hostDeck?.app?.setCloseAction(nextValue)) ?? 'ask'
-    getUiApi().message.success(
-      closeAction.value === 'minimizeToTray'
-        ? '已设置为关闭时直接最小化到托盘。'
-        : '已设置为关闭时每次询问。',
-    )
-  } catch (error) {
-    closeAction.value = value ? 'ask' : 'minimizeToTray'
-    getUiApi().message.error(error instanceof Error ? error.message : '更新关闭行为失败。')
-  } finally {
-    closeActionLoading.value = false
   }
 }
 </script>
@@ -164,11 +138,7 @@ async function updateCloseAction(value: boolean) {
         </NCard>
       </NTabPane>
 
-      <NTabPane
-        v-if="canClearBrowserCache || canManageExternalAccess || canManageCloseAction"
-        name="app"
-        tab="应用"
-      >
+      <NTabPane v-if="canClearBrowserCache || canManageExternalAccess" name="app" tab="应用">
         <NCard title="应用维护" size="large">
           <div class="flex flex-col gap-[12px]">
             <div
@@ -196,23 +166,6 @@ async function updateCloseAction(value: boolean) {
                 :value="externalAccess"
                 :loading="externalAccessLoading"
                 @update:value="updateExternalAccess"
-              />
-            </div>
-
-            <div
-              v-if="canManageCloseAction"
-              class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
-            >
-              <div>
-                <div class="text-[14px] font-600">关闭窗口行为</div>
-                <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
-                  默认每次询问是否最小化到托盘或直接退出。开启后将改为关闭时直接最小化到托盘。
-                </div>
-              </div>
-              <NSwitch
-                :value="closeAction === 'minimizeToTray'"
-                :loading="closeActionLoading"
-                @update:value="updateCloseAction"
               />
             </div>
 
