@@ -52,6 +52,17 @@ function openCopyButton(event: MouseEvent) {
   showCopyButton.value = true
 }
 
+function handleWheel(event: WheelEvent) {
+  if (!event.ctrlKey || event.deltaY === 0) {
+    return
+  }
+
+  event.preventDefault()
+  settingsStore.setTerminalFontSize(
+    settingsStore.terminalFontSize + (event.deltaY < 0 ? 1 : -1),
+  )
+}
+
 async function copySelection() {
   if (!selectedText.value) {
     return
@@ -79,6 +90,7 @@ async function copySelection() {
     ]"
     @mousedown="showCopyButton = false"
     @mouseup="openCopyButton"
+    @wheel="handleWheel"
   >
     <div class="absolute right-[20px] top-[18px] z-10">
       <NTooltip trigger="hover">

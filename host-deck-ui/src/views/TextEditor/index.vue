@@ -274,6 +274,15 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
+function handleWheel(event: WheelEvent) {
+  if (!event.ctrlKey || event.deltaY === 0) {
+    return
+  }
+
+  event.preventDefault()
+  settingsStore.setEditorFontSize(settingsStore.editorFontSize + (event.deltaY < 0 ? 1 : -1))
+}
+
 void loadFile()
 
 onMounted(() => {
@@ -314,6 +323,7 @@ watch(showSettings, (value) => {
         ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.18),rgba(15,23,42,0.06))]'
         : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(226,232,240,0.36))]'
     "
+    @wheel="handleWheel"
   >
     <div
       class="relative z-[1] flex h-[32px] shrink-0 items-center gap-[4px] overflow-visible px-[8px]"
