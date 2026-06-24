@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h } from 'vue'
-import { Logout, Moon, Settings, Sun, UserMultiple } from '@vicons/carbon'
+import { ApplicationWeb, Logout, Moon, Settings, Sun } from '@vicons/carbon'
 import { NIcon } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
 import { getUiApi } from '@/lib/ui'
@@ -52,7 +52,7 @@ function renderMenuIcon(icon: typeof Settings) {
 }
 
 const appMenuOptions = computed<DropdownOption[]>(() => [
-  { key: 'runtime-sessions', label: '会话管理', icon: renderMenuIcon(UserMultiple) },
+  { key: 'runtime-sessions', label: '会话管理', icon: renderMenuIcon(ApplicationWeb) },
   { key: 'settings', label: '设置', icon: renderMenuIcon(Settings) },
 ])
 const monitorData = computed(() => sshStore.monitorData)
