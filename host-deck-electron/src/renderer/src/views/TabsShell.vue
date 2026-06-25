@@ -190,6 +190,93 @@ onBeforeUnmount(() => {
         <button class="window-control maximize" type="button" aria-label="最大化窗口" @click="api.window.toggleMaximize()"></button>
       </div>
 
+      <template v-if="!isVertical">
+        <div class="tabs">
+          <div class="tab-list" @dragleave="handleListDragLeave">
+            <button
+              v-for="tab in tabs"
+              :key="tab.id"
+              :class="['tab', { active: tab.isActive, loading: tab.isLoading }]"
+              :data-tab-id="tab.id"
+              :draggable="editingTabId !== tab.id"
+              :title="tab.title || 'HostDeck'"
+              type="button"
+              @click="api.activate(tab.id)"
+              @auxclick="handleAuxClick($event, tab.id)"
+              @dblclick.prevent.stop="startEditing(tab)"
+              @dragstart="handleDragStart($event, tab.id)"
+              @dragover="handleDragOver($event, tab.id)"
+              @drop="handleDrop($event, tab.id)"
+              @dragend="endDrag"
+            >
+              <span class="tab-app-icon" aria-hidden="true">
+                <Monitor class="icon" />
+              </span>
+
+              <input
+                v-if="editingTabId === tab.id"
+                :data-edit-tab-id="tab.id"
+                :value="editingTitle"
+                class="tab-title-input"
+                aria-label="Tab 标题"
+                @blur="saveEditing(tab.id)"
+                @click.stop
+                @dblclick.stop
+                @input="editingTitle = $event.target instanceof HTMLInputElement ? $event.target.value : editingTitle"
+                @keydown.enter.prevent="saveEditing(tab.id)"
+                @keydown.esc.prevent="stopEditing()"
+              />
+              <span v-else class="tab-title">{{ tab.title || 'HostDeck' }}</span>
+
+              <span class="tab-status"></span>
+              <span class="tab-close" role="button" :aria-label="'关闭 ' + (tab.title || 'HostDeck')" @click.stop="api.close(tab.id)">
+                <X class="icon close-icon" />
+              </span>
+            </button>
+          </div>
+
+          <button class="new-tab" type="button" title="新建 Tab" aria-label="新建 Tab" @click="api.create()">
+            <Plus class="icon button-icon" />
+            <span class="toolbar-label">新建 Tab</span>
+          </button>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-actions" :hidden="!toolbarExpanded">
+            <button class="toolbar-button" type="button" title="刷新当前 Tab" aria-label="刷新当前 Tab" @click="api.reloadActive(); setToolbarActionsVisible(false)">
+              <RefreshCw class="icon button-icon" />
+              <span class="toolbar-label">刷新当前 Tab</span>
+            </button>
+            <button class="toolbar-button" type="button" title="在外部浏览器打开" aria-label="在外部浏览器打开" @click="api.openActiveInBrowser(); setToolbarActionsVisible(false)">
+              <ExternalLink class="icon button-icon" />
+              <span class="toolbar-label">外部浏览器打开</span>
+            </button>
+            <button class="toolbar-button" type="button" title="打开当前 Tab 开发者工具" aria-label="打开当前 Tab 开发者工具" @click="api.openActiveDevTools(); setToolbarActionsVisible(false)">
+              <CodeXml class="icon button-icon devtools-icon" />
+              <span class="toolbar-label">开发者工具</span>
+            </button>
+            <button class="toolbar-button" type="button" :title="nextTabBarLabel" :aria-label="nextTabBarLabel" @click="toggleTabBarPosition">
+              <PanelLeft class="icon button-icon" />
+              <span class="toolbar-label">{{ nextTabBarLabel }}</span>
+            </button>
+          </div>
+
+          <button
+            class="toolbar-button"
+            :aria-expanded="String(toolbarExpanded)"
+            :aria-label="toolbarMenuLabel"
+            :title="toolbarMenuLabel"
+            type="button"
+            @click="setToolbarActionsVisible(!toolbarExpanded)"
+          >
+            <component :is="toolbarMenuIcon" class="icon button-icon" />
+            <span class="toolbar-label">{{ toolbarMenuLabel }}</span>
+          </button>
+        </div>
+      </template>
+    </header>
+
+    <aside v-if="isVertical" class="sidebar">
       <div class="tabs">
         <div class="tab-list" @dragleave="handleListDragLeave">
           <button
@@ -272,7 +359,7 @@ onBeforeUnmount(() => {
           <span class="toolbar-label">{{ toolbarMenuLabel }}</span>
         </button>
       </div>
-    </header>
+    </aside>
 
     <main :class="['empty-state', { visible: tabs.length === 0 }]">
       <button class="empty-action" type="button" @click="api.create()">
@@ -308,6 +395,10 @@ onBeforeUnmount(() => {
   min-height: 100vh;
 }
 
+.sidebar {
+  display: none;
+}
+
 .tab-shell {
   position: fixed;
   inset: 0 0 auto;
@@ -321,13 +412,25 @@ onBeforeUnmount(() => {
 }
 
 .shell.left .tab-shell {
-  inset: 0 auto 0 0;
+  inset: 0 0 auto;
+  width: 100%;
+  height: var(--titlebar-height);
+  flex-direction: row;
+  align-items: stretch;
+  border-right: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.shell.left .sidebar {
+  position: fixed;
+  inset: var(--titlebar-height) auto 0 0;
+  z-index: 999;
   width: var(--sidebar-width);
-  height: 100vh;
+  display: flex;
   flex-direction: column;
   align-items: stretch;
+  background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
   border-right: 1px solid rgba(148, 163, 184, 0.18);
-  border-bottom: 0;
 }
 
 .window-controls {
@@ -678,7 +781,7 @@ onBeforeUnmount(() => {
 }
 
 .shell.left .empty-state {
-  inset: 0 0 0 var(--sidebar-width);
+  inset: var(--titlebar-height) 0 0 var(--sidebar-width);
 }
 
 .empty-state.visible {

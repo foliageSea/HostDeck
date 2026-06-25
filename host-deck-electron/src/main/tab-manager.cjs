@@ -17,7 +17,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
 
   function tabLayoutMetrics() {
     return tabBarPosition() === 'left'
-      ? { height: 0, width: tabBarWidth, x: tabBarWidth, y: 0 }
+      ? { height: tabBarHeight, width: tabBarWidth, x: tabBarWidth, y: tabBarHeight }
       : { height: tabBarHeight, width: 0, x: 0, y: tabBarHeight }
   }
 
