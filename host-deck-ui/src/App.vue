@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, watch, watchEffect } from 'vue'
+import { onBeforeUnmount, onMounted, watch, watchEffect } from 'vue'
 import {
   darkTheme,
   dateZhCN,
@@ -14,7 +14,6 @@ import {
 } from 'naive-ui'
 import UiApiBridge from '@/components/common/UiApiBridge.vue'
 import DesktopShell from '@/components/os/DesktopShell.vue'
-import ElectronTitleBar from '@/components/os/ElectronTitleBar.vue'
 import LoginScreen from '@/components/os/LoginScreen.vue'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -26,10 +25,6 @@ const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const uploadCenterStore = useUploadCenterStore()
 
-const isElectron = computed(() => Boolean(window.hostDeck?.window))
-const shouldShowElectronTitleBar = computed(
-  () => isElectron.value && window.hostDeck?.shellMode !== 'native-tabs',
-)
 const theme = computed(() => (settingsStore.isDark ? darkTheme : null))
 const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   common: {
@@ -54,7 +49,7 @@ watchEffect(() => {
   const primaryRgb = hexToRgb(settingsStore.primaryColor)
 
   document.documentElement.dataset.theme = settingsStore.isDark ? 'dark' : 'light'
-  document.documentElement.dataset.electron = isElectron.value ? 'true' : 'false'
+  document.documentElement.dataset.electron = window.hostDeck?.window ? 'true' : 'false'
   if (window.hostDeck?.shellMode) {
     document.documentElement.dataset.electronShell = window.hostDeck.shellMode
   } else {
@@ -114,7 +109,6 @@ onBeforeUnmount(() => {
           <NMessageProvider>
             <NGlobalStyle />
             <UiApiBridge />
-            <ElectronTitleBar v-if="shouldShowElectronTitleBar" />
             <div class="app-root min-h-screen">
               <Transition name="fade" mode="out-in">
                 <DesktopShell v-if="sshStore.isConnected" />

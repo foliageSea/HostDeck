@@ -447,10 +447,6 @@
         </button>
       </div>
       <div class="toolbar">
-        <button class="toolbar-button" id="toolbar-menu" type="button" title="更多操作" aria-label="更多操作" aria-expanded="false">
-          <iconify-icon class="icon" icon="lucide:ellipsis" aria-hidden="true"></iconify-icon>
-          <span class="toolbar-label">更多操作</span>
-        </button>
         <div class="toolbar-actions" id="toolbar-actions" hidden>
           <button class="toolbar-button" id="reload-tab" type="button" title="刷新当前 Tab" aria-label="刷新当前 Tab">
             <iconify-icon class="icon" icon="lucide:refresh-cw" aria-hidden="true"></iconify-icon>
@@ -469,6 +465,10 @@
             <span class="toolbar-label">切换垂直标签栏</span>
           </button>
         </div>
+        <button class="toolbar-button" id="toolbar-menu" type="button" title="更多操作" aria-label="更多操作" aria-expanded="false">
+          <iconify-icon class="icon" id="toolbar-menu-icon" icon="lucide:ellipsis" aria-hidden="true"></iconify-icon>
+          <span class="toolbar-label" id="toolbar-menu-label">更多操作</span>
+        </button>
       </div>
     </header>
 
@@ -485,6 +485,8 @@
       const emptyState = document.getElementById('empty-state')
       const toolbar = document.querySelector('.toolbar')
       const toolbarMenu = document.getElementById('toolbar-menu')
+      const toolbarMenuIcon = document.getElementById('toolbar-menu-icon')
+      const toolbarMenuLabel = document.getElementById('toolbar-menu-label')
       const toolbarActions = document.getElementById('toolbar-actions')
       const toggleTabBarPositionButton = document.getElementById('toggle-tab-bar-position')
       const isMac = api.platform === 'darwin'
@@ -502,6 +504,7 @@
         toggleTabBarPositionButton.title = nextLabel
         toggleTabBarPositionButton.setAttribute('aria-label', nextLabel)
         toggleTabBarPositionButton.querySelector('.toolbar-label').textContent = nextLabel
+        syncToolbarMenuButton()
         tabList.replaceChildren()
         emptyState.classList.toggle('visible', state.tabs.length === 0)
 
@@ -594,6 +597,23 @@
         toolbarActions.hidden = !visible
         toolbarMenu.classList.toggle('active', visible)
         toolbarMenu.setAttribute('aria-expanded', String(visible))
+        syncToolbarMenuButton()
+      }
+
+      function syncToolbarMenuButton() {
+        const isVertical = currentState?.tabBarPosition === 'left'
+        const isExpanded = !toolbarActions.hidden
+        const label = isVertical ? (isExpanded ? '收起菜单' : '展开菜单') : '更多操作'
+        const icon = isVertical
+          ? isExpanded
+            ? 'lucide:chevron-down'
+            : 'lucide:chevron-up'
+          : 'lucide:ellipsis'
+
+        toolbarMenu.title = label
+        toolbarMenu.setAttribute('aria-label', label)
+        toolbarMenuLabel.textContent = label
+        toolbarMenuIcon.setAttribute('icon', icon)
       }
 
       bind('new-tab', () => api.create())

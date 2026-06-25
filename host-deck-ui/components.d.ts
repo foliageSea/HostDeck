@@ -21,7 +21,6 @@ declare module 'vue' {
     DesktopTopBar: typeof import('./src/components/os/DesktopTopBar.vue')['default']
     DesktopWindow: typeof import('./src/components/os/DesktopWindow.vue')['default']
     DesktopWindowSwitcher: typeof import('./src/components/os/DesktopWindowSwitcher.vue')['default']
-    ElectronTitleBar: typeof import('./src/components/os/ElectronTitleBar.vue')['default']
     LoginScreen: typeof import('./src/components/os/LoginScreen.vue')['default']
     NAlert: typeof import('naive-ui')['NAlert']
     NBadge: typeof import('naive-ui')['NBadge']
