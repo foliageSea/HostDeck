@@ -122,6 +122,17 @@ async function updateExternalAccess(value: boolean) {
                 </NTooltip>
               </div>
             </NFormItem>
+            <NFormItem label="窗口按钮风格">
+              <NRadioGroup
+                :value="settingsStore.windowControlsStyle"
+                @update:value="settingsStore.setWindowControlsStyle"
+              >
+                <NSpace>
+                  <NRadio value="mac">Mac</NRadio>
+                  <NRadio value="win">Windows</NRadio>
+                </NSpace>
+              </NRadioGroup>
+            </NFormItem>
           </NForm>
         </NCard>
       </NTabPane>
