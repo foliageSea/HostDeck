@@ -202,6 +202,17 @@
         font-weight: 600;
       }
 
+      .tab-app-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        flex: none;
+        color: #38bdf8;
+        opacity: 0.92;
+      }
+
       .tab-title-input {
         min-width: 0;
         flex: 1;
@@ -230,6 +241,10 @@
       .tab.loading .tab-status {
         opacity: 1;
         animation: pulse 0.9s ease-in-out infinite;
+      }
+
+      .tab-status + .tab-close {
+        margin-left: 2px;
       }
 
       .tab-close,
@@ -533,9 +548,10 @@
             render(state)
           })
 
-          const status = document.createElement('span')
-          status.className = 'tab-status'
-          button.append(status)
+          const appIcon = document.createElement('span')
+          appIcon.className = 'tab-app-icon'
+          appIcon.innerHTML = '<iconify-icon class="icon" icon="lucide:monitor" aria-hidden="true"></iconify-icon>'
+          button.append(appIcon)
 
           if (editingTabId === tab.id) {
             const titleInput = document.createElement('input')
@@ -573,6 +589,10 @@
             title.textContent = tab.title || 'HostDeck'
             button.append(title)
           }
+
+          const status = document.createElement('span')
+          status.className = 'tab-status'
+          button.append(status)
 
           const close = document.createElement('span')
           close.className = 'tab-close'
