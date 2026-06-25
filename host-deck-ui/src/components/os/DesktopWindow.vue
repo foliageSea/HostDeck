@@ -160,7 +160,7 @@ onUnmounted(() => {
         {
           'desktop-window--opening': !window.isClosing,
           'pointer-events-none opacity-0 scale-[0.94] translate-y-[12px]': window.isClosing,
-          'rounded-none': !isMacWindowControls,
+          'rounded-[8px]': !isMacWindowControls,
           'h-auto rounded-none shadow-none': window.isMaximized,
           'invisible pointer-events-none opacity-0 scale-[0.92] translate-y-[14px]':
             window.isMinimized,
