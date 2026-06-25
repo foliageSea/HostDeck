@@ -57,7 +57,7 @@ pnpm --dir host-deck-ui release 1.0.1
 ```bash
 pnpm --dir host-deck-ui build
 flutter pub get
-dart compile exe bin/server.dart -o build/server/bundle/bin/server.exe
+dart build cli --target bin/server.dart --output build/server
 # 将 host-deck-ui/dist 的内容同步到 build/server/bundle/web/
 ```
 

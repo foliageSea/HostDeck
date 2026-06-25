@@ -14,8 +14,7 @@ flutter pub get
 
 echo "Building Dart CLI bundle..."
 rm -rf "$BUILD_DIR"
-mkdir -p "$BUILD_DIR/bundle/bin"
-dart compile exe "$ROOT_DIR/bin/server.dart" -o "$BUILD_DIR/bundle/bin/server"
+dart build cli --target bin/server.dart --output "$BUILD_DIR"
 
 echo "Copying web assets..."
 rm -rf "$BUILD_DIR/bundle/web"

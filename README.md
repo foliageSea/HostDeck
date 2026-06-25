@@ -170,14 +170,14 @@ Windows 可直接使用脚本构建 CLI bundle：
 .\scripts\build_server.ps1
 ```
 
-脚本会安装并构建 `host-deck-ui/`，执行 `flutter pub get` 和 `dart compile exe`，再把前端产物复制到 `build/server/bundle/web/`，并生成 `build/server/start_server.bat`。
+脚本会安装并构建 `host-deck-ui/`，执行 `flutter pub get` 和 `dart build cli`，再把前端产物复制到 `build/server/bundle/web/`，并生成 `build/server/start_server.bat`。
 
 也可以手动构建：
 
 ```bash
 pnpm --dir host-deck-ui build
 flutter pub get
-dart compile exe bin/server.dart -o build/server/bundle/bin/server.exe
+dart build cli --target bin/server.dart --output build/server
 # 将 host-deck-ui/dist 的内容同步到 build/server/bundle/web/
 ```
 

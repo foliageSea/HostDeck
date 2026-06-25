@@ -10,9 +10,8 @@ if (process.platform !== 'win32') {
 }
 
 const outputDir = path.join(repoRoot, 'build', 'electron-server')
-const bundleBinDir = path.join(outputDir, 'bundle', 'bin')
 const packageConfig = path.join(repoRoot, '.dart_tool', 'package_config.json')
-const serverExe = path.join(bundleBinDir, 'server.exe')
+const serverExe = path.join(outputDir, 'bundle', 'bin', 'server.exe')
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -29,7 +28,6 @@ function run(command, args, options = {}) {
 }
 
 fs.rmSync(outputDir, { recursive: true, force: true })
-fs.mkdirSync(bundleBinDir, { recursive: true })
 
 const pubGetStatus = run('flutter', ['pub', 'get'], { allowFailure: true })
 if (pubGetStatus !== 0 && !fs.existsSync(packageConfig)) {
@@ -39,7 +37,7 @@ if (pubGetStatus !== 0) {
   console.warn('flutter pub get failed; continuing with existing .dart_tool/package_config.json.')
 }
 
-run('dart', ['compile', 'exe', path.join(repoRoot, 'bin', 'server.dart'), '-o', serverExe])
+run('dart', ['build', 'cli', '--target', path.join('bin', 'server.dart'), '--output', outputDir])
 
 if (!fs.existsSync(serverExe)) {
   console.error('Server executable was not generated: ' + serverExe)
