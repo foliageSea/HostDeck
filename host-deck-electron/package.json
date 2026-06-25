@@ -7,10 +7,10 @@
     "dev": "vite --config vite.config.mjs",
     "format": "prettier --write .",
     "electron:dev": "node src/scripts/start-dev.cjs",
-    "electron:preview": "pnpm electron:build:renderer && pnpm --dir ../host-deck-ui build && cross-env HOST_DECK_ELECTRON_MODE=preview electron .",
+    "electron:preview": "pnpm electron:build:renderer && cross-env HOST_DECK_ELECTRON_MODE=preview electron .",
     "electron:build:renderer": "vite build --config vite.config.mjs",
     "electron:build:server": "node src/scripts/build-server.cjs",
-    "electron:pack:win": "pnpm electron:build:renderer && pnpm --dir ../host-deck-ui build && pnpm electron:build:server && electron-builder --win",
+    "electron:pack:win": "pnpm electron:build:renderer && pnpm electron:build:server && electron-builder --win",
     "electron:build:win": "pnpm electron:pack:win",
     "postinstall": "electron-builder install-app-deps"
   },

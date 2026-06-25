@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
       - name: Install Dependencies
         run: |
           cd host-deck-ui
@@ -159,28 +159,28 @@ jobs:
   #       env:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-windows:
-    needs: build-web
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: web-build
-          path: assets/web
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-      - run: flutter pub get
-      - run: flutter build windows --release
-      - name: Archive Windows Build
-        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath host-deck-windows-${{ github.ref_name }}.zip
-      - name: Upload Windows
-        uses: softprops/action-gh-release@v1
-        with:
-          files: host-deck-windows-${{ github.ref_name }}.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # build-windows:
+  #   needs: build-web
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: web-build
+  #         path: assets/web
+  #     - uses: subosito/flutter-action@v2
+  #       with:
+  #         channel: 'stable'
+  #     - run: flutter pub get
+  #     - run: flutter build windows --release
+  #     - name: Archive Windows Build
+  #       run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath host-deck-windows-${{ github.ref_name }}.zip
+  #     - name: Upload Windows
+  #       uses: softprops/action-gh-release@v1
+  #       with:
+  #         files: host-deck-windows-${{ github.ref_name }}.zip
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-electron-windows:
     needs: build-web
@@ -193,14 +193,20 @@ jobs:
           path: host-deck-ui/dist
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
       - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: "stable"
       - name: Install Dependencies
         run: |
           npm install -g pnpm
           pnpm --dir host-deck-electron install
+      - name: Verify Web Artifact
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -LiteralPath "host-deck-ui/dist/index.html")) {
+            throw "Missing web artifact: host-deck-ui/dist/index.html"
+          }
       - name: Build Electron Windows
         run: pnpm --dir host-deck-electron electron:pack:win
       - name: Upload Electron Windows
