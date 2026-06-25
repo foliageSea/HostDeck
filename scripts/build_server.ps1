@@ -20,6 +20,7 @@ function Invoke-Native {
 
 $buildDir = Join-Path $RootDir 'build\server'
 $uiDir = Join-Path $RootDir 'host-deck-ui'
+$bundleBinDir = Join-Path $buildDir 'bundle\bin'
 
 Write-Host 'Building frontend...'
 Invoke-Native -Command pnpm -Args @('--dir', "$uiDir", 'install')
@@ -32,8 +33,8 @@ Write-Host 'Building Dart CLI bundle...'
 if (Test-Path $buildDir) {
   Remove-Item $buildDir -Recurse -Force
 }
-New-Item -ItemType Directory -Path $buildDir | Out-Null
-Invoke-Native -Command dart -Args @('build', 'cli', '--target', "$RootDir\bin\server.dart", '--output', "$buildDir")
+New-Item -ItemType Directory -Path $bundleBinDir -Force | Out-Null
+Invoke-Native -Command dart -Args @('compile', 'exe', "$RootDir\bin\server.dart", '-o', "$bundleBinDir\server.exe")
 
 $targetWebDir = Join-Path $buildDir 'bundle\web'
 if (Test-Path $targetWebDir) {

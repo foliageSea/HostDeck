@@ -20,6 +20,8 @@ flutter build windows --release
 
 `.github/workflows/release.yml` 会构建 `host-deck-ui/dist`，Windows 桌面 job 会下载前端产物到 `assets/web` 后执行桌面构建。
 
+Electron Windows 打包链路会单独构建 `host-deck-electron/dist`，其中 `src/main/` 是主进程，`src/preload/` 是桥接层，`src/renderer/` 是 Vue 壳界面。
+
 发版脚本会同步 `pubspec.yaml` 与 `host-deck-ui/package.json` 版本号，提交版本变更，打 Git tag，推送到 GitHub，并创建 GitHub Release：
 
 ```bash
@@ -55,7 +57,7 @@ pnpm --dir host-deck-ui release 1.0.1
 ```bash
 pnpm --dir host-deck-ui build
 flutter pub get
-dart build cli --target bin/server.dart -o build/server
+dart compile exe bin/server.dart -o build/server/bundle/bin/server.exe
 # 将 host-deck-ui/dist 的内容同步到 build/server/bundle/web/
 ```
 

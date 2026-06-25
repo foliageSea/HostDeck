@@ -4,7 +4,7 @@
 
 - 根目录是 Flutter/Dart 桌面壳和内置 HTTP/WebSocket 服务；入口 `lib/main.dart`。
 - `bin/server.dart` 是纯 Dart B/S 服务入口，可不启动 Flutter UI。
-- 当前前端只使用 `host-deck-ui/`。
+- 当前前端只使用 `host-deck-ui/`；Electron 桌面壳独立位于 `host-deck-electron/`。
 - `CLAUDE.md` 仍指向旧前端路径，不能作为当前前端来源；README、`package.json`、`vite.config.ts`、CI、Dockerfile 更可信。
 
 ## Commands
@@ -21,13 +21,16 @@
 - 前端类型检查：`pnpm --dir host-deck-ui exec vue-tsc -p tsconfig.app.json --noEmit`
 - 前端测试：`pnpm --dir host-deck-ui test`
 - 单个前端测试：`pnpm --dir host-deck-ui exec vitest run src/views/Files/components/__tests__/FilePickerDialog.spec.ts`
+- Electron 依赖：`pnpm --dir host-deck-electron install`
+- Electron 开发：`pnpm --dir host-deck-electron electron:dev`
+- Electron 打包：`pnpm --dir host-deck-electron electron:build:win`
 - 纯 B/S 本地运行：先 `pnpm --dir host-deck-ui build`，再 `dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist`
 - Docker 本地构建：`docker build -t host-deck:local .`
 
 ## Dev Servers And Packaging
 
 - 后端默认监听 `http://localhost:8080`。
-- Vite 开发服务器端口以 `host-deck-ui/vite.config.ts` 的 `server.port` 为准；Electron 开发模式会读取该配置，也可通过 `HOST_DECK_ELECTRON_DEV_URL` 覆盖。
+- Vite 开发服务器端口以 `host-deck-ui/vite.config.ts` 的 `server.port` 为准；`host-deck-electron/` 的 Electron 开发模式会分别读取前端与壳层 Vite 配置，也可通过 `HOST_DECK_ELECTRON_APP_DEV_URL` 和 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖。
 - Vite 代理 `/api` 到 `VITE_DEV_PROXY_TARGET`，默认 `http://localhost:8080`；终端 WebSocket 使用 `/api/ws/terminal`。
 - Flutter debug 的 WebView 仍硬编码加载 `http://localhost:5173`（`lib/main.dart`），如要调试桌面壳需先统一该端口或让 Vite 使用 5173。
 - Flutter release 使用 `assets/web/` 作为静态资源；本地桌面 release 前要先构建前端并同步 `host-deck-ui/dist` 到 `assets/web/`。

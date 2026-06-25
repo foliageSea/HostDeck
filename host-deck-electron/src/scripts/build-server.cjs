@@ -2,16 +2,17 @@ const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 
+const { projectRoot, repoRoot } = require('../shared/project-paths.cjs')
+
 if (process.platform !== 'win32') {
   console.error('Electron Windows server build must run on Windows.')
   process.exit(1)
 }
 
-const uiRoot = path.resolve(__dirname, '..')
-const repoRoot = path.resolve(uiRoot, '..')
 const outputDir = path.join(repoRoot, 'build', 'electron-server')
+const bundleBinDir = path.join(outputDir, 'bundle', 'bin')
 const packageConfig = path.join(repoRoot, '.dart_tool', 'package_config.json')
-const serverExe = path.join(outputDir, 'bundle', 'bin', 'server.exe')
+const serverExe = path.join(bundleBinDir, 'server.exe')
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -28,7 +29,7 @@ function run(command, args, options = {}) {
 }
 
 fs.rmSync(outputDir, { recursive: true, force: true })
-fs.mkdirSync(outputDir, { recursive: true })
+fs.mkdirSync(bundleBinDir, { recursive: true })
 
 const pubGetStatus = run('flutter', ['pub', 'get'], { allowFailure: true })
 if (pubGetStatus !== 0 && !fs.existsSync(packageConfig)) {
@@ -38,16 +39,14 @@ if (pubGetStatus !== 0) {
   console.warn('flutter pub get failed; continuing with existing .dart_tool/package_config.json.')
 }
 
-run('dart', [
-  'build',
-  'cli',
-  '--target',
-  path.join(repoRoot, 'bin', 'server.dart'),
-  '--output',
-  outputDir,
-])
+run('dart', ['--enable-experiment=native-assets', 'compile', 'exe', path.join(repoRoot, 'bin', 'server.dart'), '-o', serverExe])
 
 if (!fs.existsSync(serverExe)) {
   console.error('Server executable was not generated: ' + serverExe)
+  process.exit(1)
+}
+
+if (!fs.existsSync(projectRoot)) {
+  console.error('Project root was not found: ' + projectRoot)
   process.exit(1)
 }

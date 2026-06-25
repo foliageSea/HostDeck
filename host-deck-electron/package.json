@@ -1,0 +1,74 @@
+{
+  "name": "host-deck-electron",
+  "private": true,
+  "version": "0.2.3",
+  "main": "src/main/index.cjs",
+  "scripts": {
+    "dev": "vite --config vite.config.mjs",
+    "format": "prettier --write .",
+    "electron:dev": "node src/scripts/start-dev.cjs",
+    "electron:preview": "pnpm electron:build:renderer && pnpm --dir ../host-deck-ui build && cross-env HOST_DECK_ELECTRON_MODE=preview electron .",
+    "electron:build:renderer": "vite build --config vite.config.mjs",
+    "electron:build:server": "node src/scripts/build-server.cjs",
+    "electron:pack:win": "pnpm electron:build:renderer && pnpm --dir ../host-deck-ui build && pnpm electron:build:server && electron-builder --win",
+    "electron:build:win": "pnpm electron:pack:win",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.5",
+    "cross-env": "^10.1.0",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.8.1",
+    "prettier": "^3.8.4",
+    "vite": "^8.0.4",
+    "vue": "^3.5.32"
+  },
+  "build": {
+    "appId": "com.foliagesea.hostdeck",
+    "productName": "HostDeck",
+    "artifactName": "host-deck-electron-windows-${version}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "src/main/**/*",
+      "src/preload/**/*",
+      "src/shared/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../build/electron-server/bundle/bin/server.exe",
+        "to": "server/server.exe"
+      },
+      {
+        "from": "../host-deck-ui/dist",
+        "to": "web"
+      },
+      {
+        "from": "../host-deck-ui/public/favicon.png",
+        "to": "icon.png"
+      }
+    ],
+    "win": {
+      "icon": "../host-deck-ui/public/favicon.png",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
+  },
+  "dependencies": {
+    "lucide-vue-next": "^1.0.0"
+  }
+}

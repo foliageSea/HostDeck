@@ -35,7 +35,7 @@ flutter run -d windows
 
 - 后端默认监听 `http://localhost:8080`。
 - Vite 开发服务器端口以 `host-deck-ui/vite.config.ts` 的 `server.port` 为准。
-- Electron 开发模式会从 Vite 配置读取开发服务器地址，也可通过 `HOST_DECK_ELECTRON_DEV_URL` 覆盖。
+- Electron 开发模式由 `host-deck-electron/` 启动，并分别从 `host-deck-ui/vite.config.ts` 与 `host-deck-electron/vite.config.mjs` 读取开发服务器地址，也可通过 `HOST_DECK_ELECTRON_APP_DEV_URL` 与 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖。
 - `lib/main.dart` 的 Flutter debug WebView 当前仍硬编码加载 `http://localhost:5173`。
 - 调试桌面壳前需要统一端口，或临时让 Vite 使用 `5173`。
 

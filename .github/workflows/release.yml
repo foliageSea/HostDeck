@@ -200,15 +200,15 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install -g pnpm
-          pnpm --dir host-deck-ui install
+          pnpm --dir host-deck-electron install
       - name: Build Electron Windows
-        run: pnpm --dir host-deck-ui electron:pack:win
+        run: pnpm --dir host-deck-electron electron:pack:win
       - name: Upload Electron Windows
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            host-deck-ui/release/*.exe
-            host-deck-ui/release/*.zip
+            host-deck-electron/release/*.exe
+            host-deck-electron/release/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
