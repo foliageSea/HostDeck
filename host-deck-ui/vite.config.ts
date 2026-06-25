@@ -46,7 +46,9 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       vue(),
-      UnoCSS(),
+      UnoCSS({
+        configFile: fileURLToPath(new URL('./uno.config.ts', import.meta.url)),
+      }),
       AutoImport({
         imports: [
           'vue',

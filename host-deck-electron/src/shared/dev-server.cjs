@@ -1,4 +1,5 @@
 const http = require('node:http')
+const path = require('node:path')
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -19,7 +20,13 @@ async function resolveConfiguredDevUrl({ configFile, envVarName, fallbackPort })
 
   try {
     const { resolveConfig } = await import('vite')
-    const config = await resolveConfig({ configFile }, 'serve')
+    const config = await resolveConfig(
+      {
+        configFile,
+        root: path.dirname(configFile),
+      },
+      'serve'
+    )
     return portToUrl(config.server?.port, fallbackPort)
   } catch (error) {
     console.warn(`Unable to resolve Vite dev server URL from ${configFile}:`, error)
