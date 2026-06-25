@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('hostDeckTabs', {
   rename: (id, title) => ipcRenderer.invoke('tabs:rename', id, title),
   reorder: (id, targetId, placement) => ipcRenderer.invoke('tabs:reorder', id, targetId, placement),
   setBarPosition: (position) => ipcRenderer.invoke('tabs:set-bar-position', position),
+  setSidebarWidth: (width) => ipcRenderer.invoke('tabs:set-sidebar-width', width),
   reloadActive: () => ipcRenderer.invoke('tabs:reload-active'),
   openActiveDevTools: () => ipcRenderer.invoke('tabs:open-active-devtools'),
   openActiveInBrowser: () => ipcRenderer.invoke('tabs:open-active-in-browser'),

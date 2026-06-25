@@ -24,11 +24,16 @@ const dragState = ref(null)
 const editingTabId = ref(null)
 const editingTitle = ref('')
 const toolbarExpanded = ref(false)
+const sidebarWidth = ref(220)
+const minSidebarWidth = 160
+const maxSidebarWidth = 220
+const isResizingSidebar = ref(false)
 
 const isMac = api?.platform === 'darwin'
 const isVertical = computed(() => currentState.value.tabBarPosition === 'left')
 const tabs = computed(() => currentState.value.tabs)
 const nextTabBarPosition = computed(() => (isVertical.value ? 'top' : 'left'))
+const sidebarStyle = computed(() => ({ '--sidebar-width': `${sidebarWidth.value}px` }))
 const nextTabBarLabel = computed(() =>
   nextTabBarPosition.value === 'left' ? '切换垂直标签栏' : '切换顶部标签栏'
 )
@@ -45,6 +50,13 @@ let unsubscribe = null
 
 function render(state) {
   currentState.value = state
+  sidebarWidth.value = clampSidebarWidth(state?.sidebarWidth)
+}
+
+function clampSidebarWidth(width) {
+  const nextWidth = Number(width)
+  if (!Number.isFinite(nextWidth)) return maxSidebarWidth
+  return Math.min(maxSidebarWidth, Math.max(minSidebarWidth, Math.round(nextWidth)))
 }
 
 function clearDropIndicators() {
@@ -166,6 +178,33 @@ function handleListDragLeave(event) {
   }
 }
 
+function handleSidebarResizePointerDown(event) {
+  if (!isVertical.value) return
+
+  event.preventDefault()
+  isResizingSidebar.value = true
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+
+  const handlePointerMove = (moveEvent) => {
+    sidebarWidth.value = clampSidebarWidth(moveEvent.clientX)
+  }
+
+  const handlePointerUp = async () => {
+    window.removeEventListener('pointermove', handlePointerMove)
+    window.removeEventListener('pointerup', handlePointerUp)
+    window.removeEventListener('pointercancel', handlePointerUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+    isResizingSidebar.value = false
+    await api.setSidebarWidth(sidebarWidth.value)
+  }
+
+  window.addEventListener('pointermove', handlePointerMove)
+  window.addEventListener('pointerup', handlePointerUp)
+  window.addEventListener('pointercancel', handlePointerUp)
+}
+
 onMounted(async () => {
   if (!api) return
   unsubscribe = api.onChanged(render)
@@ -276,7 +315,7 @@ onBeforeUnmount(() => {
       </template>
     </header>
 
-    <aside v-if="isVertical" class="sidebar">
+    <aside v-if="isVertical" class="sidebar" :style="sidebarStyle">
       <div class="tabs">
         <div class="tab-list" @dragleave="handleListDragLeave">
           <button
@@ -359,9 +398,21 @@ onBeforeUnmount(() => {
           <span class="toolbar-label">{{ toolbarMenuLabel }}</span>
         </button>
       </div>
+
+      <div
+        class="sidebar-resize-handle"
+        :class="{ active: isResizingSidebar }"
+        role="separator"
+        aria-label="调整标签栏宽度"
+        aria-orientation="vertical"
+        :aria-valuemin="String(minSidebarWidth)"
+        :aria-valuemax="String(maxSidebarWidth)"
+        :aria-valuenow="String(sidebarWidth)"
+        @pointerdown="handleSidebarResizePointerDown"
+      ></div>
     </aside>
 
-    <main :class="['empty-state', { visible: tabs.length === 0 }]">
+    <main :class="['empty-state', { visible: tabs.length === 0 }]" :style="isVertical ? sidebarStyle : undefined">
       <button class="empty-action" type="button" @click="api.create()">
         <Plus class="icon button-icon" />
         <span>新建 Tab</span>
@@ -431,6 +482,32 @@ onBeforeUnmount(() => {
   align-items: stretch;
   background: #000;
   border-right: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  -webkit-app-region: no-drag;
+}
+
+.sidebar-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 3px;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 160ms ease;
+}
+
+.sidebar-resize-handle:hover::before,
+.sidebar-resize-handle.active::before {
+  background: rgba(56, 189, 248, 0.72);
 }
 
 .window-controls {

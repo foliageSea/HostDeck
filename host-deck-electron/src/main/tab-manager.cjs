@@ -1,6 +1,8 @@
 function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, preloadPath, readSettings, shell, writeSettings }) {
   const tabBarHeight = 42
-  const tabBarWidth = 220
+  const defaultTabBarWidth = 220
+  const minTabBarWidth = 160
+  const maxTabBarWidth = 220
 
   let activeTabId = null
   let nextTabId = 1
@@ -15,9 +17,19 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
     return normalizeTabBarPosition(readSettings().tabBarPosition)
   }
 
+  function normalizeTabBarWidth(value) {
+    const width = Number(value)
+    if (!Number.isFinite(width)) return defaultTabBarWidth
+    return Math.min(maxTabBarWidth, Math.max(minTabBarWidth, Math.round(width)))
+  }
+
+  function tabBarWidth() {
+    return normalizeTabBarWidth(readSettings().sidebarWidth)
+  }
+
   function tabLayoutMetrics() {
     return tabBarPosition() === 'left'
-      ? { height: tabBarHeight, width: tabBarWidth, x: tabBarWidth, y: tabBarHeight }
+      ? { height: tabBarHeight, width: tabBarWidth(), x: tabBarWidth(), y: tabBarHeight }
       : { height: tabBarHeight, width: 0, x: 0, y: tabBarHeight }
   }
 
@@ -25,6 +37,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
     return {
       activeTabId,
       tabBarPosition: tabBarPosition(),
+      sidebarWidth: tabBarWidth(),
       tabs: tabOrder
         .map((id) => tabs.get(id))
         .filter(Boolean)
@@ -228,6 +241,20 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
     return serializeTabs()
   }
 
+  function setSidebarWidth(width) {
+    const nextWidth = normalizeTabBarWidth(width)
+    const settings = readSettings()
+    if (tabBarWidth() === nextWidth) {
+      return serializeTabs()
+    }
+
+    settings.sidebarWidth = nextWidth
+    writeSettings(settings)
+    layoutActiveTab()
+    sendTabsChanged()
+    return serializeTabs()
+  }
+
   function getActiveTab() {
     return activeTabId ? tabs.get(activeTabId) : null
   }
@@ -256,6 +283,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
     requireActiveTab,
     serializeTabs,
     setTabBarPosition,
+    setSidebarWidth,
   }
 }
 
