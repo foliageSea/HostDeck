@@ -39,7 +39,7 @@ if (pubGetStatus !== 0) {
   console.warn('flutter pub get failed; continuing with existing .dart_tool/package_config.json.')
 }
 
-run('dart', ['--enable-experiment=native-assets', 'compile', 'exe', path.join(repoRoot, 'bin', 'server.dart'), '-o', serverExe])
+run('dart', ['compile', 'exe', path.join(repoRoot, 'bin', 'server.dart'), '-o', serverExe])
 
 if (!fs.existsSync(serverExe)) {
   console.error('Server executable was not generated: ' + serverExe)
