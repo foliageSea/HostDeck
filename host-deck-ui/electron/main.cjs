@@ -19,6 +19,21 @@ let isQuitting = false
 const tabs = new Map()
 
 const tabBarHeight = 42
+const tabBarWidth = 220
+
+function normalizeTabBarPosition(value) {
+  return value === 'left' ? 'left' : 'top'
+}
+
+function tabBarPosition() {
+  return normalizeTabBarPosition(readElectronSettings().tabBarPosition)
+}
+
+function tabLayoutMetrics() {
+  return tabBarPosition() === 'left'
+    ? { height: 0, width: tabBarWidth, x: tabBarWidth, y: 0 }
+    : { height: tabBarHeight, width: 0, x: 0, y: tabBarHeight }
+}
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
@@ -211,6 +226,7 @@ function getWindowFromSender(sender) {
 function serializeTabs() {
   return {
     activeTabId,
+    tabBarPosition: tabBarPosition(),
     tabs: Array.from(tabs.values()).map((tab) => ({
       customTitle: tab.customTitle,
       id: tab.id,
@@ -234,12 +250,27 @@ function layoutActiveTab() {
   if (!activeTab) return
 
   const bounds = mainWindow.getContentBounds()
+  const layout = tabLayoutMetrics()
   activeTab.view.setBounds({
-    x: 0,
-    y: tabBarHeight,
-    width: bounds.width,
-    height: Math.max(0, bounds.height - tabBarHeight),
+    x: layout.x,
+    y: layout.y,
+    width: Math.max(0, bounds.width - layout.width),
+    height: Math.max(0, bounds.height - layout.height),
   })
+}
+
+function setTabBarPosition(position) {
+  const nextPosition = normalizeTabBarPosition(position)
+  const settings = readElectronSettings()
+  if (normalizeTabBarPosition(settings.tabBarPosition) === nextPosition) {
+    return serializeTabs()
+  }
+
+  settings.tabBarPosition = nextPosition
+  writeElectronSettings(settings)
+  layoutActiveTab()
+  sendTabsChanged()
+  return serializeTabs()
 }
 
 function attachTabView(tab) {
@@ -528,6 +559,8 @@ ipcMain.handle('tabs:open-active-in-browser', async () => {
   const url = requireActiveTab().view.webContents.getURL()
   if (url) await shell.openExternal(url)
 })
+
+ipcMain.handle('tabs:set-bar-position', (_event, position) => setTabBarPosition(position))
 
 app.whenReady().then(async () => {
   ensureTray()

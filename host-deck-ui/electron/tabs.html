@@ -11,6 +11,7 @@
         font-family:
           Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
         --titlebar-height: 42px;
+        --sidebar-width: 220px;
         --mac-traffic-light-space: 88px;
       }
 
@@ -38,6 +39,16 @@
         -webkit-app-region: drag;
       }
 
+      body[data-tab-bar-position='left'] .tab-shell {
+        inset: 0 auto 0 0;
+        width: var(--sidebar-width);
+        height: 100vh;
+        flex-direction: column;
+        align-items: stretch;
+        border-right: 1px solid rgba(148, 163, 184, 0.18);
+        border-bottom: 0;
+      }
+
       .window-controls {
         display: flex;
         flex: none;
@@ -45,6 +56,10 @@
         align-items: center;
         padding: 0 20px 0 14px;
         -webkit-app-region: no-drag;
+      }
+
+      body[data-tab-bar-position='left'] .window-controls {
+        padding: 14px 14px 8px;
       }
 
       .window-control {
@@ -78,8 +93,19 @@
         padding: 0 2px 0 0;
       }
 
+      body[data-tab-bar-position='left'] .tabs {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 0 10px 10px;
+      }
+
       body.is-mac .tabs {
         padding-left: var(--mac-traffic-light-space);
+      }
+
+      body.is-mac[data-tab-bar-position='left'] .tabs {
+        padding: 12px 10px 10px;
       }
 
       .tab-list {
@@ -90,6 +116,14 @@
         align-items: center;
         gap: 0;
         overflow: hidden;
+      }
+
+      body[data-tab-bar-position='left'] .tab-list {
+        align-self: stretch;
+        flex-direction: column;
+        align-items: stretch;
+        overflow-x: hidden;
+        overflow-y: auto;
       }
 
       .tab {
@@ -120,6 +154,17 @@
         -webkit-app-region: no-drag;
       }
 
+      body[data-tab-bar-position='left'] .tab {
+        min-width: 0;
+        max-width: none;
+        width: 100%;
+        height: 40px;
+        flex: none;
+        border-radius: 0;
+        margin-right: 0;
+        margin-bottom: -1px;
+      }
+
       .tab:hover {
         background: rgba(255, 255, 255, 0.03);
         color: #f8fafc;
@@ -127,10 +172,23 @@
         border-bottom-color: transparent;
       }
 
+      body[data-tab-bar-position='left'] .tab:hover {
+        border-bottom-color: rgba(148, 163, 184, 0.22);
+        border-right-color: transparent;
+      }
+
       .tab.active {
         border-color: rgba(148, 163, 184, 0.22);
         border-bottom-color: #38bdf8;
         color: #f8fafc;
+        box-shadow: none;
+      }
+
+      body[data-tab-bar-position='left'] .tab.active {
+        border-color: rgba(148, 163, 184, 0.22);
+        border-bottom-color: rgba(148, 163, 184, 0.22);
+        border-right-color: #38bdf8;
+        background: transparent;
         box-shadow: none;
       }
 
@@ -212,6 +270,15 @@
         opacity: 0.76;
       }
 
+      body[data-tab-bar-position='left'] .new-tab,
+      body[data-tab-bar-position='left'] .toolbar-button,
+      body[data-tab-bar-position='left'] #reload-tab {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 0 12px;
+        border-radius: 12px;
+      }
+
       .toolbar-button {
         font-size: 16px;
       }
@@ -271,13 +338,37 @@
         -webkit-app-region: no-drag;
       }
 
+      body[data-tab-bar-position='left'] .toolbar {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 0 10px 12px;
+      }
+
       .toolbar-actions {
         display: flex;
         gap: 2px;
       }
 
+      body[data-tab-bar-position='left'] .toolbar-actions {
+        flex-direction: column;
+        gap: 8px;
+      }
+
       .toolbar-actions[hidden] {
         display: none;
+      }
+
+      .toolbar-label {
+        display: none;
+        margin-left: 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      body[data-tab-bar-position='left'] .toolbar-label {
+        display: inline;
       }
 
       @media (max-width: 720px) {
@@ -296,6 +387,10 @@
         display: none;
         place-items: center;
         background: #020617;
+      }
+
+      body[data-tab-bar-position='left'] .empty-state {
+        inset: 0 0 0 var(--sidebar-width);
       }
 
       .empty-state.visible {
@@ -348,21 +443,30 @@
         <div class="tab-list" id="tab-list"></div>
         <button class="new-tab" id="new-tab" type="button" title="新建 Tab" aria-label="新建 Tab">
           <iconify-icon class="icon" icon="lucide:plus" aria-hidden="true"></iconify-icon>
+          <span class="toolbar-label">新建 Tab</span>
         </button>
       </div>
       <div class="toolbar">
         <button class="toolbar-button" id="toolbar-menu" type="button" title="更多操作" aria-label="更多操作" aria-expanded="false">
           <iconify-icon class="icon" icon="lucide:ellipsis" aria-hidden="true"></iconify-icon>
+          <span class="toolbar-label">更多操作</span>
         </button>
         <div class="toolbar-actions" id="toolbar-actions" hidden>
           <button class="toolbar-button" id="reload-tab" type="button" title="刷新当前 Tab" aria-label="刷新当前 Tab">
             <iconify-icon class="icon" icon="lucide:refresh-cw" aria-hidden="true"></iconify-icon>
+            <span class="toolbar-label">刷新当前 Tab</span>
           </button>
           <button class="toolbar-button" id="open-browser" type="button" title="在外部浏览器打开" aria-label="在外部浏览器打开">
             <iconify-icon class="icon" icon="lucide:external-link" aria-hidden="true"></iconify-icon>
+            <span class="toolbar-label">外部浏览器打开</span>
           </button>
           <button class="toolbar-button" id="open-devtools" type="button" title="打开当前 Tab 开发者工具" aria-label="打开当前 Tab 开发者工具">
             <iconify-icon class="icon devtools-icon" icon="lucide:code-xml" aria-hidden="true"></iconify-icon>
+            <span class="toolbar-label">开发者工具</span>
+          </button>
+          <button class="toolbar-button" id="toggle-tab-bar-position" type="button" title="切换垂直标签栏" aria-label="切换垂直标签栏">
+            <iconify-icon class="icon" icon="lucide:panel-left" aria-hidden="true"></iconify-icon>
+            <span class="toolbar-label">切换垂直标签栏</span>
           </button>
         </div>
       </div>
@@ -382,13 +486,22 @@
       const toolbar = document.querySelector('.toolbar')
       const toolbarMenu = document.getElementById('toolbar-menu')
       const toolbarActions = document.getElementById('toolbar-actions')
+      const toggleTabBarPositionButton = document.getElementById('toggle-tab-bar-position')
       const isMac = api.platform === 'darwin'
       let editingTabId = null
+      let currentState = null
 
       document.body.classList.toggle('is-mac', isMac)
       document.getElementById('window-controls').style.display = isMac ? 'none' : 'flex'
 
       function render(state) {
+        currentState = state
+        document.body.dataset.tabBarPosition = state.tabBarPosition || 'top'
+        const nextPosition = state.tabBarPosition === 'left' ? 'top' : 'left'
+        const nextLabel = nextPosition === 'left' ? '切换垂直标签栏' : '切换顶部标签栏'
+        toggleTabBarPositionButton.title = nextLabel
+        toggleTabBarPositionButton.setAttribute('aria-label', nextLabel)
+        toggleTabBarPositionButton.querySelector('.toolbar-label').textContent = nextLabel
         tabList.replaceChildren()
         emptyState.classList.toggle('visible', state.tabs.length === 0)
 
@@ -489,6 +602,11 @@
       bind('reload-tab', () => api.reloadActive())
       bind('open-browser', () => api.openActiveInBrowser())
       bind('open-devtools', () => api.openActiveDevTools())
+      bind('toggle-tab-bar-position', async () => {
+        const nextPosition = currentState?.tabBarPosition === 'left' ? 'top' : 'left'
+        await api.setBarPosition(nextPosition)
+        setToolbarActionsVisible(false)
+      })
       toolbarActions.addEventListener('click', () => setToolbarActionsVisible(false))
       document.addEventListener('click', (event) => {
         if (!toolbar.contains(event.target)) {

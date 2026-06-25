@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('hostDeckTabs', {
   activate: (id) => ipcRenderer.invoke('tabs:activate', id),
   close: (id) => ipcRenderer.invoke('tabs:close', id),
   rename: (id, title) => ipcRenderer.invoke('tabs:rename', id, title),
+  setBarPosition: (position) => ipcRenderer.invoke('tabs:set-bar-position', position),
   reloadActive: () => ipcRenderer.invoke('tabs:reload-active'),
   openActiveDevTools: () => ipcRenderer.invoke('tabs:open-active-devtools'),
   openActiveInBrowser: () => ipcRenderer.invoke('tabs:open-active-in-browser'),

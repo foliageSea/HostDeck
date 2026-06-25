@@ -30,6 +30,7 @@ declare global {
       platform: string
       rename: (id: string, title: string) => Promise<TabState>
       reloadActive: () => Promise<void>
+      setBarPosition: (position: TabBarPosition) => Promise<TabState>
       window: {
         minimize: () => Promise<void>
         toggleMaximize: () => Promise<boolean>
@@ -40,6 +41,7 @@ declare global {
 
   interface TabState {
     activeTabId: string | null
+    tabBarPosition: TabBarPosition
     tabs: Array<{
       id: string
       customTitle: string | null
@@ -49,6 +51,8 @@ declare global {
       url: string
     }>
   }
+
+  type TabBarPosition = 'top' | 'left'
 
   const __APP_VERSION__: string
 }
