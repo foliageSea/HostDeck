@@ -407,7 +407,7 @@ onBeforeUnmount(() => {
   height: var(--titlebar-height);
   align-items: stretch;
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-  background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+  background: #000;
   -webkit-app-region: drag;
 }
 
@@ -429,7 +429,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+  background: #000;
   border-right: 1px solid rgba(148, 163, 184, 0.18);
 }
 
