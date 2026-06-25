@@ -154,6 +154,48 @@
         -webkit-app-region: no-drag;
       }
 
+      .tab.dragging {
+        opacity: 0.48;
+      }
+
+      .tab.drop-before::before,
+      .tab.drop-after::after {
+        content: '';
+        position: absolute;
+        top: 5px;
+        bottom: 5px;
+        width: 3px;
+        border-radius: 999px;
+        background: #38bdf8;
+        pointer-events: none;
+      }
+
+      .tab.drop-before::before {
+        left: -2px;
+      }
+
+      .tab.drop-after::after {
+        right: -2px;
+      }
+
+      body[data-tab-bar-position='left'] .tab.drop-before::before,
+      body[data-tab-bar-position='left'] .tab.drop-after::after {
+        left: 6px;
+        right: 6px;
+        width: auto;
+        height: 3px;
+      }
+
+      body[data-tab-bar-position='left'] .tab.drop-before::before {
+        top: -2px;
+        bottom: auto;
+      }
+
+      body[data-tab-bar-position='left'] .tab.drop-after::after {
+        top: auto;
+        bottom: -2px;
+      }
+
       body[data-tab-bar-position='left'] .tab {
         min-width: 0;
         max-width: none;
@@ -507,9 +549,32 @@
       const isMac = api.platform === 'darwin'
       let editingTabId = null
       let currentState = null
+      let dragState = null
 
       document.body.classList.toggle('is-mac', isMac)
       document.getElementById('window-controls').style.display = isMac ? 'none' : 'flex'
+
+      function clearDropIndicators() {
+        tabList.querySelectorAll('.drop-before, .drop-after').forEach((element) => {
+          element.classList.remove('drop-before', 'drop-after')
+        })
+      }
+
+      function endDrag() {
+        const draggedElement = dragState?.element
+        if (draggedElement) draggedElement.classList.remove('dragging')
+        clearDropIndicators()
+        dragState = null
+      }
+
+      function getDropPlacement(event, element) {
+        const rect = element.getBoundingClientRect()
+        const isVertical = currentState?.tabBarPosition === 'left'
+        const ratio = isVertical
+          ? (event.clientY - rect.top) / Math.max(rect.height, 1)
+          : (event.clientX - rect.left) / Math.max(rect.width, 1)
+        return ratio < 0.5 ? 'before' : 'after'
+      }
 
       function render(state) {
         currentState = state
@@ -530,6 +595,8 @@
             .join(' ')
           button.type = 'button'
           button.title = tab.title || 'HostDeck'
+          button.draggable = editingTabId !== tab.id
+          button.dataset.tabId = tab.id
           button.addEventListener('click', () => api.activate(tab.id))
           button.addEventListener('mousedown', (event) => {
             if (event.button !== 1) return
@@ -547,6 +614,40 @@
             editingTabId = tab.id
             render(state)
           })
+          button.addEventListener('dragstart', (event) => {
+            if (editingTabId === tab.id) {
+              event.preventDefault()
+              return
+            }
+
+            dragState = {
+              id: tab.id,
+              element: button,
+              placement: null,
+              targetId: null,
+            }
+            button.classList.add('dragging')
+            event.dataTransfer.effectAllowed = 'move'
+            event.dataTransfer.setData('text/plain', tab.id)
+          })
+          button.addEventListener('dragover', (event) => {
+            if (!dragState || dragState.id === tab.id) return
+            event.preventDefault()
+            const placement = getDropPlacement(event, button)
+            dragState.targetId = tab.id
+            dragState.placement = placement
+            clearDropIndicators()
+            button.classList.add(placement === 'before' ? 'drop-before' : 'drop-after')
+            event.dataTransfer.dropEffect = 'move'
+          })
+          button.addEventListener('drop', async (event) => {
+            if (!dragState || dragState.id === tab.id || !dragState.placement) return
+            event.preventDefault()
+            const { id, placement } = dragState
+            endDrag()
+            await api.reorder(id, tab.id, placement)
+          })
+          button.addEventListener('dragend', () => endDrag())
 
           const appIcon = document.createElement('span')
           appIcon.className = 'tab-app-icon'
@@ -619,6 +720,10 @@
         toolbarMenu.setAttribute('aria-expanded', String(visible))
         syncToolbarMenuButton()
       }
+
+      tabList.addEventListener('dragleave', (event) => {
+        if (!tabList.contains(event.relatedTarget)) clearDropIndicators()
+      })
 
       function syncToolbarMenuButton() {
         const isVertical = currentState?.tabBarPosition === 'left'

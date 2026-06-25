@@ -17,6 +17,7 @@ let nextTabId = 1
 let tray = null
 let isQuitting = false
 const tabs = new Map()
+const tabOrder = []
 
 const tabBarHeight = 42
 const tabBarWidth = 220
@@ -227,7 +228,7 @@ function serializeTabs() {
   return {
     activeTabId,
     tabBarPosition: tabBarPosition(),
-    tabs: Array.from(tabs.values()).map((tab) => ({
+    tabs: tabOrder.map((id) => tabs.get(id)).filter(Boolean).map((tab) => ({
       customTitle: tab.customTitle,
       id: tab.id,
       isActive: tab.id === activeTabId,
@@ -257,6 +258,22 @@ function layoutActiveTab() {
     width: Math.max(0, bounds.width - layout.width),
     height: Math.max(0, bounds.height - layout.height),
   })
+}
+
+function reorderTab(id, targetId, placement = 'after') {
+  if (id === targetId) return serializeTabs()
+  if (!tabs.has(id) || !tabs.has(targetId)) return serializeTabs()
+
+  const fromIndex = tabOrder.indexOf(id)
+  const targetIndex = tabOrder.indexOf(targetId)
+  if (fromIndex < 0 || targetIndex < 0) return serializeTabs()
+
+  const [movedId] = tabOrder.splice(fromIndex, 1)
+  const nextTargetIndex = tabOrder.indexOf(targetId)
+  const insertIndex = placement === 'before' ? nextTargetIndex : nextTargetIndex + 1
+  tabOrder.splice(insertIndex, 0, movedId)
+  sendTabsChanged()
+  return serializeTabs()
 }
 
 function setTabBarPosition(position) {
@@ -319,6 +336,7 @@ function createTab(url = applicationUrl) {
   }
 
   tabs.set(id, tab)
+  tabOrder.push(id)
 
   view.webContents.setWindowOpenHandler(({ url: nextUrl }) => {
     shell.openExternal(nextUrl)
@@ -343,6 +361,8 @@ function createTab(url = applicationUrl) {
   })
   view.webContents.on('destroyed', () => {
     tabs.delete(id)
+    const orderIndex = tabOrder.indexOf(id)
+    if (orderIndex >= 0) tabOrder.splice(orderIndex, 1)
     if (activeTabId === id) activeTabId = null
     sendTabsChanged()
   })
@@ -371,13 +391,16 @@ function closeTab(id) {
   if (!targetTab) return serializeTabs()
 
   const wasActive = activeTabId === id
+  const closedIndex = tabOrder.indexOf(id)
   detachTabView(targetTab)
   tabs.delete(id)
+  if (closedIndex >= 0) tabOrder.splice(closedIndex, 1)
   targetTab.view.webContents.close()
 
   if (wasActive) {
     activeTabId = null
-    const nextTab = tabs.values().next().value
+    const fallbackId = tabOrder[Math.max(0, closedIndex - 1)] ?? tabOrder[0]
+    const nextTab = fallbackId ? tabs.get(fallbackId) : null
     if (nextTab) {
       activateTab(nextTab.id)
     } else {
@@ -546,6 +569,8 @@ ipcMain.handle('tabs:activate', (_event, id) => activateTab(id))
 ipcMain.handle('tabs:close', (_event, id) => closeTab(id))
 
 ipcMain.handle('tabs:rename', (_event, id, title) => renameTab(id, title))
+
+ipcMain.handle('tabs:reorder', (_event, id, targetId, placement) => reorderTab(id, targetId, placement))
 
 ipcMain.handle('tabs:reload-active', () => {
   requireActiveTab().view.webContents.reloadIgnoringCache()
