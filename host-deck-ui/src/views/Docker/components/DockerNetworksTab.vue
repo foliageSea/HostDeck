@@ -244,7 +244,7 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 
     <NEmpty v-if="controller.filteredNetworks.length === 0" />
 
-    <div v-else class="docker-card-list">
+    <div v-else class="docker-card-list app-scrollbar app-scrollbar-compact">
       <NCard
         v-for="network in controller.filteredNetworks"
         :key="network.id"

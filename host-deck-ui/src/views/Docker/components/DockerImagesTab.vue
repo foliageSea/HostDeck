@@ -164,7 +164,7 @@ function getImageName(image: DockerImage) {
     <div class="docker-card-shell">
       <NEmpty v-if="controller.images.length === 0" />
 
-      <div v-else class="docker-card-list">
+      <div v-else class="docker-card-list app-scrollbar app-scrollbar-compact">
         <NCard
           v-for="image in controller.images"
           :key="image.id"

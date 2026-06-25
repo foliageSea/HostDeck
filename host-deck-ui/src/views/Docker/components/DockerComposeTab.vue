@@ -62,7 +62,7 @@ function isComposeProjectRunning(project: DockerComposeProject) {
 
     <NEmpty v-else-if="controller.filteredComposeProjects.length === 0"> </NEmpty>
 
-    <div v-else class="compose-project-list">
+    <div v-else class="compose-project-list app-scrollbar app-scrollbar-compact">
       <div
         v-for="project in controller.filteredComposeProjects"
         :key="getProjectKey(project)"

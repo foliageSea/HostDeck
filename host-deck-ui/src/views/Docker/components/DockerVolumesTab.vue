@@ -101,7 +101,7 @@ async function submitCreate() {
 
     <NEmpty v-if="controller.filteredVolumes.length === 0" />
 
-    <div v-else class="docker-card-list">
+    <div v-else class="docker-card-list app-scrollbar app-scrollbar-compact">
       <NCard
         v-for="volume in controller.filteredVolumes"
         :key="volume.name"

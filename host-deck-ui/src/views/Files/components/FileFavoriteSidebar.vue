@@ -73,8 +73,8 @@ function formatFavoritePath(path: string) {
         />
         <NScrollbar
           v-else
-          class="favorite-path-scrollbar h-full"
-          :class="!settingsStore.isDark && 'favorite-path-scrollbar-light'"
+          class="h-full app-scrollbar app-scrollbar-compact"
+          :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'"
         >
           <div class="flex flex-col gap-[8px] pr-[10px]">
             <div
@@ -142,37 +142,3 @@ function formatFavoritePath(path: string) {
   </div>
 </template>
 
-<style scoped>
-.favorite-path-scrollbar {
-  --favorite-scrollbar-thumb: rgba(148, 163, 184, 0.28);
-  --favorite-scrollbar-thumb-hover: rgba(96, 165, 250, 0.56);
-  --favorite-scrollbar-rail: rgba(148, 163, 184, 0.08);
-}
-
-.favorite-path-scrollbar-light {
-  --favorite-scrollbar-thumb: rgba(100, 116, 139, 0.2);
-  --favorite-scrollbar-thumb-hover: rgba(37, 99, 235, 0.42);
-  --favorite-scrollbar-rail: rgba(100, 116, 139, 0.08);
-}
-
-.favorite-path-scrollbar :deep(.n-scrollbar-rail) {
-  right: 1px;
-  width: 6px;
-  border-radius: 999px;
-  background: var(--favorite-scrollbar-rail);
-}
-
-.favorite-path-scrollbar :deep(.n-scrollbar-rail__scrollbar) {
-  width: 6px;
-  border-radius: 999px;
-  background-color: var(--favorite-scrollbar-thumb) !important;
-  transition:
-    background-color 0.18s ease,
-    opacity 0.18s ease;
-}
-
-.favorite-path-scrollbar:hover :deep(.n-scrollbar-rail__scrollbar),
-.favorite-path-scrollbar :deep(.n-scrollbar-rail__scrollbar:hover) {
-  background-color: var(--favorite-scrollbar-thumb-hover) !important;
-}
-</style>
