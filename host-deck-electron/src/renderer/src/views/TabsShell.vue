@@ -6,10 +6,12 @@ import {
   CodeXml,
   Ellipsis,
   ExternalLink,
+  Minus,
   Monitor,
   PanelLeft,
   Plus,
   RefreshCw,
+  Square,
   X,
 } from 'lucide-vue-next'
 
@@ -223,12 +225,6 @@ onBeforeUnmount(() => {
 <template>
   <div :class="['shell', isMac ? 'is-mac' : '', isVertical ? 'left' : 'top']">
     <header class="tab-shell">
-      <div v-if="!isMac" class="window-controls">
-        <button class="window-control close" type="button" aria-label="关闭窗口" @click="api.window.close()"></button>
-        <button class="window-control minimize" type="button" aria-label="最小化窗口" @click="api.window.minimize()"></button>
-        <button class="window-control maximize" type="button" aria-label="最大化窗口" @click="api.window.toggleMaximize()"></button>
-      </div>
-
       <template v-if="!isVertical">
         <div class="tabs">
           <div class="tab-list" @dragleave="handleListDragLeave">
@@ -313,6 +309,18 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </template>
+
+      <div v-if="!isMac" class="window-controls" aria-label="窗口操作">
+        <button class="window-control minimize" type="button" aria-label="最小化窗口" @click="api.window.minimize()">
+          <Minus class="window-control-icon" />
+        </button>
+        <button class="window-control maximize" type="button" aria-label="最大化窗口" @click="api.window.toggleMaximize()">
+          <Square class="window-control-icon" />
+        </button>
+        <button class="window-control close" type="button" aria-label="关闭窗口" @click="api.window.close()">
+          <X class="window-control-icon" />
+        </button>
+      </div>
     </header>
 
     <aside v-if="isVertical" class="sidebar" :style="sidebarStyle">
@@ -512,37 +520,45 @@ onBeforeUnmount(() => {
 
 .window-controls {
   display: flex;
+  height: var(--titlebar-height);
   flex: none;
-  gap: 8px;
-  align-items: center;
-  padding: 0 20px 0 14px;
+  align-items: stretch;
+  margin-left: auto;
   -webkit-app-region: no-drag;
 }
 
 .shell.left .window-controls {
-  padding: 14px 14px 8px;
+  margin-left: auto;
 }
 
 .window-control {
-  width: 12px;
-  height: 12px;
+  display: grid;
+  width: 46px;
+  height: 100%;
+  place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 999px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  border-radius: 0;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.72);
   cursor: default;
+  transition: background 120ms ease, color 120ms ease;
 }
 
-.window-control.close {
-  background: #ff5f57;
+.window-control:hover {
+  background: rgba(148, 163, 184, 0.18);
+  color: #f8fafc;
 }
 
-.window-control.minimize {
-  background: #ffbd2e;
+.window-control.close:hover {
+  background: #c42b1c;
+  color: #fff;
 }
 
-.window-control.maximize {
-  background: #28c840;
+.window-control-icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.8;
 }
 
 .tabs {
