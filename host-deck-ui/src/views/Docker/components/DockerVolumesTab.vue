@@ -87,7 +87,7 @@ async function submitCreate() {
       <template #actions>
         <NButton type="primary" @click="openCreateDialog">新建存储卷</NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshVolumes"
-          >刷新存储卷</NButton
+          >刷新</NButton
         >
         <NButton quaternary @click="controller.confirmPruneVolumes">清理未使用</NButton>
       </template>

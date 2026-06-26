@@ -116,7 +116,7 @@ function getImageName(image: DockerImage) {
       </template>
 
       <template #actions>
-        <NButton :loading="controller.importingImage" @click="openImageImportPicker">
+        <NButton type="primary" :loading="controller.importingImage" @click="openImageImportPicker">
           <template #icon>
             <NIcon>
               <Upload />

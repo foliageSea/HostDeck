@@ -42,7 +42,7 @@ function isComposeProjectRunning(project: DockerComposeProject) {
       <template #actions>
         <NButton type="primary" @click="controller.openCreateComposeProject">新建编排</NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshCompose"
-          >刷新编排</NButton
+          >刷新</NButton
         >
       </template>
 

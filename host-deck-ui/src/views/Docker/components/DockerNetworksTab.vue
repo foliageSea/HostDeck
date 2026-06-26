@@ -230,7 +230,7 @@ function getConnectedContainersTitle(network: DockerNetwork) {
       <template #actions>
         <NButton type="primary" @click="openCreateDialog">新建网络</NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks"
-          >刷新网络</NButton
+          >刷新</NButton
         >
         <NButton quaternary @click="controller.confirmPruneNetworks">清理未使用</NButton>
       </template>

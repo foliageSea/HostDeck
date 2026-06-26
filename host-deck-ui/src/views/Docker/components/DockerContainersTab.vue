@@ -129,7 +129,7 @@ function isPaused(container: DockerContainer) {
       </template>
 
       <template #actions>
-        <NButton quaternary @click="controller.openCreateContainer">
+        <NButton type="primary" @click="controller.openCreateContainer">
           <template #icon>
             <NIcon>
               <Add />
