@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Download, Upload } from '@vicons/carbon'
+import { Upload } from '@vicons/carbon'
 import type { DockerImage } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
@@ -112,26 +112,10 @@ function getImageName(image: DockerImage) {
             placeholder="搜索镜像"
             @update:value="controller.setImageSearchKeyword"
           />
-          <NInput
-            :value="controller.pullImageName"
-            class="w-[min(320px,60vw)] lt-sm:w-full"
-            placeholder="例如 nginx:latest"
-            @update:value="controller.pullImageName = $event"
-            @keydown.enter.prevent="controller.pullImage"
-          >
-            <template #prefix>
-              <NIcon>
-                <Download />
-              </NIcon>
-            </template>
-          </NInput>
         </div>
       </template>
 
       <template #actions>
-        <NDropdown trigger="click" :options="imagePruneOptions" @select="handleImagePruneAction">
-          <NButton quaternary>清理</NButton>
-        </NDropdown>
         <NButton :loading="controller.importingImage" @click="openImageImportPicker">
           <template #icon>
             <NIcon>
@@ -140,17 +124,12 @@ function getImageName(image: DockerImage) {
           </template>
           导入镜像
         </NButton>
-        <NButton type="primary" :loading="controller.pullingImage" @click="controller.pullImage">
-          <template #icon>
-            <NIcon>
-              <Download />
-            </NIcon>
-          </template>
-          拉取镜像
-        </NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshImages"
           >刷新</NButton
         >
+        <NDropdown trigger="click" :options="imagePruneOptions" @select="handleImagePruneAction">
+          <NButton quaternary>清理</NButton>
+        </NDropdown>
       </template>
 
       <template #meta>
