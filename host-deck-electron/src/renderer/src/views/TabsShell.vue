@@ -270,7 +270,7 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <button class="new-tab" type="button" title="新建 Tab" aria-label="新建 Tab" @click="api.create()">
+          <button class="new-tab" type="button" aria-label="新建 Tab" @click="api.create()">
             <Plus class="icon button-icon" />
             <span class="toolbar-label">新建 Tab</span>
           </button>
@@ -278,19 +278,19 @@ onBeforeUnmount(() => {
 
         <div class="toolbar">
           <div class="toolbar-actions" :hidden="!toolbarExpanded">
-            <button class="toolbar-button" type="button" title="刷新当前 Tab" aria-label="刷新当前 Tab" @click="api.reloadActive(); setToolbarActionsVisible(false)">
+            <button class="toolbar-button" type="button" aria-label="刷新当前 Tab" @click="api.reloadActive(); setToolbarActionsVisible(false)">
               <RefreshCw class="icon button-icon" />
               <span class="toolbar-label">刷新当前 Tab</span>
             </button>
-            <button class="toolbar-button" type="button" title="在外部浏览器打开" aria-label="在外部浏览器打开" @click="api.openActiveInBrowser(); setToolbarActionsVisible(false)">
+            <button class="toolbar-button" type="button" aria-label="在外部浏览器打开" @click="api.openActiveInBrowser(); setToolbarActionsVisible(false)">
               <ExternalLink class="icon button-icon" />
               <span class="toolbar-label">外部浏览器打开</span>
             </button>
-            <button class="toolbar-button" type="button" title="打开当前 Tab 开发者工具" aria-label="打开当前 Tab 开发者工具" @click="api.openActiveDevTools(); setToolbarActionsVisible(false)">
+            <button class="toolbar-button" type="button" aria-label="打开当前 Tab 开发者工具" @click="api.openActiveDevTools(); setToolbarActionsVisible(false)">
               <CodeXml class="icon button-icon devtools-icon" />
               <span class="toolbar-label">开发者工具</span>
             </button>
-            <button class="toolbar-button" type="button" :title="nextTabBarLabel" :aria-label="nextTabBarLabel" @click="toggleTabBarPosition">
+            <button class="toolbar-button" type="button" :aria-label="nextTabBarLabel" @click="toggleTabBarPosition">
               <PanelLeft class="icon button-icon" />
               <span class="toolbar-label">{{ nextTabBarLabel }}</span>
             </button>
@@ -300,7 +300,6 @@ onBeforeUnmount(() => {
             class="toolbar-button"
             :aria-expanded="String(toolbarExpanded)"
             :aria-label="toolbarMenuLabel"
-            :title="toolbarMenuLabel"
             type="button"
             @click="setToolbarActionsVisible(!toolbarExpanded)"
           >
@@ -370,7 +369,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <button class="new-tab" type="button" title="新建 Tab" aria-label="新建 Tab" @click="api.create()">
+        <button class="new-tab" type="button" aria-label="新建 Tab" @click="api.create()">
           <Plus class="icon button-icon" />
           <span class="toolbar-label">新建 Tab</span>
         </button>
@@ -378,19 +377,19 @@ onBeforeUnmount(() => {
 
       <div class="toolbar">
         <div class="toolbar-actions" :hidden="!toolbarExpanded">
-          <button class="toolbar-button" type="button" title="刷新当前 Tab" aria-label="刷新当前 Tab" @click="api.reloadActive(); setToolbarActionsVisible(false)">
+          <button class="toolbar-button" type="button" aria-label="刷新当前 Tab" @click="api.reloadActive(); setToolbarActionsVisible(false)">
             <RefreshCw class="icon button-icon" />
             <span class="toolbar-label">刷新当前 Tab</span>
           </button>
-          <button class="toolbar-button" type="button" title="在外部浏览器打开" aria-label="在外部浏览器打开" @click="api.openActiveInBrowser(); setToolbarActionsVisible(false)">
+          <button class="toolbar-button" type="button" aria-label="在外部浏览器打开" @click="api.openActiveInBrowser(); setToolbarActionsVisible(false)">
             <ExternalLink class="icon button-icon" />
             <span class="toolbar-label">外部浏览器打开</span>
           </button>
-          <button class="toolbar-button" type="button" title="打开当前 Tab 开发者工具" aria-label="打开当前 Tab 开发者工具" @click="api.openActiveDevTools(); setToolbarActionsVisible(false)">
+          <button class="toolbar-button" type="button" aria-label="打开当前 Tab 开发者工具" @click="api.openActiveDevTools(); setToolbarActionsVisible(false)">
             <CodeXml class="icon button-icon devtools-icon" />
             <span class="toolbar-label">开发者工具</span>
           </button>
-          <button class="toolbar-button" type="button" :title="nextTabBarLabel" :aria-label="nextTabBarLabel" @click="toggleTabBarPosition">
+          <button class="toolbar-button" type="button" :aria-label="nextTabBarLabel" @click="toggleTabBarPosition">
             <PanelLeft class="icon button-icon" />
             <span class="toolbar-label">{{ nextTabBarLabel }}</span>
           </button>
@@ -400,7 +399,6 @@ onBeforeUnmount(() => {
           class="toolbar-button"
           :aria-expanded="String(toolbarExpanded)"
           :aria-label="toolbarMenuLabel"
-          :title="toolbarMenuLabel"
           type="button"
           @click="setToolbarActionsVisible(!toolbarExpanded)"
         >
