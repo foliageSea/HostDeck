@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Settings } from '@vicons/carbon'
+import { Help, Settings } from '@vicons/carbon'
 import '@xterm/xterm/css/xterm.css'
 import TerminalSettingsModal from './components/TerminalSettingsModal.vue'
 import { useTerminalSession } from './hooks/useTerminalSession'
@@ -92,7 +92,30 @@ async function copySelection() {
     @mouseup="openCopyButton"
     @wheel="handleWheel"
   >
-    <div class="absolute right-[20px] top-[18px] z-10">
+    <div class="absolute right-[20px] top-[18px] z-10 flex items-center gap-[8px]">
+      <NPopover trigger="hover" placement="bottom-end">
+        <template #trigger>
+          <NButton quaternary circle size="small" aria-label="终端快捷键">
+            <template #icon>
+              <NIcon :size="16">
+                <Help />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        <div
+          class="flex flex-col gap-[6px] text-[12px]"
+          :class="
+            settingsStore.isDark
+              ? 'text-[rgba(226,232,240,0.96)]'
+              : 'text-[rgba(51,65,85,0.96)]'
+          "
+        >
+          <div>Ctrl + V：粘贴</div>
+          <div>Alt + C：复制选中内容</div>
+        </div>
+      </NPopover>
+
       <NTooltip trigger="hover">
         <template #trigger>
           <NButton
