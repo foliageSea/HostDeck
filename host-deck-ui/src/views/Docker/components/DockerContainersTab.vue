@@ -129,9 +129,6 @@ function isPaused(container: DockerContainer) {
       </template>
 
       <template #actions>
-        <NButton quaternary :loading="controller.loading" @click="controller.refreshContainers"
-          >刷新</NButton
-        >
         <NButton quaternary @click="controller.openCreateContainer">
           <template #icon>
             <NIcon>
@@ -140,6 +137,9 @@ function isPaused(container: DockerContainer) {
           </template>
           新建容器
         </NButton>
+        <NButton quaternary :loading="controller.loading" @click="controller.refreshContainers"
+          >刷新</NButton
+        >
       </template>
 
       <template #meta>
