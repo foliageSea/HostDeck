@@ -17,6 +17,7 @@ import 'services/monitor_history_service.dart';
 import 'services/monitor_service.dart';
 import 'services/file_service.dart';
 import 'services/docker_service.dart';
+import 'services/process_service.dart';
 import 'services/database_service.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/system_controller.dart';
@@ -24,6 +25,7 @@ import 'controllers/file_controller.dart';
 import 'controllers/terminal_controller.dart';
 import 'controllers/server_controller.dart';
 import 'controllers/docker_controller.dart';
+import 'controllers/process_controller.dart';
 import 'controllers/runtime_controller.dart';
 import 'controllers/port_forward_controller.dart';
 import 'controllers/settings_controller.dart';
@@ -80,6 +82,7 @@ class ServerService {
     final monitorService = MonitorService(sshRepository);
     final fileService = FileService(sshRepository);
     final dockerService = DockerService(sshRepository);
+    final processService = ProcessService(sshRepository);
     portForwardRepository.setAllDisabled();
     final portForwardService = PortForwardService(
       sshService,
@@ -102,6 +105,7 @@ class ServerService {
     final terminalController = TerminalController(sshService);
     final serverController = ServerController(serverRepository);
     final dockerController = DockerController(sshService, dockerService);
+    final processController = ProcessController(sshService, processService);
     final runtimeController = RuntimeController(sshService);
     final settingsController = SettingsController();
     final portForwardController = PortForwardController(
@@ -117,6 +121,7 @@ class ServerService {
       terminalController: terminalController,
       serverController: serverController,
       dockerController: dockerController,
+      processController: processController,
       runtimeController: runtimeController,
       settingsController: settingsController,
       portForwardController: portForwardController,

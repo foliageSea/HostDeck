@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import {
   Settings,
+  Activity,
   ChartLine,
   Document,
   Image,
@@ -37,6 +38,7 @@ const iconMap: Record<AppIconKey, Component> = {
   logout: Logout,
   media: Image,
   opencode: ApplicationWeb,
+  process: Activity,
   'port-forward': Connect,
   runtime: ApplicationWeb,
   settings: Settings,

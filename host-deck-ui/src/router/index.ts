@@ -3,6 +3,7 @@ import { useSshStore } from '@/stores/ssh'
 import DashboardView from '@/views/Dashboard/index.vue'
 import FilesView from '@/views/Files/index.vue'
 import PortForwardView from '@/views/PortForward/index.vue'
+import ProcessesView from '@/views/Processes/index.vue'
 import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
 import TerminalView from '@/views/Terminal/index.vue'
 
@@ -41,6 +42,12 @@ const router = createRouter({
       path: '/port-forward',
       name: 'port-forward',
       component: PortForwardView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/processes',
+      name: 'processes',
+      component: ProcessesView,
       meta: { requiresAuth: true },
     },
   ],

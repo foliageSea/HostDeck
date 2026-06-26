@@ -14,6 +14,7 @@ import FilesView from '@/views/Files/index.vue'
 import IframeAppView from '@/views/IframeApp/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
 import PortForwardView from '@/views/PortForward/index.vue'
+import ProcessesView from '@/views/Processes/index.vue'
 import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
 import SettingsView from '@/views/Settings/index.vue'
 import TerminalView from '@/views/Terminal/index.vue'
@@ -423,6 +424,16 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 840,
         title: '端口转发',
         width: 1040,
+      },
+      processes: {
+        component: markRaw(ProcessesView),
+        height: 720,
+        icon: 'process',
+        id: 'processes',
+        minHeight: 520,
+        minWidth: 860,
+        title: '进程管理',
+        width: 1120,
       },
       dashboard: {
         component: markRaw(DashboardView),
