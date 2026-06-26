@@ -224,7 +224,7 @@ onUnmounted(() => {
         <button
           v-if="window.appId === 'iframe-app'"
           data-window-control-action
-          class="inline-flex cursor-pointer items-center justify-center border-0 p-0 transition-[background,transform,color] duration-[180ms] ease-in-out"
+          class="inline-flex cursor-pointer items-center justify-center border-0 bg-transparent p-0 transition-[background,transform,color] duration-[180ms] ease-in-out"
           :class="
             isMacWindowControls
               ? [
