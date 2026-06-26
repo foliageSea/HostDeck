@@ -152,10 +152,10 @@ function statusText(status: PortForwardStatus) {
   return '已停止'
 }
 
-function localUrl(rule: PortForwardRule) {
+function localAddress(rule: PortForwardRule) {
   const host =
     rule.bindHost === '0.0.0.0' || rule.bindHost === '::' ? window.location.hostname : rule.bindHost
-  return `http://${host}:${rule.localPort}`
+  return `${host}:${rule.localPort}`
 }
 
 function resetForm() {
@@ -285,8 +285,8 @@ function removeRule(rule: PortForwardRule) {
 }
 
 async function copyLocalUrl(rule: PortForwardRule) {
-  await navigator.clipboard.writeText(localUrl(rule))
-  getUiApi().message.success('本地访问地址已复制。')
+  await navigator.clipboard.writeText(localAddress(rule))
+  getUiApi().message.success('本地监听地址已复制。')
 }
 
 onMounted(() => {
@@ -373,9 +373,9 @@ onMounted(() => {
           </div>
 
           <div class="min-w-0">
-            <div class="truncate text-[13px] font-600">{{ localUrl(rule) }}</div>
+            <div class="truncate text-[13px] font-600">{{ localAddress(rule) }}</div>
             <NButton text type="primary" size="small" @click="copyLocalUrl(rule)"
-              >复制访问地址</NButton
+              >复制监听地址</NButton
             >
           </div>
 
