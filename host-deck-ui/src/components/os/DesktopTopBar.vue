@@ -4,6 +4,7 @@ import { ApplicationWeb, Logout, Moon, Settings, Sun } from '@vicons/carbon'
 import { NIcon } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
 import { getUiApi } from '@/lib/ui'
+import CopyableText from '@/components/common/CopyableText.vue'
 import DesktopTaskCenter from '@/components/os/DesktopTaskCenter.vue'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -55,6 +56,7 @@ const appMenuOptions = computed<DropdownOption[]>(() => [
   { key: 'runtime-sessions', label: '会话管理', icon: renderMenuIcon(ApplicationWeb) },
   { key: 'settings', label: '设置', icon: renderMenuIcon(Settings) },
 ])
+const hostLabel = computed(() => sshStore.host || '未连接主机')
 const monitorData = computed(() => sshStore.monitorData)
 const monitorError = computed(() => sshStore.monitorError)
 const cpuUsage = computed(() => {
@@ -167,10 +169,20 @@ function disconnect() {
             "
           >
             <span class="shrink-0 text-[rgba(148,163,184,0.94)]">IP</span>
-            <strong class="truncate font-600">{{ sshStore.host || '未连接主机' }}</strong>
+            <strong class="min-w-0 truncate font-600">
+              <CopyableText
+                v-if="sshStore.host"
+                :text="sshStore.host"
+                :display-text="hostLabel"
+                title="点击复制 IP"
+                success-message="IP 已复制。"
+                error-message="IP 复制失败。"
+              />
+              <span v-else>{{ hostLabel }}</span>
+            </strong>
           </div>
         </template>
-        {{ sshStore.host || '未连接主机' }}
+        {{ sshStore.host ? '点击复制 IP' : hostLabel }}
       </NTooltip>
       <NTooltip v-if="monitorError" placement="bottom">
         <template #trigger>
