@@ -310,6 +310,8 @@ onBeforeUnmount(() => {
         </div>
       </template>
 
+      <div v-if="isVertical" class="titlebar-app-name" aria-label="应用名称">HostDeck</div>
+
       <div v-if="!isMac" class="window-controls" aria-label="窗口操作">
         <button class="window-control minimize" type="button" aria-label="最小化窗口" @click="api.window.minimize()">
           <Minus class="window-control-icon" />
@@ -436,6 +438,7 @@ onBeforeUnmount(() => {
   --titlebar-height: 42px;
   --sidebar-width: 220px;
   --mac-traffic-light-space: 88px;
+  --window-controls-width: 138px;
 }
 
 :global(*) {
@@ -478,6 +481,28 @@ onBeforeUnmount(() => {
   align-items: stretch;
   border-right: 0;
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.titlebar-app-name {
+  position: absolute;
+  inset: 0 var(--window-controls-width) 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 0 20px 0 16px;
+  overflow: hidden;
+  color: rgba(226, 232, 240, 0.92);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell.is-mac .titlebar-app-name {
+  inset: 0 var(--mac-traffic-light-space) 0 0;
 }
 
 .shell.left .sidebar {
