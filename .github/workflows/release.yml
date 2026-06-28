@@ -209,7 +209,7 @@ jobs:
             throw "Missing web artifact: host-deck-ui/dist/index.html"
           }
       - name: Build Electron Windows
-        run: pnpm --dir host-deck-electron electron:pack:win
+        run: pnpm --dir host-deck-electron electron:pack:win:prepared
       - name: Upload Electron Windows
         uses: softprops/action-gh-release@v1
         with:

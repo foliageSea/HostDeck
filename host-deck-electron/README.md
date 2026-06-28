@@ -26,5 +26,5 @@ pnpm electron:build:win
 
 - 开发模式会自动启动 `host-deck-ui` 的 Vite 开发服务器和 `host-deck-electron` 自己的 Vite renderer 开发服务器。
 - 如需覆盖开发地址，可分别使用 `HOST_DECK_ELECTRON_APP_DEV_URL` 与 `HOST_DECK_ELECTRON_SHELL_DEV_URL`。
-- 预览和打包模式会复用 `host-deck-ui/dist`。
+- 本地打包命令会先构建 `host-deck-ui/dist`，再将最新前端产物打入安装包；CI 发布流程使用已下载的 `host-deck-ui/dist` artifact。
 - 打包前会先构建 `bin/server.dart` 的 Windows CLI bundle，再将 `server.exe` 和前端静态资源一起打入安装包。

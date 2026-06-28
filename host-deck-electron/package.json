@@ -8,9 +8,11 @@
     "format": "prettier --write .",
     "electron:dev": "node src/scripts/start-dev.cjs",
     "electron:preview": "pnpm electron:build:renderer && cross-env HOST_DECK_ELECTRON_MODE=preview electron .",
+    "electron:build:web": "pnpm --dir ../host-deck-ui build",
     "electron:build:renderer": "vite build --config vite.config.mjs",
     "electron:build:server": "node src/scripts/build-server.cjs",
-    "electron:pack:win": "pnpm electron:build:renderer && pnpm electron:build:server && electron-builder --win",
+    "electron:pack:win:prepared": "pnpm electron:build:renderer && pnpm electron:build:server && electron-builder --win",
+    "electron:pack:win": "pnpm electron:build:web && pnpm electron:pack:win:prepared",
     "electron:build:win": "pnpm electron:pack:win",
     "postinstall": "electron-builder install-app-deps"
   },
