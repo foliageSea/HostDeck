@@ -1,4 +1,7 @@
 const { spawn } = require('node:child_process')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
 
 const { resolveConfiguredDevUrl, waitForUrl } = require('../shared/dev-server.cjs')
 const {
@@ -10,6 +13,46 @@ const {
 } = require('../shared/project-paths.cjs')
 
 const children = []
+const devLockPath = path.join(os.tmpdir(), 'host-deck-electron-dev.lock')
+let releaseDevLock = null
+
+function isProcessRunning(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error.code === 'EPERM'
+  }
+}
+
+function acquireDevModeLock() {
+  try {
+    const fd = fs.openSync(devLockPath, 'wx')
+    fs.writeFileSync(fd, String(process.pid))
+    fs.closeSync(fd)
+    return true
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error
+
+    const existingPid = Number(fs.readFileSync(devLockPath, 'utf-8'))
+    if (isProcessRunning(existingPid)) return false
+
+    fs.rmSync(devLockPath, { force: true })
+    return acquireDevModeLock()
+  }
+}
+
+function removeDevModeLock() {
+  try {
+    if (fs.readFileSync(devLockPath, 'utf-8') === String(process.pid)) {
+      fs.rmSync(devLockPath, { force: true })
+    }
+  } catch {
+    // The lock may already be removed during shutdown.
+  }
+}
 
 function run(command, args, env = {}, cwd = projectRoot) {
   const child = spawn(command, args, {
@@ -26,6 +69,7 @@ function stopAll() {
   for (const child of children) {
     if (!child.killed) child.kill()
   }
+  if (releaseDevLock) releaseDevLock()
 }
 
 process.on('SIGINT', () => {
@@ -39,6 +83,34 @@ process.on('SIGTERM', () => {
 })
 
 async function main() {
+  if (!acquireDevModeLock()) {
+    const shellDevUrl = await resolveConfiguredDevUrl({
+      configFile: shellViteConfigPath,
+      envVarName: 'HOST_DECK_ELECTRON_SHELL_DEV_URL',
+      fallbackPort: 5180,
+    })
+    const appDevUrl = await resolveConfiguredDevUrl({
+      configFile: frontendViteConfigPath,
+      envVarName: 'HOST_DECK_ELECTRON_APP_DEV_URL',
+      fallbackPort: 5178,
+    })
+    const electron = run(
+      'pnpm',
+      ['exec', 'electron', '.'],
+      {
+        HOST_DECK_ELECTRON_APP_DEV_URL: appDevUrl,
+        HOST_DECK_ELECTRON_SHELL_DEV_URL: shellDevUrl,
+      },
+      projectRoot
+    )
+
+    electron.on('exit', (code) => {
+      process.exit(code || 0)
+    })
+    return
+  }
+  releaseDevLock = removeDevModeLock
+
   const shellDevUrl = await resolveConfiguredDevUrl({
     configFile: shellViteConfigPath,
     envVarName: 'HOST_DECK_ELECTRON_SHELL_DEV_URL',

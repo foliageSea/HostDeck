@@ -18,12 +18,17 @@ const {
 
 const isPreviewMode = process.env.HOST_DECK_ELECTRON_MODE === 'preview'
 const useDevServers = !app.isPackaged && !isPreviewMode
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
 
 let applicationUrl = null
 let isQuitting = false
 let mainWindow = null
 let shellPageLoader = null
 let tray = null
+
+if (!hasSingleInstanceLock) {
+  app.exit(0)
+}
 
 const settingsStore = createSettingsStore(app)
 const serverRuntime = createServerRuntime({
@@ -68,6 +73,8 @@ function showMainWindow() {
   mainWindow.show()
   mainWindow.focus()
 }
+
+app.on('second-instance', showMainWindow)
 
 function minimizeToTray() {
   if (!mainWindow || mainWindow.isDestroyed()) return
