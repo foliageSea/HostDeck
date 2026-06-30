@@ -233,7 +233,7 @@ onMounted(() => {
       </NCard>
     </div>
 
-    <NCard class="min-h-0 flex-1" content-style="height: 100%; padding: 0;" :bordered="false">
+    <NCard class="min-h-0 flex-1" content-style="height: 100%; padding: 1;" :bordered="false">
       <NDataTable
         class="h-full"
         :bordered="false"
