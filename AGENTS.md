@@ -9,11 +9,11 @@
 
 ## Commands
 
-- 后端/桌面依赖：`flutter pub get`
-- Dart/Flutter 分析：`flutter analyze`
-- Dart/Flutter 测试：`flutter test`
-- 单个测试文件：`flutter test test/monitor_service_test.dart`
-- 按名称跑测试：`flutter test --name "MonitorService parses system status correctly"`
+- 后端/桌面依赖：`fvm flutter pub get`
+- Dart/Flutter 分析：`fvm flutter analyze`
+- Dart/Flutter 测试：`fvm flutter test`
+- 单个测试文件：`fvm flutter test test/monitor_service_test.dart`
+- 按名称跑测试：`fvm flutter test --name "MonitorService parses system status correctly"`
 - Dart 格式化：`dart format .`
 - 前端依赖：`pnpm --dir host-deck-ui install`
 - 前端开发：`pnpm --dir host-deck-ui dev`
@@ -55,7 +55,7 @@
 
 ## Verification Rules
 
-- Dart/Flutter 改动至少跑 `dart format .`、`flutter analyze` 和相关 `flutter test ...`。
+- Dart/Flutter 改动至少跑 `dart format .`、`fvm flutter analyze` 和相关 `fvm flutter test ...`。
 - 前端改动至少跑 `pnpm --dir host-deck-ui build`；涉及类型边界或测试逻辑时再跑 `vue-tsc` 和相关 `vitest run ...`。
 - API 合约改动要同步 `lib/server/controllers/*`、`host-deck-ui/src/api/*` 和调用点，并确认 `src/lib/http.ts` 的统一解包仍匹配。
 - 打包链路改动要同时核对 `Dockerfile`、`.github/workflows/release.yml`、`pubspec.yaml` 的 `assets/web/` 声明和服务打包脚本。
