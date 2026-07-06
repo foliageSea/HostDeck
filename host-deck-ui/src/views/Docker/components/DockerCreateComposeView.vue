@@ -141,10 +141,10 @@ async function submitCreateComposeProject() {
       </div>
     </div>
 
-    <div class="create-compose-body min-h-0 min-w-0 flex-1 overflow-hidden p-[18px]">
+    <div class="create-compose-body min-h-0 min-w-0 flex-1 overflow-hidden">
       <NForm
         label-placement="top"
-        class="create-compose-form h-full min-h-0 min-w-0 overflow-auto app-scrollbar"
+        class="create-compose-form h-full min-h-0 min-w-0 overflow-auto p-[18px] app-scrollbar"
         :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'"
       >
         <NGrid :cols="2" :x-gap="12" responsive="screen">
