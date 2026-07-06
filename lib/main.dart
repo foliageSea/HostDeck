@@ -6,7 +6,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:logging/logging.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'server/server_service.dart';
+import 'server/app/server_service.dart';
 import 'utils/asset_extractor.dart';
 import 'utils/app_settings.dart';
 

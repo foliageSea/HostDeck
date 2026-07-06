@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:host_deck/server/models/server_config.dart';
+import 'package:host_deck/server/features/servers/server_config.dart';
 
 void main() {
   group('ServerConfig', () {
