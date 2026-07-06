@@ -3,12 +3,12 @@ import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:host_deck/server/models/ssh_operation_limiter.dart';
-import 'package:host_deck/server/models/ssh_session.dart';
-import 'package:host_deck/server/repositories/docker_engine_repository.dart';
-import 'package:host_deck/server/repositories/ssh_repository.dart';
-import 'package:host_deck/server/services/docker_engine_mapper.dart';
-import 'package:host_deck/server/services/docker_service.dart';
+import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
+import 'package:host_deck/server/core/ssh/ssh_repository.dart';
+import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
+import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
+import 'package:host_deck/server/features/docker/docker_service.dart';
 
 void main() {
   group('DockerEngineMapper', () {

@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:host_deck/server/services/monitor_service.dart';
-import 'package:host_deck/server/repositories/ssh_repository.dart';
-import 'package:host_deck/server/models/ssh_operation_limiter.dart';
-import 'package:host_deck/server/models/ssh_session.dart';
-import 'package:host_deck/server/models/file_item.dart';
+import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
+import 'package:host_deck/server/core/ssh/ssh_repository.dart';
+import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/features/files/file_item.dart';
+import 'package:host_deck/server/features/system/monitor_service.dart';
 import 'package:dartssh2/dartssh2.dart';
 
 // Manual Mock

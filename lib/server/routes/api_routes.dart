@@ -1,14 +1,25 @@
 import 'package:shelf_router/shelf_router.dart';
-import '../controllers/auth_controller.dart';
-import '../controllers/system_controller.dart';
-import '../controllers/file_controller.dart';
-import '../controllers/terminal_controller.dart';
-import '../controllers/server_controller.dart';
-import '../controllers/docker_controller.dart';
-import '../controllers/process_controller.dart';
-import '../controllers/runtime_controller.dart';
-import '../controllers/port_forward_controller.dart';
-import '../controllers/settings_controller.dart';
+
+import 'package:host_deck/server/features/auth/auth_controller.dart';
+import 'package:host_deck/server/features/docker/docker_controller.dart';
+import 'package:host_deck/server/features/files/file_controller.dart';
+import 'package:host_deck/server/features/port_forwards/port_forward_controller.dart';
+import 'package:host_deck/server/features/processes/process_controller.dart';
+import 'package:host_deck/server/features/runtime/runtime_controller.dart';
+import 'package:host_deck/server/features/servers/server_controller.dart';
+import 'package:host_deck/server/features/settings/settings_controller.dart';
+import 'package:host_deck/server/features/system/system_controller.dart';
+import 'package:host_deck/server/features/terminal/terminal_controller.dart';
+import 'package:host_deck/server/routes/auth_routes.dart';
+import 'package:host_deck/server/routes/docker_routes.dart';
+import 'package:host_deck/server/routes/file_routes.dart';
+import 'package:host_deck/server/routes/port_forward_routes.dart';
+import 'package:host_deck/server/routes/process_routes.dart';
+import 'package:host_deck/server/routes/runtime_routes.dart';
+import 'package:host_deck/server/routes/server_routes.dart';
+import 'package:host_deck/server/routes/settings_routes.dart';
+import 'package:host_deck/server/routes/system_routes.dart';
+import 'package:host_deck/server/routes/terminal_routes.dart';
 
 class ApiRoutes {
   final AuthController authController;
@@ -37,220 +48,16 @@ class ApiRoutes {
 
   Router get router {
     final router = Router();
-
-    // Auth
-    router.post('/api/connect', authController.connect);
-    router.post('/api/connect/test', authController.testConnect);
-    router.delete('/api/connect', authController.disconnect);
-
-    // Servers
-    router.get('/api/servers', serverController.list);
-    router.post('/api/servers', serverController.create);
-    router.put('/api/servers/<id>', serverController.update);
-    router.delete('/api/servers/<id>', serverController.delete);
-
-    // Runtime
-    router.get('/api/runtime/sessions', runtimeController.listSessions);
-    router.get('/api/ws/runtime', runtimeController.wsSessions);
-
-    // Settings
-    router.get('/api/settings/ui', settingsController.getUiSettings);
-    router.put('/api/settings/ui', settingsController.saveUiSettings);
-    router.post(
-      '/api/settings/ui/wallpapers',
-      settingsController.uploadWallpaper,
-    );
-
-    // Port forwards
-    router.get('/api/port-forwards', portForwardController.list);
-    router.post('/api/port-forwards', portForwardController.create);
-    router.put('/api/port-forwards/<id>', portForwardController.update);
-    router.delete('/api/port-forwards/<id>', portForwardController.delete);
-    router.post('/api/port-forwards/<id>/start', portForwardController.start);
-    router.post('/api/port-forwards/<id>/stop', portForwardController.stop);
-
-    // System
-    router.get('/api/status', systemController.status);
-    router.get('/api/system/monitor/history', systemController.history);
-    router.get('/api/ws/monitor', systemController.wsMonitor);
-    router.get('/api/ws/session', systemController.wsSessionStatus);
-
-    // Processes
-    router.get('/api/processes', processController.list);
-    router.post('/api/processes/<pid>/kill', processController.kill);
-
-    // Files
-    router.get('/api/files/list', fileController.listFiles);
-    router.get('/api/files/directory-size', fileController.directorySize);
-    router.post('/api/files/session', fileController.createSession);
-    router.delete('/api/files/session', fileController.closeSession);
-    router.get('/api/files/read', fileController.readFile);
-    router.post('/api/files/write', fileController.writeFile);
-    router.post('/api/files/delete', fileController.deleteFile);
-    router.post('/api/files/upload', fileController.uploadFile);
-    router.post('/api/files/batch-download', fileController.batchDownload);
-    router.post('/api/files/rename', fileController.rename);
-    router.post('/api/files/mkdir', fileController.mkdir);
-    router.post('/api/files/chmod', fileController.chmod);
-    router.post('/api/files/copy', fileController.copy);
-    router.post('/api/files/extract', fileController.extract);
-
-    // Terminal
-    router.get('/api/ws/terminal', terminalController.handler);
-    router.post('/api/terminal/session', terminalController.createSession);
-    router.delete('/api/terminal/session', terminalController.closeSession);
-
-    // Docker
-    router.post('/api/docker/session', dockerController.createSession);
-    router.delete('/api/docker/session', dockerController.closeSession);
-    router.get('/api/docker/check', dockerController.checkDocker);
-    router.get('/api/docker/compose/check', dockerController.checkCompose);
-    router.get(
-      '/api/docker/compose/projects',
-      dockerController.listComposeProjects,
-    );
-    router.post(
-      '/api/docker/compose/project',
-      dockerController.createComposeProject,
-    );
-    router.post(
-      '/api/docker/compose/project/services',
-      dockerController.listComposeServices,
-    );
-    router.post(
-      '/api/docker/compose/project/up',
-      dockerController.upComposeProject,
-    );
-    router.post(
-      '/api/docker/compose/project/stop',
-      dockerController.stopComposeProject,
-    );
-    router.post(
-      '/api/docker/compose/project/restart',
-      dockerController.restartComposeProject,
-    );
-    router.post(
-      '/api/docker/compose/project/down',
-      dockerController.downComposeProject,
-    );
-    router.post(
-      '/api/docker/compose/project/logs',
-      dockerController.getComposeLogs,
-    );
-    router.get('/api/docker/containers', dockerController.listContainers);
-    router.get(
-      '/api/docker/containers/<id>/inspect',
-      dockerController.inspectContainer,
-    );
-    router.get(
-      '/api/docker/containers/<id>/stats',
-      dockerController.getContainerStats,
-    );
-    router.post(
-      '/api/docker/containers/<id>/shell',
-      dockerController.createContainerShellSession,
-    );
-    router.get('/api/docker/images', dockerController.listImages);
-    router.get('/api/docker/networks', dockerController.listNetworks);
-    router.post('/api/docker/networks', dockerController.createNetwork);
-    router.get(
-      '/api/docker/networks/<id>/inspect',
-      dockerController.inspectNetwork,
-    );
-    router.post(
-      '/api/docker/networks/<id>/connect',
-      dockerController.connectNetwork,
-    );
-    router.post(
-      '/api/docker/networks/<id>/disconnect',
-      dockerController.disconnectNetwork,
-    );
-    router.delete('/api/docker/networks/<id>', dockerController.removeNetwork);
-    router.post('/api/docker/networks/prune', dockerController.pruneNetworks);
-    router.get('/api/docker/volumes', dockerController.listVolumes);
-    router.post('/api/docker/volumes', dockerController.createVolume);
-    router.get(
-      '/api/docker/volumes/<name>/inspect',
-      dockerController.inspectVolume,
-    );
-    router.delete('/api/docker/volumes/<name>', dockerController.removeVolume);
-    router.post('/api/docker/volumes/prune', dockerController.pruneVolumes);
-    router.post(
-      '/api/docker/build-cache/prune',
-      dockerController.pruneBuildCache,
-    );
-    router.post(
-      '/api/docker/containers/<id>/start',
-      dockerController.startContainer,
-    );
-    router.post(
-      '/api/docker/containers/<id>/stop',
-      dockerController.stopContainer,
-    );
-    router.post(
-      '/api/docker/containers/<id>/restart',
-      dockerController.restartContainer,
-    );
-    router.post(
-      '/api/docker/containers/<id>/pause',
-      dockerController.pauseContainer,
-    );
-    router.post(
-      '/api/docker/containers/<id>/unpause',
-      dockerController.unpauseContainer,
-    );
-    router.post(
-      '/api/docker/containers/<id>/rename',
-      dockerController.renameContainer,
-    );
-    router.post(
-      '/api/docker/containers/<id>/recreate',
-      dockerController.recreateContainer,
-    );
-    router.delete(
-      '/api/docker/containers/<id>',
-      dockerController.removeContainer,
-    );
-    router.post('/api/docker/containers', dockerController.createContainer);
-    router.get(
-      '/api/docker/containers/logs',
-      dockerController.getContainerLogs,
-    );
-    router.post(
-      '/api/docker/containers/diagnostics',
-      dockerController.getContainerDiagnostics,
-    );
-    router.post(
-      '/api/docker/containers/batch-start',
-      dockerController.batchStartContainers,
-    );
-    router.post(
-      '/api/docker/containers/batch-stop',
-      dockerController.batchStopContainers,
-    );
-    router.delete(
-      '/api/docker/containers/stopped',
-      dockerController.removeStoppedContainers,
-    );
-    router.post('/api/docker/images/prune', dockerController.pruneImages);
-    router.delete('/api/docker/images/<id>', dockerController.removeImage);
-    router.post('/api/docker/images/pull', dockerController.pullImage);
-    router.post('/api/docker/images/import', dockerController.importImage);
-    router.post('/api/docker/images/tag', dockerController.tagImage);
-    router.get('/api/docker/images/<id>/export', dockerController.exportImage);
-    router.get(
-      '/api/docker/images/<id>/history',
-      dockerController.getImageHistory,
-    );
-    router.get(
-      '/api/docker/images/<id>/create-defaults',
-      dockerController.getImageCreateDefaults,
-    );
-    router.get(
-      '/api/docker/images/<id>/containers',
-      dockerController.getImageContainers,
-    );
-
+    registerAuthRoutes(router, authController);
+    registerServerRoutes(router, serverController);
+    registerRuntimeRoutes(router, runtimeController);
+    registerSettingsRoutes(router, settingsController);
+    registerPortForwardRoutes(router, portForwardController);
+    registerSystemRoutes(router, systemController);
+    registerProcessRoutes(router, processController);
+    registerFileRoutes(router, fileController);
+    registerTerminalRoutes(router, terminalController);
+    registerDockerRoutes(router, dockerController);
     return router;
   }
 }

@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
-import 'package:host_deck/server/server_service.dart';
+import 'package:host_deck/server/app/server_service.dart';
 import 'package:host_deck/utils/app_settings.dart';
 
 Future<void> main(List<String> args) async {

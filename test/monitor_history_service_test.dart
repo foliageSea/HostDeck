@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:host_deck/server/models/system_status.dart';
-import 'package:host_deck/server/services/monitor_history_service.dart';
+import 'package:host_deck/server/features/system/monitor_history_service.dart';
+import 'package:host_deck/server/features/system/system_status.dart';
 
 SystemStatus buildStatus(int timestamp, {double cpuUsage = 10}) {
   return SystemStatus(
