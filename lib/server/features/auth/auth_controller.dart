@@ -5,6 +5,7 @@ import 'package:shelf/shelf.dart';
 
 import 'package:host_deck/server/core/http/result.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
+import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 import 'package:host_deck/server/features/servers/server_config.dart';
 import 'package:host_deck/server/features/servers/server_repository.dart';
 import 'package:host_deck/server/features/system/monitor_history_service.dart';
@@ -12,6 +13,7 @@ import 'package:host_deck/server/features/system/monitor_history_service.dart';
 class AuthController {
   final _log = Logger('AuthController');
   final MonitorHistoryService _monitorHistoryService;
+  final OperationLogService _operationLogService;
   final ServerRepository _serverRepository;
   final SshService _sshService;
 
@@ -19,6 +21,7 @@ class AuthController {
     this._sshService,
     this._monitorHistoryService,
     this._serverRepository,
+    this._operationLogService,
   );
 
   Future<Response> connect(Request request) async {
@@ -27,6 +30,7 @@ class AuthController {
       final data = jsonDecode(payload);
       final server = _getSavedServer(data['serverId']);
       _logAuthRequest('Connect', data['serverId'], server);
+      final target = _connectionTarget(data, server);
 
       final connectionId = await _sshService.connect(
         host: server?.host ?? data['host'],
@@ -36,9 +40,21 @@ class AuthController {
         privateKey: server?.privateKey ?? _stringOrNull(data['privateKey']),
       );
 
+      _operationLogService.success(
+        category: 'auth',
+        action: 'connect',
+        target: target,
+        connectionId: connectionId,
+      );
       return Result.ok({'connectionId': connectionId});
     } catch (e) {
       _log.severe('Connect Error: $e');
+      _operationLogService.failure(
+        category: 'auth',
+        action: 'connect',
+        target: 'SSH 连接',
+        error: e,
+      );
       return Result.fail(500, e.toString());
     }
   }
@@ -49,6 +65,7 @@ class AuthController {
       final data = jsonDecode(payload);
       final server = _getSavedServer(data['serverId']);
       _logAuthRequest('Test connect', data['serverId'], server);
+      final target = _connectionTarget(data, server);
 
       final connectionId = await _sshService.connect(
         host: server?.host ?? data['host'],
@@ -59,9 +76,20 @@ class AuthController {
       );
 
       await _sshService.disconnect(connectionId);
+      _operationLogService.success(
+        category: 'auth',
+        action: 'testConnect',
+        target: target,
+      );
       return Result.ok({'success': true});
     } catch (e) {
       _log.severe('Test Connect Error: $e');
+      _operationLogService.failure(
+        category: 'auth',
+        action: 'testConnect',
+        target: 'SSH 连接测试',
+        error: e,
+      );
       return Result.fail(500, e.toString());
     }
   }
@@ -75,11 +103,31 @@ class AuthController {
 
       await _sshService.disconnect(connectionId);
       _monitorHistoryService.clearConnection(connectionId);
+      _operationLogService.success(
+        category: 'auth',
+        action: 'disconnect',
+        target: connectionId,
+        connectionId: connectionId,
+      );
       return Result.ok({'success': true});
     } catch (e) {
       _log.severe('Disconnect Error: $e');
+      _operationLogService.failure(
+        category: 'auth',
+        action: 'disconnect',
+        target: request.url.queryParameters['connectionId'],
+        connectionId: request.url.queryParameters['connectionId'],
+        error: e,
+      );
       return Result.fail(500, e.toString());
     }
+  }
+
+  String _connectionTarget(Map<String, dynamic> data, ServerConfig? server) {
+    final username = server?.username ?? data['username']?.toString() ?? '';
+    final host = server?.host ?? data['host']?.toString() ?? '';
+    final port = server?.port ?? data['port']?.toString() ?? '';
+    return '$username@$host:$port';
   }
 
   ServerConfig? _getSavedServer(dynamic serverId) {

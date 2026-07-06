@@ -8,13 +8,18 @@ import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/files/file_service.dart';
+import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 
 class FileController {
   final FileService _fileService;
+  final OperationLogService _operationLogService;
   final SharedSshSessionResolver _sessionResolver;
 
-  FileController(SshService sshService, this._fileService)
-    : _sessionResolver = SharedSshSessionResolver(
+  FileController(
+    SshService sshService,
+    this._fileService,
+    this._operationLogService,
+  ) : _sessionResolver = SharedSshSessionResolver(
         sshService,
         type: SharedSshSessionType.sftp,
       );
@@ -170,8 +175,10 @@ class FileController {
 
     try {
       await _fileService.writeFileStream(session, path, request.read());
+      _recordFileSuccess('write', path, session.connectionId);
       return Result.ok('File written');
     } catch (e) {
+      _recordFileFailure('write', path, session.connectionId, e);
       return Result.fail(500, e.toString());
     }
   }
@@ -190,6 +197,7 @@ class FileController {
     }
 
     try {
+      var uploadedCount = 0;
       if (request.multipart() case var multipart?) {
         await for (final part in multipart.parts) {
           final contentDisposition = part.headers['content-disposition'];
@@ -205,13 +213,21 @@ class FileController {
           targetPath += filename;
 
           await _fileService.writeFileStream(session, targetPath, part);
+          uploadedCount += 1;
         }
       } else {
         return Result.fail(400, 'Expected multipart request');
       }
 
+      _recordFileSuccess(
+        'upload',
+        path,
+        session.connectionId,
+        detail: {'count': uploadedCount},
+      );
       return Result.ok('Upload complete');
     } catch (e) {
+      _recordFileFailure('upload', path, session.connectionId, e);
       return Result.fail(500, e.toString());
     }
   }
@@ -267,8 +283,15 @@ class FileController {
       final newPath = data['newPath'] as String;
 
       await _fileService.rename(session, oldPath, newPath);
+      _recordFileSuccess(
+        'rename',
+        oldPath,
+        session.connectionId,
+        detail: {'newPath': newPath},
+      );
       return Result.ok('Renamed');
     } catch (e) {
+      _recordFileFailure('rename', '文件重命名', session.connectionId, e);
       return Result.fail(500, e.toString());
     }
   }
@@ -287,8 +310,10 @@ class FileController {
       final path = data['path'] as String;
 
       await _fileService.mkdir(session, path);
+      _recordFileSuccess('mkdir', path, session.connectionId);
       return Result.ok('Directory created');
     } catch (e) {
+      _recordFileFailure('mkdir', '新建目录', session.connectionId, e);
       return Result.fail(500, e.toString());
     }
   }
@@ -313,10 +338,18 @@ class FileController {
       }
 
       await _fileService.chmod(session, path, mode, recursive: recursive);
+      _recordFileSuccess(
+        'chmod',
+        path,
+        session.connectionId,
+        detail: {'mode': mode, 'recursive': recursive},
+      );
       return Result.ok('Permission changed');
     } on ArgumentError catch (e) {
+      _recordFileFailure('chmod', '修改权限', session.connectionId, e);
       return Result.fail(400, e.message?.toString() ?? e.toString());
     } catch (e) {
+      _recordFileFailure('chmod', '修改权限', session.connectionId, e);
       return Result.fail(500, e.toString());
     }
   }
@@ -336,8 +369,15 @@ class FileController {
       final target = data['target'] as String;
 
       await _fileService.copy(session, source, target);
+      _recordFileSuccess(
+        'copy',
+        source,
+        session.connectionId,
+        detail: {'target': target},
+      );
       return Result.ok('Copied');
     } catch (e) {
+      _recordFileFailure('copy', '复制文件', session.connectionId, e);
       return Result.fail(500, e.toString());
     }
   }
@@ -361,10 +401,18 @@ class FileController {
       }
 
       await _fileService.extract(session, archivePath, targetPath);
+      _recordFileSuccess(
+        'extract',
+        archivePath,
+        session.connectionId,
+        detail: {'targetPath': targetPath},
+      );
       return Result.ok('Extracted');
     } on UnsupportedError catch (e) {
+      _recordFileFailure('extract', '解压文件', session.connectionId, e);
       return Result.fail(400, e.message?.toString() ?? e.toString());
     } catch (e) {
+      _recordFileFailure('extract', '解压文件', session.connectionId, e);
       return Result.fail(500, e.toString());
     }
   }
@@ -384,9 +432,41 @@ class FileController {
 
     try {
       await _fileService.delete(session, path);
+      _recordFileSuccess('delete', path, session.connectionId);
       return Result.ok('Deleted');
     } catch (e) {
+      _recordFileFailure('delete', path, session.connectionId, e);
       return Result.fail(500, e.toString());
     }
+  }
+
+  void _recordFileSuccess(
+    String action,
+    String? target,
+    String connectionId, {
+    Map<String, dynamic>? detail,
+  }) {
+    _operationLogService.success(
+      category: 'file',
+      action: action,
+      target: target,
+      detail: detail,
+      connectionId: connectionId,
+    );
+  }
+
+  void _recordFileFailure(
+    String action,
+    String? target,
+    String connectionId,
+    Object error,
+  ) {
+    _operationLogService.failure(
+      category: 'file',
+      action: action,
+      target: target,
+      connectionId: connectionId,
+      error: error,
+    );
   }
 }

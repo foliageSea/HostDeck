@@ -85,6 +85,28 @@ class DatabaseService {
       _migrateEncryptPasswords();
       _setVersion(2);
     }
+
+    // v2 -> v3: Add operation logs.
+    if (currentVersion < 3) {
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS operation_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          category TEXT NOT NULL,
+          action TEXT NOT NULL,
+          target TEXT,
+          detailJson TEXT,
+          status TEXT NOT NULL,
+          errorMessage TEXT,
+          connectionId TEXT,
+          createdAt INTEGER NOT NULL
+        )
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_operation_logs_created_at
+        ON operation_logs(createdAt DESC)
+      ''');
+      _setVersion(3);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

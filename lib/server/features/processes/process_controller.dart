@@ -4,15 +4,20 @@ import 'package:host_deck/server/core/http/result.dart';
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 import 'package:host_deck/server/features/processes/process_service.dart';
 
 class ProcessController {
   final SshService _sshService;
+  final OperationLogService _operationLogService;
   final ProcessService _processService;
   final SharedSshSessionResolver _sessionResolver;
 
-  ProcessController(this._sshService, this._processService)
-    : _sessionResolver = SharedSshSessionResolver(
+  ProcessController(
+    this._sshService,
+    this._processService,
+    this._operationLogService,
+  ) : _sessionResolver = SharedSshSessionResolver(
         _sshService,
         type: SharedSshSessionType.sftp,
       );
@@ -37,8 +42,21 @@ class ProcessController {
     return _withSession(request, (session) async {
       try {
         await _processService.killProcess(session, processId);
+        _operationLogService.success(
+          category: 'process',
+          action: 'kill',
+          target: processId.toString(),
+          connectionId: session.connectionId,
+        );
         return Result.ok({'success': true});
       } catch (e) {
+        _operationLogService.failure(
+          category: 'process',
+          action: 'kill',
+          target: processId.toString(),
+          connectionId: session.connectionId,
+          error: e,
+        );
         return Result.fail(500, e.toString());
       }
     });

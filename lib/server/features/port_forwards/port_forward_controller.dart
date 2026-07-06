@@ -3,15 +3,21 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 
 import 'package:host_deck/server/core/http/result.dart';
+import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_repository.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_rule.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_service.dart';
 
 class PortForwardController {
   final PortForwardRepository _repository;
+  final OperationLogService _operationLogService;
   final PortForwardService _service;
 
-  PortForwardController(this._repository, this._service);
+  PortForwardController(
+    this._repository,
+    this._service,
+    this._operationLogService,
+  );
 
   Future<Response> list(Request request) async {
     try {
@@ -31,8 +37,20 @@ class PortForwardController {
         await _service.start(_requireConnectionId(data), rule);
         rule = _repository.getRule(rule.id!) ?? rule;
       }
+      _operationLogService.success(
+        category: 'portForward',
+        action: 'create',
+        target: _ruleTarget(rule),
+        connectionId: data['connectionId']?.toString(),
+      );
       return Result.ok(_ruleWithStatus(rule));
     } catch (e) {
+      _operationLogService.failure(
+        category: 'portForward',
+        action: 'create',
+        target: '端口转发规则',
+        error: e,
+      );
       return Result.fail(500, e.toString());
     }
   }
@@ -58,8 +76,20 @@ class PortForwardController {
       }
 
       final nextRule = _repository.getRule(id) ?? inputRule;
+      _operationLogService.success(
+        category: 'portForward',
+        action: 'update',
+        target: _ruleTarget(nextRule),
+        connectionId: data['connectionId']?.toString(),
+      );
       return Result.ok(_ruleWithStatus(nextRule));
     } catch (e) {
+      _operationLogService.failure(
+        category: 'portForward',
+        action: 'update',
+        target: idStr,
+        error: e,
+      );
       return Result.fail(500, e.toString());
     }
   }
@@ -72,13 +102,25 @@ class PortForwardController {
       }
 
       await _service.stop(id);
+      final rule = _repository.getRule(id);
       final success = _repository.deleteRule(id);
       if (!success) {
         return Result.fail(404, 'Port forward rule not found');
       }
 
+      _operationLogService.success(
+        category: 'portForward',
+        action: 'delete',
+        target: rule == null ? id.toString() : _ruleTarget(rule),
+      );
       return Result.ok({'success': true});
     } catch (e) {
+      _operationLogService.failure(
+        category: 'portForward',
+        action: 'delete',
+        target: idStr,
+        error: e,
+      );
       return Result.fail(500, e.toString());
     }
   }
@@ -97,8 +139,20 @@ class PortForwardController {
 
       final data = await _readJson(request);
       await _service.start(_requireConnectionId(data), rule);
+      _operationLogService.success(
+        category: 'portForward',
+        action: 'start',
+        target: _ruleTarget(rule),
+        connectionId: data['connectionId']?.toString(),
+      );
       return Result.ok(_ruleWithStatus(_repository.getRule(id) ?? rule));
     } catch (e) {
+      _operationLogService.failure(
+        category: 'portForward',
+        action: 'start',
+        target: idStr,
+        error: e,
+      );
       return Result.fail(500, e.toString());
     }
   }
@@ -112,12 +166,27 @@ class PortForwardController {
 
       await _service.stop(id);
       final rule = _repository.getRule(id);
+      _operationLogService.success(
+        category: 'portForward',
+        action: 'stop',
+        target: rule == null ? id.toString() : _ruleTarget(rule),
+      );
       return Result.ok(
         rule == null ? {'success': true} : _ruleWithStatus(rule),
       );
     } catch (e) {
+      _operationLogService.failure(
+        category: 'portForward',
+        action: 'stop',
+        target: idStr,
+        error: e,
+      );
       return Result.fail(500, e.toString());
     }
+  }
+
+  String _ruleTarget(PortForwardRule rule) {
+    return '${rule.bindHost}:${rule.localPort} -> ${rule.remoteHost}:${rule.remotePort}';
   }
 
   Future<Map<String, dynamic>> _readJson(Request request) async {

@@ -8,6 +8,9 @@ import 'package:host_deck/server/features/docker/docker_controller.dart';
 import 'package:host_deck/server/features/docker/docker_service.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
 import 'package:host_deck/server/features/files/file_service.dart';
+import 'package:host_deck/server/features/operation_logs/operation_log_controller.dart';
+import 'package:host_deck/server/features/operation_logs/operation_log_repository.dart';
+import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_controller.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_repository.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_service.dart';
@@ -51,6 +54,8 @@ class ServerContainer {
     final sshRepository = SshRepository();
     final serverRepository = ServerRepository(databaseService);
     final portForwardRepository = PortForwardRepository(databaseService);
+    final operationLogRepository = OperationLogRepository(databaseService);
+    final operationLogService = OperationLogService(operationLogRepository);
     final sshService = SshService();
     final monitorHistoryService = MonitorHistoryService();
     final monitorService = MonitorService(sshRepository);
@@ -71,22 +76,40 @@ class ServerContainer {
           sshService,
           monitorHistoryService,
           serverRepository,
+          operationLogService,
         ),
         systemController: SystemController(
           sshService,
           monitorService,
           monitorHistoryService,
         ),
-        fileController: FileController(sshService, fileService),
+        fileController: FileController(
+          sshService,
+          fileService,
+          operationLogService,
+        ),
+        operationLogController: OperationLogController(operationLogRepository),
         terminalController: TerminalController(sshService),
-        serverController: ServerController(serverRepository),
-        dockerController: DockerController(sshService, dockerService),
-        processController: ProcessController(sshService, processService),
+        serverController: ServerController(
+          serverRepository,
+          operationLogService,
+        ),
+        dockerController: DockerController(
+          sshService,
+          dockerService,
+          operationLogService,
+        ),
+        processController: ProcessController(
+          sshService,
+          processService,
+          operationLogService,
+        ),
         runtimeController: RuntimeController(sshService),
         settingsController: SettingsController(),
         portForwardController: PortForwardController(
           portForwardRepository,
           portForwardService,
+          operationLogService,
         ),
       ),
     );

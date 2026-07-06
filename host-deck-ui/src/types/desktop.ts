@@ -13,6 +13,7 @@ export type AppIconKey =
   | 'link'
   | 'process'
   | 'port-forward'
+  | 'operation-log'
 
 export type DesktopAppId =
   | 'terminal'
@@ -31,3 +32,4 @@ export type DesktopAppId =
   | 'media-viewer'
   | 'processes'
   | 'port-forward'
+  | 'operation-logs'

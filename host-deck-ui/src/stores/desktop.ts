@@ -13,6 +13,7 @@ import DockerView from '@/views/Docker/index.vue'
 import FilesView from '@/views/Files/index.vue'
 import IframeAppView from '@/views/IframeApp/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
+import OperationLogsView from '@/views/OperationLogs/index.vue'
 import PortForwardView from '@/views/PortForward/index.vue'
 import ProcessesView from '@/views/Processes/index.vue'
 import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
@@ -424,6 +425,16 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 840,
         title: '端口转发',
         width: 1040,
+      },
+      'operation-logs': {
+        component: markRaw(OperationLogsView),
+        height: 680,
+        icon: 'operation-log',
+        id: 'operation-logs',
+        minHeight: 480,
+        minWidth: 820,
+        title: '操作记录',
+        width: 1080,
       },
       processes: {
         component: markRaw(ProcessesView),

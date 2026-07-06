@@ -3,6 +3,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'package:host_deck/server/features/auth/auth_controller.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
+import 'package:host_deck/server/features/operation_logs/operation_log_controller.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_controller.dart';
 import 'package:host_deck/server/features/processes/process_controller.dart';
 import 'package:host_deck/server/features/runtime/runtime_controller.dart';
@@ -13,6 +14,7 @@ import 'package:host_deck/server/features/terminal/terminal_controller.dart';
 import 'package:host_deck/server/routes/auth_routes.dart';
 import 'package:host_deck/server/routes/docker_routes.dart';
 import 'package:host_deck/server/routes/file_routes.dart';
+import 'package:host_deck/server/routes/operation_log_routes.dart';
 import 'package:host_deck/server/routes/port_forward_routes.dart';
 import 'package:host_deck/server/routes/process_routes.dart';
 import 'package:host_deck/server/routes/runtime_routes.dart';
@@ -25,6 +27,7 @@ class ApiRoutes {
   final AuthController authController;
   final SystemController systemController;
   final FileController fileController;
+  final OperationLogController operationLogController;
   final TerminalController terminalController;
   final ServerController serverController;
   final DockerController dockerController;
@@ -37,6 +40,7 @@ class ApiRoutes {
     required this.authController,
     required this.systemController,
     required this.fileController,
+    required this.operationLogController,
     required this.terminalController,
     required this.serverController,
     required this.dockerController,
@@ -56,6 +60,7 @@ class ApiRoutes {
     registerSystemRoutes(router, systemController);
     registerProcessRoutes(router, processController);
     registerFileRoutes(router, fileController);
+    registerOperationLogRoutes(router, operationLogController);
     registerTerminalRoutes(router, terminalController);
     registerDockerRoutes(router, dockerController);
     return router;
