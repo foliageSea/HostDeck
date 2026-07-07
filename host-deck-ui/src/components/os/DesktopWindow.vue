@@ -189,15 +189,13 @@ onUnmounted(() => {
           @click="closeWindow"
         />
         <button
-          v-if="window.minimizable"
           data-window-control-action
-          class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#febc2e] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer"
+          class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#febc2e] p-0 transition-[filter,transform] duration-[180ms] ease-in-out enabled:hover:scale-[1.06] enabled:hover:brightness-[0.96] enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
           type="button"
+          :disabled="!window.minimizable"
+          :title="window.minimizable ? '最小化' : '最小化不可用'"
+          :aria-label="window.minimizable ? '最小化' : '最小化不可用'"
           @click="minimizeWindow"
-        />
-        <span
-          v-else
-          class="inline-flex h-[12px] w-[12px] cursor-default items-center justify-center rounded-full border-0 bg-[rgba(148,163,184,0.32)] p-0"
         />
         <button
           data-window-control-action
@@ -251,17 +249,17 @@ onUnmounted(() => {
         </button>
         <template v-if="!isMacWindowControls">
           <button
-            v-if="window.minimizable"
             data-window-control-action
             class="desktop-window-win-control"
             :class="
               settingsStore.isDark
-                ? 'text-[rgba(226,232,240,0.9)] hover:bg-[rgba(148,163,184,0.14)]'
-                : 'text-[rgba(15,23,42,0.78)] hover:bg-[rgba(15,23,42,0.08)]'
+                ? 'text-[rgba(226,232,240,0.9)] enabled:hover:bg-[rgba(148,163,184,0.14)] disabled:text-[rgba(148,163,184,0.42)]'
+                : 'text-[rgba(15,23,42,0.78)] enabled:hover:bg-[rgba(15,23,42,0.08)] disabled:text-[rgba(100,116,139,0.42)]'
             "
             type="button"
-            title="最小化"
-            aria-label="最小化"
+            :disabled="!window.minimizable"
+            :title="window.minimizable ? '最小化' : '最小化不可用'"
+            :aria-label="window.minimizable ? '最小化' : '最小化不可用'"
             @click="minimizeWindow"
           >
             <NIcon :size="16">
@@ -337,6 +335,10 @@ onUnmounted(() => {
   justify-content: center;
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease;
+}
+
+.desktop-window-win-control:disabled {
+  cursor: not-allowed;
 }
 
 @keyframes desktop-window-open {
