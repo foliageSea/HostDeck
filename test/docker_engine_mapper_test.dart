@@ -142,6 +142,11 @@ void main() {
           'Internal': true,
           'Attachable': false,
           'Ingress': false,
+          'IPAM': {
+            'Config': [
+              {'Subnet': '172.18.0.0/16', 'Gateway': '172.18.0.1'},
+            ],
+          },
           'Containers': {
             'container-1': {'Name': 'web'},
             'container-2': {'Name': 'api'},
@@ -154,6 +159,8 @@ void main() {
       expect(networks.first.driver, 'bridge');
       expect(networks.first.scope, 'local');
       expect(networks.first.internal, isTrue);
+      expect(networks.first.subnet, '172.18.0.0/16');
+      expect(networks.first.gateway, '172.18.0.1');
       expect(networks.first.connectedContainers, 2);
       expect(networks.first.connectedContainerNames, ['api', 'web']);
     });

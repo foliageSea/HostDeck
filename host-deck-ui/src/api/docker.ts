@@ -145,6 +145,8 @@ export interface DockerNetwork {
   internal: boolean
   attachable: boolean
   ingress: boolean
+  subnet: string
+  gateway: string
   connectedContainers: number
   connectedContainerNames: string[]
 }

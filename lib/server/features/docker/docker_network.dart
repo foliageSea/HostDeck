@@ -7,6 +7,8 @@ class DockerNetwork {
   final bool internal;
   final bool attachable;
   final bool ingress;
+  final String subnet;
+  final String gateway;
   final int connectedContainers;
   final List<String> connectedContainerNames;
 
@@ -19,6 +21,8 @@ class DockerNetwork {
     this.internal = false,
     this.attachable = false,
     this.ingress = false,
+    this.subnet = '',
+    this.gateway = '',
     this.connectedContainers = 0,
     this.connectedContainerNames = const [],
   });
@@ -32,6 +36,8 @@ class DockerNetwork {
     'internal': internal,
     'attachable': attachable,
     'ingress': ingress,
+    'subnet': subnet,
+    'gateway': gateway,
     'connectedContainers': connectedContainers,
     'connectedContainerNames': connectedContainerNames,
   };
@@ -48,6 +54,8 @@ class DockerNetwork {
       internal: json['internal'] as bool? ?? false,
       attachable: json['attachable'] as bool? ?? false,
       ingress: json['ingress'] as bool? ?? false,
+      subnet: json['subnet'] as String? ?? '',
+      gateway: json['gateway'] as String? ?? '',
       connectedContainers: json['connectedContainers'] as int? ?? 0,
       connectedContainerNames:
           (json['connectedContainerNames'] as List?)?.cast<String>() ?? [],

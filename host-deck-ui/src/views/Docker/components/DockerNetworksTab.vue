@@ -290,6 +290,14 @@ function getConnectedContainersTitle(network: DockerNetwork) {
             <span>已连接容器</span>
             <strong>{{ network.connectedContainers }}</strong>
           </div>
+          <div class="docker-card-field">
+            <span>网段</span>
+            <strong :title="network.subnet || '-'">{{ network.subnet || '-' }}</strong>
+          </div>
+          <div class="docker-card-field">
+            <span>网关</span>
+            <strong :title="network.gateway || '-'">{{ network.gateway || '-' }}</strong>
+          </div>
           <div class="docker-card-field wide">
             <span>容器名称</span>
             <div class="docker-chip-list" :title="getConnectedContainersTitle(network)">

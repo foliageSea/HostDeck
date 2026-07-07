@@ -222,6 +222,14 @@ class DockerEngineMapper {
 
   DockerNetwork mapNetworkSummary(Map<String, dynamic> json) {
     final containers = _asMap(json['Containers']);
+    final ipamConfigs = (json['IPAM'] as Map?)?['Config'] as List? ?? const [];
+    final firstIpv4Config = ipamConfigs.whereType<Map>().map(_asMap).firstWhere(
+      (config) {
+        final subnet = (config['Subnet'] ?? '').toString();
+        return subnet.isNotEmpty && !subnet.contains(':');
+      },
+      orElse: () => const <String, dynamic>{},
+    );
     final connectedContainerNames =
         containers.values
             .map((value) => _asMap(value)['Name']?.toString().trim() ?? '')
@@ -239,6 +247,8 @@ class DockerEngineMapper {
       internal: json['Internal'] == true,
       attachable: json['Attachable'] == true,
       ingress: json['Ingress'] == true,
+      subnet: (firstIpv4Config['Subnet'] ?? '').toString(),
+      gateway: (firstIpv4Config['Gateway'] ?? '').toString(),
       connectedContainers: containers.length,
       connectedContainerNames: connectedContainerNames,
     );
