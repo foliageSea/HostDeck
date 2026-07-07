@@ -222,12 +222,12 @@ void _printUsage() {
 HostDeck CLI
 
 Usage:
-  hostdeck discover [--hostdeck-url <url>]
-  hostdeck sessions [--hostdeck-url <url>]
-  hostdeck exec --connection <id> [--cwd <path>] [--timeout-ms <ms>] [--max-output-bytes <n>] -- <command>
-  hostdeck read --connection <id> --path <remote-path>
-  hostdeck write --connection <id> --path <remote-path> [--file <local-file>]
-  hostdeck patch --connection <id> [--cwd <path>] [--timeout-ms <ms>] [--file <diff-file>]
+  hostdeck_cli discover [--hostdeck-url <url>]
+  hostdeck_cli sessions [--hostdeck-url <url>]
+  hostdeck_cli exec --connection <id> [--cwd <path>] [--timeout-ms <ms>] [--max-output-bytes <n>] -- <command>
+  hostdeck_cli read --connection <id> --path <remote-path>
+  hostdeck_cli write --connection <id> --path <remote-path> [--file <local-file>]
+  hostdeck_cli patch --connection <id> [--cwd <path>] [--timeout-ms <ms>] [--file <diff-file>]
 
 Options:
   --hostdeck-url <url>       HostDeck server URL, default: http://127.0.0.1:8080
@@ -250,12 +250,12 @@ Agent contract:
   - patch runs git apply --check - before git apply - in the remote cwd.
 
 Examples:
-  hostdeck discover
-  hostdeck sessions --hostdeck-url http://127.0.0.1:8080
-  hostdeck exec --connection <id> --cwd /repo -- git status --short
-  hostdeck exec --connection <id> --cwd /repo --timeout-ms 120000 --max-output-bytes 1048576 -- npm test
-  hostdeck write --connection <id> --path /tmp/file.txt < local.txt
-  hostdeck patch --connection <id> --cwd /repo < fix.diff
+  hostdeck_cli discover
+  hostdeck_cli sessions --hostdeck-url http://127.0.0.1:8080
+  hostdeck_cli exec --connection <id> --cwd /repo -- git status --short
+  hostdeck_cli exec --connection <id> --cwd /repo --timeout-ms 120000 --max-output-bytes 1048576 -- npm test
+  hostdeck_cli write --connection <id> --path /tmp/file.txt < local.txt
+  hostdeck_cli patch --connection <id> --cwd /repo < fix.diff
 
 Build:
   fvm dart build cli --target bin/hostdeck_cli.dart --output build/hostdeck-cli
