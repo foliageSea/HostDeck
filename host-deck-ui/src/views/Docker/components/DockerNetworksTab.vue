@@ -599,6 +599,7 @@ function getConnectedContainersTitle(network: DockerNetwork) {
 .docker-card-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 4px;
 }
 
