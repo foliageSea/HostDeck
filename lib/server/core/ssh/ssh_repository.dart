@@ -6,6 +6,27 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/files/file_item.dart';
 
+class SshExecResult {
+  final int? exitCode;
+  final String stdout;
+  final String stderr;
+  final int durationMs;
+
+  const SshExecResult({
+    required this.exitCode,
+    required this.stdout,
+    required this.stderr,
+    required this.durationMs,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'exitCode': exitCode,
+    'stdout': stdout,
+    'stderr': stderr,
+    'durationMs': durationMs,
+  };
+}
+
 class SshRepository {
   String _shellQuote(String value) {
     return "'${value.replaceAll("'", "'\\''")}'";
@@ -44,6 +65,86 @@ class SshRepository {
       () => session.client.run(command),
     );
     return result;
+  }
+
+  Future<SshExecResult> execWithResult(
+    SshSession session,
+    String command, {
+    String? cwd,
+    Duration? timeout,
+    String? stdin,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    final script = cwd == null || cwd.trim().isEmpty
+        ? command
+        : 'cd ${_shellQuote(cwd)} && $command';
+    SSHSession? sshSession;
+
+    try {
+      final result = await session
+          .runOperation(() async {
+            sshSession = await session.client.execute(
+              'sh -lc ${_shellQuote(script)}',
+            );
+
+            if (stdin != null) {
+              sshSession!.stdin.add(Uint8List.fromList(utf8.encode(stdin)));
+            }
+            await sshSession!.stdin.close();
+
+            final stdoutBuilder = BytesBuilder(copy: false);
+            final stderrBuilder = BytesBuilder(copy: false);
+            final stdoutDone = Completer<void>();
+            final stderrDone = Completer<void>();
+
+            sshSession!.stdout.listen(
+              stdoutBuilder.add,
+              onDone: stdoutDone.complete,
+              onError: stdoutDone.completeError,
+            );
+            sshSession!.stderr.listen(
+              stderrBuilder.add,
+              onDone: stderrDone.complete,
+              onError: stderrDone.completeError,
+            );
+
+            await stdoutDone.future;
+            await stderrDone.future;
+            await sshSession!.done;
+
+            return SshExecResult(
+              exitCode: sshSession!.exitCode,
+              stdout: utf8.decode(
+                stdoutBuilder.takeBytes(),
+                allowMalformed: true,
+              ),
+              stderr: utf8.decode(
+                stderrBuilder.takeBytes(),
+                allowMalformed: true,
+              ),
+              durationMs: stopwatch.elapsedMilliseconds,
+            );
+          })
+          .timeout(
+            timeout ?? const Duration(seconds: 60),
+            onTimeout: () {
+              sshSession?.close();
+              throw TimeoutException('Command timed out');
+            },
+          );
+
+      return result;
+    } on TimeoutException {
+      return SshExecResult(
+        exitCode: null,
+        stdout: '',
+        stderr:
+            'Command timed out after ${timeout?.inMilliseconds ?? 60000}ms.',
+        durationMs: stopwatch.elapsedMilliseconds,
+      );
+    } finally {
+      stopwatch.stop();
+    }
   }
 
   Future<List<FileItem>> listFiles(SshSession session, String path) async {

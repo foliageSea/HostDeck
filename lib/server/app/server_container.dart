@@ -3,6 +3,8 @@ import 'package:logging/logging.dart';
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
+import 'package:host_deck/server/features/agent/agent_controller.dart';
+import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/auth/auth_controller.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
 import 'package:host_deck/server/features/docker/docker_service.dart';
@@ -59,6 +61,7 @@ class ServerContainer {
     final sshService = SshService();
     final monitorHistoryService = MonitorHistoryService();
     final monitorService = MonitorService(sshRepository);
+    final agentService = AgentService(sshRepository);
     final fileService = FileService(sshRepository);
     final dockerService = DockerService(sshRepository);
     final processService = ProcessService(sshRepository);
@@ -76,6 +79,11 @@ class ServerContainer {
           sshService,
           monitorHistoryService,
           serverRepository,
+          operationLogService,
+        ),
+        agentController: AgentController(
+          sshService,
+          agentService,
           operationLogService,
         ),
         systemController: SystemController(

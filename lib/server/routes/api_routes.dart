@@ -1,6 +1,7 @@
 import 'package:shelf_router/shelf_router.dart';
 
 import 'package:host_deck/server/features/auth/auth_controller.dart';
+import 'package:host_deck/server/features/agent/agent_controller.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_controller.dart';
@@ -12,6 +13,7 @@ import 'package:host_deck/server/features/settings/settings_controller.dart';
 import 'package:host_deck/server/features/system/system_controller.dart';
 import 'package:host_deck/server/features/terminal/terminal_controller.dart';
 import 'package:host_deck/server/routes/auth_routes.dart';
+import 'package:host_deck/server/routes/agent_routes.dart';
 import 'package:host_deck/server/routes/docker_routes.dart';
 import 'package:host_deck/server/routes/file_routes.dart';
 import 'package:host_deck/server/routes/operation_log_routes.dart';
@@ -25,6 +27,7 @@ import 'package:host_deck/server/routes/terminal_routes.dart';
 
 class ApiRoutes {
   final AuthController authController;
+  final AgentController agentController;
   final SystemController systemController;
   final FileController fileController;
   final OperationLogController operationLogController;
@@ -38,6 +41,7 @@ class ApiRoutes {
 
   ApiRoutes({
     required this.authController,
+    required this.agentController,
     required this.systemController,
     required this.fileController,
     required this.operationLogController,
@@ -53,6 +57,7 @@ class ApiRoutes {
   Router get router {
     final router = Router();
     registerAuthRoutes(router, authController);
+    registerAgentRoutes(router, agentController);
     registerServerRoutes(router, serverController);
     registerRuntimeRoutes(router, runtimeController);
     registerSettingsRoutes(router, settingsController);
