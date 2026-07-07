@@ -19,6 +19,23 @@ const containerMoreActionOptions = computed(() => [
   { key: 'cleanup-stopped', label: '清理已停止' },
 ])
 
+function getContainerRowMoreActionOptions(container: DockerContainer) {
+  const paused = isPaused(container)
+  const isRunning = container.state === 'running'
+
+  return [
+    { key: 'logs', label: '日志' },
+    { key: 'shell', label: 'Shell', disabled: !isRunning },
+    { key: 'divider-1', type: 'divider' },
+    { key: 'pause-toggle', label: paused ? '恢复' : '暂停', disabled: !isRunning },
+    { key: 'inspect', label: 'Inspect' },
+    { key: 'rename', label: '重命名' },
+    { key: 'recreate', label: '重建' },
+    { key: 'divider-2', type: 'divider' },
+    { key: 'remove', label: '删除' },
+  ]
+}
+
 function handleContainerMoreAction(key: string) {
   switch (key) {
     case 'batch-start':
@@ -29,6 +46,35 @@ function handleContainerMoreAction(key: string) {
       break
     case 'cleanup-stopped':
       props.controller.confirmRemoveStoppedContainers()
+      break
+  }
+}
+
+function handleContainerRowMoreAction(container: DockerContainer, key: string) {
+  switch (key) {
+    case 'logs':
+      props.controller.viewLogs(container)
+      break
+    case 'shell':
+      props.controller.enterShell(container)
+      break
+    case 'pause-toggle':
+      props.controller.handleContainerAdvancedAction(
+        container,
+        isPaused(container) ? 'unpause' : 'pause',
+      )
+      break
+    case 'inspect':
+      props.controller.viewInspect(container)
+      break
+    case 'rename':
+      props.controller.openRenameDialog(container)
+      break
+    case 'recreate':
+      props.controller.recreateContainer(container)
+      break
+    case 'remove':
+      props.controller.confirmContainerAction(container, 'remove')
       break
   }
 }
@@ -264,17 +310,41 @@ function isPaused(container: DockerContainer) {
                 <template v-else>-</template>
               </div>
             </div>
-            <div class="docker-card-field wide">
-              <span>端口</span>
-              <div class="docker-card-port-list" :title="getPortsTitle(container)">
-                <template v-if="container.ports.length">
-                  <span
-                    v-for="port in container.ports.slice(0, 3)"
-                    :key="port"
-                    class="docker-card-port-item"
-                  >
+          </div>
+
+          <template #footer>
+            <div class="docker-card-actions">
+              <NButton
+                v-if="container.state === 'running'"
+                size="tiny"
+                quaternary
+                @click="controller.confirmContainerAction(container, 'stop')"
+              >
+                停止
+              </NButton>
+              <NButton
+                v-else
+                size="tiny"
+                quaternary
+                @click="controller.confirmContainerAction(container, 'start')"
+                >启动
+              </NButton>
+              <NButton
+                size="tiny"
+                quaternary
+                @click="controller.confirmContainerAction(container, 'restart')"
+                >重启
+              </NButton>
+              <NPopover v-if="container.ports.length" trigger="hover" placement="top-end">
+                <template #trigger>
+                  <NButton quaternary size="tiny" :title="getPortsTitle(container)">
+                    端口 {{ container.ports.length }}
+                  </NButton>
+                </template>
+
+                <div class="docker-port-popover">
+                  <div v-for="port in container.ports" :key="port" class="docker-port-popover-item">
                     <NButton
-                      class="mr-1"
                       text
                       type="primary"
                       size="tiny"
@@ -307,82 +377,20 @@ function isPaused(container: DockerContainer) {
                     >
                       <template #icon>
                         <NIcon>
-                          <component
-                            :is="controller.isContainerPortPinned(port) ? PinFilled : Pin"
-                          />
+                          <component :is="controller.isContainerPortPinned(port) ? PinFilled : Pin" />
                         </NIcon>
                       </template>
                     </NButton>
-                  </span>
-                </template>
-                <template v-else>-</template>
-                <span v-if="container.ports.length > 3">等 {{ container.ports.length }} 项</span>
-              </div>
-            </div>
-          </div>
-
-          <template #footer>
-            <div class="docker-card-actions">
-              <NButton
-                v-if="container.state === 'running'"
-                size="tiny"
-                quaternary
-                @click="controller.confirmContainerAction(container, 'stop')"
+                  </div>
+                </div>
+              </NPopover>
+              <NDropdown
+                trigger="click"
+                :options="getContainerRowMoreActionOptions(container)"
+                @select="(key) => handleContainerRowMoreAction(container, String(key))"
               >
-                停止
-              </NButton>
-              <NButton
-                v-else
-                size="tiny"
-                quaternary
-                @click="controller.confirmContainerAction(container, 'start')"
-                >启动
-              </NButton>
-              <NButton
-                size="tiny"
-                quaternary
-                @click="controller.confirmContainerAction(container, 'restart')"
-                >重启
-              </NButton>
-              <NButton
-                size="tiny"
-                quaternary
-                :disabled="container.state !== 'running'"
-                @click="
-                  controller.handleContainerAdvancedAction(
-                    container,
-                    isPaused(container) ? 'unpause' : 'pause',
-                  )
-                "
-              >
-                {{ isPaused(container) ? '恢复' : '暂停' }}
-              </NButton>
-              <NButton size="tiny" quaternary @click="controller.viewLogs(container)">日志</NButton>
-              <NButton size="tiny" quaternary @click="controller.viewInspect(container)"
-                >Inspect</NButton
-              >
-              <NButton size="tiny" quaternary @click="controller.openRenameDialog(container)"
-                >重命名</NButton
-              >
-              <NButton size="tiny" quaternary @click="controller.recreateContainer(container)"
-                >重建</NButton
-              >
-              <NButton
-                size="tiny"
-                quaternary
-                :disabled="container.state !== 'running'"
-                @click="controller.enterShell(container)"
-              >
-                Shell
-              </NButton>
-              <NButton
-                size="tiny"
-                quaternary
-                type="error"
-                @click="controller.confirmContainerAction(container, 'remove')"
-              >
-                删除
-              </NButton>
+                <NButton size="tiny" quaternary>更多</NButton>
+              </NDropdown>
             </div>
           </template>
         </NCard>
@@ -570,6 +578,30 @@ function isPaused(container: DockerContainer) {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  justify-content: flex-end;
+}
+
+.docker-port-popover {
+  display: flex;
+  max-width: min(520px, calc(100vw - 48px));
+  flex-direction: column;
+  gap: 6px;
+}
+
+.docker-port-popover-item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.docker-port-popover-item :deep(.n-button:first-child .n-button__content) {
+  display: block;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .docker-card-pagination {
