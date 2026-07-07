@@ -24,6 +24,14 @@ class AgentController {
         type: SharedSshSessionType.sftp,
       );
 
+  Future<Response> listSessions(Request request) async {
+    try {
+      return Result.ok(_sshService.getRuntimeSnapshot());
+    } catch (e) {
+      return Result.fail(500, e.toString());
+    }
+  }
+
   Future<Response> exec(Request request) async {
     final data = await _readJson(request);
     final command = _requiredString(data, 'command');

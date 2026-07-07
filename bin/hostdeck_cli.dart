@@ -13,6 +13,7 @@ Future<void> main(List<String> args) async {
 
   try {
     final result = switch (command) {
+      'sessions' => await _sessions(baseUrl),
       'exec' => await _exec(baseUrl, parser),
       'read' => await _read(baseUrl, parser),
       'write' => await _write(baseUrl, parser),
@@ -35,6 +36,10 @@ Future<void> main(List<String> args) async {
     );
     exitCode = 1;
   }
+}
+
+Future<Map<String, dynamic>> _sessions(String baseUrl) {
+  return _get(baseUrl, '/api/agent/sessions');
 }
 
 Future<Map<String, dynamic>> _exec(String baseUrl, _ArgParser parser) async {
@@ -91,6 +96,28 @@ Future<String> _readInput(_ArgParser parser) async {
   return stdin.transform(utf8.decoder).join();
 }
 
+Future<Map<String, dynamic>> _get(String baseUrl, String path) async {
+  final client = HttpClient();
+  try {
+    final uri = Uri.parse(baseUrl).resolve(path);
+    final request = await client.getUrl(uri);
+    final response = await request.close();
+    final text = await response.transform(utf8.decoder).join();
+    final decoded = jsonDecode(text);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+
+    return {
+      'code': response.statusCode,
+      'message': 'Invalid response',
+      'data': text,
+    };
+  } finally {
+    client.close(force: true);
+  }
+}
+
 Future<Map<String, dynamic>> _post(
   String baseUrl,
   String path,
@@ -125,6 +152,7 @@ void _printUsage() {
 HostDeck CLI
 
 Usage:
+  hostdeck sessions
   hostdeck exec --connection <id> [--cwd <path>] -- <command>
   hostdeck read --connection <id> --path <remote-path>
   hostdeck write --connection <id> --path <remote-path> [--file <local-file>]
