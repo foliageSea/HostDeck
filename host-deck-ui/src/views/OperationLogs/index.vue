@@ -15,6 +15,7 @@ const status = ref<OperationLogStatus | ''>('')
 
 const categoryOptions: SelectOption[] = [
   { label: '全部模块', value: '' },
+  { label: 'Agent', value: 'agent' },
   { label: '连接', value: 'auth' },
   { label: '保存主机', value: 'server' },
   { label: '文件', value: 'file' },
@@ -28,6 +29,7 @@ const statusOptions: SelectOption[] = [
   { label: '失败', value: 'failed' },
 ]
 const categoryLabels: Record<string, string> = {
+  agent: 'Agent',
   auth: '连接',
   docker: 'Docker',
   file: '文件',
@@ -59,6 +61,7 @@ const actionLabels: Record<string, string> = {
   create: '创建',
   delete: '删除',
   disconnect: '断开连接',
+  exec: '执行命令',
   extract: '解压',
   imageImport: '导入镜像',
   imagePrune: '清理镜像',
@@ -72,6 +75,8 @@ const actionLabels: Record<string, string> = {
   networkDisconnect: '断开网络',
   networkPrune: '清理网络',
   networkRemove: '删除网络',
+  patch: '应用补丁',
+  read: '读取文件',
   rename: '重命名',
   start: '启动',
   stop: '停止',
