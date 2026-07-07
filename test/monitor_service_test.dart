@@ -109,6 +109,18 @@ uptime=2 weeks, 1 day, 3 hours, 12 minutes
   void resize(SshSession session, int width, int height) {}
   @override
   void writeToShell(SshSession session, String data) {}
+
+  @override
+  Future<SshExecResult> execWithResult(
+    SshSession,
+    String command, {
+    String? cwd,
+    Duration? timeout,
+    String? stdin,
+  }) {
+    // TODO: implement execWithResult
+    throw UnimplementedError();
+  }
 }
 
 class MockSshSession implements SshSession {
