@@ -17,37 +17,32 @@ const settingsStore = useSettingsStore()
     class="logs-modal"
     style="width: min(960px, 92vw)"
   >
-    <div class="mb-[12px] flex flex-wrap items-center gap-[10px]">
-      <NInputNumber
-        v-model:value="controller.logsTail"
-        :min="20"
-        :max="5000"
-        :step="20"
-        placeholder="Tail"
-      />
-      <NInput v-model:value="controller.logsKeyword" placeholder="过滤日志关键字" clearable />
-      <NSwitch v-model:value="controller.logsAutoRefresh" />
-      <span
-        class="text-[12px]"
-        :class="
-          settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'
-        "
-        >自动刷新</span
-      >
-      <span
-        class="text-[12px]"
-        :class="
-          settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'
-        "
-        >更新于 {{ controller.formatDateTime(controller.logsLastUpdatedAt) }}</span
-      >
-      <NSpace>
-        <NButton quaternary :loading="controller.logsRefreshing" @click="controller.refreshLogs()"
-          >刷新日志</NButton
-        >
-        <NButton quaternary @click="controller.copyLogs">复制</NButton>
-        <NButton quaternary @click="controller.downloadLogs">下载</NButton>
-      </NSpace>
+    <div class="mb-[12px] flex flex-col gap-[10px]">
+      <div class="flex items-center gap-[10px]">
+        <NInputNumber
+          v-model:value="controller.logsTail"
+          class="w-[112px] flex-none"
+          :min="20"
+          :max="5000"
+          :step="20"
+          placeholder="Tail"
+        />
+        <NInput
+          v-model:value="controller.logsKeyword"
+          class="min-w-0 flex-1"
+          placeholder="过滤日志关键字"
+          clearable
+        />
+      </div>
+      <div class="flex flex-wrap items-center gap-[10px]">
+        <NSpace>
+          <NButton quaternary :loading="controller.logsRefreshing" @click="controller.refreshLogs()"
+            >刷新日志</NButton
+          >
+          <NButton quaternary @click="controller.copyLogs">复制</NButton>
+          <NButton quaternary @click="controller.downloadLogs">下载</NButton>
+        </NSpace>
+      </div>
     </div>
     <NSpin :show="controller.logsLoading">
       <pre
@@ -60,5 +55,24 @@ const settingsStore = useSettingsStore()
         >{{ controller.displayedLogs }}</pre
       >
     </NSpin>
+    <div class="mt-[10px] flex items-center justify-between gap-[12px]">
+      <span
+        class="text-[12px]"
+        :class="
+          settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'
+        "
+        >更新于 {{ controller.formatDateTime(controller.logsLastUpdatedAt) }}</span
+      >
+      <div class="flex items-center gap-[8px]">
+        <span
+          class="text-[12px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(71,85,105,0.88)]'
+          "
+          >自动刷新</span
+        >
+        <NSwitch v-model:value="controller.logsAutoRefresh" />
+      </div>
+    </div>
   </NModal>
 </template>
