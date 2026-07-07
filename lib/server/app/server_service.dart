@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 
 import 'package:host_deck/server/app/server_container.dart';
 import 'package:host_deck/server/app/server_handlers.dart';
+import 'package:host_deck/utils/hostdeck_discovery.dart';
 
 class ServerService {
   final _log = Logger('ServerService');
@@ -47,6 +48,17 @@ class ServerService {
 
     final bindAddress = _parseBindAddress(host);
     _server = await shelf_io.serve(handler, bindAddress, port);
+    port = _server!.port;
+    try {
+      await HostDeckDiscovery.writeInstance(
+        baseUrl: HostDeckDiscovery.localBaseUrl(port),
+        host: _discoveryHost(host),
+        port: port,
+        dataDir: dataDir,
+      );
+    } catch (e) {
+      _log.warning('Failed to write HostDeck discovery file: $e');
+    }
 
     final startMsg = 'Server running on port ${_server?.port}';
     _log.info(startMsg);
@@ -56,6 +68,11 @@ class ServerService {
     if (_server != null) {
       await _server?.close(force: true);
       _server = null;
+      try {
+        await HostDeckDiscovery.deleteInstance();
+      } catch (e) {
+        _log.warning('Failed to delete HostDeck discovery file: $e');
+      }
     }
     await _container?.portForwardService.stopAll();
     _container?.databaseService.close();
@@ -72,5 +89,16 @@ class ServerService {
     }
 
     return InternetAddress.tryParse(normalized) ?? normalized;
+  }
+
+  String _discoveryHost(String value) {
+    final normalized = value.trim();
+    if (normalized.isEmpty || normalized == '0.0.0.0' || normalized == '::') {
+      return '127.0.0.1';
+    }
+    if (normalized == '[::]') {
+      return '127.0.0.1';
+    }
+    return normalized;
   }
 }

@@ -10,6 +10,8 @@ import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 
 class AgentController {
+  static const String _version = '0.2.7';
+
   final AgentService _agentService;
   final OperationLogService _operationLogService;
   final SharedSshSessionResolver _sessionResolver;
@@ -30,6 +32,14 @@ class AgentController {
     } catch (e) {
       return Result.fail(500, e.toString());
     }
+  }
+
+  Future<Response> discovery(Request request) async {
+    return Result.ok({
+      'name': 'HostDeck',
+      'version': _version,
+      'agentApi': true,
+    });
   }
 
   Future<Response> exec(Request request) async {
