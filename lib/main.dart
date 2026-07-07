@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:logging/logging.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,10 +15,10 @@ void main() async {
   // 初始化 window_manager 插件
   await windowManager.ensureInitialized();
 
-  // 配置窗口属性 (调整为标准的 16:9 分辨率)
+  // 配置窗口属性 (标准 16:9 分辨率)
   WindowOptions windowOptions = const WindowOptions(
-    size: Size(1920, 1080),
-    minimumSize: Size(1280, 720),
+    size: Size(1280, 720),
+    minimumSize: Size(960, 540),
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
@@ -44,7 +43,7 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with WindowListener {
+class _MyAppState extends State<MyApp> {
   static const double _logsPanelWidth = 800.0;
 
   final ServerService _serverService = ServerService();
@@ -53,11 +52,9 @@ class _MyAppState extends State<MyApp> with WindowListener {
 
   bool _isRunning = false;
   bool _showLogs = false;
-  bool _isMaximized = false; // 记录窗口最大化状态
   final List<String> _logs = [];
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _portController = TextEditingController();
-  InAppWebViewController? webViewController;
 
   String get _targetUrl => kDebugMode
       ? 'http://localhost:5173'
@@ -67,8 +64,6 @@ class _MyAppState extends State<MyApp> with WindowListener {
   void initState() {
     super.initState();
     _initLogging();
-    windowManager.addListener(this);
-    _initWindowManager();
     _initServer();
   }
 
@@ -104,34 +99,13 @@ class _MyAppState extends State<MyApp> with WindowListener {
     await _startServer();
   }
 
-  /// 初始化 window_manager 并获取初始最大化状态
-  void _initWindowManager() async {
-    _isMaximized = await windowManager.isMaximized();
-    if (mounted) setState(() {});
-  }
-
   @override
   void dispose() {
     _logSubscription?.cancel();
-    windowManager.removeListener(this);
     _serverService.stop();
     _scrollController.dispose();
     _portController.dispose();
     super.dispose();
-  }
-
-  @override
-  void onWindowMaximize() {
-    setState(() {
-      _isMaximized = true;
-    });
-  }
-
-  @override
-  void onWindowUnmaximize() {
-    setState(() {
-      _isMaximized = false;
-    });
   }
 
   /// 格式化时间，用于日志输出
@@ -164,14 +138,20 @@ class _MyAppState extends State<MyApp> with WindowListener {
         _isRunning = true;
       });
       _log.info('Server started successfully on port ${_serverService.port}.');
-      if (webViewController != null && !kDebugMode) {
-        webViewController?.loadUrl(
-          urlRequest: URLRequest(url: WebUri(_targetUrl)),
-        );
-      }
+      await _openTargetUrl();
     } catch (e) {
       _log.severe('Error starting server: $e');
     }
+  }
+
+  Future<void> _openTargetUrl() async {
+    final uri = Uri.parse(_targetUrl);
+    if (!await canLaunchUrl(uri)) {
+      _log.warning('Cannot launch $_targetUrl.');
+      return;
+    }
+
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _stopServer() async {
@@ -275,6 +255,83 @@ class _MyAppState extends State<MyApp> with WindowListener {
     );
   }
 
+  Widget _buildLauncherBody() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: const Color(0xFF121212),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(
+                  Icons.dns_outlined,
+                  size: 56,
+                  color: _isRunning ? Colors.greenAccent : Colors.white54,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  _isRunning ? 'HostDeck 服务已启动' : 'HostDeck 正在启动',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _isRunning ? _targetUrl : '请稍候，正在准备本地服务...',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white60, fontSize: 14),
+                ),
+                const SizedBox(height: 28),
+                ElevatedButton.icon(
+                  onPressed: _isRunning ? _openTargetUrl : null,
+                  icon: const Icon(Icons.open_in_browser),
+                  label: const Text('打开 HostDeck'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: Colors.deepPurple.shade400,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.white10,
+                    disabledForegroundColor: Colors.white38,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showLogs = true;
+                    });
+                  },
+                  icon: const Icon(Icons.receipt_long),
+                  label: const Text('查看日志'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -299,52 +356,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
               Expanded(
                 child: Stack(
                   children: [
-                    if (!_isRunning)
-                      const Center(child: CircularProgressIndicator())
-                    else
-                      InAppWebView(
-                        initialUrlRequest: URLRequest(url: WebUri(_targetUrl)),
-                        initialSettings: InAppWebViewSettings(
-                          javaScriptEnabled: true,
-                          transparentBackground: true,
-                          disableContextMenu: true,
-                          isInspectable: kDebugMode,
-                          useShouldOverrideUrlLoading: true, // 启用 URL 拦截
-                        ),
-                        onWebViewCreated: (controller) {
-                          webViewController = controller;
-                        },
-                        shouldOverrideUrlLoading:
-                            (controller, navigationAction) async {
-                              final uri = navigationAction.request.url;
-                              if (uri != null) {
-                                // 判断是否为外部链接 (不是我们的 localhost 本地服务)
-                                if (uri.scheme == 'http' ||
-                                    uri.scheme == 'https') {
-                                  if (uri.host != 'localhost' &&
-                                      uri.host != '127.0.0.1') {
-                                    // 使用系统默认浏览器打开
-                                    if (await canLaunchUrl(uri)) {
-                                      await launchUrl(
-                                        uri,
-                                        mode: LaunchMode.externalApplication,
-                                      );
-                                    }
-                                    // 阻止 WebView 在内部打开该链接
-                                    return NavigationActionPolicy.CANCEL;
-                                  }
-                                }
-                              }
-                              // 允许在 WebView 内部跳转（比如 localhost 路由）
-                              return NavigationActionPolicy.ALLOW;
-                            },
-                        // onReceivedError: (controller, request, error) {
-                        //   _log.severe('WebView Error: ${error.description}');
-                        // },
-                        // onConsoleMessage: (controller, consoleMessage) {
-                        //   _log.info('WebView: ${consoleMessage.message}');
-                        // },
-                      ),
+                    _buildLauncherBody(),
                     // Logs Overlay
                     AnimatedPositioned(
                       duration: const Duration(milliseconds: 300),

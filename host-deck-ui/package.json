@@ -8,6 +8,7 @@
     "sync:version": "node scripts/sync-version.mjs",
     "release": "sh ../scripts/release.sh",
     "build": "vite build",
+    "build:assets": "node scripts/build-assets.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
