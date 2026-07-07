@@ -36,8 +36,10 @@ hostdeck patch --connection <id> --cwd /var/www/app < fix.diff
 ## 编译
 
 ```bash
-fvm dart build cli --target bin/hostdeck_cli.dart --output build/hostdeck-cli
+./scripts/build_hostdeck_cli.sh
 ```
+
+默认构建结果位于 `build/hostdeck-cli/`，可用 `--output <dir>` 覆盖输出目录。
 
 ## 约束
 

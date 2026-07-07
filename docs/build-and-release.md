@@ -1,6 +1,6 @@
 # 构建与发布
 
-本文档记录桌面应用、纯 Dart 服务和 Docker 镜像的构建流程。
+本文档记录桌面应用、纯 Dart 服务、Agent CLI 和 Docker 镜像的构建流程。
 
 ## 桌面 release
 
@@ -68,6 +68,16 @@ dart build cli --target bin/server.dart --output build/server
 - `build/server/bundle/web/`：前端静态资源。
 
 注意：仓库中的 `scripts/build_server.ps1` 和 `scripts/build_server.sh` 当前都以 `host-deck-ui/` 为前端来源。
+
+## Agent CLI 打包
+
+`bin/hostdeck_cli.dart` 只调用已经运行的 HostDeck HTTP API，不包含前端静态资源。可直接使用脚本构建：
+
+```bash
+./scripts/build_hostdeck_cli.sh
+```
+
+默认构建结果位于 `build/hostdeck-cli/`，可通过 `--output <dir>` 指定输出目录。
 
 ## Docker 构建
 
