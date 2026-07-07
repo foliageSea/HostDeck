@@ -152,11 +152,11 @@ void _printUsage() {
 HostDeck CLI
 
 Usage:
-  hostdeck sessions
-  hostdeck exec --connection <id> [--cwd <path>] -- <command>
+  hostdeck sessions [--hostdeck-url <url>]
+  hostdeck exec --connection <id> [--cwd <path>] [--timeout-ms <ms>] [--max-output-bytes <n>] -- <command>
   hostdeck read --connection <id> --path <remote-path>
   hostdeck write --connection <id> --path <remote-path> [--file <local-file>]
-  hostdeck patch --connection <id> [--cwd <path>] [--file <diff-file>]
+  hostdeck patch --connection <id> [--cwd <path>] [--timeout-ms <ms>] [--file <diff-file>]
 
 Options:
   --hostdeck-url <url>       HostDeck server URL, default: http://127.0.0.1:8080
@@ -166,6 +166,23 @@ Options:
   --file <path>              Read write/patch content from local file; otherwise stdin
   --timeout-ms <ms>          Command timeout, default: 60000
   --max-output-bytes <n>     Exec stdout/stderr limit, default: 524288
+
+Agent contract:
+  - Put --hostdeck-url after the command, not before it.
+  - HostDeck server must already be running; SSH connection ids come from sessions.
+  - Output is JSON: {"code": <int>, "message": <string>, "data": ...}.
+  - CLI exit code only reflects top-level code != 200 or local usage/runtime errors.
+  - For exec, inspect data.exitCode for remote command success.
+  - For exec, inspect data.truncated before trusting complete stdout/stderr.
+  - For write/patch, content is read from --file when provided, otherwise stdin.
+  - patch runs git apply --check - before git apply - in the remote cwd.
+
+Examples:
+  hostdeck sessions --hostdeck-url http://127.0.0.1:8080
+  hostdeck exec --connection <id> --cwd /repo -- git status --short
+  hostdeck exec --connection <id> --cwd /repo --timeout-ms 120000 --max-output-bytes 1048576 -- npm test
+  hostdeck write --connection <id> --path /tmp/file.txt < local.txt
+  hostdeck patch --connection <id> --cwd /repo < fix.diff
 
 Build:
   fvm dart build cli --target bin/hostdeck_cli.dart --output build/hostdeck-cli
