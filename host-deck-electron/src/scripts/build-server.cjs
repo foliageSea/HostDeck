@@ -17,7 +17,7 @@ function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
     shell: process.platform === 'win32',
-    stdio: 'inherit',
+    stdio: 'inherit'
   })
 
   if (result.status !== 0 && !options.allowFailure) {
@@ -29,7 +29,7 @@ function run(command, args, options = {}) {
 
 fs.rmSync(outputDir, { recursive: true, force: true })
 
-const pubGetStatus = run('flutter', ['pub', 'get'], { allowFailure: true })
+const pubGetStatus = run('fvm', ['flutter', 'pub', 'get'], { allowFailure: true })
 if (pubGetStatus !== 0 && !fs.existsSync(packageConfig)) {
   process.exit(pubGetStatus)
 }
@@ -37,7 +37,15 @@ if (pubGetStatus !== 0) {
   console.warn('flutter pub get failed; continuing with existing .dart_tool/package_config.json.')
 }
 
-run('dart', ['build', 'cli', '--target', path.join('bin', 'server.dart'), '--output', outputDir])
+run('fvm', [
+  'dart',
+  'build',
+  'cli',
+  '--target',
+  path.join('bin', 'server.dart'),
+  '--output',
+  outputDir
+])
 
 if (!fs.existsSync(serverExe)) {
   console.error('Server executable was not generated: ' + serverExe)

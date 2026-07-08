@@ -1,6 +1,17 @@
 const path = require('node:path')
 
-const { app, BrowserWindow, Menu, Tray, WebContentsView, ipcMain, nativeImage, screen, session, shell } = require('electron')
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  Tray,
+  WebContentsView,
+  ipcMain,
+  nativeImage,
+  screen,
+  session,
+  shell
+} = require('electron')
 
 const { createServerRuntime } = require('./server-runtime.cjs')
 const { createSettingsStore } = require('./settings-store.cjs')
@@ -13,7 +24,7 @@ const {
   frontendViteConfigPath,
   rendererHtmlRoot,
   repoRoot,
-  shellViteConfigPath,
+  shellViteConfigPath
 } = require('../shared/project-paths.cjs')
 
 const isPreviewMode = process.env.HOST_DECK_ELECTRON_MODE === 'preview'
@@ -36,7 +47,7 @@ const serverRuntime = createServerRuntime({
   frontendRoot,
   isPackaged: () => app.isPackaged,
   readSettings: settingsStore.read,
-  repoRoot,
+  repoRoot
 })
 
 const tabManager = createTabManager({
@@ -46,7 +57,7 @@ const tabManager = createTabManager({
   preloadPath: path.join(__dirname, '..', 'preload', 'host-deck.cjs'),
   readSettings: settingsStore.read,
   shell,
-  writeSettings: settingsStore.write,
+  writeSettings: settingsStore.write
 })
 
 function clamp(value, min, max) {
@@ -57,7 +68,7 @@ function getDefaultWindowSize() {
   const { width: workAreaWidth, height: workAreaHeight } = screen.getPrimaryDisplay().workAreaSize
   return {
     width: clamp(Math.round(workAreaWidth * 0.75), 1360, 1720),
-    height: clamp(Math.round(workAreaHeight * 0.82), 840, 1100),
+    height: clamp(Math.round(workAreaHeight * 0.82), 840, 1100)
   }
 }
 
@@ -94,8 +105,8 @@ function ensureTray() {
         click: () => {
           isQuitting = true
           app.quit()
-        },
-      },
+        }
+      }
     ])
   )
   tray.on('double-click', showMainWindow)
@@ -114,12 +125,12 @@ async function loadShellPage(pageName) {
 }
 
 async function resolveAppUrl() {
-  if (!useDevServers) return serverRuntime.start()
+  if (!useDevServers) return await serverRuntime.start()
 
   return resolveConfiguredDevUrl({
     configFile: frontendViteConfigPath,
     envVarName: 'HOST_DECK_ELECTRON_APP_DEV_URL',
-    fallbackPort: 5178,
+    fallbackPort: 5178
   })
 }
 
@@ -131,7 +142,7 @@ async function restartApplicationServer() {
   }
 
   await serverRuntime.stop()
-  applicationUrl = serverRuntime.start()
+  applicationUrl = await serverRuntime.start()
   await waitForUrl(applicationUrl, 15000)
   tabManager.reloadAll(applicationUrl)
   return applicationUrl
@@ -139,7 +150,8 @@ async function restartApplicationServer() {
 
 function createWindow() {
   const { width, height } = getDefaultWindowSize()
-  const macWindowOptions = process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 15 } } : {}
+  const macWindowOptions =
+    process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 15 } } : {}
 
   mainWindow = new BrowserWindow({
     width,
@@ -155,8 +167,8 @@ function createWindow() {
       preload: path.join(__dirname, '..', 'preload', 'tabs.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
-    },
+      sandbox: true
+    }
   })
   mainWindow.maximize()
 
@@ -191,7 +203,7 @@ registerIpcHandlers({
   session,
   settingsStore,
   shell,
-  tabManager,
+  tabManager
 })
 
 app.whenReady().then(async () => {
@@ -199,7 +211,7 @@ app.whenReady().then(async () => {
     ? await resolveConfiguredDevUrl({
         configFile: shellViteConfigPath,
         envVarName: 'HOST_DECK_ELECTRON_SHELL_DEV_URL',
-        fallbackPort: 5180,
+        fallbackPort: 5180
       })
     : null
 
@@ -210,7 +222,7 @@ app.whenReady().then(async () => {
   shellPageLoader = createShellPageLoader({
     rendererHtmlRoot,
     shellDevServerUrl,
-    useShellDevServer: useDevServers,
+    useShellDevServer: useDevServers
   })
 
   ensureTray()
