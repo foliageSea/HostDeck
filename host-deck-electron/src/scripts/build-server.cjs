@@ -29,7 +29,7 @@ function run(command, args, options = {}) {
 
 fs.rmSync(outputDir, { recursive: true, force: true })
 
-const pubGetStatus = run('fvm', ['flutter', 'pub', 'get'], { allowFailure: true })
+const pubGetStatus = run('flutter', ['pub', 'get'], { allowFailure: true })
 if (pubGetStatus !== 0 && !fs.existsSync(packageConfig)) {
   process.exit(pubGetStatus)
 }
@@ -37,14 +37,12 @@ if (pubGetStatus !== 0) {
   console.warn('flutter pub get failed; continuing with existing .dart_tool/package_config.json.')
 }
 
-run('fvm', [
-  'dart',
-  'build',
-  'cli',
-  '--target',
+run('dart', [
+  'compile',
+  'exe',
   path.join('bin', 'server.dart'),
-  '--output',
-  outputDir
+  '-o',
+  serverExe
 ])
 
 if (!fs.existsSync(serverExe)) {
