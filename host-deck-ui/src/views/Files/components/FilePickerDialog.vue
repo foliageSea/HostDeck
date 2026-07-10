@@ -337,7 +337,6 @@ function confirmSelection() {
         <div class="flex min-w-0 flex-1 items-center gap-[8px]">
           <NButton
             quaternary
-            round
             size="small"
             :disabled="loading || currentPath === '/'"
             @click="navigateUp"
@@ -369,7 +368,6 @@ function confirmSelection() {
           </NInput>
           <NButton
             quaternary
-            round
             size="small"
             :disabled="loading || !connectionId"
             @click="loadFiles(currentPath)"
@@ -383,7 +381,6 @@ function confirmSelection() {
           <NButton
             v-if="allowCreateDirectory"
             quaternary
-            round
             size="small"
             :disabled="loading || !connectionId"
             @click="openCreateDirectoryDialog"
@@ -429,10 +426,9 @@ function confirmSelection() {
           <span v-else>未选择文件</span>
         </div>
         <div class="flex justify-end gap-[8px]">
-          <NButton quaternary round @click="handleShowUpdate(false)">取消</NButton>
+          <NButton quaternary @click="handleShowUpdate(false)">取消</NButton>
           <NButton
             quaternary
-            round
             type="primary"
             :disabled="confirmDisabled"
             @click="confirmSelection"
@@ -459,14 +455,12 @@ function confirmSelection() {
         <div class="flex justify-end gap-[8px]">
           <NButton
             quaternary
-            round
             :disabled="creatingDirectory"
             @click="showCreateDirectoryDialog = false"
             >取消</NButton
           >
           <NButton
             quaternary
-            round
             type="primary"
             :loading="creatingDirectory"
             @click="confirmCreateDirectory"

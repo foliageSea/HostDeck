@@ -28,8 +28,8 @@ const emit = defineEmits<{
         @keyup.enter="emit('confirm')"
       />
       <NSpace justify="end">
-        <NButton quaternary round @click="emit('update:show', false)">取消</NButton>
-        <NButton quaternary round type="primary" @click="emit('confirm')">确认</NButton>
+        <NButton quaternary @click="emit('update:show', false)">取消</NButton>
+        <NButton quaternary type="primary" @click="emit('confirm')">确认</NButton>
       </NSpace>
     </NSpace>
   </NModal>

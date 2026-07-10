@@ -161,7 +161,7 @@ function isComposeProjectRunning(project: DockerComposeProject) {
 
 .compose-project-card {
   border: 1px solid var(--compose-card-border);
-  border-radius: 14px;
+  border-radius: var(--app-radius-card);
   background: transparent;
   padding: 10px;
 }
@@ -174,7 +174,7 @@ function isComposeProjectRunning(project: DockerComposeProject) {
 
 .compose-project-field {
   min-width: 0;
-  border-radius: 10px;
+  border-radius: var(--app-radius-item);
   background: var(--compose-field-bg);
   padding: 6px 8px;
 }

@@ -191,7 +191,7 @@ function handleTaskCenterVisibilityChange(value: boolean) {
     </template>
 
     <div
-      class="flex max-h-[min(72vh,720px)] w-[min(460px,calc(100vw_-_24px))] flex-col gap-[14px] rounded-[18px] p-[14px] backdrop-blur-[18px] lt-md:max-h-[68vh] lt-md:w-[min(420px,calc(100vw_-_16px))]"
+      class="app-radius-card flex max-h-[min(72vh,720px)] w-[min(460px,calc(100vw_-_24px))] flex-col gap-[14px] rounded-[18px] p-[14px] backdrop-blur-[18px] lt-md:max-h-[68vh] lt-md:w-[min(420px,calc(100vw_-_16px))]"
     >
       <div class="flex items-start justify-between gap-[12px]">
         <div>
@@ -243,7 +243,7 @@ function handleTaskCenterVisibilityChange(value: boolean) {
         <div
           v-for="batch in uploadBatches"
           :key="batch.id"
-          class="flex flex-col gap-[10px] rounded-[16px] p-[12px]"
+          class="app-radius-surface flex flex-col gap-[10px] rounded-[16px] p-[12px]"
           :class="[
             settingsStore.isDark
               ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(30,41,59,0.52)]'
@@ -334,7 +334,7 @@ function handleTaskCenterVisibilityChange(value: boolean) {
             <div
               v-for="task in batch.tasks"
               :key="task.id"
-              class="flex flex-col gap-[8px] rounded-[12px] p-[10px]"
+              class="app-radius-item flex flex-col gap-[8px] rounded-[12px] p-[10px]"
               :class="[
                 settingsStore.isDark
                   ? 'border border-[rgba(148,163,184,0.12)] bg-[rgba(15,23,42,0.52)]'

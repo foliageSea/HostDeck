@@ -216,7 +216,7 @@ watch(selectedImage, (image) => {
         </div>
       </div>
 
-      <NButton round @click="loadImages" :loading="loadingImages">刷新镜像</NButton>
+      <NButton @click="loadImages" :loading="loadingImages">刷新镜像</NButton>
     </div>
 
     <NSpin :show="loadingImages" class="create-container-body min-h-0 flex-1 overflow-hidden">

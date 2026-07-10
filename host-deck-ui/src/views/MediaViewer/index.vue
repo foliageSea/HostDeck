@@ -252,7 +252,7 @@ onBeforeUnmount(() => {
           v-else-if="mediaType === 'video' && !hasError"
           ref="videoContainerRef"
           title=""
-          class="media-video-player h-full min-h-[260px] w-full overflow-hidden rounded-[16px] bg-black"
+          class="app-radius-surface media-video-player h-full min-h-[260px] w-full overflow-hidden rounded-[16px] bg-black"
         />
 
         <NResult
@@ -308,7 +308,7 @@ onBeforeUnmount(() => {
               v-for="(item, index) in props.playlist"
               :key="item.path"
               type="button"
-              class="grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-[8px] rounded-[12px] border px-[10px] py-[9px] text-left transition-[background,border-color,color] duration-[180ms] ease-in-out"
+              class="app-radius-item grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-[8px] rounded-[12px] border px-[10px] py-[9px] text-left transition-[background,border-color,color] duration-[180ms] ease-in-out"
               :class="[
                 settingsStore.isDark
                   ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.8)] text-[#cbd5e1] hover:border-[rgba(96,165,250,0.42)] hover:bg-[rgba(30,41,59,0.86)]'
@@ -403,7 +403,7 @@ onBeforeUnmount(() => {
 .media-video-player :deep(.xgplayer) {
   width: 100% !important;
   height: 100% !important;
-  border-radius: 16px;
+  border-radius: var(--app-radius-surface);
   background: #000;
 }
 

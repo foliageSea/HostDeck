@@ -137,7 +137,7 @@ async function copySelection() {
     </div>
 
     <div
-      class="terminal-surface min-h-0 flex-1 overflow-hidden rounded-[18px] border mx-[12px] mb-[12px] mt-[10px]"
+      class="app-radius-card terminal-surface min-h-0 flex-1 overflow-hidden rounded-[18px] border mx-[12px] mb-[12px] mt-[10px]"
     >
       <div
         ref="terminalContainer"

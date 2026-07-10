@@ -331,7 +331,7 @@ onMounted(async () => {
     />
     <div class="relative z-1 grid min-h-screen place-items-center p-[40px] lt-lg:p-[20px]">
       <section
-        class="w-full max-w-[520px] rounded-[24px] p-[24px] backdrop-blur-[18px]"
+        class="app-radius-card w-full max-w-[520px] rounded-[24px] p-[24px] backdrop-blur-[18px]"
         :class="[
           settingsStore.isDark ? 'glass-panel-dark' : 'glass-panel-light',
           { 'form-panel-shake': isShaking },
@@ -366,7 +366,7 @@ onMounted(async () => {
             <div
               v-for="server in sshStore.savedServers"
               :key="server.id ?? `${server.host}-${server.port}`"
-              class="group server-list-item flex cursor-pointer items-center justify-between gap-[12px] rounded-[18px] border border-transparent px-[16px] py-[13px] text-left transition-[transform,background-color,border-color,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-2px] lt-sm:items-start"
+              class="app-radius-card group server-list-item flex cursor-pointer items-center justify-between gap-[12px] rounded-[18px] border border-transparent px-[16px] py-[13px] text-left transition-[transform,background-color,border-color,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-2px] lt-sm:items-start"
               :class="[
                 settingsStore.isDark
                   ? 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
@@ -534,7 +534,7 @@ onMounted(async () => {
   height: 46px;
   place-items: center;
   border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 16px;
+  border-radius: var(--app-radius-surface);
   background: rgba(255, 255, 255, 0.16);
   box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
 }

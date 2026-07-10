@@ -143,7 +143,7 @@ onMounted(() => {
 
       <NSpace>
         <NButton quaternary :loading="loading" @click="loadServices">刷新</NButton>
-        <NButton round quaternary @click="closeWindow">关闭</NButton>
+        <NButton quaternary @click="closeWindow">关闭</NButton>
       </NSpace>
     </div>
 
@@ -263,7 +263,7 @@ onMounted(() => {
 
 .compose-service-field {
   min-width: 0;
-  border-radius: 10px;
+  border-radius: var(--app-radius-item);
   background: var(--compose-field-bg);
   padding: 6px 8px;
 }

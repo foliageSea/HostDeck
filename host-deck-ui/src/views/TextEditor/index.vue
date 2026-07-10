@@ -352,7 +352,7 @@ watch(showSettings, (value) => {
     <NSpin :show="loading" class="editor-body relative z-[1] flex-1 min-h-0">
       <NResult v-if="error" status="error" title="无法读取文件" :description="error">
         <template #footer>
-          <NButton round @click="reloadFile">重试</NButton>
+          <NButton @click="reloadFile">重试</NButton>
         </template>
       </NResult>
 
@@ -405,8 +405,8 @@ watch(showSettings, (value) => {
         </div>
 
         <NSpace justify="end">
-          <NButton round @click="resetEditorSettings">恢复默认</NButton>
-          <NButton round type="primary" @click="applyEditorSettings">完成</NButton>
+          <NButton @click="resetEditorSettings">恢复默认</NButton>
+          <NButton type="primary" @click="applyEditorSettings">完成</NButton>
         </NSpace>
       </NSpace>
     </NModal>

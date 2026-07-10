@@ -140,7 +140,7 @@ watch(
 
 <template>
   <div
-    class="code-editor h-full min-h-0 overflow-hidden rounded-[18px] border shadow-[0_20px_48px_rgba(15,23,42,0.16)]"
+    class="app-radius-card code-editor h-full min-h-0 overflow-hidden rounded-[18px] border shadow-[0_20px_48px_rgba(15,23,42,0.16)]"
     :class="
       settingsStore.isDark
         ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(2,6,23,0.46)]'

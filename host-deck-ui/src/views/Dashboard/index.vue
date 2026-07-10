@@ -488,7 +488,7 @@ function createChartOption(config: {
       </div>
 
       <div
-        class="flex items-center gap-[12px] rounded-[16px] px-[14px] py-[10px] backdrop-blur-[16px]"
+        class="app-radius-surface flex items-center gap-[12px] rounded-[16px] px-[14px] py-[10px] backdrop-blur-[16px]"
         :class="
           settingsStore.isDark
             ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
@@ -522,7 +522,7 @@ function createChartOption(config: {
     </div>
 
     <div
-      class="mb-[18px] rounded-[24px] p-[18px] backdrop-blur-[16px]"
+      class="app-radius-card mb-[18px] rounded-[24px] p-[18px] backdrop-blur-[16px]"
       :class="
         settingsStore.isDark
           ? 'border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.68),rgba(15,23,42,0.5))]'
@@ -551,7 +551,7 @@ function createChartOption(config: {
         <div
           v-for="item in systemInfoItems"
           :key="item.label"
-          class="rounded-[16px] px-[14px] py-[12px]"
+          class="app-radius-item rounded-[16px] px-[14px] py-[12px]"
           :class="
             settingsStore.isDark
               ? 'border border-[rgba(148,163,184,0.12)] bg-[rgba(15,23,42,0.42)]'
@@ -583,7 +583,7 @@ function createChartOption(config: {
           { label: '磁盘占用', value: diskUsage, detail: '根目录空间使用' },
         ]"
         :key="item.label"
-        class="rounded-[20px] p-[16px] backdrop-blur-[16px]"
+        class="app-radius-card rounded-[20px] p-[16px] backdrop-blur-[16px]"
         :class="
           settingsStore.isDark
             ? 'border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(15,23,42,0.56))]'
@@ -612,7 +612,7 @@ function createChartOption(config: {
 
     <div
       v-if="historyLoading && !hasSamples"
-      class="flex min-h-[420px] items-center justify-center rounded-[24px] backdrop-blur-[16px]"
+      class="app-radius-card flex min-h-[420px] items-center justify-center rounded-[24px] backdrop-blur-[16px]"
       :class="
         settingsStore.isDark
           ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
@@ -625,7 +625,7 @@ function createChartOption(config: {
     <NEmpty
       v-else-if="!hasSamples"
       size="large"
-      class="min-h-[420px] rounded-[24px] backdrop-blur-[16px]"
+      class="app-radius-card min-h-[420px] rounded-[24px] backdrop-blur-[16px]"
       :class="
         settingsStore.isDark
           ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
@@ -733,7 +733,7 @@ function createChartOption(config: {
 }
 
 :deep(.monitor-card) {
-  border-radius: 24px;
+  border-radius: var(--app-radius-card);
   backdrop-filter: blur(16px);
 }
 

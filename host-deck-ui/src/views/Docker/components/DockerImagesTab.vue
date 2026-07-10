@@ -291,7 +291,7 @@ function getImageName(image: DockerImage) {
   flex: none;
   width: 100%;
   border: 1px solid var(--docker-card-border);
-  border-radius: 14px;
+  border-radius: var(--app-radius-card);
   background: var(--docker-card-bg);
   box-shadow: var(--docker-card-shadow);
   overflow: hidden;
@@ -329,7 +329,7 @@ function getImageName(image: DockerImage) {
 
 .docker-card-field {
   min-width: 0;
-  border-radius: 10px;
+  border-radius: var(--app-radius-item);
   background: var(--docker-card-field-bg);
   padding: 6px 8px;
 }

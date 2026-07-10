@@ -748,7 +748,7 @@ onUnmounted(() => {
 
       <div
         v-if="dragPreviewPosition"
-        class="pointer-events-none absolute z-[6] rounded-[18px] border border-dashed border-[var(--app-primary-border-strong)] bg-[rgba(var(--app-primary-rgb),0.12)] shadow-[0_0_0_1px_rgba(var(--app-primary-rgb),0.12)]"
+        class="app-radius-card pointer-events-none absolute z-[6] rounded-[18px] border border-dashed border-[var(--app-primary-border-strong)] bg-[rgba(var(--app-primary-rgb),0.12)] shadow-[0_0_0_1px_rgba(var(--app-primary-rgb),0.12)]"
         :style="{
           left: `${dragPreviewPosition.x}px`,
           top: `${dragPreviewPosition.y}px`,
@@ -763,7 +763,7 @@ onUnmounted(() => {
         :data-desktop-item-id="item.id"
         :title="item.title"
         type="button"
-        class="group absolute flex min-h-[108px] w-[96px] flex-col items-center justify-center gap-[10px] rounded-[18px] border px-[10px] py-[12px] text-center text-inherit transition-[background-color,border-color,transform,box-shadow] duration-[180ms] ease-in-out cursor-pointer"
+        class="app-radius-card group absolute flex min-h-[108px] w-[96px] flex-col items-center justify-center gap-[10px] rounded-[18px] border px-[10px] py-[12px] text-center text-inherit transition-[background-color,border-color,transform,box-shadow] duration-[180ms] ease-in-out cursor-pointer"
         :class="[
           settingsStore.isDark
             ? 'border-transparent bg-transparent text-[#e2e8f0]'
@@ -790,7 +790,7 @@ onUnmounted(() => {
         @pointercancel.stop="finishDirectoryDrag($event)"
       >
         <div
-          class="flex h-[52px] w-[52px] items-center justify-center rounded-[16px] transition-[transform,background-color,box-shadow] duration-[180ms] ease-in-out"
+          class="app-radius-surface flex h-[52px] w-[52px] items-center justify-center rounded-[16px] transition-[transform,background-color,box-shadow] duration-[180ms] ease-in-out"
           :class="[
             settingsStore.isDark ? 'bg-[rgba(30,41,59,0.72)]' : 'bg-[rgba(255,255,255,0.58)]',
             isDirectorySelected(item.id)
@@ -813,7 +813,7 @@ onUnmounted(() => {
 
       <div
         v-if="selectionState?.active"
-        class="pointer-events-none absolute z-[6] rounded-[10px] border border-[var(--app-primary-border-strong)] bg-[var(--app-primary-soft)] shadow-[inset_0_0_0_1px_var(--app-primary-soft)]"
+        class="app-radius-control pointer-events-none absolute z-[6] rounded-[10px] border border-[var(--app-primary-border-strong)] bg-[var(--app-primary-soft)] shadow-[inset_0_0_0_1px_var(--app-primary-soft)]"
         :style="selectionBoxStyle"
       />
     </div>

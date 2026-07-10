@@ -136,7 +136,7 @@ function resetWallpaperEffects() {
     <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-[14px]">
       <button
         type="button"
-        class="cursor-pointer rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-1px]"
+        class="app-radius-surface cursor-pointer rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-1px]"
         :class="[
           wallpaperOptionCardClass,
           controller.isDefaultActive(target) ? wallpaperOptionCardActiveClass : '',
@@ -144,7 +144,7 @@ function resetWallpaperEffects() {
         @click="controller.resetWallpaper(target)"
       >
         <div
-          class="wallpaper-preview-default relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
+          class="app-radius-item wallpaper-preview-default relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
           :class="[
             wallpaperPreviewClass,
             target === 'desktop' ? 'desktop-default-preview' : 'login-default-preview',
@@ -159,7 +159,7 @@ function resetWallpaperEffects() {
         v-for="preset in wallpaperPresets"
         :key="`${target}-${preset.id}`"
         type="button"
-        class="cursor-pointer rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-1px]"
+        class="app-radius-surface cursor-pointer rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-1px]"
         :class="[
           wallpaperOptionCardClass,
           controller.isPresetActive(target, preset.id) ? wallpaperOptionCardActiveClass : '',
@@ -167,7 +167,7 @@ function resetWallpaperEffects() {
         @click="controller.setPresetWallpaper(target, preset.id)"
       >
         <div
-          class="relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
+          class="app-radius-item relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
           :class="wallpaperPreviewClass"
           :style="{ background: preset.background }"
         />
@@ -177,14 +177,14 @@ function resetWallpaperEffects() {
       </button>
 
       <div
-        class="cursor-default rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out"
+        class="app-radius-surface cursor-default rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out"
         :class="[
           wallpaperOptionCardClass,
           controller.isCustomActive(target) ? wallpaperOptionCardActiveClass : '',
         ]"
       >
         <div
-          class="relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
+          class="app-radius-item relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
           :class="wallpaperPreviewClass"
           :style="
             wallpaperSettings.customDataUrl && wallpaperSettings.customType !== 'video'
@@ -221,7 +221,7 @@ function resetWallpaperEffects() {
     </div>
 
     <div
-      class="mt-[20px] rounded-[18px] border p-[16px] backdrop-blur-[20px] lt-md:p-[14px]"
+      class="app-radius-card mt-[20px] rounded-[18px] border p-[16px] backdrop-blur-[20px] lt-md:p-[14px]"
       :class="effectPanelClass"
     >
       <div class="mb-[14px] flex items-start justify-between gap-[12px] lt-md:flex-col">

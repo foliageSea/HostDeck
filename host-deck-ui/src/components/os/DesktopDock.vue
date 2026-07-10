@@ -229,7 +229,7 @@ function handleContextMenuSelect(key: string | number) {
 <template>
   <footer
     ref="selectorTarget"
-    class="desktop-dock absolute bottom-[12px] left-1/2 z-20 flex translate-x-[-50%] items-center gap-[12px] rounded-[24px] p-[10px] backdrop-blur-[16px]"
+    class="app-radius-card desktop-dock absolute bottom-[12px] left-1/2 z-20 flex translate-x-[-50%] items-center gap-[12px] rounded-[24px] p-[10px] backdrop-blur-[16px]"
     :class="[
       settingsStore.isDark
         ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.3)]'
@@ -247,7 +247,7 @@ function handleContextMenuSelect(key: string | number) {
       <NTooltip>
         <template #trigger>
           <div
-            class="dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
+            class="app-radius-surface dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
             :class="[
               settingsStore.isDark
                 ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0]'
@@ -282,7 +282,7 @@ function handleContextMenuSelect(key: string | number) {
       <div
         v-if="selectorAppId && selectorPosition"
         ref="selectorPanel"
-        class="fixed z-[9999] w-[220px] translate-x-[-50%] translate-y-[-100%] rounded-[16px] p-[10px]"
+        class="app-radius-surface fixed z-[9999] w-[220px] translate-x-[-50%] translate-y-[-100%] rounded-[16px] p-[10px]"
         :class="[
           settingsStore.isDark
             ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.9)] shadow-[0_24px_70px_rgba(2,6,23,0.35)]'
@@ -305,7 +305,7 @@ function handleContextMenuSelect(key: string | number) {
           v-for="window in selectorWindows"
           :key="window.id"
           type="button"
-          class="mb-[6px] flex w-full items-center justify-between rounded-[12px] border-0 px-[10px] py-[8px] cursor-pointer"
+          class="app-radius-item mb-[6px] flex w-full items-center justify-between rounded-[12px] border-0 px-[10px] py-[8px] cursor-pointer"
           :class="[
             settingsStore.isDark
               ? 'bg-[rgba(30,41,59,0.7)] text-[#e2e8f0] hover:bg-[rgba(51,65,85,0.92)]'

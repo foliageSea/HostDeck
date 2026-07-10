@@ -1775,7 +1775,6 @@ watch(
           <template #trigger>
             <NButton
               quaternary
-              round
               :disabled="fileStore.backHistory.length === 0"
               @click="navigateBack"
             >
@@ -1792,7 +1791,6 @@ watch(
           <template #trigger>
             <NButton
               quaternary
-              round
               :disabled="fileStore.forwardHistory.length === 0"
               @click="navigateForward"
             >
@@ -1807,7 +1805,7 @@ watch(
         </NTooltip>
         <NTooltip>
           <template #trigger>
-            <NButton quaternary round @click="navigateUp">
+            <NButton quaternary @click="navigateUp">
               <template #icon>
                 <NIcon>
                   <ArrowUp />
@@ -1819,7 +1817,7 @@ watch(
         </NTooltip>
         <NTooltip>
           <template #trigger>
-            <NButton quaternary round @click="fileStore.fetchFiles()">
+            <NButton quaternary @click="fileStore.fetchFiles()">
               <template #icon>
                 <NIcon>
                   <Renew />
@@ -1844,7 +1842,7 @@ watch(
           class="w-[116px] flex-none"
           @update:value="updateSortKey"
         />
-        <NButton quaternary round @click="fileStore.toggleSortDirection()">
+        <NButton quaternary @click="fileStore.toggleSortDirection()">
           {{ fileStore.sortDirection === 'asc' ? '升序' : '降序' }}
         </NButton>
         <div class="flex items-center gap-[8px]">
@@ -1852,7 +1850,6 @@ watch(
             <template #trigger>
               <NButton
                 quaternary
-                round
                 :type="fileStore.viewMode === 'list' ? 'primary' : 'default'"
                 @click="fileStore.viewMode = 'list'"
               >
@@ -1869,7 +1866,6 @@ watch(
             <template #trigger>
               <NButton
                 quaternary
-                round
                 :type="fileStore.viewMode === 'grid' ? 'primary' : 'default'"
                 @click="fileStore.viewMode = 'grid'"
               >
@@ -1884,7 +1880,7 @@ watch(
           </NTooltip>
           <NPopover trigger="hover" placement="bottom-end">
             <template #trigger>
-              <NButton quaternary round>
+              <NButton quaternary>
                 <template #icon>
                   <NIcon>
                     <Help />
@@ -1963,7 +1959,6 @@ watch(
               v-if="editingPath"
               quaternary
               size="small"
-              round
               type="primary"
               @mousedown.prevent
               @click="submitPath"
@@ -1971,7 +1966,7 @@ watch(
             >
             <NTooltip v-else>
               <template #trigger>
-                <NButton quaternary size="small" round @click="startPathEditing">
+                <NButton quaternary size="small" @click="startPathEditing">
                   <template #icon>
                     <NIcon>
                       <ArrowRight />
@@ -1986,7 +1981,6 @@ watch(
                 <NButton
                   quaternary
                   size="small"
-                  round
                   :type="isCurrentPathFavorite ? 'warning' : 'default'"
                   @click="toggleCurrentFavorite"
                 >
@@ -2004,7 +1998,6 @@ watch(
                 <NButton
                   quaternary
                   size="small"
-                  round
                   :type="isCurrentPathPinned ? 'primary' : 'default'"
                   @click="toggleCurrentDesktopPin"
                 >
@@ -2023,7 +2016,7 @@ watch(
               placement="bottom-end"
             >
               <template #trigger>
-                <NButton quaternary size="small" round class="md:hidden">
+                <NButton quaternary size="small" class="md:hidden">
                   <template #icon>
                     <NIcon>
                       <LocationStar />
@@ -2051,7 +2044,7 @@ watch(
                     <div
                       v-for="path in fileStore.favoritePaths"
                       :key="path"
-                      class="flex min-w-0 items-center gap-[8px] rounded-[10px] py-[6px] pl-[10px] pr-[6px]"
+                      class="app-radius-control flex min-w-0 items-center gap-[8px] rounded-[10px] py-[6px] pl-[10px] pr-[6px]"
                       :class="
                         settingsStore.isDark
                           ? 'bg-[rgba(15,23,42,0.5)]'
@@ -2066,7 +2059,7 @@ watch(
                       >
                         {{ formatFavoritePath(path) }}
                       </button>
-                      <NButton quaternary round size="tiny" @click.stop="removeFavoritePath(path)">
+                      <NButton quaternary size="tiny" @click.stop="removeFavoritePath(path)">
                         <template #icon>
                           <NIcon>
                             <Close />
@@ -2080,7 +2073,7 @@ watch(
             </NPopover>
             <NTooltip>
               <template #trigger>
-                <NButton quaternary size="small" round @click="openTerminalHere">
+                <NButton quaternary size="small" @click="openTerminalHere">
                   <template #icon>
                     <NIcon>
                       <Terminal />
@@ -2095,7 +2088,7 @@ watch(
 
         <div class="flex w-full flex-wrap items-center justify-start gap-[12px]">
           <NDropdown trigger="click" :options="createOptions" @select="handleCreateSelect">
-            <NButton quaternary round>
+            <NButton quaternary>
               <template #icon>
                 <NIcon>
                   <FolderAdd />
@@ -2105,7 +2098,7 @@ watch(
             </NButton>
           </NDropdown>
           <NDropdown trigger="click" :options="uploadOptions" @select="handleUploadSelect">
-            <NButton quaternary round :disabled="isUploading" :loading="isUploading">
+            <NButton quaternary :disabled="isUploading" :loading="isUploading">
               <template #icon>
                 <NIcon>
                   <Upload />
@@ -2116,24 +2109,21 @@ watch(
           </NDropdown>
           <NButton
             quaternary
-            round
             :disabled="!canExtractSelectedArchive"
             @click="openExtractDialog"
             >解压缩</NButton
           >
-          <NButton quaternary round :disabled="selectedFiles.length !== 1" @click="openRenameDialog"
+          <NButton quaternary :disabled="selectedFiles.length !== 1" @click="openRenameDialog"
             >重命名</NButton
           >
           <NButton
             quaternary
-            round
             :disabled="selectedFiles.length !== 1"
             @click="openPermissionDialog()"
             >权限</NButton
           >
           <NButton
             quaternary
-            round
             :disabled="selectedFiles.length === 0"
             type="error"
             @click="showDeleteDialog = true"
@@ -2141,7 +2131,6 @@ watch(
           >
           <NButton
             quaternary
-            round
             :disabled="selectedFiles.length === 0"
             @click="downloadSelectedFiles"
           >
@@ -2156,7 +2145,7 @@ watch(
 
         <div
           v-if="hasSearch"
-          class="flex flex-wrap items-center justify-between gap-[10px] rounded-[16px] border px-[14px] py-[10px] shadow-[0_12px_28px_rgba(37,99,235,0.12)]"
+          class="app-radius-surface flex flex-wrap items-center justify-between gap-[10px] rounded-[16px] border px-[14px] py-[10px] shadow-[0_12px_28px_rgba(37,99,235,0.12)]"
           :class="
             settingsStore.isDark
               ? 'border-[rgba(96,165,250,0.42)] bg-[rgba(30,64,175,0.24)] text-[rgba(219,234,254,0.98)]'
@@ -2167,7 +2156,7 @@ watch(
             <span class="h-[8px] w-[8px] flex-none rounded-full bg-[var(--app-primary-color)]" />
             <span class="truncate-line">{{ searchResultHint }}</span>
           </div>
-          <NButton quaternary round size="small" @click="clearSearch"> 清除搜索 </NButton>
+          <NButton quaternary size="small" @click="clearSearch"> 清除搜索 </NButton>
         </div>
 
         <FileBrowserContent
@@ -2188,7 +2177,7 @@ watch(
         <NCard
           v-if="selectedFile"
           size="small"
-          class="details-panel rounded-[16px]"
+          class="app-radius-surface details-panel rounded-[16px]"
           :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.56)]' : 'bg-[rgba(255,255,255,0.84)]'"
         >
           <div class="flex min-w-0 items-center gap-[12px] whitespace-nowrap">
@@ -2275,12 +2264,11 @@ watch(
           @keyup.enter="confirmExtract"
         />
         <NSpace justify="end">
-          <NButton quaternary round :disabled="extractingArchive" @click="showExtractDialog = false"
+          <NButton quaternary :disabled="extractingArchive" @click="showExtractDialog = false"
             >取消</NButton
           >
           <NButton
             quaternary
-            round
             type="primary"
             :loading="extractingArchive"
             @click="confirmExtract"
@@ -2316,7 +2304,6 @@ watch(
             <NButton
               v-if="propertiesFile.isDirectory"
               quaternary
-              round
               size="small"
               :loading="calculatingDirectorySize"
               @click="calculateDirectorySize"
@@ -2331,7 +2318,6 @@ watch(
             <span class="property-value flex-none font-mono">{{ propertiesPermission }}</span>
             <NButton
               quaternary
-              round
               size="small"
               @click="openPermissionDialog(propertiesFile, propertiesPath)"
               >修改</NButton
@@ -2412,7 +2398,6 @@ watch(
             v-for="preset in permissionPresets"
             :key="preset.mode"
             quaternary
-            round
             size="small"
             @click="applyPermissionMode(preset.mode)"
           >
@@ -2432,7 +2417,7 @@ watch(
         </NAlert>
 
         <div
-          class="rounded-[12px] px-[12px] py-[10px] text-[13px]"
+          class="app-radius-item rounded-[12px] px-[12px] py-[10px] text-[13px]"
           :class="
             settingsStore.isDark
               ? 'bg-[rgba(15,23,42,0.54)] text-[rgba(226,232,240,0.96)]'
@@ -2445,14 +2430,12 @@ watch(
         <NSpace justify="end">
           <NButton
             quaternary
-            round
             :disabled="changingPermission"
             @click="showPermissionDialog = false"
             >取消</NButton
           >
           <NButton
             quaternary
-            round
             type="primary"
             :loading="changingPermission"
             @click="confirmPermissionChange"

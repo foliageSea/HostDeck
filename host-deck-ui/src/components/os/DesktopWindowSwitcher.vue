@@ -21,7 +21,7 @@ defineEmits<{
     :class="settingsStore.isDark ? 'bg-[rgba(2,6,23,0.28)]' : 'bg-[rgba(226,232,240,0.42)]'"
   >
     <div
-      class="min-w-[320px] max-w-[860px] rounded-[24px] p-[18px]"
+      class="app-radius-card min-w-[320px] max-w-[860px] rounded-[24px] p-[18px]"
       :class="[
         settingsStore.isDark
           ? 'border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.72)] shadow-[0_28px_80px_rgba(2,6,23,0.4)]'
@@ -41,7 +41,7 @@ defineEmits<{
           v-for="(window, index) in windows"
           :key="window.id"
           type="button"
-          class="w-[132px] rounded-[18px] border p-[16px_12px] transition-[transform,border-color,background-color,box-shadow] duration-[200ms] ease-in-out hover:translate-y-[-2px] hover:scale-[1.06] hover:shadow-[0_18px_40px_rgba(15,23,42,0.28)] cursor-pointer"
+          class="app-radius-card w-[132px] rounded-[18px] border p-[16px_12px] transition-[transform,border-color,background-color,box-shadow] duration-[200ms] ease-in-out hover:translate-y-[-2px] hover:scale-[1.06] hover:shadow-[0_18px_40px_rgba(15,23,42,0.28)] cursor-pointer"
           :class="[
             settingsStore.isDark
               ? 'border-transparent bg-[rgba(30,41,59,0.74)] text-[#e2e8f0] hover:border-[rgba(96,165,250,0.44)] hover:bg-[rgba(51,65,85,0.92)]'

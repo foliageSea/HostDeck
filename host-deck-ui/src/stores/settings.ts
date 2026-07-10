@@ -16,6 +16,7 @@ const EDITOR_FONT_FAMILY_STORAGE_KEY = 'host-deck-ui.editorFontFamily'
 const DESKTOP_WALLPAPER_STORAGE_KEY = 'host-deck-ui.desktopWallpaper'
 const LOGIN_WALLPAPER_STORAGE_KEY = 'host-deck-ui.loginWallpaper'
 const WINDOW_CONTROLS_STYLE_STORAGE_KEY = 'host-deck-ui.windowControlsStyle'
+const CORNER_STYLE_STORAGE_KEY = 'host-deck-ui.cornerStyle'
 
 const DEFAULT_TERMINAL_FONT_SIZE = 14
 const DEFAULT_TERMINAL_FONT_FAMILY = '"Maple Mono"'
@@ -26,6 +27,15 @@ const WALLPAPER_PERSIST_DEBOUNCE_MS = 300
 
 type ThemeMode = 'dark' | 'light' | 'system'
 type WindowControlsStyle = 'mac' | 'win'
+export type CornerStyle = 'square' | 'soft' | 'rounded'
+
+function normalizeCornerStyle(value: unknown): CornerStyle {
+  if (value === 'square' || value === 'soft' || value === 'rounded') {
+    return value
+  }
+
+  return 'rounded'
+}
 
 function resolveStoredWindowControlsStyle(): WindowControlsStyle {
   const value = window.localStorage.getItem(WINDOW_CONTROLS_STYLE_STORAGE_KEY)
@@ -34,6 +44,10 @@ function resolveStoredWindowControlsStyle(): WindowControlsStyle {
   }
 
   return 'mac'
+}
+
+function resolveStoredCornerStyle(): CornerStyle {
+  return normalizeCornerStyle(window.localStorage.getItem(CORNER_STYLE_STORAGE_KEY))
 }
 
 function normalizeWallpaperEffectValue(value: unknown): number {
@@ -171,6 +185,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const editorFontSize = ref(resolveStoredEditorFontSize())
   const editorFontFamily = ref(resolveStoredEditorFontFamily())
   const windowControlsStyle = ref<WindowControlsStyle>(resolveStoredWindowControlsStyle())
+  const cornerStyle = ref<CornerStyle>(resolveStoredCornerStyle())
   const desktopWallpaper = ref<WallpaperSettings>(
     resolveStoredWallpaper(DESKTOP_WALLPAPER_STORAGE_KEY),
   )
@@ -311,6 +326,14 @@ export const useSettingsStore = defineStore('settings', () => {
   )
 
   watch(
+    cornerStyle,
+    (value) => {
+      window.localStorage.setItem(CORNER_STYLE_STORAGE_KEY, normalizeCornerStyle(value))
+    },
+    { immediate: true },
+  )
+
+  watch(
     desktopWallpaper,
     (value) => {
       void syncWallpaperStorage('desktop', value)
@@ -335,6 +358,10 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function setWindowControlsStyle(style: WindowControlsStyle) {
     windowControlsStyle.value = style
+  }
+
+  function setCornerStyle(style: CornerStyle) {
+    cornerStyle.value = normalizeCornerStyle(style)
   }
 
   function resetPrimaryColor() {
@@ -384,6 +411,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   return {
+    cornerStyle,
     desktopWallpaper,
     editorFontFamily,
     editorFontSize,
@@ -401,6 +429,7 @@ export const useSettingsStore = defineStore('settings', () => {
     setEditorFontFamily,
     setEditorFontSize,
     setLoginWallpaper,
+    setCornerStyle,
     setPrimaryColor,
     setWindowControlsStyle,
     resetTerminalSettings,

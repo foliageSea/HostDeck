@@ -52,7 +52,7 @@ const composeStatusType = computed(() => {
     <NCard
       size="small"
       :bordered="false"
-      class="rounded-[20px]"
+      class="app-radius-card rounded-[20px]"
       :class="
         settingsStore.isDark
           ? 'bg-[linear-gradient(145deg,rgba(15,23,42,0.78),rgba(30,41,59,0.52))]'
@@ -86,7 +86,7 @@ const composeStatusType = computed(() => {
         :key="card.label"
         size="small"
         :bordered="false"
-        class="rounded-[18px]"
+        class="app-radius-card rounded-[18px]"
         :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.84)]'"
       >
         <div

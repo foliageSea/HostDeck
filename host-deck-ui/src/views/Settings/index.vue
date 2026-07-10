@@ -133,6 +133,18 @@ async function updateExternalAccess(value: boolean) {
                 </NSpace>
               </NRadioGroup>
             </NFormItem>
+            <NFormItem label="圆角风格">
+              <NRadioGroup
+                :value="settingsStore.cornerStyle"
+                @update:value="settingsStore.setCornerStyle"
+              >
+                <NSpace>
+                  <NRadio value="square">直角</NRadio>
+                  <NRadio value="soft">小圆角</NRadio>
+                  <NRadio value="rounded">圆角</NRadio>
+                </NSpace>
+              </NRadioGroup>
+            </NFormItem>
           </NForm>
         </NCard>
       </NTabPane>
@@ -153,7 +165,7 @@ async function updateExternalAccess(value: boolean) {
         <NCard title="应用维护" size="large">
           <div class="flex flex-col gap-[12px]">
             <div
-              class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
+              class="app-radius-item flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
             >
               <div>
                 <div class="text-[14px] font-600">前端版本</div>
@@ -165,7 +177,7 @@ async function updateExternalAccess(value: boolean) {
             </div>
             <div
               v-if="canManageExternalAccess"
-              class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
+              class="app-radius-item flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
             >
               <div>
                 <div class="text-[14px] font-600">允许外部访问</div>
@@ -182,7 +194,7 @@ async function updateExternalAccess(value: boolean) {
 
             <div
               v-if="canClearBrowserCache"
-              class="flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
+              class="app-radius-item flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
             >
               <div>
                 <div class="text-[14px] font-600">浏览器缓存</div>

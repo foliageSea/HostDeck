@@ -265,7 +265,7 @@ onBeforeUnmount(() => {
     <div class="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-[16px] lt-md:grid-cols-1">
       <NCard
         :bordered="false"
-        class="rounded-[18px]"
+        class="app-radius-card rounded-[18px]"
         :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'"
       >
         <div
@@ -281,7 +281,7 @@ onBeforeUnmount(() => {
 
       <NCard
         :bordered="false"
-        class="rounded-[18px]"
+        class="app-radius-card rounded-[18px]"
         :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'"
       >
         <div
@@ -300,7 +300,7 @@ onBeforeUnmount(() => {
       <NCard
         title="Clients / Sessions"
         :bordered="false"
-        class="rounded-[18px] min-h-0"
+        class="app-radius-card rounded-[18px] min-h-0"
         :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'"
       >
         <NDataTable

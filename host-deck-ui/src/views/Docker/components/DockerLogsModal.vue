@@ -46,7 +46,7 @@ const settingsStore = useSettingsStore()
     </div>
     <NSpin :show="controller.logsLoading">
       <pre
-        class="docker-console mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] p-[14px] text-[12px] leading-[1.6] app-scrollbar select-text"
+        class="app-radius-item docker-console mono-ui m-0 max-h-[65vh] overflow-auto whitespace-pre-wrap break-words rounded-[14px] p-[14px] text-[12px] leading-[1.6] app-scrollbar select-text"
         :class="
           settingsStore.isDark
             ? 'bg-[rgba(2,6,23,0.9)] text-[#dbeafe] app-scrollbar-dark'

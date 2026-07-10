@@ -175,7 +175,7 @@ onUnmounted(() => {
     />
 
     <!-- <div
-      class="desktop-status-card absolute bottom-[var(--desktop-dock-safe-area)] right-[24px] z-[15] w-[280px] rounded-[18px] p-[16px] backdrop-blur-[16px]"
+      class="app-radius-card desktop-status-card absolute bottom-[var(--desktop-dock-safe-area)] right-[24px] z-[15] w-[280px] rounded-[18px] p-[16px] backdrop-blur-[16px]"
       :class="[
         settingsStore.isDark
           ? 'border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.5)]'

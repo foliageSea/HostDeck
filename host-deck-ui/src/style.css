@@ -13,6 +13,11 @@
   --app-primary-border-strong: rgba(37, 99, 235, 0.72);
   --app-primary-soft: rgba(37, 99, 235, 0.16);
   --app-primary-soft-strong: rgba(37, 99, 235, 0.24);
+  --app-radius-card: 18px;
+  --app-radius-surface: 16px;
+  --app-radius-item: 12px;
+  --app-radius-control: 10px;
+  --app-radius-button: 10px;
   --electron-titlebar-height: 38px;
 
   line-height: 1.5;
@@ -68,6 +73,26 @@ body {
 
 .app-root {
   min-height: 100vh;
+}
+
+:root .app-radius-card {
+  border-radius: var(--app-radius-card);
+}
+
+:root .app-radius-surface {
+  border-radius: var(--app-radius-surface);
+}
+
+:root .app-radius-item {
+  border-radius: var(--app-radius-item);
+}
+
+:root .app-radius-control {
+  border-radius: var(--app-radius-control);
+}
+
+:root .app-radius-button {
+  border-radius: var(--app-radius-button);
 }
 
 :root[data-electron='true'] .app-root {

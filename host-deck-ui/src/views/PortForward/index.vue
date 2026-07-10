@@ -364,7 +364,7 @@ onMounted(() => {
           </div>
 
           <div
-            class="min-w-0 rounded-[12px] bg-[rgba(14,165,233,0.08)] px-[12px] py-[10px] text-[13px]"
+            class="app-radius-item min-w-0 rounded-[12px] bg-[rgba(14,165,233,0.08)] px-[12px] py-[10px] text-[13px]"
           >
             <div class="truncate font-600">本地：{{ rule.bindHost }}:{{ rule.localPort }}</div>
             <div class="mt-[4px] truncate text-[rgba(100,116,139,0.88)]">

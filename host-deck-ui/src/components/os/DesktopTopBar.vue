@@ -130,7 +130,7 @@ function disconnect() {
       <NDropdown :options="appMenuOptions" trigger="click" @select="handleAppMenuSelect">
         <button
           type="button"
-          class="flex min-w-0 items-center gap-[8px] rounded-[12px] border-0 px-[8px] py-[3px] cursor-pointer transition-colors"
+          class="app-radius-item flex min-w-0 items-center gap-[8px] rounded-[12px] border-0 px-[8px] py-[3px] cursor-pointer transition-colors"
           :class="
             settingsStore.isDark
               ? 'bg-[rgba(15,23,42,0.26)] text-[rgba(226,232,240,0.9)] hover:bg-[rgba(30,41,59,0.54)]'
@@ -161,7 +161,7 @@ function disconnect() {
       <NTooltip placement="bottom">
         <template #trigger>
           <div
-            class="flex min-w-[120px] max-w-[320px] items-center justify-between gap-[8px] rounded-[10px] px-[10px] py-[3px] text-[12px]"
+            class="app-radius-control flex min-w-[120px] max-w-[320px] items-center justify-between gap-[8px] rounded-[10px] px-[10px] py-[3px] text-[12px]"
             :class="
               settingsStore.isDark
                 ? 'bg-[rgba(15,23,42,0.46)] text-[rgba(226,232,240,0.88)]'
@@ -187,7 +187,7 @@ function disconnect() {
       <NTooltip v-if="monitorError" placement="bottom">
         <template #trigger>
           <div
-            class="flex items-center gap-[8px] rounded-[10px] border px-[10px] py-[3px] text-[12px]"
+            class="app-radius-control flex items-center gap-[8px] rounded-[10px] border px-[10px] py-[3px] text-[12px]"
             :class="
               settingsStore.isDark
                 ? 'border-[rgba(248,113,113,0.3)] bg-[rgba(127,29,29,0.28)] text-[rgba(254,202,202,0.96)]'

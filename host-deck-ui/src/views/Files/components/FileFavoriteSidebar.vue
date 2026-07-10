@@ -33,7 +33,7 @@ function formatFavoritePath(path: string) {
     :class="visible ? 'w-[252px]' : 'w-[30px]'"
   >
     <aside
-      class="absolute inset-y-0 left-0 flex w-[252px] min-w-[220px] flex-col overflow-hidden rounded-[18px] border transition-[opacity,transform] duration-[220ms] ease-in-out"
+      class="app-radius-card absolute inset-y-0 left-0 flex w-[252px] min-w-[220px] flex-col overflow-hidden rounded-[18px] border transition-[opacity,transform] duration-[220ms] ease-in-out"
       :class="[
         settingsStore.isDark
           ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.72)]'
@@ -80,7 +80,7 @@ function formatFavoritePath(path: string) {
             <div
               v-for="path in favoritePaths"
               :key="path"
-              class="group grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-[8px] rounded-[12px] border px-[10px] py-[9px] text-left transition-[background,border-color,color] duration-[180ms] ease-in-out"
+              class="app-radius-item group grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-[8px] rounded-[12px] border px-[10px] py-[9px] text-left transition-[background,border-color,color] duration-[180ms] ease-in-out"
               :class="[
                 settingsStore.isDark
                   ? 'border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.62)] text-[rgba(226,232,240,0.96)] hover:border-[rgba(96,165,250,0.42)] hover:bg-[rgba(30,41,59,0.86)]'
@@ -102,7 +102,6 @@ function formatFavoritePath(path: string) {
               </button>
               <NButton
                 quaternary
-                round
                 size="tiny"
                 class="opacity-70 transition-opacity group-hover:opacity-100"
                 @click.stop="emit('remove', path)"

@@ -227,7 +227,7 @@ onBeforeUnmount(() => {
           :key="file.filename"
           :data-file-name="file.filename"
           type="button"
-          class="flex min-h-[130px] select-none flex-col items-center justify-center gap-[10px] rounded-[16px] border p-[14px] text-center text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
+          class="app-radius-surface flex min-h-[130px] select-none flex-col items-center justify-center gap-[10px] rounded-[16px] border p-[14px] text-center text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
           :class="[
             selectedNames.includes(file.filename)
               ? 'border-[var(--app-primary-border)] bg-[var(--app-primary-soft)]'
@@ -262,7 +262,7 @@ onBeforeUnmount(() => {
           :key="file.filename"
           :data-file-name="file.filename"
           type="button"
-          class="file-row grid grid-cols-[minmax(0,1fr)_120px_180px] select-none items-center gap-[12px] rounded-[14px] border px-[14px] py-[12px] text-left text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
+          class="app-radius-item file-row grid grid-cols-[minmax(0,1fr)_120px_180px] select-none items-center gap-[12px] border px-[14px] py-[12px] text-left text-inherit transition duration-[160ms] ease-in-out cursor-pointer"
           :class="[
             selectedNames.includes(file.filename)
               ? 'border-[var(--app-primary-border)] bg-[var(--app-primary-soft)]'
@@ -304,7 +304,7 @@ onBeforeUnmount(() => {
 
     <div
       v-if="selectionState?.active"
-      class="pointer-events-none absolute z-5 rounded-[8px] border border-[var(--app-primary-border-strong)] bg-[var(--app-primary-soft)] shadow-[inset_0_0_0_1px_var(--app-primary-soft)]"
+      class="app-radius-control pointer-events-none absolute z-5 rounded-[8px] border border-[var(--app-primary-border-strong)] bg-[var(--app-primary-soft)] shadow-[inset_0_0_0_1px_var(--app-primary-soft)]"
       :style="selectionBoxStyle"
     />
   </div>

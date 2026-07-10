@@ -14,7 +14,7 @@ const settingsStore = useSettingsStore()
     <NCard
       size="small"
       :bordered="false"
-      class="rounded-[18px]"
+      class="app-radius-card rounded-[18px]"
       :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.84)]'"
     >
       <div
@@ -30,7 +30,7 @@ const settingsStore = useSettingsStore()
     <NCard
       size="small"
       :bordered="false"
-      class="rounded-[18px]"
+      class="app-radius-card rounded-[18px]"
       :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.84)]'"
     >
       <div
@@ -46,7 +46,7 @@ const settingsStore = useSettingsStore()
     <NCard
       size="small"
       :bordered="false"
-      class="rounded-[18px]"
+      class="app-radius-card rounded-[18px]"
       :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.84)]'"
     >
       <div
@@ -62,7 +62,7 @@ const settingsStore = useSettingsStore()
     <NCard
       size="small"
       :bordered="false"
-      class="rounded-[18px]"
+      class="app-radius-card rounded-[18px]"
       :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.84)]'"
     >
       <div
