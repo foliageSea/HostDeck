@@ -2,7 +2,7 @@ name: host_deck
 description: "HostDeck"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'https://github.com/foliageSea/HostDeck' # Remove this line if you wish to publish to pub.dev
+publish_to: "https://github.com/foliageSea/HostDeck" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -37,7 +37,7 @@ dependencies:
   get: ^4.7.3
   shelf_plus: ^1.11.0
   shelf_web_socket: ^3.0.0
-  dartssh2: ^2.17.1
+  dartssh2: ^2.22.0
   sqlite3: ^2.9.4
   shelf: ^1.4.2
   shelf_router: ^1.1.4
@@ -68,7 +68,6 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
