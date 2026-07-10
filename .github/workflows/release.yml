@@ -31,6 +31,28 @@ jobs:
           name: web-build
           path: host-deck-ui/dist
 
+  build-cli-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.2"
+          channel: "stable"
+      - name: Resolve Dart Dependencies
+        run: flutter pub get
+      - name: Build HostDeck CLI
+        run: dart build cli --target bin/hostdeck_cli.dart --output build/hostdeck-cli
+      - name: Archive HostDeck CLI
+        shell: pwsh
+        run: Compress-Archive -Path build\hostdeck-cli\bundle\* -DestinationPath host-deck-cli-windows-${{ github.ref_name }}.zip
+      - name: Upload HostDeck CLI
+        uses: softprops/action-gh-release@v1
+        with:
+          files: host-deck-cli-windows-${{ github.ref_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # build-dart-windows:
   #   needs: build-web
   #   runs-on: windows-latest
