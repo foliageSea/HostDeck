@@ -270,9 +270,19 @@ class DockerController {
             )
             .where((container) => _matchesContainerKeyword(container, keyword))
             .toList();
+        final prioritizedContainers = statusFilter.trim().toLowerCase() == 'all'
+            ? [
+                ...filteredContainers.where(
+                  (container) => container.state.toLowerCase() == 'running',
+                ),
+                ...filteredContainers.where(
+                  (container) => container.state.toLowerCase() != 'running',
+                ),
+              ]
+            : filteredContainers;
         return Result.ok(
           _pageResponse(
-            filteredContainers,
+            prioritizedContainers,
             pagination,
             (container) => container.toJson(),
             summary: {
