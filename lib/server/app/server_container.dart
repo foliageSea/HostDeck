@@ -4,6 +4,8 @@ import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/agent/agent_controller.dart';
+import 'package:host_deck/server/features/access/access_controller.dart';
+import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/auth/auth_controller.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
@@ -33,16 +35,21 @@ class ServerContainer {
   final DatabaseService databaseService;
   final PortForwardService portForwardService;
   final ApiRoutes apiRoutes;
+  final AccessAuthService accessService;
 
   ServerContainer._({
     required this.databaseService,
     required this.portForwardService,
     required this.apiRoutes,
+    required this.accessService,
   });
 
   static Future<ServerContainer> create({
     required String? dataDir,
     required Logger log,
+    String? adminPassword,
+    String? apiToken,
+    bool secureCookies = false,
   }) async {
     final databaseService = DatabaseService(dataDir: dataDir);
     AppSettings.configure(dataDir: dataDir);
@@ -54,6 +61,11 @@ class ServerContainer {
     }
 
     final sshRepository = SshRepository();
+    final accessService = AccessAuthService(
+      password: adminPassword,
+      apiToken: apiToken,
+      secureCookies: secureCookies,
+    );
     final serverRepository = ServerRepository(databaseService);
     final portForwardRepository = PortForwardRepository(databaseService);
     final operationLogRepository = OperationLogRepository(databaseService);
@@ -74,7 +86,9 @@ class ServerContainer {
     return ServerContainer._(
       databaseService: databaseService,
       portForwardService: portForwardService,
+      accessService: accessService,
       apiRoutes: ApiRoutes(
+        accessController: AccessController(accessService),
         authController: AuthController(
           sshService,
           monitorHistoryService,

@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AccessLoginScreen: typeof import('./src/components/os/AccessLoginScreen.vue')['default']
     AppIcon: typeof import('./src/components/common/AppIcon.vue')['default']
     CodeEditor: typeof import('./src/components/editor/CodeEditor.vue')['default']
     CopyableText: typeof import('./src/components/common/CopyableText.vue')['default']

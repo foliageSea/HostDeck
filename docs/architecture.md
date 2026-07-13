@@ -20,7 +20,7 @@
 纯 B/S 模式：
 
 - 先构建 `host-deck-ui/dist`。
-- 使用 `dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist` 启动。
+- 使用 `HOSTDECK_ACCESS_PASSWORD=... dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist` 启动；非 loopback 监听必须启用访问认证。
 - 服务同时提供 API、WebSocket 和前端静态资源。
 
 发布模式：

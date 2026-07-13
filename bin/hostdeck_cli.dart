@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:host_deck/utils/hostdeck_discovery.dart';
 
+String? _accessToken;
+
 Future<void> main(List<String> args) async {
   if (args.isEmpty || args.contains('--help') || args.contains('-h')) {
     _printUsage();
@@ -11,6 +13,10 @@ Future<void> main(List<String> args) async {
 
   final command = args.first;
   final parser = _ArgParser(args.skip(1).toList());
+  _accessToken = parser.option('token')?.trim();
+  if (_accessToken == null || _accessToken!.isEmpty) {
+    _accessToken = Platform.environment['HOSTDECK_TOKEN']?.trim();
+  }
 
   try {
     final discovery = await _resolveHostDeckUrl(parser);
@@ -171,6 +177,7 @@ Future<Map<String, dynamic>> _get(String baseUrl, String path) async {
   try {
     final uri = Uri.parse(baseUrl).resolve(path);
     final request = await client.getUrl(uri);
+    _addAuthorization(request);
     final response = await request.close();
     final text = await response.transform(utf8.decoder).join();
     final decoded = jsonDecode(text);
@@ -197,6 +204,7 @@ Future<Map<String, dynamic>> _post(
   try {
     final uri = Uri.parse(baseUrl).resolve(path);
     final request = await client.postUrl(uri);
+    _addAuthorization(request);
     request.headers.contentType = ContentType.json;
     request.write(jsonEncode(body));
 
@@ -217,13 +225,20 @@ Future<Map<String, dynamic>> _post(
   }
 }
 
+void _addAuthorization(HttpClientRequest request) {
+  final token = _accessToken;
+  if (token != null && token.isNotEmpty) {
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+  }
+}
+
 void _printUsage() {
   stdout.writeln('''
 HostDeck CLI
 
 Usage:
-  hostdeck_cli discover [--hostdeck-url <url>]
-  hostdeck_cli sessions [--hostdeck-url <url>]
+  hostdeck_cli discover [--hostdeck-url <url>] [--token <token>]
+  hostdeck_cli sessions [--hostdeck-url <url>] [--token <token>]
   hostdeck_cli exec --connection <id> [--cwd <path>] [--timeout-ms <ms>] [--max-output-bytes <n>] -- <command>
   hostdeck_cli read --connection <id> --path <remote-path>
   hostdeck_cli write --connection <id> --path <remote-path> [--file <local-file>]
@@ -231,6 +246,7 @@ Usage:
 
 Options:
   --hostdeck-url <url>       HostDeck server URL, default: http://127.0.0.1:8080
+  --token <token>            API token, or use HOSTDECK_TOKEN
   --connection <id>          SSH connection id from HostDeck
   --cwd <path>               Remote working directory
   --path <path>              Remote file path
@@ -242,6 +258,7 @@ Agent contract:
   - Put --hostdeck-url after the command, not before it.
   - HostDeck server must already be running; CLI auto-discovers ~/.config/host-deck/instance.json when --hostdeck-url is omitted.
   - HOSTDECK_URL overrides auto-discovery; HOSTDECK_DISCOVERY_FILE overrides the instance file path.
+  - HOSTDECK_TOKEN supplies Bearer authentication when --token is omitted.
   - Output is JSON: {"code": <int>, "message": <string>, "data": ...}.
   - CLI exit code only reflects top-level code != 200 or local usage/runtime errors.
   - For exec, inspect data.exitCode for remote command success.

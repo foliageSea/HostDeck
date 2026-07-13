@@ -45,10 +45,13 @@ flutter run -d windows
 
 ```bash
 pnpm --dir host-deck-ui build
+$env:HOSTDECK_ACCESS_PASSWORD = 'replace-with-a-strong-password'
 dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
 ```
 
 启动后访问 `http://localhost:8080`。
+
+非 loopback 监听必须通过 `HOSTDECK_ACCESS_PASSWORD` 或 `HOSTDECK_API_TOKEN` 启用访问认证。仅本机开发可省略 `--host`，默认绑定 `127.0.0.1`。完整说明见 `docs/access-control.md`。
 
 常用参数：
 

@@ -17,6 +17,11 @@ Future<void> main(List<String> args) async {
     port: config.port,
     webDir: config.webDir,
     dataDir: config.dataDir,
+    adminPassword: Platform.environment['HOSTDECK_ACCESS_PASSWORD'],
+    apiToken: Platform.environment['HOSTDECK_API_TOKEN'],
+    secureCookies:
+        Platform.environment['HOSTDECK_SECURE_COOKIES']?.toLowerCase() ==
+        'true',
   );
 
   final log = Logger('ServerEntrypoint');
@@ -103,7 +108,7 @@ _ServerConfig _parseArgs(List<String> args) {
   final webDir = values['web-dir'] ?? _resolveDefaultWebDir();
 
   return _ServerConfig(
-    host: values['host'] ?? '0.0.0.0',
+    host: values['host'] ?? '127.0.0.1',
     port: port,
     webDir: webDir,
     dataDir: values['data-dir'],
@@ -127,11 +132,16 @@ Usage:
   dart run bin/server.dart [options]
 
 Options:
-  --host <value>       Bind host, default: 0.0.0.0
+  --host <value>       Bind host, default: 127.0.0.1
   --port <value>       Bind port, default: 8080
   --web-dir <path>     Static web root directory (e.g. host-deck-ui/dist)
   --data-dir <path>    Data directory for sqlite and settings
   --help               Show this help
+
+Environment:
+  HOSTDECK_ACCESS_PASSWORD Enable browser password login
+  HOSTDECK_API_TOKEN       Enable Bearer authentication for CLI/API clients
+  HOSTDECK_SECURE_COOKIES  Set true when HTTPS terminates at a reverse proxy
 ''');
   exit(exitCode);
 }

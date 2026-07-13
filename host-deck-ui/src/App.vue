@@ -15,12 +15,15 @@ import {
 import UiApiBridge from '@/components/common/UiApiBridge.vue'
 import DesktopShell from '@/components/os/DesktopShell.vue'
 import LoginScreen from '@/components/os/LoginScreen.vue'
+import AccessLoginScreen from '@/components/os/AccessLoginScreen.vue'
+import { useAccessStore } from '@/stores/access'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import { useUploadCenterStore } from '@/stores/upload-center'
 
 const sshStore = useSshStore()
+const accessStore = useAccessStore()
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const uploadCenterStore = useUploadCenterStore()
@@ -163,7 +166,8 @@ onBeforeUnmount(() => {
             <UiApiBridge />
             <div class="app-root min-h-screen">
               <Transition name="fade" mode="out-in">
-                <DesktopShell v-if="sshStore.isConnected" />
+                <AccessLoginScreen v-if="!accessStore.authenticated" />
+                <DesktopShell v-else-if="sshStore.isConnected" />
                 <LoginScreen v-else />
               </Transition>
             </div>

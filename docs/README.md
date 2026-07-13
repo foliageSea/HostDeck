@@ -38,6 +38,7 @@
 
 - Flutter 桌面壳入口：`lib/main.dart`
 - 纯 Dart B/S 服务入口：`bin/server.dart`
+- 管理 API 与 WebSocket 访问认证：`access-control.md`
 - 服务组装入口：`lib/server/server_service.dart`
 - API 路由入口：`lib/server/routes/api_routes.dart`
 - 前端入口：`host-deck-ui/src/main.ts`

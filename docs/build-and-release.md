@@ -85,7 +85,7 @@ Dockerfile 当前以 `host-deck-ui/` 为前端来源。
 
 ```bash
 docker build -t host-deck:local .
-docker run --rm -p 8080:8080 -v host-deck-data:/data host-deck:local
+docker run --rm -p 8080:8080 -e HOSTDECK_ACCESS_PASSWORD=replace-with-a-strong-password -v host-deck-data:/data host-deck:local
 ```
 
 容器默认启动参数：
