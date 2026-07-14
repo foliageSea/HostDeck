@@ -9,6 +9,7 @@ import {
   Minus,
   Monitor,
   PanelLeft,
+  PanelTop,
   Plus,
   RefreshCw,
   Square,
@@ -39,6 +40,7 @@ const sidebarStyle = computed(() => ({ '--sidebar-width': `${sidebarWidth.value}
 const nextTabBarLabel = computed(() =>
   nextTabBarPosition.value === 'left' ? '切换垂直标签栏' : '切换顶部标签栏'
 )
+const nextTabBarIcon = computed(() => (nextTabBarPosition.value === 'left' ? PanelLeft : PanelTop))
 const toolbarMenuLabel = computed(() => {
   if (!isVertical.value) return '更多操作'
   return toolbarExpanded.value ? '收起菜单' : '展开菜单'
@@ -225,6 +227,16 @@ onBeforeUnmount(() => {
 <template>
   <div :class="['shell', isMac ? 'is-mac' : '', isVertical ? 'left' : 'top']">
     <header class="tab-shell">
+      <button
+        class="tab-position-toggle"
+        type="button"
+        :aria-label="nextTabBarLabel"
+        :title="nextTabBarLabel"
+        @click="toggleTabBarPosition"
+      >
+        <component :is="nextTabBarIcon" class="tab-position-icon" />
+      </button>
+
       <template v-if="!isVertical">
         <div class="tabs">
           <div class="tab-list" @dragleave="handleListDragLeave">
@@ -471,6 +483,42 @@ onBeforeUnmount(() => {
   -webkit-app-region: drag;
 }
 
+.tab-position-toggle {
+  display: grid;
+  width: var(--titlebar-height);
+  height: var(--titlebar-height);
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.72);
+  cursor: default;
+  transition: background 120ms ease, color 120ms ease;
+  -webkit-app-region: no-drag;
+}
+
+.tab-position-toggle:hover {
+  background: rgba(148, 163, 184, 0.18);
+  color: #f8fafc;
+}
+
+.tab-position-toggle:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.9);
+  outline-offset: -2px;
+}
+
+.tab-position-icon {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.8;
+}
+
+.shell.is-mac .tab-position-toggle {
+  margin-left: var(--mac-traffic-light-space);
+}
+
 .shell.left .tab-shell {
   inset: 0 0 auto;
   width: 100%;
@@ -488,7 +536,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: flex-start;
   min-width: 0;
-  padding: 0 20px 0 16px;
+  padding: 0 20px 0 calc(var(--titlebar-height) + 16px);
   overflow: hidden;
   color: rgba(226, 232, 240, 0.92);
   font-size: 13px;
@@ -501,6 +549,7 @@ onBeforeUnmount(() => {
 
 .shell.is-mac .titlebar-app-name {
   inset: 0 var(--mac-traffic-light-space) 0 0;
+  padding-left: calc(var(--mac-traffic-light-space) + var(--titlebar-height) + 16px);
 }
 
 .shell.left .sidebar {
@@ -601,7 +650,7 @@ onBeforeUnmount(() => {
 }
 
 .shell.is-mac .tabs {
-  padding-left: var(--mac-traffic-light-space);
+  padding-left: 0;
 }
 
 .shell.is-mac.left .tabs {
