@@ -7,12 +7,15 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_static/shelf_static.dart';
 
 import 'package:host_deck/server/routes/api_routes.dart';
+import 'package:host_deck/server/features/access/access_middleware.dart';
+import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/utils/app_settings.dart';
 
 Future<Handler> buildServerHandler({
   required ApiRoutes apiRoutes,
   required String staticPath,
   required Logger log,
+  required AccessAuthService accessService,
 }) async {
   Handler? staticHandler;
   final wallpaperDir = await AppSettings.resolveWallpaperDirectory();
@@ -67,7 +70,8 @@ Future<Handler> buildServerHandler({
     );
   }
 
-  var cascade = Cascade().add(apiRoutes.router.call);
+  final apiHandler = accessMiddleware(accessService)(apiRoutes.router.call);
+  var cascade = Cascade().add(apiHandler);
   cascade = cascade.add((request) async {
     return await serveWallpaper(request) ?? Response.notFound('Not found');
   });

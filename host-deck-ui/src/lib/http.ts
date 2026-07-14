@@ -9,7 +9,14 @@ interface ApiError {
 
 export const http = axios.create({
   baseURL: '/',
+  withCredentials: true,
 })
+
+let accessUnauthorizedHandler: (() => void) | null = null
+
+export function setAccessUnauthorizedHandler(handler: () => void) {
+  accessUnauthorizedHandler = handler
+}
 
 let isHandlingSessionError = false
 
@@ -69,6 +76,10 @@ http.interceptors.response.use(
     if (error.response) {
       const { status, data, config } = error.response
       const url = config?.url
+
+      if (status === 401 && url !== '/api/access/login') {
+        accessUnauthorizedHandler?.()
+      }
 
       if (url && url.includes('/api/')) {
         let errorMessage = ''

@@ -15,15 +15,21 @@ class ServerService {
   String host;
   String? webDir;
   String? dataDir;
+  String? adminPassword;
+  String? apiToken;
+  bool secureCookies;
   ServerContainer? _container;
 
   bool get isRunning => _server != null;
 
   ServerService({
     this.port = 8080,
-    this.host = '0.0.0.0',
+    this.host = '127.0.0.1',
     this.webDir,
     this.dataDir,
+    this.adminPassword,
+    this.apiToken,
+    this.secureCookies = false,
   });
 
   Future<void> start() async {
@@ -39,11 +45,24 @@ class ServerService {
       }
     }
 
-    _container = await ServerContainer.create(dataDir: dataDir, log: _log);
+    if (!_isLoopbackHost(host) && !_hasAccessCredential) {
+      throw StateError(
+        'Non-loopback binding requires HOSTDECK_ACCESS_PASSWORD or HOSTDECK_API_TOKEN.',
+      );
+    }
+
+    _container = await ServerContainer.create(
+      dataDir: dataDir,
+      log: _log,
+      adminPassword: adminPassword,
+      apiToken: apiToken,
+      secureCookies: secureCookies,
+    );
     final handler = await buildServerHandler(
       apiRoutes: _container!.apiRoutes,
       staticPath: staticPath,
       log: _log,
+      accessService: _container!.accessService,
     );
 
     final bindAddress = _parseBindAddress(host);
@@ -100,5 +119,17 @@ class ServerService {
       return '127.0.0.1';
     }
     return normalized;
+  }
+
+  bool get _hasAccessCredential =>
+      (adminPassword?.trim().isNotEmpty ?? false) ||
+      (apiToken?.trim().isNotEmpty ?? false);
+
+  bool _isLoopbackHost(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized == '127.0.0.1' ||
+        normalized == '::1' ||
+        normalized == '[::1]' ||
+        normalized == 'localhost';
   }
 }

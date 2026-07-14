@@ -119,19 +119,21 @@ fvm flutter run -d windows
 
 ```bash
 pnpm --dir host-deck-ui build
-dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
+HOSTDECK_ACCESS_PASSWORD=replace-with-a-strong-password dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
 ```
 
 启动后访问 `http://localhost:8080`。
 
 常用参数：
 
-- `--host <value>`：绑定地址，默认 `0.0.0.0`
+- `--host <value>`：绑定地址，默认 `127.0.0.1`
 - `--port <value>`：监听端口，默认 `8080`
 - `--web-dir <path>`：静态前端资源目录
 - `--data-dir <path>`：sqlite 与配置文件目录
 
 如果未显式传入 `--web-dir`，`bin/server.dart` 会尝试从可执行文件旁的 `../web` 自动发现静态资源目录。
+
+非 loopback 监听必须配置 `HOSTDECK_ACCESS_PASSWORD` 或 `HOSTDECK_API_TOKEN`。浏览器使用访问密码登录，Agent CLI 通过 `--token` 或 `HOSTDECK_TOKEN` 发送 Bearer Token；详见 `docs/access-control.md`。
 
 ## 桌面发布构建
 
