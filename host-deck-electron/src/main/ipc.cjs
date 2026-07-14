@@ -78,6 +78,8 @@ function registerIpcHandlers({ getWindowFromSender, ipcMain, restartApplicationS
     if (url) await shell.openExternal(url)
   })
   ipcMain.handle('tabs:set-bar-position', (_event, position) => tabManager.setTabBarPosition(position))
+  ipcMain.handle('tabs:set-content-visible', (_event, visible) => tabManager.setContentVisible(visible))
+  ipcMain.handle('tabs:suspend-content', () => tabManager.suspendContent())
   ipcMain.handle('tabs:set-sidebar-width', (_event, width) => tabManager.setSidebarWidth(width))
 }
 

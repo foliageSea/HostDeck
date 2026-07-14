@@ -13,15 +13,25 @@ import {
   Plus,
   RefreshCw,
   Square,
-  X,
+  TriangleAlert,
+  X
 } from 'lucide-vue-next'
+import {
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogPortal,
+  AlertDialogRoot,
+  AlertDialogTitle
+} from 'reka-ui'
 
 const api = window.hostDeckTabs
 
 const currentState = ref({
   activeTabId: null,
   tabBarPosition: 'top',
-  tabs: [],
+  tabs: []
 })
 const dragState = ref(null)
 const editingTabId = ref(null)
@@ -31,6 +41,9 @@ const sidebarWidth = ref(220)
 const minSidebarWidth = 160
 const maxSidebarWidth = 220
 const isResizingSidebar = ref(false)
+const closeDialogOpen = ref(false)
+const pendingCloseTab = ref(null)
+const contentPreview = ref(null)
 
 const isMac = api?.platform === 'darwin'
 const isVertical = computed(() => currentState.value.tabBarPosition === 'left')
@@ -104,11 +117,40 @@ async function saveEditing(tabId) {
   await api.rename(tabId, editingTitle.value)
 }
 
+async function requestClose(tabId) {
+  const tab = tabs.value.find((item) => item.id === tabId)
+  if (!tab || pendingCloseTab.value) return
+
+  pendingCloseTab.value = tab
+  contentPreview.value = await api.suspendContent()
+  closeDialogOpen.value = true
+}
+
+function confirmClose() {
+  const tabId = pendingCloseTab.value?.id
+  pendingCloseTab.value = null
+  if (!tabId) return
+
+  api.close(tabId)
+}
+
+function handleCloseDialogChange(open) {
+  closeDialogOpen.value = open
+  if (!open) {
+    api.setContentVisible(true).then(() => {
+      contentPreview.value = null
+    })
+    nextTick(() => {
+      if (!closeDialogOpen.value) pendingCloseTab.value = null
+    })
+  }
+}
+
 function handleAuxClick(event, tabId) {
   if (event.button !== 1) return
   event.preventDefault()
   event.stopPropagation()
-  api.close(tabId)
+  requestClose(tabId)
 }
 
 function handleDragStart(event, tabId) {
@@ -121,7 +163,7 @@ function handleDragStart(event, tabId) {
     element: event.currentTarget,
     id: tabId,
     placement: null,
-    targetId: null,
+    targetId: null
   }
   event.currentTarget.classList.add('dragging')
   event.dataTransfer.effectAllowed = 'move'
@@ -151,6 +193,11 @@ async function handleDrop(event, tabId) {
 
 function setToolbarActionsVisible(visible) {
   toolbarExpanded.value = visible
+}
+
+function runToolbarAction(action) {
+  action()
+  setToolbarActionsVisible(false)
 }
 
 async function toggleTabBarPosition() {
@@ -218,6 +265,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  api?.setContentVisible(true)
+  contentPreview.value = null
   unsubscribe?.()
   document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('keydown', handleDocumentKeydown)
@@ -226,6 +275,19 @@ onBeforeUnmount(() => {
 
 <template>
   <div :class="['shell', isMac ? 'is-mac' : '', isVertical ? 'left' : 'top']">
+    <img
+      v-if="contentPreview?.dataUrl"
+      class="content-preview"
+      :src="contentPreview.dataUrl"
+      :style="{
+        left: `${contentPreview.bounds.x}px`,
+        top: `${contentPreview.bounds.y}px`,
+        width: `${contentPreview.bounds.width}px`,
+        height: `${contentPreview.bounds.height}px`,
+      }"
+      alt=""
+      aria-hidden="true"
+    />
     <header class="tab-shell">
       <button
         class="tab-position-toggle"
@@ -269,14 +331,22 @@ onBeforeUnmount(() => {
                 @blur="saveEditing(tab.id)"
                 @click.stop
                 @dblclick.stop
-                @input="editingTitle = $event.target instanceof HTMLInputElement ? $event.target.value : editingTitle"
+                @input="
+                  editingTitle =
+                    $event.target instanceof HTMLInputElement ? $event.target.value : editingTitle
+                "
                 @keydown.enter.prevent="saveEditing(tab.id)"
                 @keydown.esc.prevent="stopEditing()"
               />
               <span v-else class="tab-title">{{ tab.title || 'HostDeck' }}</span>
 
               <span class="tab-status"></span>
-              <span class="tab-close" role="button" :aria-label="'关闭 ' + (tab.title || 'HostDeck')" @click.stop="api.close(tab.id)">
+              <span
+                class="tab-close"
+                role="button"
+                :aria-label="'关闭 ' + (tab.title || 'HostDeck')"
+                @click.stop="requestClose(tab.id)"
+              >
                 <X class="icon close-icon" />
               </span>
             </button>
@@ -290,19 +360,39 @@ onBeforeUnmount(() => {
 
         <div class="toolbar">
           <div class="toolbar-actions" :hidden="!toolbarExpanded">
-            <button class="toolbar-button" type="button" aria-label="刷新当前 Tab" @click="api.reloadActive(); setToolbarActionsVisible(false)">
+            <button
+              class="toolbar-button"
+              type="button"
+              aria-label="刷新当前 Tab"
+              @click="runToolbarAction(api.reloadActive)"
+            >
               <RefreshCw class="icon button-icon" />
               <span class="toolbar-label">刷新当前 Tab</span>
             </button>
-            <button class="toolbar-button" type="button" aria-label="在外部浏览器打开" @click="api.openActiveInBrowser(); setToolbarActionsVisible(false)">
+            <button
+              class="toolbar-button"
+              type="button"
+              aria-label="在外部浏览器打开"
+              @click="runToolbarAction(api.openActiveInBrowser)"
+            >
               <ExternalLink class="icon button-icon" />
               <span class="toolbar-label">外部浏览器打开</span>
             </button>
-            <button class="toolbar-button" type="button" aria-label="打开当前 Tab 开发者工具" @click="api.openActiveDevTools(); setToolbarActionsVisible(false)">
+            <button
+              class="toolbar-button"
+              type="button"
+              aria-label="打开当前 Tab 开发者工具"
+              @click="runToolbarAction(api.openActiveDevTools)"
+            >
               <CodeXml class="icon button-icon devtools-icon" />
               <span class="toolbar-label">开发者工具</span>
             </button>
-            <button class="toolbar-button" type="button" :aria-label="nextTabBarLabel" @click="toggleTabBarPosition">
+            <button
+              class="toolbar-button"
+              type="button"
+              :aria-label="nextTabBarLabel"
+              @click="toggleTabBarPosition"
+            >
               <PanelLeft class="icon button-icon" />
               <span class="toolbar-label">{{ nextTabBarLabel }}</span>
             </button>
@@ -324,13 +414,28 @@ onBeforeUnmount(() => {
       <div v-if="isVertical" class="titlebar-app-name" aria-label="应用名称">HostDeck</div>
 
       <div v-if="!isMac" class="window-controls" aria-label="窗口操作">
-        <button class="window-control minimize" type="button" aria-label="最小化窗口" @click="api.window.minimize()">
+        <button
+          class="window-control minimize"
+          type="button"
+          aria-label="最小化窗口"
+          @click="api.window.minimize()"
+        >
           <Minus class="window-control-icon" />
         </button>
-        <button class="window-control maximize" type="button" aria-label="最大化窗口" @click="api.window.toggleMaximize()">
+        <button
+          class="window-control maximize"
+          type="button"
+          aria-label="最大化窗口"
+          @click="api.window.toggleMaximize()"
+        >
           <Square class="window-control-icon" />
         </button>
-        <button class="window-control close" type="button" aria-label="关闭窗口" @click="api.window.close()">
+        <button
+          class="window-control close"
+          type="button"
+          aria-label="关闭窗口"
+          @click="api.window.close()"
+        >
           <X class="window-control-icon" />
         </button>
       </div>
@@ -368,14 +473,22 @@ onBeforeUnmount(() => {
               @blur="saveEditing(tab.id)"
               @click.stop
               @dblclick.stop
-              @input="editingTitle = $event.target instanceof HTMLInputElement ? $event.target.value : editingTitle"
+              @input="
+                editingTitle =
+                  $event.target instanceof HTMLInputElement ? $event.target.value : editingTitle
+              "
               @keydown.enter.prevent="saveEditing(tab.id)"
               @keydown.esc.prevent="stopEditing()"
             />
             <span v-else class="tab-title">{{ tab.title || 'HostDeck' }}</span>
 
             <span class="tab-status"></span>
-            <span class="tab-close" role="button" :aria-label="'关闭 ' + (tab.title || 'HostDeck')" @click.stop="api.close(tab.id)">
+            <span
+              class="tab-close"
+              role="button"
+              :aria-label="'关闭 ' + (tab.title || 'HostDeck')"
+              @click.stop="requestClose(tab.id)"
+            >
               <X class="icon close-icon" />
             </span>
           </button>
@@ -389,19 +502,39 @@ onBeforeUnmount(() => {
 
       <div class="toolbar">
         <div class="toolbar-actions" :hidden="!toolbarExpanded">
-          <button class="toolbar-button" type="button" aria-label="刷新当前 Tab" @click="api.reloadActive(); setToolbarActionsVisible(false)">
+          <button
+            class="toolbar-button"
+            type="button"
+            aria-label="刷新当前 Tab"
+            @click="runToolbarAction(api.reloadActive)"
+          >
             <RefreshCw class="icon button-icon" />
             <span class="toolbar-label">刷新当前 Tab</span>
           </button>
-          <button class="toolbar-button" type="button" aria-label="在外部浏览器打开" @click="api.openActiveInBrowser(); setToolbarActionsVisible(false)">
+          <button
+            class="toolbar-button"
+            type="button"
+            aria-label="在外部浏览器打开"
+            @click="runToolbarAction(api.openActiveInBrowser)"
+          >
             <ExternalLink class="icon button-icon" />
             <span class="toolbar-label">外部浏览器打开</span>
           </button>
-          <button class="toolbar-button" type="button" aria-label="打开当前 Tab 开发者工具" @click="api.openActiveDevTools(); setToolbarActionsVisible(false)">
+          <button
+            class="toolbar-button"
+            type="button"
+            aria-label="打开当前 Tab 开发者工具"
+            @click="runToolbarAction(api.openActiveDevTools)"
+          >
             <CodeXml class="icon button-icon devtools-icon" />
             <span class="toolbar-label">开发者工具</span>
           </button>
-          <button class="toolbar-button" type="button" :aria-label="nextTabBarLabel" @click="toggleTabBarPosition">
+          <button
+            class="toolbar-button"
+            type="button"
+            :aria-label="nextTabBarLabel"
+            @click="toggleTabBarPosition"
+          >
             <PanelLeft class="icon button-icon" />
             <span class="toolbar-label">{{ nextTabBarLabel }}</span>
           </button>
@@ -432,19 +565,50 @@ onBeforeUnmount(() => {
       ></div>
     </aside>
 
-    <main :class="['empty-state', { visible: tabs.length === 0 }]" :style="isVertical ? sidebarStyle : undefined">
+    <main
+      :class="['empty-state', { visible: tabs.length === 0 }]"
+      :style="isVertical ? sidebarStyle : undefined"
+    >
       <button class="empty-action" type="button" @click="api.create()">
         <Plus class="icon button-icon" />
         <span>新建 Tab</span>
       </button>
     </main>
+
+    <AlertDialogRoot :open="closeDialogOpen" @update:open="handleCloseDialogChange">
+      <AlertDialogPortal>
+        <AlertDialogContent class="close-dialog-content">
+          <div class="close-dialog-icon" aria-hidden="true">
+            <TriangleAlert />
+          </div>
+          <div class="close-dialog-copy">
+            <AlertDialogTitle class="close-dialog-title">关闭 Tab？</AlertDialogTitle>
+            <AlertDialogDescription class="close-dialog-description">
+              确定要关闭“{{ pendingCloseTab?.title || 'HostDeck' }}”吗？
+            </AlertDialogDescription>
+          </div>
+          <div class="close-dialog-actions">
+            <AlertDialogCancel class="close-dialog-button secondary">取消</AlertDialogCancel>
+            <AlertDialogAction class="close-dialog-button danger" @click="confirmClose"
+              >关闭</AlertDialogAction
+            >
+          </div>
+        </AlertDialogContent>
+      </AlertDialogPortal>
+    </AlertDialogRoot>
   </div>
 </template>
 
 <style scoped>
 :global(:root) {
   color-scheme: dark;
-  font-family: Inter, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    Inter,
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   --titlebar-height: 42px;
   --sidebar-width: 220px;
   --mac-traffic-light-space: 88px;
@@ -465,6 +629,15 @@ onBeforeUnmount(() => {
 
 .shell {
   min-height: 100vh;
+}
+
+.content-preview {
+  position: fixed;
+  z-index: 1;
+  display: block;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
 }
 
 .sidebar {
@@ -495,7 +668,9 @@ onBeforeUnmount(() => {
   background: transparent;
   color: rgba(226, 232, 240, 0.72);
   cursor: default;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
   -webkit-app-region: no-drag;
 }
 
@@ -614,7 +789,9 @@ onBeforeUnmount(() => {
   background: transparent;
   color: rgba(226, 232, 240, 0.72);
   cursor: default;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .window-control:hover {
@@ -694,7 +871,11 @@ onBeforeUnmount(() => {
   margin-right: -1px;
   text-align: left;
   cursor: default;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, opacity 160ms ease;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
   -webkit-app-region: no-drag;
 }
 
@@ -974,6 +1155,104 @@ onBeforeUnmount(() => {
   color: #f8fafc;
 }
 
+:global(.close-dialog-content) {
+  position: fixed;
+  z-index: 2001;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(400px, calc(100vw - 32px));
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 4px 14px;
+  padding: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 8px;
+  outline: none;
+  background: #111827;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.48);
+  color: #e2e8f0;
+  transform: translate(-50%, -50%);
+  animation: dialog-content-in 160ms ease-out;
+}
+
+:global(.close-dialog-icon) {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
+}
+
+:global(.close-dialog-icon svg) {
+  width: 20px;
+  height: 20px;
+}
+
+:global(.close-dialog-copy) {
+  min-width: 0;
+}
+
+:global(.close-dialog-title) {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+:global(.close-dialog-description) {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  color: rgba(226, 232, 240, 0.68);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+:global(.close-dialog-actions) {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+:global(.close-dialog-button) {
+  min-width: 72px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #f8fafc;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: default;
+}
+
+:global(.close-dialog-button.secondary) {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(51, 65, 85, 0.7);
+}
+
+:global(.close-dialog-button.secondary:hover) {
+  background: rgba(71, 85, 105, 0.82);
+}
+
+:global(.close-dialog-button.danger) {
+  background: #dc2626;
+}
+
+:global(.close-dialog-button.danger:hover) {
+  background: #ef4444;
+}
+
+:global(.close-dialog-button:focus-visible) {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
 @media (max-width: 720px) {
   .shell.is-mac {
     --mac-traffic-light-space: 76px;
@@ -994,6 +1273,13 @@ onBeforeUnmount(() => {
   50% {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+@keyframes dialog-content-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px)) scale(0.98);
   }
 }
 </style>

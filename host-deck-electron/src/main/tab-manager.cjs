@@ -5,6 +5,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
   const maxTabBarWidth = 220
 
   let activeTabId = null
+  let isContentVisible = true
   let nextTabId = 1
   const tabs = new Map()
   const tabOrder = []
@@ -77,7 +78,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
 
   function attachTabView(tab) {
     const mainWindow = getMainWindow()
-    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (!mainWindow || mainWindow.isDestroyed() || !isContentVisible) return
     mainWindow.contentView.addChildView(tab.view)
     layoutActiveTab()
   }
@@ -255,6 +256,37 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
     return serializeTabs()
   }
 
+  function setContentVisible(visible) {
+    const nextVisible = visible === true
+    if (isContentVisible === nextVisible) return
+
+    isContentVisible = nextVisible
+    const activeTab = getActiveTab()
+    if (!activeTab) return
+
+    if (isContentVisible) {
+      attachTabView(activeTab)
+    } else {
+      detachTabView(activeTab)
+    }
+  }
+
+  async function suspendContent() {
+    const activeTab = getActiveTab()
+    if (!activeTab || !isContentVisible) return null
+
+    const bounds = activeTab.view.getBounds()
+    let dataUrl = null
+    try {
+      const image = await activeTab.view.webContents.capturePage()
+      dataUrl = image.toDataURL()
+    } catch {
+    }
+
+    setContentVisible(false)
+    return { bounds, dataUrl }
+  }
+
   function getActiveTab() {
     return activeTabId ? tabs.get(activeTabId) : null
   }
@@ -283,7 +315,9 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
     requireActiveTab,
     serializeTabs,
     setTabBarPosition,
+    setContentVisible,
     setSidebarWidth,
+    suspendContent,
   }
 }
 
