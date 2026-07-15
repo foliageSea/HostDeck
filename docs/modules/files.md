@@ -6,11 +6,11 @@
 
 后端：
 
-- `lib/server/controllers/file_controller.dart`
-- `lib/server/services/file_service.dart`
-- `lib/server/services/ssh_service.dart`
-- `lib/server/repositories/ssh_repository.dart`
-- `lib/server/models/file_item.dart`
+- `lib/server/features/files/file_controller.dart`
+- `lib/server/features/files/file_service.dart`
+- `lib/server/core/ssh/ssh_service.dart`
+- `lib/server/core/ssh/ssh_repository.dart`
+- `lib/server/features/files/file_item.dart`
 
 前端：
 

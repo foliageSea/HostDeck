@@ -6,10 +6,10 @@
 
 后端：
 
-- `lib/server/controllers/server_controller.dart`
-- `lib/server/repositories/server_repository.dart`
-- `lib/server/services/database_service.dart`
-- `lib/server/models/server_config.dart`
+- `lib/server/features/servers/server_controller.dart`
+- `lib/server/features/servers/server_repository.dart`
+- `lib/server/core/database/database_service.dart`
+- `lib/server/features/servers/server_config.dart`
 
 前端：
 

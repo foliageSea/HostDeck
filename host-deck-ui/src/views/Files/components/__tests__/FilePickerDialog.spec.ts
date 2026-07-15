@@ -216,7 +216,7 @@ describe('FilePickerDialog', () => {
     await flushPromises()
 
     await getButton(wrapper, '新建目录')?.trigger('click')
-    await wrapper.findAll('input')[1].setValue('new-stack')
+    await wrapper.findAll('input')[2].setValue('new-stack')
     await getButton(wrapper, '创建')?.trigger('click')
     await flushPromises()
     await wrapper.vm.$nextTick()

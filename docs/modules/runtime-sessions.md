@@ -6,8 +6,8 @@
 
 后端：
 
-- `lib/server/controllers/runtime_controller.dart`
-- `lib/server/services/ssh_service.dart`
+- `lib/server/features/runtime/runtime_controller.dart`
+- `lib/server/core/ssh/ssh_service.dart`
 
 前端：
 

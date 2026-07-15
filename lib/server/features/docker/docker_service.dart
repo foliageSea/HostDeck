@@ -1230,29 +1230,6 @@ class DockerService {
     return body.trim();
   }
 
-  List<Map<String, dynamic>> _parseComposeProjectsTable(String output) {
-    return output
-        .split('\n')
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty)
-        .where((line) => !line.toLowerCase().startsWith('name'))
-        .map((line) {
-          final parts = line.split(RegExp(r'\s{2,}'));
-          if (parts.isEmpty) {
-            return <String, dynamic>{};
-          }
-
-          return <String, dynamic>{
-            'Name': parts[0],
-            'Status': parts.length > 1 ? parts[1] : '',
-            'ConfigFiles': parts.length > 2 ? parts.sublist(2).join(', ') : '',
-            'WorkingDir': '',
-          };
-        })
-        .where((item) => item['Name']?.toString().isNotEmpty == true)
-        .toList();
-  }
-
   List<Map<String, dynamic>> _parseComposeServicesTable(String output) {
     return output
         .split('\n')

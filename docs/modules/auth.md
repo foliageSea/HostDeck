@@ -6,11 +6,11 @@
 
 后端：
 
-- `lib/server/controllers/auth_controller.dart`
-- `lib/server/services/ssh_service.dart`
-- `lib/server/repositories/ssh_repository.dart`
-- `lib/server/models/ssh_session.dart`
-- `lib/server/models/ssh_operation_limiter.dart`
+- `lib/server/features/auth/auth_controller.dart`
+- `lib/server/core/ssh/ssh_service.dart`
+- `lib/server/core/ssh/ssh_repository.dart`
+- `lib/server/core/ssh/ssh_session.dart`
+- `lib/server/core/ssh/ssh_operation_limiter.dart`
 
 前端：
 

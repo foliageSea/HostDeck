@@ -6,9 +6,9 @@
 
 后端：
 
-- `lib/server/controllers/terminal_controller.dart`
-- `lib/server/services/ssh_service.dart`
-- `lib/server/models/ssh_operation_limiter.dart`
+- `lib/server/features/terminal/terminal_controller.dart`
+- `lib/server/core/ssh/ssh_service.dart`
+- `lib/server/core/ssh/ssh_operation_limiter.dart`
 
 前端：
 

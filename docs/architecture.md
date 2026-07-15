@@ -15,7 +15,7 @@
 - 前端通过 Vite 开发服务器运行。
 - 后端由 Flutter 桌面壳内置启动，默认监听 `http://localhost:8080`。
 - Vite 代理 `/api` 到后端，其中终端 WebSocket 使用 `/api/ws/terminal`。
-- 注意：Vite 开发服务器端口以 `host-deck-ui/vite.config.ts` 的 `server.port` 为准；`host-deck-electron/` 的 Electron 开发模式还会启动自身的壳层 Vite 服务 `host-deck-electron/vite.config.mjs`，也可通过 `HOST_DECK_ELECTRON_APP_DEV_URL` 与 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖；`lib/main.dart` debug WebView 当前仍硬编码加载 `http://localhost:5173`。
+- 注意：Vite 与 `lib/main.dart` 的 Flutter debug WebView 默认统一使用 `http://localhost:5178`；`host-deck-electron/` 的 Electron 开发模式还会启动自身的壳层 Vite 服务 `host-deck-electron/vite.config.mjs`，也可通过 `HOST_DECK_ELECTRON_APP_DEV_URL` 与 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖。
 
 纯 B/S 模式：
 

@@ -59,10 +59,15 @@ pnpm --dir host-deck-ui exec vitest run src/views/Files/components/__tests__/Fil
 - `test/docker_engine_mapper_test.dart`
 - `test/monitor_history_service_test.dart`
 - `test/widget_test.dart`
+- `test/ssh_service_test.dart`
+- `test/file_service_test.dart`
 
 前端测试：
 
 - `host-deck-ui/src/views/Files/components/__tests__/FilePickerDialog.spec.ts`
+- `host-deck-ui/src/api/__tests__/auth.spec.ts`
+- `host-deck-ui/src/api/__tests__/files.spec.ts`
+- `host-deck-ui/src/views/Docker/hooks/__tests__/useDockerView.spec.ts`
 
 ## 变更对应的最低验证
 

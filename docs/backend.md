@@ -4,12 +4,11 @@
 
 ## 目录职责
 
-- `lib/server/server_service.dart`：服务依赖组装、HTTP 绑定、静态资源和 SPA fallback。
+- `lib/server/app/server_service.dart`：服务依赖组装、HTTP 绑定、静态资源和 SPA fallback。
 - `lib/server/routes/api_routes.dart`：集中注册 HTTP 与 WebSocket 路由。
-- `lib/server/controllers/`：路由处理器，负责协议层逻辑。
-- `lib/server/services/`：业务服务，负责 SSH、文件、监控、Docker、数据库等逻辑。
-- `lib/server/repositories/`：底层访问封装，负责 SSH 命令、Docker Engine、sqlite 持久化。
-- `lib/server/models/`：请求响应、领域对象和运行态模型。
+- `lib/server/features/<feature>/`：按功能收拢 controller、service、repository 与领域模型。
+- `lib/server/core/`：SSH、HTTP、数据库等跨功能基础设施。
+- `lib/server/app/`：运行时依赖组装与服务生命周期。
 
 ## 入口
 
@@ -27,16 +26,16 @@
 
 所有业务路由集中在 `lib/server/routes/api_routes.dart`。新增后端接口时，通常需要同步：
 
-- 新增或修改 `lib/server/controllers/*`。
-- 如需业务逻辑，新增或修改 `lib/server/services/*`。
-- 如需外部访问或持久化，新增或修改 `lib/server/repositories/*`。
+- 新增或修改 `lib/server/features/<feature>/*`。
+- 如需跨功能 SSH、HTTP 或数据库能力，新增或修改 `lib/server/core/*`。
+- 在 `lib/server/app/server_container.dart` 中组装依赖。
 - 在 `ApiRoutes.router` 中注册路由。
 - 在 `host-deck-ui/src/api/*` 添加前端请求封装。
 - 更新调用该 API 的 store、hook 或 view。
 
 ## 响应约定
 
-普通 JSON API 使用 `lib/server/models/result.dart`：
+普通 JSON API 使用 `lib/server/core/http/result.dart`：
 
 - 成功：`Result.ok(data)`。
 - 失败：`Result.fail(message, code: ...)`。
@@ -54,7 +53,7 @@
 
 ## 数据目录
 
-`DatabaseService` 由 `ServerService` 初始化，`bin/server.dart` 会通过 `AppSettings.configure(dataDir: config.dataDir)` 配置运行数据目录。需要持久化的数据应通过 service/repository 层集中处理，不要在 controller 中直接操作文件或数据库。
+`DatabaseService` 由 `ServerService` 初始化，`bin/server.dart` 会通过 `AppSettings.configure(dataDir: config.dataDir)` 配置运行数据目录。需要持久化的数据应通过 feature repository 或 `core/database` 集中处理，不要在 controller 中直接操作文件或数据库。
 
 ## 日志与安全
 

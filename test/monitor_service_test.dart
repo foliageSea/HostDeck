@@ -29,7 +29,7 @@ class MockSshRepository implements SshRepository {
     if (command.contains('df -h')) {
       return "45%";
     }
-    if (command.contains('uptime')) {
+    if (command.trim() == 'uptime') {
       return " 13:22:01 up 1 day,  3:10,  1 user,  load average: 0.50, 0.05, 0.01";
     }
     if (command.contains('top')) {
@@ -49,7 +49,7 @@ Inter-|   Receive                                                |  Transmit
   eth0: $rx 1446736    0    0    0     0          0         0 $tx 1034567    0    0    0     0       0          0
 """;
     }
-    if (command.contains('hostname=%s')) {
+    if (command.contains("printf 'hostname=%s")) {
       return """
 hostname=software-order-1
 distribution=Ubuntu 22.04.3 LTS
@@ -112,7 +112,7 @@ uptime=2 weeks, 1 day, 3 hours, 12 minutes
 
   @override
   Future<SshExecResult> execWithResult(
-    SshSession,
+    SshSession _,
     String command, {
     String? cwd,
     Duration? timeout,

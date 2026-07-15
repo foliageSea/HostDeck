@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import * as monaco from 'monaco-editor'
 import { useSettingsStore } from '@/stores/settings'
 
 const props = withDefaults(
@@ -22,9 +21,10 @@ const emit = defineEmits<{
 const settingsStore = useSettingsStore()
 const editorContainer = ref<HTMLElement | null>(null)
 
-let editor: monaco.editor.IStandaloneCodeEditor | null = null
-let model: monaco.editor.ITextModel | null = null
-let syncDisposable: monaco.IDisposable | null = null
+let monacoApi: typeof import('monaco-editor') | null = null
+let editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null
+let model: import('monaco-editor').editor.ITextModel | null = null
+let syncDisposable: import('monaco-editor').IDisposable | null = null
 
 const editorTheme = computed(() => (settingsStore.isDark ? 'vs-dark' : 'vs'))
 
@@ -44,7 +44,7 @@ function updateEditorFontOptions(options: { fontFamily?: string; fontSize?: numb
   editor.updateOptions(options)
 
   if (options.fontFamily !== undefined) {
-    monaco.editor.remeasureFonts()
+    monacoApi?.editor.remeasureFonts()
   }
 
   editor.layout()
@@ -57,8 +57,13 @@ async function initEditor() {
     return
   }
 
-  model = monaco.editor.createModel(props.modelValue, props.language)
-  editor = monaco.editor.create(editorContainer.value, {
+  const [, loadedMonaco] = await Promise.all([import('@/lib/monaco'), import('monaco-editor')])
+  if (!editorContainer.value || editor) {
+    return
+  }
+  monacoApi = loadedMonaco
+  model = monacoApi.editor.createModel(props.modelValue, props.language)
+  editor = monacoApi.editor.create(editorContainer.value, {
     model,
     automaticLayout: true,
     minimap: { enabled: false },
@@ -104,7 +109,7 @@ watch(
   () => props.language,
   (value) => {
     if (model) {
-      monaco.editor.setModelLanguage(model, value)
+      monacoApi?.editor.setModelLanguage(model, value)
     }
   },
 )
@@ -133,7 +138,7 @@ watch(
 watch(
   () => settingsStore.isDark,
   () => {
-    monaco.editor.setTheme(editorTheme.value)
+    monacoApi?.editor.setTheme(editorTheme.value)
   },
 )
 </script>

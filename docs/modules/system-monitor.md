@@ -6,14 +6,14 @@
 
 后端：
 
-- `lib/server/controllers/system_controller.dart`
-- `lib/server/controllers/system/system_monitor_ws_handler.dart`
-- `lib/server/controllers/system/session_status_ws_handler.dart`
-- `lib/server/services/monitor_service.dart`
-- `lib/server/services/monitor_history_service.dart`
-- `lib/server/services/ssh_service.dart`
-- `lib/server/repositories/ssh_repository.dart`
-- `lib/server/models/system_status.dart`
+- `lib/server/features/system/system_controller.dart`
+- `lib/server/features/system/system_monitor_ws_handler.dart`
+- `lib/server/features/system/session_status_ws_handler.dart`
+- `lib/server/features/system/monitor_service.dart`
+- `lib/server/features/system/monitor_history_service.dart`
+- `lib/server/core/ssh/ssh_service.dart`
+- `lib/server/core/ssh/ssh_repository.dart`
+- `lib/server/features/system/system_status.dart`
 
 前端：
 

@@ -4,7 +4,7 @@
 
 ## 统一 JSON 响应
 
-普通 JSON API 使用 `lib/server/models/result.dart` 包装响应。
+普通 JSON API 使用 `lib/server/core/http/result.dart` 包装响应。
 
 成功响应通常形如：
 

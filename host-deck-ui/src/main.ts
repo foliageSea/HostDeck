@@ -5,7 +5,6 @@ import App from './App.vue'
 import router from './router'
 import { useSettingsStore } from '@/stores/settings'
 import { useAccessStore } from '@/stores/access'
-import './lib/monaco'
 import './style.css'
 import 'virtual:uno.css'
 

@@ -57,7 +57,7 @@ class _MyAppState extends State<MyApp> {
   final TextEditingController _portController = TextEditingController();
 
   String get _targetUrl => kDebugMode
-      ? 'http://localhost:5173'
+      ? 'http://localhost:5178'
       : 'http://localhost:${_serverService.port}';
 
   @override

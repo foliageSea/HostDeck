@@ -36,8 +36,7 @@ flutter run -d windows
 - 后端默认监听 `http://localhost:8080`。
 - Vite 开发服务器端口以 `host-deck-ui/vite.config.ts` 的 `server.port` 为准。
 - Electron 开发模式由 `host-deck-electron/` 启动，并分别从 `host-deck-ui/vite.config.ts` 与 `host-deck-electron/vite.config.mjs` 读取开发服务器地址，也可通过 `HOST_DECK_ELECTRON_APP_DEV_URL` 与 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖。
-- `lib/main.dart` 的 Flutter debug WebView 当前仍硬编码加载 `http://localhost:5173`。
-- 调试桌面壳前需要统一端口，或临时让 Vite 使用 `5173`。
+- `lib/main.dart` 的 Flutter debug WebView 与 Vite 默认统一使用 `http://localhost:5178`。
 
 ## 纯 Dart B/S 模式
 
@@ -74,10 +73,10 @@ Vite 会将 `/api` 代理到 `VITE_DEV_PROXY_TARGET`，默认是 `http://localho
 
 涉及后端 API 的功能通常按以下顺序开发：
 
-1. 在 `lib/server/models/` 定义或调整模型。
-2. 在 `lib/server/repositories/` 封装外部访问或持久化。
-3. 在 `lib/server/services/` 实现业务逻辑。
-4. 在 `lib/server/controllers/` 实现路由处理。
+1. 在 `lib/server/features/<feature>/` 定义或调整模型、controller 与 service。
+2. 在 `lib/server/core/ssh/` 或 feature 内 repository 封装外部访问。
+3. 在 `lib/server/app/` 的依赖组装中接入新 feature。
+4. 在 `lib/server/routes/` 实现并注册路由。
 5. 在 `lib/server/routes/api_routes.dart` 注册路由。
 6. 在 `host-deck-ui/src/api/` 添加前端请求和类型。
 7. 在 `src/stores/`、`src/views/` 或 `src/components/` 中接入 UI。

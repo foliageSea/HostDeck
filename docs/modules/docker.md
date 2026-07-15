@@ -6,15 +6,15 @@ Docker 模块负责通过 SSH 连接访问远端 Docker Engine，提供容器、
 
 后端：
 
-- `lib/server/controllers/docker_controller.dart`
-- `lib/server/services/docker_service.dart`
-- `lib/server/services/docker_engine_mapper.dart`
-- `lib/server/repositories/docker_engine_repository.dart`
-- `lib/server/repositories/ssh_repository.dart`
-- `lib/server/models/docker_container.dart`
-- `lib/server/models/docker_image.dart`
-- `lib/server/models/docker_network.dart`
-- `lib/server/models/docker_volume.dart`
+- `lib/server/features/docker/docker_controller.dart`
+- `lib/server/features/docker/docker_service.dart`
+- `lib/server/features/docker/docker_engine_mapper.dart`
+- `lib/server/features/docker/docker_engine_repository.dart`
+- `lib/server/core/ssh/ssh_repository.dart`
+- `lib/server/features/docker/docker_container.dart`
+- `lib/server/features/docker/docker_image.dart`
+- `lib/server/features/docker/docker_network.dart`
+- `lib/server/features/docker/docker_volume.dart`
 
 前端：
 
