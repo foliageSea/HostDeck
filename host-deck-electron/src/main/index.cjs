@@ -119,9 +119,19 @@ function getWindowFromSender(sender) {
   return BrowserWindow.fromWebContents(sender) ?? mainWindow ?? null
 }
 
+function isNavigationAborted(error) {
+  return error?.code === 'ERR_ABORTED' || error?.code === -3 || /ERR_ABORTED \(-3\)/.test(error?.message)
+}
+
 async function loadShellPage(pageName) {
   if (!mainWindow || mainWindow.isDestroyed()) return
-  await shellPageLoader(mainWindow, pageName)
+  try {
+    await shellPageLoader(mainWindow, pageName)
+    return true
+  } catch (error) {
+    if (isNavigationAborted(error)) return false
+    throw error
+  }
 }
 
 async function resolveAppUrl() {
@@ -172,7 +182,9 @@ function createWindow() {
   })
   mainWindow.maximize()
 
-  loadShellPage('loading')
+  void loadShellPage('loading').catch((error) => {
+    console.error('Unable to load loading page:', error)
+  })
   mainWindow.on('close', (event) => {
     if (isQuitting) return
     event.preventDefault()
@@ -191,8 +203,9 @@ async function loadApplication() {
   if (useDevServers) {
     await waitForUrl(applicationUrl, 15000)
   }
-  await loadShellPage('tabs')
-  tabManager.createTab(applicationUrl)
+  if (await loadShellPage('tabs')) {
+    tabManager.createTab(applicationUrl)
+  }
   return applicationUrl
 }
 
@@ -233,10 +246,17 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length !== 0) return
     createWindow()
     applicationUrl = url
-    loadShellPage('tabs').then(() => {
-      tabManager.createTab(url)
-    })
+    void loadShellPage('tabs')
+      .then((didLoad) => {
+        if (didLoad) tabManager.createTab(url)
+      })
+      .catch((error) => {
+        console.error('Unable to load tabs page:', error)
+      })
   })
+}).catch((error) => {
+  console.error('Unable to start HostDeck:', error)
+  app.quit()
 })
 
 app.on('window-all-closed', () => {

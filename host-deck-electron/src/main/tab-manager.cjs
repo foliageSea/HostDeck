@@ -117,6 +117,15 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
     return serializeTabs()
   }
 
+  function loadTabUrl(tab, url) {
+    void tab.view.webContents.loadURL(url).catch((error) => {
+      if (error?.code === 'ERR_ABORTED' || error?.code === -3 || /ERR_ABORTED \(-3\)/.test(error?.message)) {
+        return
+      }
+      console.error(`Unable to load tab ${tab.id}:`, error)
+    })
+  }
+
   function createTab(url = getApplicationUrl()) {
     if (!url) throw new Error('Application URL has not been initialized.')
 
@@ -169,7 +178,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
       sendTabsChanged()
     })
 
-    view.webContents.loadURL(url)
+    loadTabUrl(tab, url)
     activateTab(id)
     return id
   }
@@ -299,7 +308,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
 
   function reloadAll(url) {
     for (const tab of tabs.values()) {
-      tab.view.webContents.loadURL(url)
+      loadTabUrl(tab, url)
     }
   }
 
