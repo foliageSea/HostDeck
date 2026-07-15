@@ -72,6 +72,6 @@
   },
   "dependencies": {
     "lucide-vue-next": "^1.0.0",
-    "reka-ui": "^2.10.1"
+    "naive-ui": "^2.44.1"
   }
 }

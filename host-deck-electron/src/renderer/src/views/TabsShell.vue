@@ -13,20 +13,12 @@ import {
   Plus,
   RefreshCw,
   Square,
-  TriangleAlert,
   X
 } from 'lucide-vue-next'
-import {
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogPortal,
-  AlertDialogRoot,
-  AlertDialogTitle
-} from 'reka-ui'
+import { useDialog } from 'naive-ui'
 
 const api = window.hostDeckTabs
+const dialog = useDialog()
 
 const currentState = ref({
   activeTabId: null,
@@ -41,7 +33,6 @@ const sidebarWidth = ref(220)
 const minSidebarWidth = 160
 const maxSidebarWidth = 220
 const isResizingSidebar = ref(false)
-const closeDialogOpen = ref(false)
 const pendingCloseTab = ref(null)
 const contentPreview = ref(null)
 
@@ -123,27 +114,36 @@ async function requestClose(tabId) {
 
   pendingCloseTab.value = tab
   contentPreview.value = await api.suspendContent()
-  closeDialogOpen.value = true
+  dialog.warning({
+    title: '关闭 Tab？',
+    content: `确定要关闭“${tab.title || 'HostDeck'}”吗？`,
+    positiveText: '关闭',
+    negativeText: '取消',
+    closable: false,
+    maskClosable: false,
+    closeOnEsc: false,
+    onPositiveClick: confirmClose,
+    onNegativeClick: cancelClose
+  })
 }
 
-function confirmClose() {
+async function confirmClose() {
   const tabId = pendingCloseTab.value?.id
   pendingCloseTab.value = null
   if (!tabId) return
 
-  api.close(tabId)
+  await restoreContent()
+  await api.close(tabId)
 }
 
-function handleCloseDialogChange(open) {
-  closeDialogOpen.value = open
-  if (!open) {
-    api.setContentVisible(true).then(() => {
-      contentPreview.value = null
-    })
-    nextTick(() => {
-      if (!closeDialogOpen.value) pendingCloseTab.value = null
-    })
-  }
+async function cancelClose() {
+  pendingCloseTab.value = null
+  await restoreContent()
+}
+
+async function restoreContent() {
+  await api.setContentVisible(true)
+  contentPreview.value = null
 }
 
 function handleAuxClick(event, tabId) {
@@ -283,7 +283,7 @@ onBeforeUnmount(() => {
         left: `${contentPreview.bounds.x}px`,
         top: `${contentPreview.bounds.y}px`,
         width: `${contentPreview.bounds.width}px`,
-        height: `${contentPreview.bounds.height}px`,
+        height: `${contentPreview.bounds.height}px`
       }"
       alt=""
       aria-hidden="true"
@@ -574,28 +574,6 @@ onBeforeUnmount(() => {
         <span>新建 Tab</span>
       </button>
     </main>
-
-    <AlertDialogRoot :open="closeDialogOpen" @update:open="handleCloseDialogChange">
-      <AlertDialogPortal>
-        <AlertDialogContent class="close-dialog-content">
-          <div class="close-dialog-icon" aria-hidden="true">
-            <TriangleAlert />
-          </div>
-          <div class="close-dialog-copy">
-            <AlertDialogTitle class="close-dialog-title">关闭 Tab？</AlertDialogTitle>
-            <AlertDialogDescription class="close-dialog-description">
-              确定要关闭“{{ pendingCloseTab?.title || 'HostDeck' }}”吗？
-            </AlertDialogDescription>
-          </div>
-          <div class="close-dialog-actions">
-            <AlertDialogCancel class="close-dialog-button secondary">取消</AlertDialogCancel>
-            <AlertDialogAction class="close-dialog-button danger" @click="confirmClose"
-              >关闭</AlertDialogAction
-            >
-          </div>
-        </AlertDialogContent>
-      </AlertDialogPortal>
-    </AlertDialogRoot>
   </div>
 </template>
 
@@ -1155,104 +1133,6 @@ onBeforeUnmount(() => {
   color: #f8fafc;
 }
 
-:global(.close-dialog-content) {
-  position: fixed;
-  z-index: 2001;
-  top: 50%;
-  left: 50%;
-  display: grid;
-  width: min(400px, calc(100vw - 32px));
-  grid-template-columns: 40px minmax(0, 1fr);
-  gap: 4px 14px;
-  padding: 22px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 8px;
-  outline: none;
-  background: #111827;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.48);
-  color: #e2e8f0;
-  transform: translate(-50%, -50%);
-  animation: dialog-content-in 160ms ease-out;
-}
-
-:global(.close-dialog-icon) {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  place-items: center;
-  border-radius: 50%;
-  background: rgba(239, 68, 68, 0.14);
-  color: #f87171;
-}
-
-:global(.close-dialog-icon svg) {
-  width: 20px;
-  height: 20px;
-}
-
-:global(.close-dialog-copy) {
-  min-width: 0;
-}
-
-:global(.close-dialog-title) {
-  margin: 0;
-  color: #f8fafc;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.4;
-}
-
-:global(.close-dialog-description) {
-  margin: 5px 0 0;
-  overflow-wrap: anywhere;
-  color: rgba(226, 232, 240, 0.68);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-:global(.close-dialog-actions) {
-  display: flex;
-  grid-column: 1 / -1;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 18px;
-}
-
-:global(.close-dialog-button) {
-  min-width: 72px;
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: #f8fafc;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: default;
-}
-
-:global(.close-dialog-button.secondary) {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: rgba(51, 65, 85, 0.7);
-}
-
-:global(.close-dialog-button.secondary:hover) {
-  background: rgba(71, 85, 105, 0.82);
-}
-
-:global(.close-dialog-button.danger) {
-  background: #dc2626;
-}
-
-:global(.close-dialog-button.danger:hover) {
-  background: #ef4444;
-}
-
-:global(.close-dialog-button:focus-visible) {
-  outline: 2px solid #38bdf8;
-  outline-offset: 2px;
-}
-
 @media (max-width: 720px) {
   .shell.is-mac {
     --mac-traffic-light-space: 76px;
@@ -1273,13 +1153,6 @@ onBeforeUnmount(() => {
   50% {
     transform: scale(1);
     opacity: 1;
-  }
-}
-
-@keyframes dialog-content-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, calc(-50% + 8px)) scale(0.98);
   }
 }
 </style>

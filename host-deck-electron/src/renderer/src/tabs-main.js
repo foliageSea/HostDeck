@@ -1,5 +1,15 @@
-import { createApp } from 'vue'
+import { createApp, h } from 'vue'
+import { darkTheme, NConfigProvider, NDialogProvider } from 'naive-ui'
 
 import TabsShell from './views/TabsShell.vue'
 
-createApp(TabsShell).mount('#app')
+createApp({
+  render: () =>
+    h(
+      NConfigProvider,
+      { theme: darkTheme },
+      {
+        default: () => h(NDialogProvider, null, { default: () => h(TabsShell) })
+      }
+    )
+}).mount('#app')
