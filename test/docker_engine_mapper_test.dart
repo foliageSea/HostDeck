@@ -278,6 +278,23 @@ class _FakeDockerEngineRepository extends DockerEngineRepository {
   final Map<String, List<dynamic>> jsonLists;
   final Map<String, Map<String, dynamic>> jsonObjects;
   final requestedObjects = <String>[];
+  final requestedRequests = <String>[];
+
+  @override
+  Future<DockerEngineResponse> request(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+  }) async {
+    requestedRequests.add('$method $path');
+    return DockerEngineResponse(
+      statusCode: 200,
+      bodyBytes: Uint8List.fromList(const []),
+    );
+  }
 
   @override
   Future<List<dynamic>> requestJsonList(
@@ -391,6 +408,32 @@ void dockerServiceNetworkTests() {
       expect(networks, hasLength(1));
       expect(networks.first.connectedContainers, 2);
       expect(networks.first.connectedContainerNames, ['api', 'web']);
+    });
+
+    test('rejects removal of built-in networks', () async {
+      final engineRepository = _FakeDockerEngineRepository(
+        jsonLists: {},
+        jsonObjects: {
+          '/networks/default-network': {'Name': 'bridge'},
+        },
+      );
+      final service = DockerService(
+        _FakeSshRepository(),
+        engineRepository: engineRepository,
+      );
+
+      await expectLater(
+        service.removeNetwork(_FakeSshSession(), 'default-network'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'Docker 初始网络不可删除。',
+          ),
+        ),
+      );
+
+      expect(engineRepository.requestedRequests, isEmpty);
     });
   });
 }

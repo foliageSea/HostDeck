@@ -15,6 +15,8 @@ import 'package:host_deck/server/features/docker/docker_volume.dart';
 import 'docker_engine_mapper.dart';
 
 class DockerService {
+  static const _builtInNetworkNames = {'bridge', 'host', 'none'};
+
   final SshRepository _sshRepository;
   final DockerEngineRepository _engineRepository;
   final DockerEngineMapper _mapper;
@@ -315,6 +317,12 @@ class DockerService {
 
   /// 删除网络
   Future<void> removeNetwork(SshSession session, String networkId) async {
+    final network = await inspectNetwork(session, networkId);
+    final networkName = (network['Name'] ?? '').toString().trim().toLowerCase();
+    if (_builtInNetworkNames.contains(networkName)) {
+      throw StateError('Docker 初始网络不可删除。');
+    }
+
     await _engineRepository.request(
       session,
       method: 'DELETE',

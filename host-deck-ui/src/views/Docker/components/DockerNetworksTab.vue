@@ -210,6 +210,10 @@ function getConnectedContainersTitle(network: DockerNetwork) {
   const names = network.connectedContainerNames ?? []
   return names.length ? names.join('\n') : '暂无已连接容器'
 }
+
+function isBuiltInNetwork(network: DockerNetwork) {
+  return ['bridge', 'host', 'none'].includes(network.name)
+}
 </script>
 
 <template>
@@ -275,6 +279,7 @@ function getConnectedContainersTitle(network: DockerNetwork) {
         <template #header-extra>
           <div class="flex flex-wrap justify-end gap-[6px]">
             <NTag round size="small">{{ network.driver }}</NTag>
+            <NTag v-if="isBuiltInNetwork(network)" round size="small" type="info">系统网络</NTag>
             <NTag v-if="network.internal" round size="small" type="warning">Internal</NTag>
             <NTag v-if="network.attachable" round size="small" type="success">Attachable</NTag>
             <NTag v-if="network.ingress" round size="small" type="info">Ingress</NTag>
@@ -334,7 +339,14 @@ function getConnectedContainersTitle(network: DockerNetwork) {
               size="tiny"
               quaternary
               type="error"
-              :disabled="network.connectedContainers > 0"
+              :disabled="isBuiltInNetwork(network) || network.connectedContainers > 0"
+              :title="
+                isBuiltInNetwork(network)
+                  ? 'Docker 初始网络不可删除'
+                  : network.connectedContainers > 0
+                    ? '请先断开已连接的容器'
+                    : undefined
+              "
               @click="controller.confirmRemoveNetwork(network)"
               >删除</NButton
             >
