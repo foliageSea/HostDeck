@@ -218,6 +218,7 @@ function getImageName(image: DockerImage) {
                 size="tiny"
                 quaternary
                 type="error"
+                :disabled="image.inUse"
                 @click="controller.confirmRemoveImage(image)"
                 >删除</NButton
               >

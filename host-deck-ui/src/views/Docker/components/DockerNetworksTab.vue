@@ -334,6 +334,7 @@ function getConnectedContainersTitle(network: DockerNetwork) {
               size="tiny"
               quaternary
               type="error"
+              :disabled="network.connectedContainers > 0"
               @click="controller.confirmRemoveNetwork(network)"
               >删除</NButton
             >

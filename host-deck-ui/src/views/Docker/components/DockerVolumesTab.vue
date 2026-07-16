@@ -164,6 +164,7 @@ async function submitCreate() {
               size="tiny"
               quaternary
               type="error"
+              :disabled="volume.refCount > 0"
               @click="controller.confirmRemoveVolume(volume)"
               >删除</NButton
             >
