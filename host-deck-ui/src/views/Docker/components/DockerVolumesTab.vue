@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import { Add } from '@vicons/carbon'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
 import DockerTabToolbar from './DockerTabToolbar.vue'
@@ -85,7 +86,14 @@ async function submitCreate() {
       </template>
 
       <template #actions>
-        <NButton type="primary" @click="openCreateDialog">新建存储卷</NButton>
+        <NButton type="primary" @click="openCreateDialog">
+          <template #icon>
+            <NIcon>
+              <Add />
+            </NIcon>
+          </template>
+          新建存储卷
+        </NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshVolumes"
           >刷新</NButton
         >

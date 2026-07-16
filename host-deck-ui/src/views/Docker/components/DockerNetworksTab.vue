@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SelectOption } from 'naive-ui'
 import { reactive, ref } from 'vue'
-import { Help } from '@vicons/carbon'
+import { Add, Help } from '@vicons/carbon'
 import { dockerApi, type DockerContainer, type DockerNetwork } from '@/api/docker'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
@@ -232,7 +232,14 @@ function isBuiltInNetwork(network: DockerNetwork) {
       </template>
 
       <template #actions>
-        <NButton type="primary" @click="openCreateDialog">新建网络</NButton>
+        <NButton type="primary" @click="openCreateDialog">
+          <template #icon>
+            <NIcon>
+              <Add />
+            </NIcon>
+          </template>
+          新建网络
+        </NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks"
           >刷新</NButton
         >

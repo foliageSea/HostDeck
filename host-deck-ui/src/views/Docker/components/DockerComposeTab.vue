@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Add } from '@vicons/carbon'
 import type { DockerComposeProject } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
@@ -40,7 +41,14 @@ function isComposeProjectRunning(project: DockerComposeProject) {
       </template>
 
       <template #actions>
-        <NButton type="primary" @click="controller.openCreateComposeProject">新建编排</NButton>
+        <NButton type="primary" @click="controller.openCreateComposeProject">
+          <template #icon>
+            <NIcon>
+              <Add />
+            </NIcon>
+          </template>
+          新建编排
+        </NButton>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshCompose"
           >刷新</NButton
         >
