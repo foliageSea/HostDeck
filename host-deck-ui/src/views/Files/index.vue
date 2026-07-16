@@ -17,6 +17,8 @@ import {
   Renew,
   Star,
   StarFilled,
+  SortAscending,
+  SortDescending,
   Terminal,
   Upload,
 } from '@vicons/carbon'
@@ -1842,9 +1844,19 @@ watch(
           class="w-[116px] flex-none"
           @update:value="updateSortKey"
         />
-        <NButton quaternary @click="fileStore.toggleSortDirection()">
+        <NTooltip>
+          <template #trigger>
+            <NButton quaternary @click="fileStore.toggleSortDirection()">
+              <template #icon>
+                <NIcon>
+                  <SortAscending v-if="fileStore.sortDirection === 'asc'" />
+                  <SortDescending v-else />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
           {{ fileStore.sortDirection === 'asc' ? '升序' : '降序' }}
-        </NButton>
+        </NTooltip>
         <div class="flex items-center gap-[8px]">
           <NTooltip>
             <template #trigger>
