@@ -58,7 +58,16 @@ export default defineConfig(({ mode }) => {
         ],
       }),
       Components({
-        resolvers: [NaiveUiResolver()],
+        resolvers: [
+          {
+            type: 'component',
+            resolve: (name: string) =>
+              name === 'NButton'
+                ? { name: 'default', from: '@/components/common/RoundedButton.vue' }
+                : undefined,
+          },
+          NaiveUiResolver(),
+        ],
       }),
     ],
   }
