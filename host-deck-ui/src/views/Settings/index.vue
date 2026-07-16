@@ -63,8 +63,10 @@ async function updateExternalAccess(value: boolean) {
 </script>
 
 <template>
-  <div class="settings-view scrollbar-none h-full overflow-y-auto p-[20px] lt-md:p-[16px]">
-    <NTabs type="line" animated class="settings-tabs">
+  <div
+    class="settings-view scrollbar-none h-full overflow-hidden px-[20px] pb-[20px] lt-md:px-[16px] lt-md:pb-[16px]"
+  >
+    <NTabs type="line" animated class="settings-tabs h-full">
       <NTabPane name="appearance" tab="外观">
         <NCard title="基础设置" size="large">
           <NForm label-placement="top">
@@ -229,7 +231,24 @@ async function updateExternalAccess(value: boolean) {
   padding-top: 4px;
 }
 
+.settings-tabs {
+  display: flex;
+  flex-direction: column;
+}
+
 .settings-tabs :deep(.n-tabs-pane-wrapper) {
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: none;
   padding-top: 4px;
+}
+
+.settings-tabs :deep(.n-tabs-pane-wrapper)::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-tabs :deep(.n-tabs-content) {
+  min-height: 0;
 }
 </style>
