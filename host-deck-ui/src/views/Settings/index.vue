@@ -147,6 +147,17 @@ async function updateExternalAccess(value: boolean) {
                 </NSpace>
               </NRadioGroup>
             </NFormItem>
+            <NFormItem label="Dock 栏">
+              <div class="flex w-full items-center justify-between gap-[16px]">
+                <div class="text-[12px] text-[rgba(148,163,184,0.96)]">
+                  开启后 Dock 栏会在鼠标移入屏幕底部时显示。
+                </div>
+                <NSwitch
+                  :value="settingsStore.dockAutoHide"
+                  @update:value="settingsStore.setDockAutoHide"
+                />
+              </div>
+            </NFormItem>
           </NForm>
         </NCard>
       </NTabPane>

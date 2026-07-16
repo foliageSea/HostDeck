@@ -16,6 +16,11 @@ const switcherIndex = ref(0)
 const switcherWindows = ref<typeof desktopStore.windows>([])
 
 const windows = computed(() => desktopStore.windows)
+const desktopDockSafeArea = computed(() =>
+  settingsStore.dockAutoHide
+    ? 'var(--desktop-dock-bottom-gap)'
+    : 'calc(var(--desktop-dock-bottom-gap) + var(--desktop-dock-height))',
+)
 const desktopWallpaperStyle = computed(() =>
   createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
 )
@@ -137,7 +142,8 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="desktop-shell relative h-full min-h-screen overflow-hidden [--desktop-topbar-height:40px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:12px] [--desktop-dock-height:72px] [--desktop-dock-safe-area:calc(var(--desktop-dock-bottom-gap)_+_var(--desktop-dock-height))]"
+    class="desktop-shell relative h-full min-h-screen overflow-hidden [--desktop-topbar-height:40px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:12px] [--desktop-dock-height:72px]"
+    :style="{ '--desktop-dock-safe-area': desktopDockSafeArea }"
   >
     <video
       v-if="isVideoWallpaper"

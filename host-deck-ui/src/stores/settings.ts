@@ -17,6 +17,7 @@ const DESKTOP_WALLPAPER_STORAGE_KEY = 'host-deck-ui.desktopWallpaper'
 const LOGIN_WALLPAPER_STORAGE_KEY = 'host-deck-ui.loginWallpaper'
 const WINDOW_CONTROLS_STYLE_STORAGE_KEY = 'host-deck-ui.windowControlsStyle'
 const CORNER_STYLE_STORAGE_KEY = 'host-deck-ui.cornerStyle'
+const DOCK_AUTO_HIDE_STORAGE_KEY = 'host-deck-ui.dockAutoHide'
 
 const DEFAULT_TERMINAL_FONT_SIZE = 14
 const DEFAULT_TERMINAL_FONT_FAMILY = '"Maple Mono"'
@@ -48,6 +49,10 @@ function resolveStoredWindowControlsStyle(): WindowControlsStyle {
 
 function resolveStoredCornerStyle(): CornerStyle {
   return normalizeCornerStyle(window.localStorage.getItem(CORNER_STYLE_STORAGE_KEY))
+}
+
+function resolveStoredDockAutoHide(): boolean {
+  return window.localStorage.getItem(DOCK_AUTO_HIDE_STORAGE_KEY) === 'true'
 }
 
 function normalizeWallpaperEffectValue(value: unknown): number {
@@ -186,6 +191,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const editorFontFamily = ref(resolveStoredEditorFontFamily())
   const windowControlsStyle = ref<WindowControlsStyle>(resolveStoredWindowControlsStyle())
   const cornerStyle = ref<CornerStyle>(resolveStoredCornerStyle())
+  const dockAutoHide = ref(resolveStoredDockAutoHide())
   const desktopWallpaper = ref<WallpaperSettings>(
     resolveStoredWallpaper(DESKTOP_WALLPAPER_STORAGE_KEY),
   )
@@ -334,6 +340,14 @@ export const useSettingsStore = defineStore('settings', () => {
   )
 
   watch(
+    dockAutoHide,
+    (value) => {
+      window.localStorage.setItem(DOCK_AUTO_HIDE_STORAGE_KEY, String(value))
+    },
+    { immediate: true },
+  )
+
+  watch(
     desktopWallpaper,
     (value) => {
       void syncWallpaperStorage('desktop', value)
@@ -362,6 +376,10 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function setCornerStyle(style: CornerStyle) {
     cornerStyle.value = normalizeCornerStyle(style)
+  }
+
+  function setDockAutoHide(value: boolean) {
+    dockAutoHide.value = value
   }
 
   function resetPrimaryColor() {
@@ -413,6 +431,7 @@ export const useSettingsStore = defineStore('settings', () => {
   return {
     cornerStyle,
     desktopWallpaper,
+    dockAutoHide,
     editorFontFamily,
     editorFontSize,
     initialize,
@@ -430,6 +449,7 @@ export const useSettingsStore = defineStore('settings', () => {
     setEditorFontSize,
     setLoginWallpaper,
     setCornerStyle,
+    setDockAutoHide,
     setPrimaryColor,
     setWindowControlsStyle,
     resetTerminalSettings,

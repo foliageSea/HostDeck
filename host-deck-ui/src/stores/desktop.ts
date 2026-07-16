@@ -2,6 +2,7 @@ import { markRaw, type Component } from 'vue'
 import { defineStore } from 'pinia'
 import { getUiApi } from '@/lib/ui'
 import { useSshStore } from '@/stores/ssh'
+import { useSettingsStore } from '@/stores/settings'
 import { useWindowSessionStore } from '@/stores/window-session'
 import type { AppIconKey, DesktopAppId } from '@/types/desktop'
 import { basename, normalize } from '@/utils/path'
@@ -871,7 +872,7 @@ export const useDesktopStore = defineStore('desktop', {
       const width = Math.max(app.width ?? 800, minWidth)
       const height = Math.max(app.height ?? 600, minHeight)
       const topBarHeight = 40
-      const dockSafeArea = 84
+      const dockSafeArea = useSettingsStore().dockAutoHide ? 12 : 84
       const edgeGap = 16
       const availableHeight = Math.max(0, window.innerHeight - topBarHeight - dockSafeArea)
       const centeredX = Math.round((window.innerWidth - width) / 2)
