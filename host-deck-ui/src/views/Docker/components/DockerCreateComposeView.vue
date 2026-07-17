@@ -156,7 +156,7 @@ async function submitCreateComposeProject() {
           </NFormItemGi>
         </NGrid>
 
-        <NFormItem label="远端工作目录" required class="mt-2">
+        <NFormItem label="配置文件" required class="mt-2">
           <div class="flex w-full gap-[8px]">
             <NInput v-model:value="createForm.workingDir" placeholder="例如 /opt/my-stack" />
             <NButton :disabled="!currentConnectionId" @click="openWorkingDirPicker"
