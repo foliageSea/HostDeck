@@ -201,7 +201,7 @@ async function submitCreateComposeProject() {
       :connection-id="currentConnectionId"
       :initial-path="createForm.workingDir || '/'"
       mode="directory"
-      title="选择远端工作目录"
+      title="选择配置文件"
       confirm-text="使用此目录"
       @confirm="handleWorkingDirPicked"
     />
