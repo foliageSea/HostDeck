@@ -20,6 +20,7 @@ const emit = defineEmits<{
 
 const settingsStore = useSettingsStore()
 const editorContainer = ref<HTMLElement | null>(null)
+const loading = ref(true)
 
 let monacoApi: typeof import('monaco-editor') | null = null
 let editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null
@@ -51,34 +52,38 @@ function updateEditorFontOptions(options: { fontFamily?: string; fontSize?: numb
 }
 
 async function initEditor() {
-  await nextTick()
+  try {
+    await nextTick()
 
-  if (!editorContainer.value || editor) {
-    return
+    if (!editorContainer.value || editor) {
+      return
+    }
+
+    const [, loadedMonaco] = await Promise.all([import('@/lib/monaco'), import('monaco-editor')])
+    if (!editorContainer.value || editor) {
+      return
+    }
+    monacoApi = loadedMonaco
+    model = monacoApi.editor.createModel(props.modelValue, props.language)
+    editor = monacoApi.editor.create(editorContainer.value, {
+      model,
+      automaticLayout: true,
+      minimap: { enabled: false },
+      fontSize: settingsStore.editorFontSize,
+      fontFamily: settingsStore.editorFontFamily,
+      scrollBeyondLastLine: false,
+      wordWrap: 'off',
+      tabSize: 2,
+      readOnly: props.readonly,
+      theme: editorTheme.value,
+    })
+
+    syncDisposable = editor.onDidChangeModelContent(() => {
+      emit('update:modelValue', editor?.getValue() ?? '')
+    })
+  } finally {
+    loading.value = false
   }
-
-  const [, loadedMonaco] = await Promise.all([import('@/lib/monaco'), import('monaco-editor')])
-  if (!editorContainer.value || editor) {
-    return
-  }
-  monacoApi = loadedMonaco
-  model = monacoApi.editor.createModel(props.modelValue, props.language)
-  editor = monacoApi.editor.create(editorContainer.value, {
-    model,
-    automaticLayout: true,
-    minimap: { enabled: false },
-    fontSize: settingsStore.editorFontSize,
-    fontFamily: settingsStore.editorFontFamily,
-    scrollBeyondLastLine: false,
-    wordWrap: 'off',
-    tabSize: 2,
-    readOnly: props.readonly,
-    theme: editorTheme.value,
-  })
-
-  syncDisposable = editor.onDidChangeModelContent(() => {
-    emit('update:modelValue', editor?.getValue() ?? '')
-  })
 }
 
 function disposeEditor() {
@@ -152,12 +157,20 @@ watch(
         : 'border-[rgba(148,163,184,0.2)] bg-[rgba(255,255,255,0.74)]'
     "
   >
-    <div ref="editorContainer" class="h-full min-h-0 overflow-hidden rounded-[inherit]" />
+    <NSpin :show="loading" class="h-full min-h-0" size="large">
+      <div ref="editorContainer" class="h-full min-h-0 overflow-hidden rounded-[inherit]" />
+    </NSpin>
   </div>
 </template>
 
 <style scoped>
 .code-editor {
   backdrop-filter: blur(18px);
+}
+
+.code-editor :deep(.n-spin-content),
+.code-editor :deep(.n-spin-body) {
+  height: 100%;
+  min-height: 0;
 }
 </style>
