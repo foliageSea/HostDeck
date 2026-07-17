@@ -24,6 +24,8 @@ import TextEditorView from '@/views/TextEditor/index.vue'
 
 export const maxSessionWindows = 8
 const windowCloseAnimationMs = 220
+const maximizeUiWindowWhenElectronWindowed =
+  import.meta.env.VITE_ELECTRON_MAXIMIZE_UI_WHEN_WINDOWED === 'true'
 
 const PINNED_DIRECTORIES_STORAGE_KEY = 'host-deck:desktop:pinned-directories'
 const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'host-deck:desktop:pinned-directory-positions'
@@ -893,7 +895,10 @@ export const useDesktopStore = defineStore('desktop', {
         icon: app.icon,
         isClosing: false,
         id: windowId,
-        isMaximized: Boolean(window.hostDeck?.window) && !this.electronWindowState.isMaximized,
+        isMaximized:
+          maximizeUiWindowWhenElectronWindowed &&
+          Boolean(window.hostDeck?.window) &&
+          !this.electronWindowState.isMaximized,
         isMinimized: false,
         minimizable: app.minimizable ?? true,
         minHeight,

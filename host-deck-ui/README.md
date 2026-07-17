@@ -71,6 +71,7 @@ pnpm exec vue-tsc -p tsconfig.app.json --noEmit
 
 - Vite 开发代理默认转发到 `http://localhost:8080`
 - 可通过 `.env` 中的 `VITE_DEV_PROXY_TARGET` 覆盖，例如：`VITE_DEV_PROXY_TARGET=http://127.0.0.1:9000`
+- Electron 壳未最大化时，UI 内部窗口默认不自动最大化；如需开启，可在构建前设置 `VITE_ELECTRON_MAXIMIZE_UI_WHEN_WINDOWED=true`。
 - WebSocket 也通过 `/api` 代理到同一后端
 - 启动联调前请先确认 Flutter 侧内置服务监听端口与这里一致
 
