@@ -20,9 +20,15 @@ contextBridge.exposeInMainWorld('hostDeckTabs', {
     return () => ipcRenderer.removeListener('tabs:changed', listener)
   },
   window: {
+    getState: () => ipcRenderer.invoke('window:get-state'),
     minimize: () => ipcRenderer.invoke('window:minimize'),
     toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
     close: () => ipcRenderer.invoke('window:close'),
+    onStateChanged: (callback) => {
+      const listener = (_event, state) => callback(state)
+      ipcRenderer.on('window:state-changed', listener)
+      return () => ipcRenderer.removeListener('window:state-changed', listener)
+    }
   },
-  platform: process.platform,
+  platform: process.platform
 })

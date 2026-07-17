@@ -14,9 +14,11 @@ declare global {
       platform: string
       shellMode?: 'native-tabs'
       window?: {
+        getState: () => Promise<{ isMaximized: boolean }>
         minimize: () => Promise<void>
         toggleMaximize: () => Promise<boolean>
         close: () => Promise<void>
+        onStateChanged: (callback: (state: { isMaximized: boolean }) => void) => () => void
       }
     }
     hostDeckTabs?: {

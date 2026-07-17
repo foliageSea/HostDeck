@@ -119,8 +119,18 @@ function getWindowFromSender(sender) {
   return BrowserWindow.fromWebContents(sender) ?? mainWindow ?? null
 }
 
+function broadcastWindowState() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+
+  const state = { isMaximized: mainWindow.isMaximized() }
+  mainWindow.webContents.send('window:state-changed', state)
+  tabManager.broadcastWindowState(state)
+}
+
 function isNavigationAborted(error) {
-  return error?.code === 'ERR_ABORTED' || error?.code === -3 || /ERR_ABORTED \(-3\)/.test(error?.message)
+  return (
+    error?.code === 'ERR_ABORTED' || error?.code === -3 || /ERR_ABORTED \(-3\)/.test(error?.message)
+  )
 }
 
 async function loadShellPage(pageName) {
@@ -180,8 +190,6 @@ function createWindow() {
       sandbox: true
     }
   })
-  mainWindow.maximize()
-
   void loadShellPage('loading').catch((error) => {
     console.error('Unable to load loading page:', error)
   })
@@ -191,8 +199,14 @@ function createWindow() {
     minimizeToTray()
   })
   mainWindow.on('resize', tabManager.layoutActiveTab)
-  mainWindow.on('maximize', tabManager.layoutActiveTab)
-  mainWindow.on('unmaximize', tabManager.layoutActiveTab)
+  mainWindow.on('maximize', () => {
+    tabManager.layoutActiveTab()
+    broadcastWindowState()
+  })
+  mainWindow.on('unmaximize', () => {
+    tabManager.layoutActiveTab()
+    broadcastWindowState()
+  })
   mainWindow.on('closed', () => {
     mainWindow = null
   })
@@ -219,45 +233,48 @@ registerIpcHandlers({
   tabManager
 })
 
-app.whenReady().then(async () => {
-  const shellDevServerUrl = useDevServers
-    ? await resolveConfiguredDevUrl({
-        configFile: shellViteConfigPath,
-        envVarName: 'HOST_DECK_ELECTRON_SHELL_DEV_URL',
-        fallbackPort: 5180
-      })
-    : null
+app
+  .whenReady()
+  .then(async () => {
+    const shellDevServerUrl = useDevServers
+      ? await resolveConfiguredDevUrl({
+          configFile: shellViteConfigPath,
+          envVarName: 'HOST_DECK_ELECTRON_SHELL_DEV_URL',
+          fallbackPort: 5180
+        })
+      : null
 
-  if (useDevServers) {
-    await waitForUrl(shellDevServerUrl, 30000)
-  }
+    if (useDevServers) {
+      await waitForUrl(shellDevServerUrl, 30000)
+    }
 
-  shellPageLoader = createShellPageLoader({
-    rendererHtmlRoot,
-    shellDevServerUrl,
-    useShellDevServer: useDevServers
-  })
+    shellPageLoader = createShellPageLoader({
+      rendererHtmlRoot,
+      shellDevServerUrl,
+      useShellDevServer: useDevServers
+    })
 
-  ensureTray()
-  createWindow()
-  const url = await loadApplication()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length !== 0) return
+    ensureTray()
     createWindow()
-    applicationUrl = url
-    void loadShellPage('tabs')
-      .then((didLoad) => {
-        if (didLoad) tabManager.createTab(url)
-      })
-      .catch((error) => {
-        console.error('Unable to load tabs page:', error)
-      })
+    const url = await loadApplication()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length !== 0) return
+      createWindow()
+      applicationUrl = url
+      void loadShellPage('tabs')
+        .then((didLoad) => {
+          if (didLoad) tabManager.createTab(url)
+        })
+        .catch((error) => {
+          console.error('Unable to load tabs page:', error)
+        })
+    })
   })
-}).catch((error) => {
-  console.error('Unable to start HostDeck:', error)
-  app.quit()
-})
+  .catch((error) => {
+    console.error('Unable to start HostDeck:', error)
+    app.quit()
+  })
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && isQuitting) app.quit()

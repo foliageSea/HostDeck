@@ -328,6 +328,9 @@ function getTopVisibleWindow(windows: WindowState[]) {
 export const useDesktopStore = defineStore('desktop', {
   state: () => ({
     activeWindowId: null as string | null,
+    electronWindowState: {
+      isMaximized: false,
+    },
     apps: {
       terminal: {
         component: markRaw(TerminalView),
@@ -533,6 +536,12 @@ export const useDesktopStore = defineStore('desktop', {
   actions: {
     canOpenWindow(appId: DesktopAppId) {
       return !isSessionWindowAppId(appId) || this.sessionWindowCount < maxSessionWindows
+    },
+
+    setElectronWindowState(state: { isMaximized: boolean }) {
+      this.electronWindowState = {
+        isMaximized: state.isMaximized,
+      }
     },
 
     getPinnedDirectories() {
@@ -884,7 +893,7 @@ export const useDesktopStore = defineStore('desktop', {
         icon: app.icon,
         isClosing: false,
         id: windowId,
-        isMaximized: false,
+        isMaximized: Boolean(window.hostDeck?.window) && !this.electronWindowState.isMaximized,
         isMinimized: false,
         minimizable: app.minimizable ?? true,
         minHeight,

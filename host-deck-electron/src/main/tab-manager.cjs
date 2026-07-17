@@ -1,4 +1,12 @@
-function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, preloadPath, readSettings, shell, writeSettings }) {
+function createTabManager({
+  WebContentsView,
+  getApplicationUrl,
+  getMainWindow,
+  preloadPath,
+  readSettings,
+  shell,
+  writeSettings
+}) {
   const tabBarHeight = 42
   const defaultTabBarWidth = 220
   const minTabBarWidth = 160
@@ -48,8 +56,8 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
           isActive: tab.id === activeTabId,
           isLoading: tab.isLoading,
           title: tab.title,
-          url: tab.view.webContents.getURL(),
-        })),
+          url: tab.view.webContents.getURL()
+        }))
     }
   }
 
@@ -57,6 +65,14 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
     const mainWindow = getMainWindow()
     if (!mainWindow || mainWindow.isDestroyed()) return
     mainWindow.webContents.send('tabs:changed', serializeTabs())
+  }
+
+  function broadcastWindowState(state) {
+    for (const tab of tabs.values()) {
+      if (!tab.view.webContents.isDestroyed()) {
+        tab.view.webContents.send('window:state-changed', state)
+      }
+    }
   }
 
   function layoutActiveTab() {
@@ -72,7 +88,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
       x: layout.x,
       y: layout.y,
       width: Math.max(0, bounds.width - layout.width),
-      height: Math.max(0, bounds.height - layout.height),
+      height: Math.max(0, bounds.height - layout.height)
     })
   }
 
@@ -89,8 +105,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
 
     try {
       mainWindow.contentView.removeChildView(tab.view)
-    } catch {
-    }
+    } catch {}
   }
 
   function updateTabTitle(tab, title) {
@@ -119,7 +134,11 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
 
   function loadTabUrl(tab, url) {
     void tab.view.webContents.loadURL(url).catch((error) => {
-      if (error?.code === 'ERR_ABORTED' || error?.code === -3 || /ERR_ABORTED \(-3\)/.test(error?.message)) {
+      if (
+        error?.code === 'ERR_ABORTED' ||
+        error?.code === -3 ||
+        /ERR_ABORTED \(-3\)/.test(error?.message)
+      ) {
         return
       }
       console.error(`Unable to load tab ${tab.id}:`, error)
@@ -135,15 +154,15 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
         preload: preloadPath,
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true,
-      },
+        sandbox: true
+      }
     })
     const tab = {
       customTitle: null,
       id,
       isLoading: true,
       title: 'HostDeck',
-      view,
+      view
     }
 
     tabs.set(id, tab)
@@ -289,8 +308,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
     try {
       const image = await activeTab.view.webContents.capturePage()
       dataUrl = image.toDataURL()
-    } catch {
-    }
+    } catch {}
 
     setContentVisible(false)
     return { bounds, dataUrl }
@@ -313,6 +331,7 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
   }
 
   return {
+    broadcastWindowState,
     activateTab,
     closeTab,
     createTab,
@@ -326,10 +345,10 @@ function createTabManager({ WebContentsView, getApplicationUrl, getMainWindow, p
     setTabBarPosition,
     setContentVisible,
     setSidebarWidth,
-    suspendContent,
+    suspendContent
   }
 }
 
 module.exports = {
-  createTabManager,
+  createTabManager
 }

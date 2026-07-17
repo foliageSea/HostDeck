@@ -27,6 +27,7 @@ const accessStore = useAccessStore()
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const uploadCenterStore = useUploadCenterStore()
+let unsubscribeElectronWindowState: (() => void) | undefined
 
 const theme = computed(() => (settingsStore.isDark ? darkTheme : null))
 const radiusVars = computed(() => {
@@ -142,12 +143,23 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
   event.returnValue = ''
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('beforeunload', handleBeforeUnload)
+
+  const electronWindow = window.hostDeck?.window
+  if (!electronWindow) {
+    return
+  }
+
+  desktopStore.setElectronWindowState(await electronWindow.getState())
+  unsubscribeElectronWindowState = electronWindow.onStateChanged((state) => {
+    desktopStore.setElectronWindowState(state)
+  })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  unsubscribeElectronWindowState?.()
 })
 </script>
 
