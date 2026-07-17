@@ -3,11 +3,13 @@ import { computed, ref } from 'vue'
 import { LogoDocker } from '@vicons/ionicons5'
 import CodeEditor from '@/components/editor/CodeEditor.vue'
 import { dockerApi, type DockerComposeCreatePayload } from '@/api/docker'
+import { filesApi } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import { FilePickerDialog, type FilePickerConfirmPayload } from '@/views/Files/components'
+import { resolve } from '@/utils/path'
 
 const props = defineProps<{
   windowId?: string
@@ -59,10 +61,59 @@ function openWorkingDirPicker() {
   showWorkingDirPicker.value = true
 }
 
-function handleWorkingDirPicked(payload: FilePickerConfirmPayload) {
+const composeFileNames = ['compose.yaml', 'compose.yml', 'docker-compose.yaml', 'docker-compose.yml']
+
+async function loadExistingComposeFile(connectionId: string, directory: string, fileName: string) {
+  try {
+    const content = await filesApi.readFile(connectionId, resolve(directory, fileName))
+    createForm.value.fileName = fileName
+    createForm.value.content = content
+    getUiApi().message.success(`已加载配置文件 ${fileName}。`)
+  } catch (error) {
+    console.error('Failed to read existing compose file', error)
+    getUiApi().message.error('配置文件读取失败，已保留当前内容。')
+  }
+}
+
+async function handleWorkingDirPicked(payload: FilePickerConfirmPayload) {
   const selectedPath = payload.selections[0]?.path
-  if (selectedPath) {
-    createForm.value.workingDir = selectedPath
+  const connectionId = currentConnectionId.value
+  if (!selectedPath || !connectionId) {
+    return
+  }
+
+  createForm.value.workingDir = selectedPath
+
+  try {
+    const files = await filesApi.list(connectionId, selectedPath)
+    const availableNames = new Set(
+      files.filter((file) => !file.isDirectory).map((file) => file.filename),
+    )
+    const existingFileName = [createForm.value.fileName.trim(), ...composeFileNames].find((name) =>
+      availableNames.has(name),
+    )
+
+    if (!existingFileName) {
+      return
+    }
+
+    const dialog = getUiApi().dialog.warning({
+      title: '发现已有 Compose 配置',
+      content: `目录 ${selectedPath} 中已存在 ${existingFileName}，是否加载该配置文件？`,
+      positiveText: '加载配置',
+      negativeText: '继续新建',
+      onPositiveClick: async () => {
+        dialog.loading = true
+        try {
+          await loadExistingComposeFile(connectionId, selectedPath, existingFileName)
+        } finally {
+          dialog.loading = false
+        }
+      },
+    })
+  } catch (error) {
+    console.error('Failed to inspect compose directory', error)
+    getUiApi().message.error('配置文件检查失败，请检查目录访问权限。')
   }
 }
 
