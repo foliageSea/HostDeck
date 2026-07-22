@@ -343,10 +343,10 @@ onMounted(async () => {
               <img src="/favicon.png" alt="" />
             </div>
             <h2
-              class="m-0 truncate"
+              class="m-0 truncate font-bold"
               :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
             >
-              选择主机登录
+              HostDeck
             </h2>
           </div>
           <NSpace :wrap="false" :size="10">
