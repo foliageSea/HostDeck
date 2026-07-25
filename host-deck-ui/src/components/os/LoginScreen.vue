@@ -109,6 +109,11 @@ function applyServer(server: SavedServer) {
   applyConnectionForm(server)
 }
 
+function getUsernameAvatarText(username: string) {
+  const normalizedUsername = username.trim()
+  return normalizedUsername ? Array.from(normalizedUsername)[0].toUpperCase() : '?'
+}
+
 function openCreateServerModal() {
   serverEditorMode.value = 'create'
   editingServerId.value = null
@@ -227,8 +232,8 @@ const testConnectionMutation = useMutation<{ success: boolean }, Error, ConnectP
 const isConnecting = computed(() => connectMutation.isPending.value)
 const isSavingServer = computed(() => saveServerMutation.isPending.value)
 const isTesting = computed(() => testConnectionMutation.isPending.value)
-const canConnect = computed(
-  () => Boolean(selectedServer.value?.id && connectionForm.host && connectionForm.username),
+const canConnect = computed(() =>
+  Boolean(selectedServer.value?.id && connectionForm.host && connectionForm.username),
 )
 
 function handleConnect() {
@@ -375,24 +380,37 @@ onMounted(async () => {
               ]"
               @click="applyServer(server)"
             >
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center justify-between gap-[12px]">
-                  <div
-                    class="truncate text-[0.98rem] font-600"
-                    :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
-                  >
-                    {{ server.name || server.host }}
-                  </div>
-                </div>
+              <div class="flex min-w-0 flex-1 items-center gap-[12px]">
                 <div
-                  class="mt-[4px] truncate text-[0.82rem]"
+                  class="server-username-avatar flex-none"
                   :class="
                     settingsStore.isDark
-                      ? 'text-[rgba(203,213,225,0.7)]'
-                      : 'text-[rgba(51,65,85,0.76)]'
+                      ? 'server-username-avatar-dark'
+                      : 'server-username-avatar-light'
                   "
+                  aria-hidden="true"
                 >
-                  {{ server.username }}@{{ server.host }}:{{ server.port }}
+                  {{ getUsernameAvatarText(server.username) }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-[12px]">
+                    <div
+                      class="truncate text-[0.98rem] font-600"
+                      :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
+                    >
+                      {{ server.name || server.host }}
+                    </div>
+                  </div>
+                  <div
+                    class="mt-[4px] truncate text-[0.82rem]"
+                    :class="
+                      settingsStore.isDark
+                        ? 'text-[rgba(203,213,225,0.7)]'
+                        : 'text-[rgba(51,65,85,0.76)]'
+                    "
+                  >
+                    {{ server.username }}@{{ server.host }}:{{ server.port }}
+                  </div>
                 </div>
               </div>
               <NSpace :size="8" :wrap="false" align="center" class="flex-none" @click.stop>
@@ -469,9 +487,7 @@ onMounted(async () => {
                 v-model:value="serverForm.password"
                 type="password"
                 show-password-on="click"
-                :placeholder="
-                  serverEditorMode === 'edit' ? '留空则保留已保存密码' : '可选'
-                "
+                :placeholder="serverEditorMode === 'edit' ? '留空则保留已保存密码' : '可选'"
               />
             </NFormItemGi>
           </NGrid>
@@ -526,6 +542,30 @@ onMounted(async () => {
 
 .selected-server-badge {
   background: color-mix(in srgb, var(--app-primary-color) 14%, transparent);
+}
+
+.server-username-avatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.server-username-avatar-dark {
+  color: #dbeafe;
+  background: rgba(59, 130, 246, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.2);
+}
+
+.server-username-avatar-light {
+  color: #1d4ed8;
+  background: rgba(147, 197, 253, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.14);
 }
 
 .login-brand-icon {
