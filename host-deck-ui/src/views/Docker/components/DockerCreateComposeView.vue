@@ -200,7 +200,7 @@ async function submitCreateComposeProject() {
       >
         <NGrid :cols="2" :x-gap="12" responsive="screen">
           <NFormItemGi label="项目名" required>
-            <NInput v-model:value="createForm.projectName" placeholder="例如 my-stack" />
+            <NInput v-model:value="createForm.projectName" placeholder="my-stack" />
           </NFormItemGi>
           <NFormItemGi label="文件名" required>
             <NInput v-model:value="createForm.fileName" placeholder="docker-compose.yml" />
@@ -209,7 +209,7 @@ async function submitCreateComposeProject() {
 
         <NFormItem label="配置文件目录" required class="mt-2">
           <div class="flex w-full gap-[8px]">
-            <NInput v-model:value="createForm.workingDir" placeholder="例如 /opt/my-stack" />
+            <NInput v-model:value="createForm.workingDir" placeholder="/opt/my-stack" />
             <NButton :disabled="!currentConnectionId" @click="openWorkingDirPicker"
               >选择目录</NButton
             >
