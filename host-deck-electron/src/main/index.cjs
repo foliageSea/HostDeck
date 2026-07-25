@@ -78,6 +78,12 @@ function iconPath() {
     : path.join(frontendRoot, 'public', 'favicon.png')
 }
 
+function createTrayIcon() {
+  const icon = nativeImage.createFromPath(iconPath())
+
+  return process.platform === 'darwin' ? icon.resize({ width: 16, height: 16 }) : icon
+}
+
 function showMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   if (mainWindow.isMinimized()) mainWindow.restore()
@@ -95,7 +101,7 @@ function minimizeToTray() {
 function ensureTray() {
   if (tray) return tray
 
-  tray = new Tray(nativeImage.createFromPath(iconPath()))
+  tray = new Tray(createTrayIcon())
   tray.setToolTip('HostDeck')
   tray.setContextMenu(
     Menu.buildFromTemplate([
