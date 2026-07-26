@@ -176,8 +176,13 @@ async function restartApplicationServer() {
 
 function createWindow() {
   const { width, height } = getDefaultWindowSize()
-  const macWindowOptions =
-    process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 15 } } : {}
+  const windowFrameOptions =
+    process.platform === 'darwin'
+      ? {
+          titleBarStyle: 'hidden',
+          trafficLightPosition: { x: 16, y: 15 }
+        }
+      : { frame: false }
 
   mainWindow = new BrowserWindow({
     width,
@@ -186,9 +191,7 @@ function createWindow() {
     minHeight: 720,
     title: 'HostDeck',
     icon: iconPath(),
-    frame: false,
-    titleBarStyle: 'hidden',
-    ...macWindowOptions,
+    ...windowFrameOptions,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'tabs.cjs'),
       contextIsolation: true,

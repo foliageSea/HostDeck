@@ -241,6 +241,42 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  build-electron-macos-arm64:
+    needs: build-web
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: host-deck-ui/dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.2"
+          channel: "stable"
+      - name: Install Dependencies
+        run: |
+          npm install -g pnpm
+          pnpm --dir host-deck-electron install
+      - name: Verify Web Artifact
+        run: |
+          test -f host-deck-ui/dist/index.html
+      - name: Verify Apple Silicon Runner
+        run: test "$(uname -m)" = "arm64"
+      - name: Build Electron macOS ARM64
+        run: pnpm --dir host-deck-electron electron:pack:mac:prepared
+      - name: Upload Electron macOS ARM64
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            host-deck-electron/release/*.dmg
+            host-deck-electron/release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # build-linux:
   #   needs: build-web
   #   runs-on: ubuntu-latest

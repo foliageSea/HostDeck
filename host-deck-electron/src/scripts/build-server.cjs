@@ -4,14 +4,10 @@ const path = require('node:path')
 
 const { projectRoot, repoRoot } = require('../shared/project-paths.cjs')
 
-if (process.platform !== 'win32') {
-  console.error('Electron Windows server build must run on Windows.')
-  process.exit(1)
-}
-
 const outputDir = path.join(repoRoot, 'build', 'electron-server')
 const packageConfig = path.join(repoRoot, '.dart_tool', 'package_config.json')
-const serverExe = path.join(outputDir, 'bundle', 'bin', 'server.exe')
+const serverName = process.platform === 'win32' ? 'server.exe' : 'server'
+const serverExecutable = path.join(outputDir, 'bundle', 'bin', serverName)
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -37,16 +33,10 @@ if (pubGetStatus !== 0) {
   console.warn('flutter pub get failed; continuing with existing .dart_tool/package_config.json.')
 }
 
-run('dart', [
-  'compile',
-  'exe',
-  path.join('bin', 'server.dart'),
-  '-o',
-  serverExe
-])
+run('dart', ['build', 'cli', '--target', path.join('bin', 'server.dart'), '--output', outputDir])
 
-if (!fs.existsSync(serverExe)) {
-  console.error('Server executable was not generated: ' + serverExe)
+if (!fs.existsSync(serverExecutable)) {
+  console.error('Server executable was not generated: ' + serverExecutable)
   process.exit(1)
 }
 
