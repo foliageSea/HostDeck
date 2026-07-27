@@ -63,7 +63,6 @@
 - Naive UI
 - UnoCSS
 - Pinia
-- Vue Router
 - TanStack Vue Query
 - Axios
 - xterm.js

@@ -62,8 +62,6 @@ declare module 'vue' {
     NTag: typeof import('naive-ui')['NTag']
     NTooltip: typeof import('naive-ui')['NTooltip']
     RoundedButton: typeof import('./src/components/common/RoundedButton.vue')['default']
-    RouterLink: typeof import('vue-router')['RouterLink']
-    RouterView: typeof import('vue-router')['RouterView']
     UiApiBridge: typeof import('./src/components/common/UiApiBridge.vue')['default']
   }
 }

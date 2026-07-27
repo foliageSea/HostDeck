@@ -86,7 +86,6 @@ src/
   composables/
     file/
   lib/
-  router/
   stores/
   types/
   utils/
@@ -162,12 +161,11 @@ src/
 - 补齐依赖
   - `pinia`
   - `axios`
-  - `vue-router`
   - `@tanstack/vue-query`
   - `@vueuse/core`
   - 其余按业务迁移需要补充
 - 初始化入口
-  - `main.ts` 挂载 Pinia、Router、Naive UI Provider
+  - `main.ts` 挂载 Pinia、Naive UI Provider
 - 建立全局基础设施
   - `src/lib/http.ts`
   - `src/stores/ssh.ts`
@@ -413,7 +411,7 @@ src/
 
 1. 安装并整理 `host-deck-ui` 必需依赖
 2. 建立 `src/api`、`src/stores`、`src/lib`、`src/components/os`、`src/views` 目录
-3. 接入 Pinia、Router、Naive UI Provider
+3. 接入 Pinia、Naive UI Provider
 4. 迁移 `http.ts` 并改造消息提示体系
 5. 迁移 `sshStore` 与 `desktopStore`
 6. 改写 `App.vue`，接入登录态切换
