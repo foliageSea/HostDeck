@@ -28,6 +28,7 @@ import 'package:host_deck/server/features/system/monitor_history_service.dart';
 import 'package:host_deck/server/features/system/monitor_service.dart';
 import 'package:host_deck/server/features/system/system_controller.dart';
 import 'package:host_deck/server/features/terminal/terminal_controller.dart';
+import 'package:host_deck/server/features/terminal/terminal_snippet_repository.dart';
 import 'package:host_deck/server/routes/api_routes.dart';
 import 'package:host_deck/utils/app_settings.dart';
 
@@ -69,6 +70,9 @@ class ServerContainer {
     final serverRepository = ServerRepository(databaseService);
     final portForwardRepository = PortForwardRepository(databaseService);
     final operationLogRepository = OperationLogRepository(databaseService);
+    final terminalSnippetRepository = TerminalSnippetRepository(
+      databaseService,
+    );
     final operationLogService = OperationLogService(operationLogRepository);
     final sshService = SshService();
     final monitorHistoryService = MonitorHistoryService();
@@ -111,7 +115,10 @@ class ServerContainer {
           operationLogService,
         ),
         operationLogController: OperationLogController(operationLogRepository),
-        terminalController: TerminalController(sshService),
+        terminalController: TerminalController(
+          sshService,
+          terminalSnippetRepository,
+        ),
         serverController: ServerController(
           serverRepository,
           operationLogService,

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Help, Settings } from '@vicons/carbon'
+import { Help, Settings, Terminal } from '@vicons/carbon'
 import '@xterm/xterm/css/xterm.css'
 import TerminalSettingsModal from './components/TerminalSettingsModal.vue'
+import TerminalSnippetsModal from './components/TerminalSnippetsModal.vue'
 import { useTerminalSession } from './hooks/useTerminalSession'
 import { useSettingsStore } from '@/stores/settings'
 import { getUiApi } from '@/lib/ui'
@@ -25,6 +26,7 @@ const props = defineProps<{
 
 const settingsStore = useSettingsStore()
 const showSettings = ref(false)
+const showSnippets = ref(false)
 const showCopyButton = ref(false)
 const selectedText = ref('')
 const copyButtonStyle = ref({ left: '0px', top: '0px' })
@@ -58,9 +60,7 @@ function handleWheel(event: WheelEvent) {
   }
 
   event.preventDefault()
-  settingsStore.setTerminalFontSize(
-    settingsStore.terminalFontSize + (event.deltaY < 0 ? 1 : -1),
-  )
+  settingsStore.setTerminalFontSize(settingsStore.terminalFontSize + (event.deltaY < 0 ? 1 : -1))
 }
 
 async function copySelection() {
@@ -77,6 +77,11 @@ async function copySelection() {
     console.error('Failed to copy terminal text', error)
     getUiApi().message.error('复制失败。')
   }
+}
+
+function insertSnippet(command: string) {
+  terminal.value?.paste(command)
+  terminal.value?.focus()
 }
 </script>
 
@@ -106,15 +111,32 @@ async function copySelection() {
         <div
           class="flex flex-col gap-[6px] text-[12px]"
           :class="
-            settingsStore.isDark
-              ? 'text-[rgba(226,232,240,0.96)]'
-              : 'text-[rgba(51,65,85,0.96)]'
+            settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'
           "
         >
           <div>Ctrl + V：粘贴</div>
           <div>Alt + C：复制选中内容</div>
         </div>
       </NPopover>
+
+      <NTooltip trigger="hover">
+        <template #trigger>
+          <NButton
+            quaternary
+            circle
+            size="small"
+            aria-label="命令片段"
+            @click="showSnippets = true"
+          >
+            <template #icon>
+              <NIcon :size="16">
+                <Terminal />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        命令片段
+      </NTooltip>
 
       <NTooltip trigger="hover">
         <template #trigger>
@@ -157,6 +179,7 @@ async function copySelection() {
     </Teleport>
 
     <TerminalSettingsModal v-model:show="showSettings" />
+    <TerminalSnippetsModal v-model:show="showSnippets" @select="insertSnippet" />
   </div>
 </template>
 

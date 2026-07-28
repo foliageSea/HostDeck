@@ -6,4 +6,8 @@ void registerTerminalRoutes(Router router, TerminalController controller) {
   router.get('/api/ws/terminal', controller.handler);
   router.post('/api/terminal/session', controller.createSession);
   router.delete('/api/terminal/session', controller.closeSession);
+  router.get('/api/terminal/snippets', controller.listSnippets);
+  router.post('/api/terminal/snippets', controller.createSnippet);
+  router.put('/api/terminal/snippets/<id>', controller.updateSnippet);
+  router.delete('/api/terminal/snippets/<id>', controller.deleteSnippet);
 }

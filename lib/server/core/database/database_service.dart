@@ -107,6 +107,24 @@ class DatabaseService {
       ''');
       _setVersion(3);
     }
+
+    // v3 -> v4: Store reusable terminal command snippets.
+    if (currentVersion < 4) {
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS terminal_snippets (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          command TEXT NOT NULL,
+          createdAt INTEGER NOT NULL,
+          updatedAt INTEGER NOT NULL
+        )
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_terminal_snippets_updated_at
+        ON terminal_snippets(updatedAt DESC)
+      ''');
+      _setVersion(4);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.
