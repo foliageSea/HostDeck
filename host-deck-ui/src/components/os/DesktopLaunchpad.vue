@@ -116,8 +116,10 @@ function toggleDockPin(appId: DesktopAppId) {
             />
           </div>
 
-          <div
+          <TransitionGroup
             v-if="apps.length"
+            name="launchpad-app"
+            tag="div"
             class="mt-[54px] grid grid-cols-[repeat(auto-fill,minmax(116px,1fr))] gap-x-[28px] gap-y-[38px]"
           >
             <div v-for="app in apps" :key="app.id" class="group relative min-w-0 text-center">
@@ -154,7 +156,7 @@ function toggleDockPin(appId: DesktopAppId) {
                 <Pin v-else :size="14" />
               </button>
             </div>
-          </div>
+          </TransitionGroup>
 
           <div v-else class="mt-[96px] text-center text-[0.92rem] opacity-60">未找到应用</div>
         </div>
@@ -184,6 +186,24 @@ function toggleDockPin(appId: DesktopAppId) {
     transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.launchpad-app-enter-active,
+.launchpad-app-leave-active,
+.launchpad-app-move {
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.launchpad-app-enter-from,
+.launchpad-app-leave-to {
+  opacity: 0;
+  transform: translateY(16px) scale(0.88);
+}
+
+.launchpad-app-leave-active {
+  position: absolute;
+}
+
 .launchpad-enter-from .launchpad-content {
   opacity: 0;
   transform: translateY(18px) scale(0.96);
@@ -211,6 +231,12 @@ function toggleDockPin(appId: DesktopAppId) {
   .launchpad-enter-active,
   .launchpad-leave-active,
   .launchpad-content {
+    transition-duration: 1ms;
+  }
+
+  .launchpad-app-enter-active,
+  .launchpad-app-leave-active,
+  .launchpad-app-move {
     transition-duration: 1ms;
   }
 }

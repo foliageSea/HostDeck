@@ -338,56 +338,58 @@ function openLaunchpad() {
 
       <span class="h-[34px] w-px shrink-0 bg-[rgba(148,163,184,0.3)]" aria-hidden="true" />
 
-      <div
-        v-for="(app, index) in dockApps"
-        :key="app.id"
-        class="dock-entry relative"
-        :class="{
-          'dock-entry-dragging': draggedAppId === app.id,
-          'dock-entry-drag-over': dragOverAppId === app.id,
-        }"
-        draggable="true"
-        @mouseenter="hoveredDockIndex = index"
-        @mouseleave="hoveredDockIndex = null"
-        @dragstart="handleDragStart($event, app.id)"
-        @dragover="handleDragOver($event, app.id)"
-        @dragleave="dragOverAppId = null"
-        @drop="handleDrop($event, app.id)"
-        @dragend="handleDragEnd"
-      >
-        <NTooltip>
-          <template #trigger>
-            <div
-              class="app-radius-surface dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
-              :class="[
-                settingsStore.isDark
-                  ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0]'
-                  : 'bg-[rgba(241,245,249,0.88)] text-[#1e293b]',
-                isAppOpen(app.id)
-                  ? settingsStore.isDark
-                    ? 'bg-[rgba(51,65,85,0.92)]'
-                    : 'bg-[rgba(226,232,240,0.96)]'
-                  : '',
-                { 'dock-item-bounce': bouncingAppId === app.id },
-              ]"
-              :style="getDockItemStyle(index, app.id)"
-              type="button"
-              :aria-label="app.title"
-              @click="handleOpen($event, app.id)"
-              @contextmenu="handleContextMenu($event, app.id)"
-              @keydown="handleTriggerKeydown($event, app.id)"
-            >
-              <AppIcon :color="getDockIconColor(app.id)" :name="app.icon" :size="24" />
-              <span
-                v-if="isAppOpen(app.id)"
-                class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]"
-                aria-hidden="true"
-              />
-            </div>
-          </template>
-          {{ app.title }}
-        </NTooltip>
-      </div>
+      <TransitionGroup name="dock-app" tag="div" class="flex items-center gap-[12px]">
+        <div
+          v-for="(app, index) in dockApps"
+          :key="app.id"
+          class="dock-entry relative"
+          :class="{
+            'dock-entry-dragging': draggedAppId === app.id,
+            'dock-entry-drag-over': dragOverAppId === app.id,
+          }"
+          draggable="true"
+          @mouseenter="hoveredDockIndex = index"
+          @mouseleave="hoveredDockIndex = null"
+          @dragstart="handleDragStart($event, app.id)"
+          @dragover="handleDragOver($event, app.id)"
+          @dragleave="dragOverAppId = null"
+          @drop="handleDrop($event, app.id)"
+          @dragend="handleDragEnd"
+        >
+          <NTooltip>
+            <template #trigger>
+              <div
+                class="app-radius-surface dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
+                :class="[
+                  settingsStore.isDark
+                    ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0]'
+                    : 'bg-[rgba(241,245,249,0.88)] text-[#1e293b]',
+                  isAppOpen(app.id)
+                    ? settingsStore.isDark
+                      ? 'bg-[rgba(51,65,85,0.92)]'
+                      : 'bg-[rgba(226,232,240,0.96)]'
+                    : '',
+                  { 'dock-item-bounce': bouncingAppId === app.id },
+                ]"
+                :style="getDockItemStyle(index, app.id)"
+                type="button"
+                :aria-label="app.title"
+                @click="handleOpen($event, app.id)"
+                @contextmenu="handleContextMenu($event, app.id)"
+                @keydown="handleTriggerKeydown($event, app.id)"
+              >
+                <AppIcon :color="getDockIconColor(app.id)" :name="app.icon" :size="24" />
+                <span
+                  v-if="isAppOpen(app.id)"
+                  class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]"
+                  aria-hidden="true"
+                />
+              </div>
+            </template>
+            {{ app.title }}
+          </NTooltip>
+        </div>
+      </TransitionGroup>
 
       <Teleport to="body">
         <div
@@ -478,6 +480,24 @@ function openLaunchpad() {
   content: '';
 }
 
+.dock-app-enter-active,
+.dock-app-leave-active,
+.dock-app-move {
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dock-app-enter-from,
+.dock-app-leave-to {
+  opacity: 0;
+  transform: translateY(14px) scale(0.82);
+}
+
+.dock-app-leave-active {
+  position: absolute;
+}
+
 .desktop-dock {
   transform: translateX(-50%);
   transition: transform 220ms ease-out;
@@ -525,6 +545,14 @@ function openLaunchpad() {
   .dock-item {
     width: 46px;
     height: 46px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-app-enter-active,
+  .dock-app-leave-active,
+  .dock-app-move {
+    transition-duration: 1ms;
   }
 }
 
