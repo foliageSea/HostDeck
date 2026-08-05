@@ -77,28 +77,14 @@ http.interceptors.response.use(
       const { status, data, config } = error.response
       const url = config?.url
 
+      const errorMessage = getErrorMessage(data)
+      error.message = errorMessage
+
       if (status === 401 && url !== '/api/access/login') {
         accessUnauthorizedHandler?.()
       }
 
       if (url && url.includes('/api/')) {
-        let errorMessage = ''
-
-        if (typeof data === 'string') {
-          errorMessage = data
-
-          try {
-            const parsed = JSON.parse(data)
-            if (parsed.message) {
-              errorMessage = parsed.message
-            }
-          } catch {
-            // Keep original text.
-          }
-        } else if (typeof data === 'object' && data !== null) {
-          errorMessage = data.message || JSON.stringify(data)
-        }
-
         const isSessionError =
           status === 500 &&
           (errorMessage.includes('SSHChannelOpenError') || errorMessage.includes('SocketException'))
@@ -112,3 +98,20 @@ http.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+function getErrorMessage(data: ApiError | string | undefined): string {
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data) as ApiError
+      return parsed.message || data
+    } catch {
+      return data
+    }
+  }
+
+  if (typeof data === 'object' && data !== null) {
+    return data.message || JSON.stringify(data)
+  }
+
+  return 'Unknown error'
+}

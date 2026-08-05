@@ -37,12 +37,16 @@ class ServerContainer {
   final PortForwardService portForwardService;
   final ApiRoutes apiRoutes;
   final AccessAuthService accessService;
+  final OperationLogService operationLogService;
+  final ServerRepository serverRepository;
 
   ServerContainer._({
     required this.databaseService,
     required this.portForwardService,
     required this.apiRoutes,
     required this.accessService,
+    required this.operationLogService,
+    required this.serverRepository,
   });
 
   static Future<ServerContainer> create({
@@ -91,54 +95,35 @@ class ServerContainer {
       databaseService: databaseService,
       portForwardService: portForwardService,
       accessService: accessService,
+      operationLogService: operationLogService,
+      serverRepository: serverRepository,
       apiRoutes: ApiRoutes(
         accessController: AccessController(accessService),
         authController: AuthController(
           sshService,
           monitorHistoryService,
           serverRepository,
-          operationLogService,
         ),
-        agentController: AgentController(
-          sshService,
-          agentService,
-          operationLogService,
-        ),
+        agentController: AgentController(sshService, agentService),
         systemController: SystemController(
           sshService,
           monitorService,
           monitorHistoryService,
         ),
-        fileController: FileController(
-          sshService,
-          fileService,
-          operationLogService,
-        ),
+        fileController: FileController(sshService, fileService),
         operationLogController: OperationLogController(operationLogRepository),
         terminalController: TerminalController(
           sshService,
           terminalSnippetRepository,
         ),
-        serverController: ServerController(
-          serverRepository,
-          operationLogService,
-        ),
-        dockerController: DockerController(
-          sshService,
-          dockerService,
-          operationLogService,
-        ),
-        processController: ProcessController(
-          sshService,
-          processService,
-          operationLogService,
-        ),
+        serverController: ServerController(serverRepository),
+        dockerController: DockerController(sshService, dockerService),
+        processController: ProcessController(sshService, processService),
         runtimeController: RuntimeController(sshService),
         settingsController: SettingsController(),
         portForwardController: PortForwardController(
           portForwardRepository,
           portForwardService,
-          operationLogService,
         ),
       ),
     );

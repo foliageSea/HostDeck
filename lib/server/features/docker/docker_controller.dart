@@ -12,19 +12,14 @@ import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/docker/docker_container.dart';
 import 'package:host_deck/server/features/docker/docker_image.dart';
 import 'package:host_deck/server/features/docker/docker_service.dart';
-import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 
 class DockerController {
   final SshService _sshService;
   final DockerService _dockerService;
-  final OperationLogService _operationLogService;
   final SharedSshSessionResolver _sessionResolver;
 
-  DockerController(
-    this._sshService,
-    this._dockerService,
-    this._operationLogService,
-  ) : _sessionResolver = SharedSshSessionResolver(
+  DockerController(this._sshService, this._dockerService)
+    : _sessionResolver = SharedSshSessionResolver(
         _sshService,
         type: SharedSshSessionType.shell,
       );
@@ -205,7 +200,6 @@ class DockerController {
     return _handleComposeProjectAction(
       request,
       _dockerService.upComposeProject,
-      actionName: 'composeUp',
     );
   }
 
@@ -213,7 +207,6 @@ class DockerController {
     return _handleComposeProjectAction(
       request,
       _dockerService.stopComposeProject,
-      actionName: 'composeStop',
     );
   }
 
@@ -221,7 +214,6 @@ class DockerController {
     return _handleComposeProjectAction(
       request,
       _dockerService.restartComposeProject,
-      actionName: 'composeRestart',
     );
   }
 
@@ -229,7 +221,6 @@ class DockerController {
     return _handleComposeProjectAction(
       request,
       _dockerService.downComposeProject,
-      actionName: 'composeDown',
     );
   }
 
@@ -355,52 +346,27 @@ class DockerController {
 
   /// 启动容器
   Future<Response> startContainer(Request request, String id) async {
-    return _handleContainerAction(
-      request,
-      id,
-      _dockerService.startContainer,
-      actionName: 'containerStart',
-    );
+    return _handleContainerAction(request, id, _dockerService.startContainer);
   }
 
   /// 停止容器
   Future<Response> stopContainer(Request request, String id) async {
-    return _handleContainerAction(
-      request,
-      id,
-      _dockerService.stopContainer,
-      actionName: 'containerStop',
-    );
+    return _handleContainerAction(request, id, _dockerService.stopContainer);
   }
 
   /// 重启容器
   Future<Response> restartContainer(Request request, String id) async {
-    return _handleContainerAction(
-      request,
-      id,
-      _dockerService.restartContainer,
-      actionName: 'containerRestart',
-    );
+    return _handleContainerAction(request, id, _dockerService.restartContainer);
   }
 
   /// 暂停容器
   Future<Response> pauseContainer(Request request, String id) async {
-    return _handleContainerAction(
-      request,
-      id,
-      _dockerService.pauseContainer,
-      actionName: 'containerPause',
-    );
+    return _handleContainerAction(request, id, _dockerService.pauseContainer);
   }
 
   /// 取消暂停容器
   Future<Response> unpauseContainer(Request request, String id) async {
-    return _handleContainerAction(
-      request,
-      id,
-      _dockerService.unpauseContainer,
-      actionName: 'containerUnpause',
-    );
+    return _handleContainerAction(request, id, _dockerService.unpauseContainer);
   }
 
   /// 重命名容器
@@ -415,15 +381,8 @@ class DockerController {
         }
 
         await _dockerService.renameContainer(session, id, newName);
-        _recordDockerSuccess(
-          'containerRename',
-          id,
-          session.connectionId,
-          detail: {'newName': newName},
-        );
         return Result.ok({'success': true});
       } catch (e) {
-        _recordDockerFailure('containerRename', id, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -436,15 +395,8 @@ class DockerController {
     return _withSession(request, (session) async {
       try {
         await _dockerService.removeContainer(session, id, force: force);
-        _recordDockerSuccess(
-          'containerRemove',
-          id,
-          session.connectionId,
-          detail: {'force': force},
-        );
         return Result.ok({'success': true});
       } catch (e) {
-        _recordDockerFailure('containerRemove', id, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -550,15 +502,8 @@ class DockerController {
     return _withSession(request, (session) async {
       try {
         await _dockerService.removeImage(session, id, force: force);
-        _recordDockerSuccess(
-          'imageRemove',
-          id,
-          session.connectionId,
-          detail: {'force': force},
-        );
         return Result.ok({'success': true});
       } catch (e) {
-        _recordDockerFailure('imageRemove', id, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -571,20 +516,8 @@ class DockerController {
         final body = await request.readAsString();
         final data = jsonDecode(body) as Map<String, dynamic>;
         final result = await _dockerService.createNetwork(session, data);
-        _recordDockerSuccess(
-          'networkCreate',
-          result['id']?.toString() ?? data['name']?.toString() ?? 'network',
-          session.connectionId,
-          detail: {'name': data['name']},
-        );
         return Result.ok(result);
       } catch (e) {
-        _recordDockerFailure(
-          'networkCreate',
-          'network',
-          session.connectionId,
-          e,
-        );
         return Result.fail(500, e.toString());
       }
     });
@@ -597,15 +530,8 @@ class DockerController {
         final body = await request.readAsString();
         final data = jsonDecode(body) as Map<String, dynamic>;
         final result = await _dockerService.createVolume(session, data);
-        _recordDockerSuccess(
-          'volumeCreate',
-          result['name']?.toString() ?? data['name']?.toString() ?? 'volume',
-          session.connectionId,
-          detail: {'name': data['name']},
-        );
         return Result.ok(result);
       } catch (e) {
-        _recordDockerFailure('volumeCreate', 'volume', session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -616,10 +542,8 @@ class DockerController {
     return _withSession(request, (session) async {
       try {
         await _dockerService.removeNetwork(session, id);
-        _recordDockerSuccess('networkRemove', id, session.connectionId);
         return Result.ok({'success': true});
       } catch (e) {
-        _recordDockerFailure('networkRemove', id, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -630,10 +554,8 @@ class DockerController {
     return _withSession(request, (session) async {
       try {
         await _dockerService.removeVolume(session, name);
-        _recordDockerSuccess('volumeRemove', name, session.connectionId);
         return Result.ok({'success': true});
       } catch (e) {
-        _recordDockerFailure('volumeRemove', name, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -649,15 +571,8 @@ class DockerController {
     return _withSession(request, (session) async {
       try {
         await _dockerService.connectNetwork(session, id, payload.container);
-        _recordDockerSuccess(
-          'networkConnect',
-          id,
-          session.connectionId,
-          detail: {'container': payload.container},
-        );
         return Result.ok({'success': true});
       } catch (e) {
-        _recordDockerFailure('networkConnect', id, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -678,15 +593,8 @@ class DockerController {
           payload.container,
           force: payload.force,
         );
-        _recordDockerSuccess(
-          'networkDisconnect',
-          id,
-          session.connectionId,
-          detail: {'container': payload.container, 'force': payload.force},
-        );
         return Result.ok({'success': true});
       } catch (e) {
-        _recordDockerFailure('networkDisconnect', id, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -697,24 +605,12 @@ class DockerController {
     return _withSession(request, (session) async {
       try {
         final deleted = await _dockerService.pruneNetworks(session);
-        _recordDockerSuccess(
-          'networkPrune',
-          'networks',
-          session.connectionId,
-          detail: {'deletedCount': deleted.length},
-        );
         return Result.ok({
           'success': true,
           'deleted': deleted,
           'deletedCount': deleted.length,
         });
       } catch (e) {
-        _recordDockerFailure(
-          'networkPrune',
-          'networks',
-          session.connectionId,
-          e,
-        );
         return Result.fail(500, e.toString());
       }
     });
@@ -725,19 +621,12 @@ class DockerController {
     return _withSession(request, (session) async {
       try {
         final deleted = await _dockerService.pruneVolumes(session);
-        _recordDockerSuccess(
-          'volumePrune',
-          'volumes',
-          session.connectionId,
-          detail: {'deletedCount': deleted.length},
-        );
         return Result.ok({
           'success': true,
           'deleted': deleted,
           'deletedCount': deleted.length,
         });
       } catch (e) {
-        _recordDockerFailure('volumePrune', 'volumes', session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -762,20 +651,8 @@ class DockerController {
           session,
           includeAll: includeAll,
         );
-        _recordDockerSuccess(
-          'buildCachePrune',
-          'build-cache',
-          session.connectionId,
-          detail: {'includeAll': includeAll},
-        );
         return Result.ok({'success': true, ...result});
       } catch (e) {
-        _recordDockerFailure(
-          'buildCachePrune',
-          'build-cache',
-          session.connectionId,
-          e,
-        );
         return Result.fail(500, e.toString());
       }
     });
@@ -793,10 +670,8 @@ class DockerController {
         }
 
         final output = await _dockerService.pullImage(session, image);
-        _recordDockerSuccess('imagePull', image, session.connectionId);
         return Result.ok({'success': true, 'output': output});
       } catch (e) {
-        _recordDockerFailure('imagePull', 'image', session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -821,18 +696,11 @@ class DockerController {
           if (partName != 'file' || filename == null) continue;
 
           final output = await _dockerService.importImage(session, part);
-          _recordDockerSuccess('imageImport', filename, session.connectionId);
           return Result.ok({'success': true, 'output': output});
         }
 
         return Result.fail(400, 'image archive is required');
       } catch (e) {
-        _recordDockerFailure(
-          'imageImport',
-          'image archive',
-          session.connectionId,
-          e,
-        );
         return Result.fail(500, e.toString());
       }
     });
@@ -851,15 +719,8 @@ class DockerController {
         }
 
         await _dockerService.tagImage(session, sourceImage, targetImage);
-        _recordDockerSuccess(
-          'imageTag',
-          sourceImage,
-          session.connectionId,
-          detail: {'targetImage': targetImage},
-        );
         return Result.ok({'success': true});
       } catch (e) {
-        _recordDockerFailure('imageTag', 'image', session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -939,22 +800,8 @@ class DockerController {
         final body = await request.readAsString();
         final data = jsonDecode(body) as Map<String, dynamic>;
         final result = await _dockerService.createContainer(session, data);
-        _recordDockerSuccess(
-          'containerCreate',
-          result['containerId']?.toString() ??
-              data['name']?.toString() ??
-              'container',
-          session.connectionId,
-          detail: {'image': data['image'], 'name': data['name']},
-        );
         return Result.ok(result);
       } catch (e) {
-        _recordDockerFailure(
-          'containerCreate',
-          'container',
-          session.connectionId,
-          e,
-        );
         return Result.fail(500, e.toString());
       }
     });
@@ -965,10 +812,8 @@ class DockerController {
     return _withSession(request, (session) async {
       try {
         final result = await _dockerService.recreateContainer(session, id);
-        _recordDockerSuccess('containerRecreate', id, session.connectionId);
         return Result.ok(result);
       } catch (e) {
-        _recordDockerFailure('containerRecreate', id, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -979,7 +824,6 @@ class DockerController {
     return _handleBatchContainerAction(
       request,
       _dockerService.batchStartContainers,
-      actionName: 'containerBatchStart',
       successMessage: 'Containers started',
     );
   }
@@ -989,7 +833,6 @@ class DockerController {
     return _handleBatchContainerAction(
       request,
       _dockerService.batchStopContainers,
-      actionName: 'containerBatchStop',
       successMessage: 'Containers stopped',
     );
   }
@@ -1001,20 +844,8 @@ class DockerController {
         final removedCount = await _dockerService.removeStoppedContainers(
           session,
         );
-        _recordDockerSuccess(
-          'containerRemoveStopped',
-          'stopped containers',
-          session.connectionId,
-          detail: {'removedCount': removedCount},
-        );
         return Result.ok({'success': true, 'removedCount': removedCount});
       } catch (e) {
-        _recordDockerFailure(
-          'containerRemoveStopped',
-          'stopped containers',
-          session.connectionId,
-          e,
-        );
         return Result.fail(500, e.toString());
       }
     });
@@ -1039,15 +870,8 @@ class DockerController {
           session,
           includeUnused: includeUnused,
         );
-        _recordDockerSuccess(
-          'imagePrune',
-          'images',
-          session.connectionId,
-          detail: {'includeUnused': includeUnused},
-        );
         return Result.ok({'success': true, 'output': output});
       } catch (e) {
-        _recordDockerFailure('imagePrune', 'images', session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -1057,16 +881,13 @@ class DockerController {
   Future<Response> _handleContainerAction(
     Request request,
     String containerId,
-    Future<void> Function(SshSession, String) action, {
-    required String actionName,
-  }) async {
+    Future<void> Function(SshSession, String) action,
+  ) async {
     return _withSession(request, (session) async {
       try {
         await action(session, containerId);
-        _recordDockerSuccess(actionName, containerId, session.connectionId);
         return Result.ok({'success': true});
       } catch (e) {
-        _recordDockerFailure(actionName, containerId, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -1075,7 +896,6 @@ class DockerController {
   Future<Response> _handleBatchContainerAction(
     Request request,
     Future<int> Function(SshSession, List<String>) action, {
-    required String actionName,
     required String successMessage,
   }) async {
     final ids = await _parseIds(request);
@@ -1089,24 +909,12 @@ class DockerController {
     return _withSession(request, (session) async {
       try {
         final processed = await action(session, ids);
-        _recordDockerSuccess(
-          actionName,
-          '${ids.length} containers',
-          session.connectionId,
-          detail: {'processed': processed, 'containerIds': ids},
-        );
         return Result.ok({
           'success': true,
           'processed': processed,
           'message': successMessage,
         });
       } catch (e) {
-        _recordDockerFailure(
-          actionName,
-          '${ids.length} containers',
-          session.connectionId,
-          e,
-        );
         return Result.fail(500, e.toString());
       }
     });
@@ -1120,9 +928,8 @@ class DockerController {
       required List<String> configFiles,
       String? workingDir,
     })
-    action, {
-    required String actionName,
-  }) async {
+    action,
+  ) async {
     final payload = await _parseComposeProjectPayload(request);
     if (payload == null) {
       return Result.fail(400, 'Missing or invalid compose project payload');
@@ -1136,56 +943,11 @@ class DockerController {
           configFiles: payload.configFiles,
           workingDir: payload.workingDir,
         );
-        _recordDockerSuccess(
-          actionName,
-          payload.projectName,
-          session.connectionId,
-          detail: {
-            'workingDir': payload.workingDir,
-            'configFiles': payload.configFiles,
-          },
-        );
         return Result.ok({'success': true, 'output': output});
       } catch (e) {
-        _recordDockerFailure(
-          actionName,
-          payload.projectName,
-          session.connectionId,
-          e,
-        );
         return Result.fail(500, e.toString());
       }
     });
-  }
-
-  void _recordDockerSuccess(
-    String action,
-    String target,
-    String connectionId, {
-    Map<String, dynamic>? detail,
-  }) {
-    _operationLogService.success(
-      category: 'docker',
-      action: action,
-      target: target,
-      detail: detail,
-      connectionId: connectionId,
-    );
-  }
-
-  void _recordDockerFailure(
-    String action,
-    String target,
-    String connectionId,
-    Object error,
-  ) {
-    _operationLogService.failure(
-      category: 'docker',
-      action: action,
-      target: target,
-      connectionId: connectionId,
-      error: error,
-    );
   }
 
   Future<List<String>?> _parseIds(Request request) async {

@@ -63,6 +63,8 @@ class ServerService {
       staticPath: staticPath,
       log: _log,
       accessService: _container!.accessService,
+      operationLogService: _container!.operationLogService,
+      serverRepository: _container!.serverRepository,
     );
 
     final bindAddress = _parseBindAddress(host);

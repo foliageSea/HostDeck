@@ -7,21 +7,16 @@ import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
-import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 
 class AgentController {
   static const String _version = '0.2.7';
 
   final AgentService _agentService;
-  final OperationLogService _operationLogService;
   final SharedSshSessionResolver _sessionResolver;
   final SshService _sshService;
 
-  AgentController(
-    this._sshService,
-    this._agentService,
-    this._operationLogService,
-  ) : _sessionResolver = SharedSshSessionResolver(
+  AgentController(this._sshService, this._agentService)
+    : _sessionResolver = SharedSshSessionResolver(
         _sshService,
         type: SharedSshSessionType.sftp,
       );
@@ -60,10 +55,8 @@ class AgentController {
           stdin: _optionalString(data, 'stdin'),
           maxOutputBytes: _optionalInt(data, 'maxOutputBytes'),
         );
-        _recordSuccess('exec', command, session.connectionId);
         return Result.ok(result);
       } catch (e) {
-        _recordFailure('exec', command, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -79,10 +72,8 @@ class AgentController {
     return _withSession(request, data, (session) async {
       try {
         final content = await _agentService.readTextFile(session, path);
-        _recordSuccess('read', path, session.connectionId);
         return Result.ok({'path': path, 'content': content});
       } catch (e) {
-        _recordFailure('read', path, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -103,10 +94,8 @@ class AgentController {
     return _withSession(request, data, (session) async {
       try {
         await _agentService.writeTextFile(session, path, content);
-        _recordSuccess('write', path, session.connectionId);
         return Result.ok({'path': path, 'success': true});
       } catch (e) {
-        _recordFailure('write', path, session.connectionId, e);
         return Result.fail(500, e.toString());
       }
     });
@@ -128,19 +117,8 @@ class AgentController {
           cwd: _optionalString(data, 'cwd'),
           timeoutMs: _optionalInt(data, 'timeoutMs'),
         );
-        _recordSuccess(
-          'patch',
-          _optionalString(data, 'cwd'),
-          session.connectionId,
-        );
         return Result.ok(result);
       } catch (e) {
-        _recordFailure(
-          'patch',
-          _optionalString(data, 'cwd'),
-          session.connectionId,
-          e,
-        );
         return Result.fail(500, e.toString());
       }
     });
@@ -223,29 +201,5 @@ class AgentController {
       return int.tryParse(value);
     }
     return null;
-  }
-
-  void _recordSuccess(String action, String? target, String connectionId) {
-    _operationLogService.success(
-      category: 'agent',
-      action: action,
-      target: target,
-      connectionId: connectionId,
-    );
-  }
-
-  void _recordFailure(
-    String action,
-    String? target,
-    String connectionId,
-    Object error,
-  ) {
-    _operationLogService.failure(
-      category: 'agent',
-      action: action,
-      target: target,
-      connectionId: connectionId,
-      error: error,
-    );
   }
 }

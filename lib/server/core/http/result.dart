@@ -30,10 +30,11 @@ class Result<T> {
     );
   }
 
-  /// Helper to create a failure JSON response (HTTP 200 with error code)
+  /// Helper to create a JSON error response with the matching HTTP status.
   static Response fail<T>(int code, String message, {T? data}) {
-    return Response.ok(
-      jsonEncode(Result.error(code, message, data: data).toJson()),
+    return Response(
+      code,
+      body: jsonEncode(Result.error(code, message, data: data).toJson()),
       headers: {'content-type': 'application/json'},
     );
   }
