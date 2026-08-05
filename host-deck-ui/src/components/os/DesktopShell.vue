@@ -4,6 +4,7 @@ import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import DesktopDock from '@/components/os/DesktopDock.vue'
+import DesktopLaunchpad from '@/components/os/DesktopLaunchpad.vue'
 import DesktopPinnedDirectories from '@/components/os/DesktopPinnedDirectories.vue'
 import DesktopTopBar from '@/components/os/DesktopTopBar.vue'
 import DesktopWindow from '@/components/os/DesktopWindow.vue'
@@ -12,6 +13,7 @@ import DesktopWindowSwitcher from '@/components/os/DesktopWindowSwitcher.vue'
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const switcherVisible = ref(false)
+const launchpadVisible = ref(false)
 const switcherIndex = ref(0)
 const switcherWindows = ref<typeof desktopStore.windows>([])
 
@@ -74,6 +76,17 @@ function isEditableTarget(target: EventTarget | null) {
 }
 
 function handleKeyDown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && launchpadVisible.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    launchpadVisible.value = false
+    return
+  }
+
+  if (launchpadVisible.value) {
+    return
+  }
+
   if (event.key === 'Escape' && switcherVisible.value) {
     event.preventDefault()
     event.stopPropagation()
@@ -173,7 +186,9 @@ onUnmounted(() => {
       </TransitionGroup>
     </main>
 
-    <DesktopDock />
+    <DesktopDock @open-launchpad="launchpadVisible = true" />
+
+    <DesktopLaunchpad :show="launchpadVisible" @close="launchpadVisible = false" />
 
     <DesktopWindowSwitcher
       v-if="switcherVisible"

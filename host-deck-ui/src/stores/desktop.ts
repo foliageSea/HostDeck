@@ -31,6 +31,24 @@ const PINNED_DIRECTORIES_STORAGE_KEY = 'host-deck:desktop:pinned-directories'
 const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'host-deck:desktop:pinned-directory-positions'
 const PINNED_PORT_LINKS_STORAGE_KEY = 'host-deck:desktop:pinned-port-links'
 const PINNED_PORT_LINK_POSITIONS_STORAGE_KEY = 'host-deck:desktop:pinned-port-link-positions'
+export const DOCK_APPS_STORAGE_KEY = 'host-deck:desktop:dock-apps'
+
+export const defaultDockAppIds: DesktopAppId[] = [
+  'terminal',
+  'files',
+  'docker',
+  'opencode',
+  'port-forward',
+  'operation-logs',
+  'processes',
+  'dashboard',
+]
+
+const launchpadAppIds = new Set<DesktopAppId>([
+  ...defaultDockAppIds,
+  'runtime-sessions',
+  'settings',
+])
 
 const sessionWindowAppIds = new Set<DesktopAppId>(['terminal', 'opencode'])
 
@@ -261,6 +279,39 @@ function persistPinnedPortLinkPositions(value: PinnedPortLinkPositionsByConnecti
   window.localStorage.setItem(PINNED_PORT_LINK_POSITIONS_STORAGE_KEY, JSON.stringify(value))
 }
 
+function loadDockAppIds() {
+  if (typeof window === 'undefined') {
+    return [...defaultDockAppIds]
+  }
+
+  try {
+    const value: unknown = JSON.parse(window.localStorage.getItem(DOCK_APPS_STORAGE_KEY) ?? 'null')
+    if (!Array.isArray(value)) {
+      return [...defaultDockAppIds]
+    }
+
+    const appIds = Array.from(
+      new Set(
+        value.filter(
+          (appId): appId is DesktopAppId =>
+            typeof appId === 'string' && launchpadAppIds.has(appId as DesktopAppId),
+        ),
+      ),
+    )
+    return value.length > 0 && appIds.length === 0 ? [...defaultDockAppIds] : appIds
+  } catch {
+    return [...defaultDockAppIds]
+  }
+}
+
+function persistDockAppIds(appIds: DesktopAppId[]) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(DOCK_APPS_STORAGE_KEY, JSON.stringify(appIds))
+}
+
 function getPinnedDirectoryConnectionKey() {
   const sshStore = useSshStore()
   const host = sshStore.host.trim()
@@ -298,6 +349,7 @@ export interface AppConfig {
   minHeight?: number
   minimizable?: boolean
   hide?: boolean
+  showInLaunchpad?: boolean
 }
 
 export interface WindowState {
@@ -343,6 +395,7 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 640,
         title: '终端',
         width: 920,
+        showInLaunchpad: true,
       },
       'iframe-app': {
         component: markRaw(IframeAppView),
@@ -364,6 +417,7 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 900,
         title: '文件管理',
         width: 1280,
+        showInLaunchpad: true,
       },
       docker: {
         component: markRaw(DockerView),
@@ -375,6 +429,7 @@ export const useDesktopStore = defineStore('desktop', {
         title: 'Docker 管理',
         width: 1180,
         hide: false,
+        showInLaunchpad: true,
       },
       opencode: {
         component: markRaw(TerminalView),
@@ -385,6 +440,7 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 640,
         title: 'OpenCode',
         width: 920,
+        showInLaunchpad: true,
       },
       'docker-create-container': {
         component: markRaw(DockerCreateContainerView),
@@ -431,6 +487,7 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 840,
         title: '端口转发',
         width: 1040,
+        showInLaunchpad: true,
       },
       'operation-logs': {
         component: markRaw(OperationLogsView),
@@ -441,6 +498,7 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 820,
         title: '操作记录',
         width: 1080,
+        showInLaunchpad: true,
       },
       processes: {
         component: markRaw(ProcessesView),
@@ -451,6 +509,7 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 860,
         title: '进程管理',
         width: 1120,
+        showInLaunchpad: true,
       },
       dashboard: {
         component: markRaw(DashboardView),
@@ -462,6 +521,7 @@ export const useDesktopStore = defineStore('desktop', {
         title: '性能监控',
         width: 1180,
         hide: false,
+        showInLaunchpad: true,
       },
       'runtime-sessions': {
         component: markRaw(RuntimeSessionsView),
@@ -473,6 +533,7 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 860,
         title: '运行态会话',
         width: 1120,
+        showInLaunchpad: true,
       },
       editor: {
         component: markRaw(TextEditorView),
@@ -517,9 +578,11 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 420,
         title: '设置',
         width: 480,
+        showInLaunchpad: true,
       },
     } as Record<DesktopAppId, AppConfig>,
     nextZIndex: 100,
+    dockAppIds: loadDockAppIds() as DesktopAppId[],
     pinnedDirectoriesByConnection: loadPinnedDirectories() as PinnedDirectoriesByConnection,
     pinnedDirectoryPositionsByConnection:
       loadPinnedDirectoryPositions() as PinnedDirectoryPositionsByConnection,
@@ -538,6 +601,45 @@ export const useDesktopStore = defineStore('desktop', {
   actions: {
     canOpenWindow(appId: DesktopAppId) {
       return !isSessionWindowAppId(appId) || this.sessionWindowCount < maxSessionWindows
+    },
+
+    isAppPinnedToDock(appId: DesktopAppId) {
+      return this.dockAppIds.includes(appId)
+    },
+
+    pinAppToDock(appId: DesktopAppId) {
+      if (!this.apps[appId]?.showInLaunchpad || this.isAppPinnedToDock(appId)) {
+        return false
+      }
+
+      this.dockAppIds = [...this.dockAppIds, appId]
+      persistDockAppIds(this.dockAppIds)
+      return true
+    },
+
+    unpinAppFromDock(appId: DesktopAppId) {
+      if (!this.isAppPinnedToDock(appId)) {
+        return false
+      }
+
+      this.dockAppIds = this.dockAppIds.filter((id) => id !== appId)
+      persistDockAppIds(this.dockAppIds)
+      return true
+    },
+
+    moveDockApp(appId: DesktopAppId, targetAppId: DesktopAppId) {
+      const fromIndex = this.dockAppIds.indexOf(appId)
+      const targetIndex = this.dockAppIds.indexOf(targetAppId)
+      if (fromIndex === -1 || targetIndex === -1 || fromIndex === targetIndex) {
+        return false
+      }
+
+      const nextAppIds = [...this.dockAppIds]
+      nextAppIds.splice(fromIndex, 1)
+      nextAppIds.splice(targetIndex, 0, appId)
+      this.dockAppIds = nextAppIds
+      persistDockAppIds(nextAppIds)
+      return true
     },
 
     setElectronWindowState(state: { isMaximized: boolean }) {

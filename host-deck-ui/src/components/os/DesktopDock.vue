@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { LayoutGrid } from '@lucide/vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import { useDesktopStore, type AppConfig } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -7,11 +8,16 @@ import type { DesktopAppId } from '@/types/desktop'
 
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
+const emit = defineEmits<{
+  openLaunchpad: []
+}>()
 const selectorTarget = ref<HTMLElement | null>(null)
 const selectorPanel = ref<HTMLElement | null>(null)
 const selectorAppId = ref<DesktopAppId | null>(null)
 const bouncingAppId = ref<DesktopAppId | null>(null)
 const hoveredDockIndex = ref<number | null>(null)
+const draggedAppId = ref<DesktopAppId | null>(null)
+const dragOverAppId = ref<DesktopAppId | null>(null)
 const selectorPosition = ref<{
   x: number
   y: number
@@ -39,8 +45,16 @@ const contextMenuOptions = computed(() => {
   }
 
   const hasWindows = getAppWindows(appId).length > 0
+  const appIndex = desktopStore.dockAppIds.indexOf(appId)
   return [
     { key: 'new', label: '新建窗口', disabled: !desktopStore.canOpenWindow(appId) },
+    { key: 'move-left', label: '向左移动', disabled: appIndex <= 0 },
+    {
+      key: 'move-right',
+      label: '向右移动',
+      disabled: appIndex === -1 || appIndex >= desktopStore.dockAppIds.length - 1,
+    },
+    { key: 'unpin', label: '从 Dock 移除' },
     ...(hasWindows
       ? [{ key: 'close-all', label: '关闭全部窗口', props: { style: 'color: #dc2626;' } }]
       : []),
@@ -48,7 +62,9 @@ const contextMenuOptions = computed(() => {
 })
 
 const dockApps = computed<AppConfig[]>(() =>
-  Object.values(desktopStore.apps).filter((app) => !app.hide),
+  desktopStore.dockAppIds
+    .map((appId) => desktopStore.apps[appId])
+    .filter((app): app is AppConfig => Boolean(app?.showInLaunchpad)),
 )
 const isDockExpanded = computed(
   () => !settingsStore.dockAutoHide || Boolean(selectorAppId.value || contextMenu.value),
@@ -225,7 +241,66 @@ function handleContextMenuSelect(key: string | number) {
     return
   }
 
+  if (key === 'unpin') {
+    desktopStore.unpinAppFromDock(appId)
+    closeContextMenu()
+    return
+  }
+
+  if (key === 'move-left' || key === 'move-right') {
+    const appIndex = desktopStore.dockAppIds.indexOf(appId)
+    const offset = key === 'move-left' ? -1 : 1
+    const targetAppId = desktopStore.dockAppIds[appIndex + offset]
+    if (targetAppId) {
+      desktopStore.moveDockApp(appId, targetAppId)
+    }
+    closeContextMenu()
+    return
+  }
+
   closeContextMenu()
+}
+
+function handleDragStart(event: DragEvent, appId: DesktopAppId) {
+  draggedAppId.value = appId
+  event.dataTransfer?.setData('text/plain', appId)
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+  closeSelector()
+  contextMenu.value = null
+}
+
+function handleDragOver(event: DragEvent, appId: DesktopAppId) {
+  if (!draggedAppId.value || draggedAppId.value === appId) {
+    return
+  }
+
+  event.preventDefault()
+  dragOverAppId.value = appId
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+function handleDrop(event: DragEvent, targetAppId: DesktopAppId) {
+  event.preventDefault()
+  const appId = draggedAppId.value
+  if (appId) {
+    desktopStore.moveDockApp(appId, targetAppId)
+  }
+  handleDragEnd()
+}
+
+function handleDragEnd() {
+  draggedAppId.value = null
+  dragOverAppId.value = null
+}
+
+function openLaunchpad() {
+  closeSelector()
+  contextMenu.value = null
+  emit('openLaunchpad')
 }
 </script>
 
@@ -242,12 +317,43 @@ function handleContextMenuSelect(key: string | number) {
       ]"
       @contextmenu.prevent
     >
+      <NTooltip>
+        <template #trigger>
+          <button
+            type="button"
+            class="app-radius-surface launchpad-trigger flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 transition-[transform,background-color] duration-[180ms] cursor-pointer"
+            :class="
+              settingsStore.isDark
+                ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0] hover:bg-[rgba(51,65,85,0.92)]'
+                : 'bg-[rgba(241,245,249,0.88)] text-[#334155] hover:bg-[rgba(226,232,240,0.96)]'
+            "
+            aria-label="打开启动台"
+            @click="openLaunchpad"
+          >
+            <LayoutGrid :size="25" />
+          </button>
+        </template>
+        启动台
+      </NTooltip>
+
+      <span class="h-[34px] w-px shrink-0 bg-[rgba(148,163,184,0.3)]" aria-hidden="true" />
+
       <div
         v-for="(app, index) in dockApps"
         :key="app.id"
         class="dock-entry relative"
+        :class="{
+          'dock-entry-dragging': draggedAppId === app.id,
+          'dock-entry-drag-over': dragOverAppId === app.id,
+        }"
+        draggable="true"
         @mouseenter="hoveredDockIndex = index"
         @mouseleave="hoveredDockIndex = null"
+        @dragstart="handleDragStart($event, app.id)"
+        @dragover="handleDragOver($event, app.id)"
+        @dragleave="dragOverAppId = null"
+        @drop="handleDrop($event, app.id)"
+        @dragend="handleDragEnd"
       >
         <NTooltip>
           <template #trigger>
@@ -359,6 +465,19 @@ function handleContextMenuSelect(key: string | number) {
   align-items: flex-end;
 }
 
+.dock-entry-dragging {
+  opacity: 0.45;
+}
+
+.dock-entry-drag-over::before {
+  position: absolute;
+  inset: 3px;
+  border: 2px solid var(--app-primary-color);
+  border-radius: 18px;
+  pointer-events: none;
+  content: '';
+}
+
 .desktop-dock {
   transform: translateX(-50%);
   transition: transform 220ms ease-out;
@@ -392,13 +511,14 @@ function handleContextMenuSelect(key: string | number) {
 @media (max-width: 768px) {
   .desktop-dock {
     width: calc(100% - 20px);
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 6px;
+    overflow-x: auto;
   }
 
   .dock-entry {
     display: flex;
-    flex: 1;
+    flex: 0 0 auto;
     justify-content: center;
   }
 

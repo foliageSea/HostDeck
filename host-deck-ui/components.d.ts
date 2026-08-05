@@ -16,6 +16,7 @@ declare module 'vue' {
     CodeEditor: typeof import('./src/components/editor/CodeEditor.vue')['default']
     CopyableText: typeof import('./src/components/common/CopyableText.vue')['default']
     DesktopDock: typeof import('./src/components/os/DesktopDock.vue')['default']
+    DesktopLaunchpad: typeof import('./src/components/os/DesktopLaunchpad.vue')['default']
     DesktopPinnedDirectories: typeof import('./src/components/os/DesktopPinnedDirectories.vue')['default']
     DesktopShell: typeof import('./src/components/os/DesktopShell.vue')['default']
     DesktopTaskCenter: typeof import('./src/components/os/DesktopTaskCenter.vue')['default']
