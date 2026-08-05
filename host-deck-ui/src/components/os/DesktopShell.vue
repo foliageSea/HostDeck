@@ -25,6 +25,7 @@ const desktopWallpaperStyle = computed(() =>
   createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
 )
 const desktopWallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
+const isDefaultWallpaper = computed(() => settingsStore.desktopWallpaper.mode === 'default')
 const isVideoWallpaper = computed(
   () =>
     settingsStore.desktopWallpaper.mode === 'custom' &&
@@ -158,6 +159,7 @@ onUnmounted(() => {
     <div
       v-else
       class="absolute inset-0 bg-cover bg-center bg-no-repeat"
+      :class="{ 'default-wallpaper-motion': isDefaultWallpaper }"
       :style="desktopWallpaperStyle"
     />
     <div class="absolute inset-0 [backdrop-filter:saturate(108%)]" />

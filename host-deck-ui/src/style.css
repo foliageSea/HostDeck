@@ -120,6 +120,93 @@ body {
     linear-gradient(180deg, #eff6ff 0%, #e2e8f0 100%);
 }
 
+:root[data-theme='dark'] {
+  --wallpaper-glow-a: rgba(45, 212, 191, 0.2);
+  --wallpaper-glow-b: rgba(251, 113, 133, 0.13);
+  --wallpaper-grid: rgba(148, 163, 184, 0.16);
+}
+
+:root[data-theme='light'] {
+  --wallpaper-glow-a: rgba(13, 148, 136, 0.14);
+  --wallpaper-glow-b: rgba(244, 63, 94, 0.09);
+  --wallpaper-grid: rgba(71, 85, 105, 0.12);
+}
+
+.default-wallpaper-motion {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.default-wallpaper-motion::before,
+.default-wallpaper-motion::after {
+  position: absolute;
+  z-index: 0;
+  content: '';
+  pointer-events: none;
+}
+
+.default-wallpaper-motion::before {
+  inset: -24%;
+  background:
+    radial-gradient(circle at 24% 32%, var(--wallpaper-glow-a), transparent 28%),
+    radial-gradient(circle at 76% 62%, var(--wallpaper-glow-b), transparent 26%);
+  animation: wallpaper-glow-drift 20s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.default-wallpaper-motion::after {
+  inset: -12%;
+  opacity: 0.42;
+  background-image:
+    linear-gradient(var(--wallpaper-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--wallpaper-grid) 1px, transparent 1px);
+  background-size: 68px 68px;
+  mask-image: radial-gradient(ellipse at center, black 0%, transparent 72%);
+  animation: wallpaper-grid-drift 34s linear infinite;
+  will-change: transform;
+}
+
+@keyframes wallpaper-glow-drift {
+  0% {
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(3%, 1%, 0) scale(1.06);
+  }
+
+  100% {
+    transform: translate3d(-1%, 4%, 0) scale(1.02);
+  }
+}
+
+@keyframes wallpaper-grid-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(68px, 68px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .default-wallpaper-motion::before,
+  .default-wallpaper-motion::after {
+    animation: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .default-wallpaper-motion::before {
+    opacity: 0.7;
+  }
+
+  .default-wallpaper-motion::after {
+    opacity: 0.24;
+  }
+}
+
 button,
 input,
 textarea,

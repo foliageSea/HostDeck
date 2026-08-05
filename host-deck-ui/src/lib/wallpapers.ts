@@ -57,10 +57,10 @@ export function createWallpaperFilter(settings: WallpaperSettings): string {
 
 export function getDefaultWallpaperBackground(isDark: boolean): string {
   if (isDark) {
-    return 'radial-gradient(circle at 15% 18%, rgba(14, 165, 233, 0.18), transparent 24%), radial-gradient(circle at 85% 15%, rgba(168, 85, 247, 0.18), transparent 18%), radial-gradient(circle at 50% 85%, rgba(59, 130, 246, 0.12), transparent 24%), linear-gradient(160deg, #0f172a 0%, #111827 50%, #020617 100%)'
+    return 'radial-gradient(circle at 12% 14%, rgba(45, 212, 191, 0.2), transparent 26%), radial-gradient(circle at 88% 12%, rgba(251, 113, 133, 0.13), transparent 24%), radial-gradient(circle at 58% 92%, rgba(56, 189, 248, 0.14), transparent 30%), linear-gradient(145deg, #111827 0%, #0b1220 48%, #030712 100%)'
   }
 
-  return 'radial-gradient(circle at 15% 18%, rgba(59, 130, 246, 0.16), transparent 24%), radial-gradient(circle at 85% 15%, rgba(217, 70, 239, 0.14), transparent 18%), linear-gradient(160deg, #dbeafe 0%, #e2e8f0 50%, #cbd5e1 100%)'
+  return 'radial-gradient(circle at 12% 14%, rgba(13, 148, 136, 0.16), transparent 28%), radial-gradient(circle at 88% 10%, rgba(244, 63, 94, 0.1), transparent 24%), radial-gradient(circle at 60% 94%, rgba(14, 165, 233, 0.12), transparent 30%), linear-gradient(145deg, #f8fafc 0%, #e8edf2 50%, #d8e0e8 100%)'
 }
 
 export function resolveWallpaperBackground(

@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { Renew, Upload } from '@vicons/carbon'
 import { computed } from 'vue'
-import { wallpaperPresets, type WallpaperSettings, type WallpaperTarget } from '@/lib/wallpapers'
+import {
+  getDefaultWallpaperBackground,
+  wallpaperPresets,
+  type WallpaperSettings,
+  type WallpaperTarget,
+} from '@/lib/wallpapers'
 import type { useWallpaperSettings } from '../hooks/useWallpaperSettings'
 
 const props = defineProps<{
@@ -16,6 +21,9 @@ const wallpaperSettings = computed(() =>
     : props.controller.settingsStore.loginWallpaper,
 )
 const isDark = computed(() => props.controller.settingsStore.isDark)
+const defaultWallpaperPreviewStyle = computed(() => ({
+  background: getDefaultWallpaperBackground(isDark.value),
+}))
 const wallpaperOptionCardClass = computed(() =>
   isDark.value
     ? 'border-[rgba(148,163,184,0.14)] bg-[linear-gradient(180deg,rgba(30,41,59,0.76),rgba(15,23,42,0.72))] text-[rgba(226,232,240,0.92)] shadow-[0_12px_28px_rgba(2,6,23,0.26)] hover:border-[rgba(96,165,250,0.24)] hover:shadow-[0_16px_32px_rgba(15,23,42,0.3)]'
@@ -145,10 +153,8 @@ function resetWallpaperEffects() {
       >
         <div
           class="app-radius-item wallpaper-preview-default relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
-          :class="[
-            wallpaperPreviewClass,
-            target === 'desktop' ? 'desktop-default-preview' : 'login-default-preview',
-          ]"
+          :class="[wallpaperPreviewClass, 'default-wallpaper-motion']"
+          :style="defaultWallpaperPreviewStyle"
         />
         <div class="mt-[10px]">
           <strong class="text-[0.94rem]" :class="headingTextClass">默认</strong>
@@ -280,19 +286,3 @@ function resetWallpaperEffects() {
     </div>
   </section>
 </template>
-
-<style scoped>
-.wallpaper-preview-default.desktop-default-preview {
-  background:
-    radial-gradient(circle at 15% 18%, rgba(59, 130, 246, 0.16), transparent 24%),
-    radial-gradient(circle at 85% 15%, rgba(217, 70, 239, 0.14), transparent 18%),
-    linear-gradient(160deg, #dbeafe 0%, #e2e8f0 50%, #cbd5e1 100%);
-}
-
-.wallpaper-preview-default.login-default-preview {
-  background:
-    radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.2), transparent 24%),
-    radial-gradient(circle at 80% 16%, rgba(168, 85, 247, 0.18), transparent 22%),
-    linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.92));
-}
-</style>

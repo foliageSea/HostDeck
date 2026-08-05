@@ -52,6 +52,7 @@ const loginWallpaperStyle = computed(() =>
   createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
 )
 const loginWallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
+const isDefaultWallpaper = computed(() => settingsStore.desktopWallpaper.mode === 'default')
 const isVideoWallpaper = computed(
   () =>
     settingsStore.desktopWallpaper.mode === 'custom' &&
@@ -332,6 +333,7 @@ onMounted(async () => {
     <div
       v-else
       class="absolute inset-0 bg-cover bg-center bg-no-repeat"
+      :class="{ 'default-wallpaper-motion': isDefaultWallpaper }"
       :style="loginWallpaperStyle"
     />
     <div class="relative z-1 grid min-h-screen place-items-center p-[40px] lt-lg:p-[20px]">
