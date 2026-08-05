@@ -324,8 +324,8 @@ function openLaunchpad() {
             class="app-radius-surface launchpad-trigger flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 transition-[transform,background-color] duration-[180ms] cursor-pointer"
             :class="
               settingsStore.isDark
-                ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0] hover:bg-[rgba(51,65,85,0.92)]'
-                : 'bg-[rgba(241,245,249,0.88)] text-[#334155] hover:bg-[rgba(226,232,240,0.96)]'
+                ? 'bg-[#000] text-[#e2e8f0] hover:bg-[#000]'
+                : 'bg-[#fff] text-[#334155] hover:bg-[#fff]'
             "
             aria-label="打开启动台"
             @click="openLaunchpad"
@@ -362,12 +362,12 @@ function openLaunchpad() {
                 class="app-radius-surface dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
                 :class="[
                   settingsStore.isDark
-                    ? 'bg-[rgba(30,41,59,0.72)] text-[#e2e8f0]'
-                    : 'bg-[rgba(241,245,249,0.88)] text-[#1e293b]',
+                    ? 'bg-[#000] text-[#e2e8f0]'
+                    : 'bg-[#fff] text-[#1e293b]',
                   isAppOpen(app.id)
                     ? settingsStore.isDark
-                      ? 'bg-[rgba(51,65,85,0.92)]'
-                      : 'bg-[rgba(226,232,240,0.96)]'
+                      ? 'bg-[#000]'
+                      : 'bg-[#fff]'
                     : '',
                   { 'dock-item-bounce': bouncingAppId === app.id },
                 ]"
