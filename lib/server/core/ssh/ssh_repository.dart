@@ -27,6 +27,24 @@ class SshExecResult {
   };
 }
 
+enum SshExecStreamSource { stdout, stderr }
+
+class SshExecStreamEvent {
+  final SshExecStreamSource? source;
+  final String text;
+  final int? exitCode;
+  final bool completed;
+
+  const SshExecStreamEvent.output(this.source, this.text)
+    : exitCode = null,
+      completed = false;
+
+  const SshExecStreamEvent.completed(this.exitCode)
+    : source = null,
+      text = '',
+      completed = true;
+}
+
 class SshRepository {
   String _shellQuote(String value) {
     return "'${value.replaceAll("'", "'\\''")}'";
@@ -419,5 +437,113 @@ class SshRepository {
     };
 
     return controller.stream;
+  }
+}
+
+extension SshRepositoryStreaming on SshRepository {
+  Stream<SshExecStreamEvent> execStream(
+    SshSession session,
+    String command, {
+    Duration timeout = const Duration(minutes: 10),
+  }) async* {
+    final permit = await session.acquireOperation();
+    SSHSession? commandSession;
+    StreamSubscription<String>? stdoutSubscription;
+    StreamSubscription<String>? stderrSubscription;
+    StreamController<SshExecStreamEvent>? outputController;
+
+    try {
+      commandSession = await session.client.execute(command);
+      await commandSession.stdin.close();
+
+      final stdoutDone = Completer<void>();
+      final stderrDone = Completer<void>();
+      outputController = StreamController<SshExecStreamEvent>();
+
+      void completeStream(Completer<void> completer) {
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      }
+
+      void completeStreamError(
+        Completer<void> completer,
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        if (!completer.isCompleted) {
+          completer.completeError(error, stackTrace);
+        }
+      }
+
+      stdoutSubscription = const Utf8Decoder(allowMalformed: true)
+          .bind(commandSession.stdout.cast<List<int>>())
+          .listen(
+            (text) => outputController?.add(
+              SshExecStreamEvent.output(SshExecStreamSource.stdout, text),
+            ),
+            onError: (Object error, StackTrace stackTrace) =>
+                completeStreamError(stdoutDone, error, stackTrace),
+            onDone: () => completeStream(stdoutDone),
+          );
+      stderrSubscription = const Utf8Decoder(allowMalformed: true)
+          .bind(commandSession.stderr.cast<List<int>>())
+          .listen(
+            (text) => outputController?.add(
+              SshExecStreamEvent.output(SshExecStreamSource.stderr, text),
+            ),
+            onError: (Object error, StackTrace stackTrace) =>
+                completeStreamError(stderrDone, error, stackTrace),
+            onDone: () => completeStream(stderrDone),
+          );
+      outputController.onPause = () {
+        stdoutSubscription?.pause();
+        stderrSubscription?.pause();
+      };
+      outputController.onResume = () {
+        stdoutSubscription?.resume();
+        stderrSubscription?.resume();
+      };
+
+      unawaited(() async {
+        try {
+          await Future.wait([
+            stdoutDone.future,
+            stderrDone.future,
+            commandSession!.done,
+          ]).timeout(timeout);
+          if (!outputController!.isClosed) {
+            outputController.add(
+              SshExecStreamEvent.completed(commandSession.exitCode),
+            );
+          }
+        } on TimeoutException {
+          commandSession?.close();
+          if (!outputController!.isClosed) {
+            outputController.addError(
+              TimeoutException('Command timed out after ${timeout.inSeconds}s'),
+            );
+          }
+        } catch (error, stackTrace) {
+          if (!outputController!.isClosed) {
+            outputController.addError(error, stackTrace);
+          }
+        } finally {
+          if (!outputController!.isClosed) {
+            await outputController.close();
+          }
+        }
+      }());
+
+      yield* outputController.stream;
+    } finally {
+      await stdoutSubscription?.cancel();
+      await stderrSubscription?.cancel();
+      commandSession?.close();
+      if (outputController != null && !outputController.isClosed) {
+        await outputController.close();
+      }
+      permit.release();
+    }
   }
 }

@@ -10,6 +10,7 @@ import DashboardView from '@/views/Dashboard/index.vue'
 import DockerCreateComposeView from '@/views/Docker/components/DockerCreateComposeView.vue'
 import DockerCreateContainerView from '@/views/Docker/components/DockerCreateContainerView.vue'
 import DockerComposeServicesView from '@/views/Docker/components/DockerComposeServicesView.vue'
+import DockerOutputView from '@/views/Docker/components/DockerOutputView.vue'
 import DockerView from '@/views/Docker/index.vue'
 import FilesView from '@/views/Files/index.vue'
 import IframeAppView from '@/views/IframeApp/index.vue'
@@ -477,6 +478,17 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 760,
         title: '编排服务',
         width: 960,
+      },
+      'docker-output': {
+        component: markRaw(DockerOutputView),
+        height: 520,
+        hide: true,
+        icon: 'docker',
+        id: 'docker-output',
+        minHeight: 360,
+        minWidth: 620,
+        title: 'Docker 执行输出',
+        width: 780,
       },
       'port-forward': {
         component: markRaw(PortForwardView),

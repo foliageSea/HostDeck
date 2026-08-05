@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Upload } from '@vicons/carbon'
+import { Download, Upload } from '@vicons/carbon'
 import type { DockerImage } from '@/api/docker'
 import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
@@ -116,6 +116,26 @@ function getImageName(image: DockerImage) {
       </template>
 
       <template #actions>
+        <div class="flex min-w-0 items-center gap-[6px]">
+          <NInput
+            v-model:value="controller.pullImageName"
+            class="w-[220px] lt-sm:w-[min(200px,55vw)]"
+            placeholder="镜像名称，如 nginx:latest"
+            :disabled="controller.pullingImage"
+            @keyup.enter="controller.pullImage"
+          />
+          <NButton
+            type="primary"
+            :loading="controller.pullingImage"
+            :disabled="!controller.pullImageName.trim()"
+            @click="controller.pullImage"
+          >
+            <template #icon>
+              <NIcon><Download /></NIcon>
+            </template>
+            拉取
+          </NButton>
+        </div>
         <NButton type="primary" :loading="controller.importingImage" @click="openImageImportPicker">
           <template #icon>
             <NIcon>

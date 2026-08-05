@@ -19,6 +19,7 @@ import {
 } from '@/api/docker'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
+import { useDockerOutputStore } from '@/stores/docker-output'
 import { useSshStore } from '@/stores/ssh'
 import { useUploadCenterStore } from '@/stores/upload-center'
 
@@ -41,6 +42,7 @@ export function useDockerView(props: DockerViewProps) {
   const desktopStore = useDesktopStore()
   const sshStore = useSshStore()
   const uploadCenterStore = useUploadCenterStore()
+  const outputStore = useDockerOutputStore()
 
   const activeTab = ref<DockerTabName>('overview')
   const loading = ref(false)
@@ -1136,18 +1138,45 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   async function pullImage() {
-    if (!pullImageName.value.trim()) {
+    const image = pullImageName.value.trim()
+    if (!image) {
       return
     }
 
     pullingImage.value = true
     try {
       const connectionId = requireConnectionId()
-      await queueDockerRequest(() => dockerApi.pullImage(connectionId, pullImageName.value.trim()))
-      getUiApi().message.success(`已开始拉取镜像 ${pullImageName.value.trim()}。`)
+      const taskTitle = `拉取镜像 · ${image}`
+      const taskId = outputStore.createTask(connectionId, taskTitle)
+      desktopStore.openWindow('docker-output', { taskId, title: taskTitle })
       pullImageName.value = ''
+      await outputStore.runTask(taskId, async ({ append, signal }) => {
+        const result = await dockerApi.pullImageStream(
+          connectionId,
+          image,
+          (event) => {
+            if (event.event === 'progress') {
+              const prefix = event.data.id ? `[${event.data.id}] ` : ''
+              const status = event.data.status || '处理中'
+              const progress = event.data.progress ? ` ${event.data.progress}` : ''
+              append(`${prefix}${status}${progress}\n`)
+            } else if (event.event === 'stderr') {
+              append(event.data.text)
+            } else if (event.event === 'error') {
+              append(`\n[错误] ${event.data.message}\n`)
+            }
+          },
+          signal,
+        )
+        append(`\n> 镜像 ${result.image} 拉取完成\n`)
+        return result
+      })
+      getUiApi().message.success(`镜像 ${image} 已拉取。`)
       await refreshTabsAfterChange('images')
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
       console.error('Failed to pull image', error)
       getUiApi().message.error(error instanceof Error ? error.message : '拉取镜像失败。')
     } finally {
@@ -1682,7 +1711,9 @@ export function useDockerView(props: DockerViewProps) {
   async function pruneBuildCache(includeAll: boolean) {
     try {
       const connectionId = requireConnectionId()
-      const result = await queueDockerRequest(() => dockerApi.pruneBuildCache(connectionId, includeAll))
+      const result = await queueDockerRequest(() =>
+        dockerApi.pruneBuildCache(connectionId, includeAll),
+      )
       getUiApi().message.success(
         `构建缓存清理完成，共删除 ${result.deletedCount} 条缓存，释放 ${formatBytes(result.spaceReclaimed)}。`,
       )

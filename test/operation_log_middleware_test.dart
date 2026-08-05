@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -90,6 +91,72 @@ void main() {
       expect(log.target, '42');
       expect(log.status, 'failed');
       expect(log.errorMessage, 'Server not found');
+    });
+
+    test('records an SSE operation only after its done event', () async {
+      handler =
+          operationLogMiddleware(
+            OperationLogService(repository),
+            serverRepository,
+            portForwardRepository,
+          )((request) {
+            return Response.ok(
+              Stream<List<int>>.fromIterable([
+                utf8.encode('event: progress\ndata: {}\n\n'),
+                utf8.encode('event: done\ndata: {"image":"alpine"}\n\n'),
+              ]),
+              headers: {'content-type': 'text/event-stream'},
+            );
+          });
+
+      final response = await handler(
+        Request(
+          'POST',
+          Uri.parse(
+            'http://localhost/api/docker/images/pull/stream?connectionId=c1',
+          ),
+          body: '{"image":"alpine"}',
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      expect(repository.list(), isEmpty);
+      await response.readAsString();
+      final log = repository.list().single;
+      expect(log.action, 'imagePull');
+      expect(log.target, 'alpine');
+      expect(log.connectionId, 'c1');
+      expect(log.status, 'success');
+    });
+
+    test('records an SSE error event as a failure', () async {
+      handler =
+          operationLogMiddleware(
+            OperationLogService(repository),
+            serverRepository,
+            portForwardRepository,
+          )((request) {
+            return Response.ok(
+              Stream<List<int>>.value(
+                utf8.encode('event: error\ndata: {"message":"denied"}\n\n'),
+              ),
+              headers: {'content-type': 'text/event-stream'},
+            );
+          });
+
+      final response = await handler(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/docker/images/pull/stream'),
+          body: '{"image":"private/app"}',
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      await response.readAsString();
+      final log = repository.list().single;
+      expect(log.action, 'imagePull');
+      expect(log.status, 'failed');
     });
 
     test('uses the saved host address for a connection target', () async {

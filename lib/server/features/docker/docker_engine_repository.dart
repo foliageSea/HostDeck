@@ -27,6 +27,26 @@ class DockerEngineResponse {
   String get body => utf8.decode(bodyBytes);
 }
 
+enum DockerEngineStreamSource { body, stderr }
+
+class DockerEngineStreamEvent {
+  final DockerEngineStreamSource? source;
+  final String text;
+  final int? statusCode;
+  final int? exitCode;
+  final bool completed;
+
+  const DockerEngineStreamEvent.output(this.source, this.text)
+    : statusCode = null,
+      exitCode = null,
+      completed = false;
+
+  const DockerEngineStreamEvent.completed(this.statusCode, this.exitCode)
+    : source = null,
+      text = '',
+      completed = true;
+}
+
 class DockerEngineRepository {
   static const _statusMarker = '__HOST_DECK_HTTP_STATUS__';
 
@@ -166,33 +186,14 @@ class DockerEngineRepository {
     Object? body,
     Map<String, String>? headers,
   }) async {
-    final normalizedHeaders = <String, String>{...?headers};
-    final args = <String>[
-      'curl',
-      '--silent',
-      '--show-error',
-      '--globoff',
-      '--unix-socket ${_shellQuote(socketPath)}',
-      '-X ${_shellQuote(method.toUpperCase())}',
-      '--write-out ${_shellQuote('\n$_statusMarker:%{http_code}')}',
-    ];
-
-    if (body != null && !normalizedHeaders.containsKey('Content-Type')) {
-      normalizedHeaders['Content-Type'] = 'application/json';
-    }
-
-    normalizedHeaders.forEach((key, value) {
-      args.add('-H ${_shellQuote('$key: $value')}');
-    });
-
-    if (body != null) {
-      final encodedBody = body is String ? body : jsonEncode(body);
-      args.add('--data-binary ${_shellQuote(encodedBody)}');
-    }
-
-    args.add(_shellQuote(_buildUrl(path, queryParameters)));
-
-    final command = 'sh -lc ${_shellQuote('${args.join(' ')} 2>&1')}';
+    final command = _buildRequestCommand(
+      method: method,
+      path: path,
+      queryParameters: queryParameters,
+      body: body,
+      headers: headers,
+      mergeStderr: true,
+    );
     final output = await _sshRepository.execBytes(session, command);
     final markerBytes = Uint8List.fromList(utf8.encode('\n$_statusMarker:'));
     final markerIndex = _lastIndexOfBytes(output, markerBytes);
@@ -223,6 +224,121 @@ class DockerEngineRepository {
     }
 
     return DockerEngineResponse(statusCode: statusCode, bodyBytes: bodyBytes);
+  }
+
+  Stream<DockerEngineStreamEvent> requestStream(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+    Duration timeout = const Duration(hours: 1),
+  }) async* {
+    final command = _buildRequestCommand(
+      method: method,
+      path: path,
+      queryParameters: queryParameters,
+      body: body,
+      headers: headers,
+      mergeStderr: false,
+    );
+    const retainedTailLength = 128;
+    final stderr = StringBuffer();
+    var pending = '';
+    int? exitCode;
+
+    await for (final event in _sshRepository.execStream(
+      session,
+      command,
+      timeout: timeout,
+    )) {
+      if (event.completed) {
+        exitCode = event.exitCode;
+        continue;
+      }
+
+      if (event.source == SshExecStreamSource.stderr) {
+        stderr.write(event.text);
+        yield DockerEngineStreamEvent.output(
+          DockerEngineStreamSource.stderr,
+          event.text,
+        );
+        continue;
+      }
+
+      pending += event.text;
+      if (pending.length > retainedTailLength) {
+        final emitLength = pending.length - retainedTailLength;
+        yield DockerEngineStreamEvent.output(
+          DockerEngineStreamSource.body,
+          pending.substring(0, emitLength),
+        );
+        pending = pending.substring(emitLength);
+      }
+    }
+
+    final marker = '\n$_statusMarker:';
+    final markerIndex = pending.lastIndexOf(marker);
+    if (markerIndex < 0) {
+      final message = stderr.toString().trim();
+      throw Exception(
+        message.isEmpty
+            ? 'Docker Engine API request failed without a response marker'
+            : message,
+      );
+    }
+
+    final remainingBody = pending.substring(0, markerIndex);
+    if (remainingBody.isNotEmpty) {
+      yield DockerEngineStreamEvent.output(
+        DockerEngineStreamSource.body,
+        remainingBody,
+      );
+    }
+    final statusText = pending.substring(markerIndex + marker.length).trim();
+    final statusCode = int.tryParse(statusText);
+    if (statusCode == null || statusCode == 0) {
+      throw Exception('Invalid Docker Engine API status code: $statusText');
+    }
+
+    yield DockerEngineStreamEvent.completed(statusCode, exitCode);
+  }
+
+  String _buildRequestCommand({
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+    required bool mergeStderr,
+  }) {
+    final normalizedHeaders = <String, String>{...?headers};
+    final args = <String>[
+      'curl',
+      '--silent',
+      '--show-error',
+      '--no-buffer',
+      '--globoff',
+      '--unix-socket ${_shellQuote(socketPath)}',
+      '-X ${_shellQuote(method.toUpperCase())}',
+      '--write-out ${_shellQuote('\n$_statusMarker:%{http_code}')}',
+    ];
+
+    if (body != null && !normalizedHeaders.containsKey('Content-Type')) {
+      normalizedHeaders['Content-Type'] = 'application/json';
+    }
+    normalizedHeaders.forEach((key, value) {
+      args.add('-H ${_shellQuote('$key: $value')}');
+    });
+    if (body != null) {
+      final encodedBody = body is String ? body : jsonEncode(body);
+      args.add('--data-binary ${_shellQuote(encodedBody)}');
+    }
+    args.add(_shellQuote(_buildUrl(path, queryParameters)));
+
+    final command = '${args.join(' ')}${mergeStderr ? ' 2>&1' : ''}';
+    return 'sh -lc ${_shellQuote(command)}';
   }
 
   String _buildUrl(String path, Map<String, String>? queryParameters) {

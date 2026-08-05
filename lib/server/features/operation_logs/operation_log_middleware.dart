@@ -28,6 +28,18 @@ Middleware operationLogMiddleware(
       );
       var response = await innerHandler(preparedRequest);
 
+      if (response.statusCode < 400 &&
+          response.mimeType == 'text/event-stream') {
+        return response.change(
+          body: _observeSseOperation(
+            response.read(),
+            service,
+            policy,
+            metadata,
+          ),
+        );
+      }
+
       String? errorMessage;
       if (response.statusCode >= 400 &&
           response.mimeType == 'application/json') {
@@ -56,6 +68,68 @@ Middleware operationLogMiddleware(
       return response;
     };
   };
+}
+
+Stream<List<int>> _observeSseOperation(
+  Stream<List<int>> source,
+  OperationLogService service,
+  _OperationPolicy policy,
+  _OperationMetadata metadata,
+) async* {
+  var scanBuffer = '';
+  var completed = false;
+  var failed = false;
+  var recorded = false;
+
+  void recordSuccess() {
+    if (recorded) return;
+    recorded = true;
+    service.success(
+      category: policy.category,
+      action: policy.action,
+      target: metadata.target,
+      connectionId: metadata.connectionId,
+    );
+  }
+
+  void recordFailure(Object error) {
+    if (recorded) return;
+    recorded = true;
+    service.failure(
+      category: policy.category,
+      action: policy.action,
+      target: metadata.target,
+      connectionId: metadata.connectionId,
+      error: error,
+    );
+  }
+
+  try {
+    await for (final chunk in source) {
+      scanBuffer += utf8.decode(chunk, allowMalformed: true);
+      failed = failed || scanBuffer.contains('event: error\n');
+      completed = completed || scanBuffer.contains('event: done\n');
+      if (scanBuffer.length > 256) {
+        scanBuffer = scanBuffer.substring(scanBuffer.length - 256);
+      }
+      yield chunk;
+    }
+
+    if (failed) {
+      recordFailure('SSE operation reported an error');
+    } else if (completed) {
+      recordSuccess();
+    } else {
+      recordFailure('SSE operation ended without a completion event');
+    }
+  } catch (error) {
+    recordFailure(error);
+    rethrow;
+  } finally {
+    if (!recorded) {
+      recordFailure('SSE operation was cancelled');
+    }
+  }
 }
 
 Future<Request> _prepareRequest(Request request) async {
@@ -474,6 +548,12 @@ List<_OperationPolicy> _policies(
   _OperationPolicy('POST', r'api/docker/images/pull', 'docker', 'imagePull'),
   _OperationPolicy(
     'POST',
+    r'api/docker/images/pull/stream',
+    'docker',
+    'imagePull',
+  ),
+  _OperationPolicy(
+    'POST',
     r'api/docker/images/import',
     'docker',
     'imageImport',
@@ -545,6 +625,12 @@ List<_OperationPolicy> _policies(
     r'api/docker/compose/project/up',
     'docker',
     'composeUp',
+  ),
+  _OperationPolicy(
+    'POST',
+    r'api/docker/compose/project/stream',
+    'docker',
+    'composeCreate',
   ),
   _OperationPolicy(
     'POST',

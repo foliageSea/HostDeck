@@ -41,6 +41,7 @@ const actionLabels: Record<string, string> = {
   buildCachePrune: '清理构建缓存',
   chmod: '修改权限',
   composeDown: '停止并移除编排',
+  composeCreate: '创建编排',
   composeRestart: '重启编排',
   composeStop: '停止编排',
   composeUp: '启动编排',

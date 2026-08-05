@@ -10,9 +10,24 @@ import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/docker/docker_container.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
 import 'package:host_deck/server/features/docker/docker_image.dart';
+import 'package:host_deck/server/features/docker/docker_image_pull_progress.dart';
 import 'package:host_deck/server/features/docker/docker_network.dart';
 import 'package:host_deck/server/features/docker/docker_volume.dart';
 import 'docker_engine_mapper.dart';
+
+class DockerComposeCreateEvent {
+  final String event;
+  final Map<String, dynamic> data;
+
+  const DockerComposeCreateEvent(this.event, this.data);
+}
+
+class DockerImagePullEvent {
+  final String event;
+  final Map<String, dynamic> data;
+
+  const DockerImagePullEvent(this.event, this.data);
+}
 
 class DockerService {
   static const _builtInNetworkNames = {'bridge', 'host', 'none'};
@@ -423,8 +438,35 @@ class DockerService {
 
   /// 拉取镜像
   Future<String> pullImage(SshSession session, String imageRef) async {
+    final output = StringBuffer();
+    await for (final event in pullImageStream(session, imageRef)) {
+      if (event.event == 'progress') {
+        output.writeln(jsonEncode(event.data));
+      } else if (event.event == 'stderr') {
+        output.write(event.data['text']?.toString() ?? '');
+      } else if (event.event == 'error') {
+        throw Exception(event.data['message']?.toString() ?? '拉取镜像失败');
+      }
+    }
+    return output.toString().trim();
+  }
+
+  Stream<DockerImagePullEvent> pullImageStream(
+    SshSession session,
+    String imageRef,
+  ) async* {
+    final normalizedImage = imageRef.trim();
+    if (normalizedImage.isEmpty) {
+      throw ArgumentError('image is required');
+    }
+
     final parsed = _splitImageReference(imageRef);
-    return await _engineRepository.requestText(
+    var pending = '';
+    int? statusCode;
+    int? exitCode;
+    String? responseMessage;
+
+    await for (final event in _engineRepository.requestStream(
       session,
       method: 'POST',
       path: '/images/create',
@@ -432,7 +474,73 @@ class DockerService {
         'fromImage': parsed.repository,
         if (parsed.tag.isNotEmpty) 'tag': parsed.tag,
       },
-    );
+    )) {
+      if (event.completed) {
+        statusCode = event.statusCode;
+        exitCode = event.exitCode;
+        continue;
+      }
+
+      if (event.source == DockerEngineStreamSource.stderr) {
+        yield DockerImagePullEvent('stderr', {'text': event.text});
+        continue;
+      }
+
+      pending += event.text;
+      while (true) {
+        final lineEnd = pending.indexOf('\n');
+        if (lineEnd < 0) {
+          break;
+        }
+        final line = pending.substring(0, lineEnd).trim();
+        pending = pending.substring(lineEnd + 1);
+        if (line.isEmpty) {
+          continue;
+        }
+
+        final data = decodeDockerImagePullProgress(line);
+        responseMessage = data['message']?.toString().trim().isNotEmpty == true
+            ? data['message'].toString().trim()
+            : responseMessage;
+        final error = dockerImagePullError(data);
+        if (error != null) {
+          yield DockerImagePullEvent('error', {'message': error});
+          return;
+        }
+        yield DockerImagePullEvent('progress', data);
+      }
+    }
+
+    if (pending.trim().isNotEmpty) {
+      final data = decodeDockerImagePullProgress(pending.trim());
+      responseMessage = data['message']?.toString().trim().isNotEmpty == true
+          ? data['message'].toString().trim()
+          : responseMessage;
+      final error = dockerImagePullError(data);
+      if (error != null) {
+        yield DockerImagePullEvent('error', {'message': error});
+        return;
+      }
+      yield DockerImagePullEvent('progress', data);
+    }
+
+    if (statusCode == null || statusCode < 200 || statusCode >= 300) {
+      yield DockerImagePullEvent('error', {
+        'message':
+            responseMessage ??
+            'Docker Engine API request failed (${statusCode ?? 'unknown'})',
+      });
+      return;
+    }
+    if (exitCode != 0) {
+      yield DockerImagePullEvent('error', {
+        'message':
+            'Docker Engine API command failed (${exitCode ?? 'unknown'})',
+      });
+      return;
+    }
+
+    yield DockerImagePullEvent('done', {'image': normalizedImage});
   }
 
   /// 导入镜像 tar 流
@@ -887,6 +995,30 @@ class DockerService {
     SshSession session,
     Map<String, dynamic> payload,
   ) async {
+    final output = StringBuffer();
+    Map<String, dynamic>? result;
+
+    await for (final event in createComposeProjectStream(session, payload)) {
+      if (event.event == 'stdout' || event.event == 'stderr') {
+        output.write(event.data['text']?.toString() ?? '');
+      } else if (event.event == 'error') {
+        throw Exception(event.data['message']?.toString() ?? '创建编排项目失败');
+      } else if (event.event == 'done') {
+        result = Map<String, dynamic>.from(event.data);
+      }
+    }
+
+    if (result == null) {
+      throw Exception('创建编排项目未返回结果');
+    }
+
+    return {...result, 'output': output.toString().trim()};
+  }
+
+  Stream<DockerComposeCreateEvent> createComposeProjectStream(
+    SshSession session,
+    Map<String, dynamic> payload,
+  ) async* {
     final projectName = payload['projectName']?.toString().trim() ?? '';
     final workingDir = payload['workingDir']?.toString().trim() ?? '';
     final fileName = payload['fileName']?.toString().trim().isNotEmpty == true
@@ -908,37 +1040,117 @@ class DockerService {
       throw ArgumentError('fileName must be a .yml or .yaml file name');
     }
 
+    yield const DockerComposeCreateEvent('phase', {
+      'phase': 'prepare',
+      'message': '正在准备项目目录',
+    });
     await _runShellCommand(session, ['mkdir', '-p', workingDir]);
     final composePath = _joinPath(workingDir, fileName);
+
+    yield const DockerComposeCreateEvent('phase', {
+      'phase': 'write',
+      'message': '正在写入 Compose 配置',
+    });
     await _sshRepository.writeFileStream(
       session,
       composePath,
       Stream.value(Uint8List.fromList(utf8.encode(content))),
     );
 
-    var output = '';
     String? startError;
+    var started = false;
     if (startAfterCreate) {
+      yield const DockerComposeCreateEvent('phase', {
+        'phase': 'start',
+        'message': '正在启动 Compose 项目',
+      });
+
       try {
-        output = await upComposeProject(
+        final commandArgs = <String>[
+          'compose',
+          '-p',
+          projectName,
+          '-f',
+          composePath,
+          'up',
+          '-d',
+        ];
+        var primaryOutput = '';
+        int? primaryExitCode;
+        await for (final event in _sshRepository.execStream(
           session,
-          projectName: projectName,
-          configFiles: [composePath],
-          workingDir: workingDir,
-        );
-      } catch (e) {
-        startError = e.toString();
+          _buildShellCommand([
+            'docker',
+            ...commandArgs,
+          ], workingDir: workingDir),
+          timeout: const Duration(hours: 1),
+        )) {
+          if (event.completed) {
+            primaryExitCode = event.exitCode;
+            continue;
+          }
+
+          primaryOutput += event.text;
+          if (primaryOutput.length > 64 * 1024) {
+            primaryOutput = primaryOutput.substring(
+              primaryOutput.length - 64 * 1024,
+            );
+          }
+          yield DockerComposeCreateEvent(
+            event.source == SshExecStreamSource.stderr ? 'stderr' : 'stdout',
+            {'text': event.text},
+          );
+        }
+
+        if (primaryExitCode == 0) {
+          started = true;
+        } else {
+          yield const DockerComposeCreateEvent('phase', {
+            'phase': 'fallback',
+            'message': '正在尝试兼容版 docker-compose',
+          });
+
+          int? fallbackExitCode;
+          await for (final event in _sshRepository.execStream(
+            session,
+            _buildShellCommand([
+              'docker-compose',
+              ...commandArgs.skip(1),
+            ], workingDir: workingDir),
+            timeout: const Duration(hours: 1),
+          )) {
+            if (event.completed) {
+              fallbackExitCode = event.exitCode;
+              continue;
+            }
+
+            yield DockerComposeCreateEvent(
+              event.source == SshExecStreamSource.stderr ? 'stderr' : 'stdout',
+              {'text': event.text},
+            );
+          }
+
+          started = fallbackExitCode == 0;
+          if (!started) {
+            final message = primaryOutput.trim();
+            startError = message.isEmpty
+                ? 'Compose command failed with exit code ${primaryExitCode ?? 'unknown'}'
+                : message;
+          }
+        }
+      } catch (error) {
+        startError = error.toString();
+        yield DockerComposeCreateEvent('stderr', {'text': '\n$startError\n'});
       }
     }
 
-    return {
+    yield DockerComposeCreateEvent('done', {
       'projectName': projectName,
       'workingDir': workingDir,
       'configFiles': [composePath],
-      'started': startAfterCreate && startError == null,
+      'started': started,
       'startError': startError,
-      'output': output,
-    };
+    });
   }
 
   /// 获取 Compose 项目服务状态
@@ -1148,6 +1360,17 @@ class DockerService {
         ? directory.substring(0, directory.length - 1)
         : directory;
     return '$normalizedDirectory/$fileName';
+  }
+
+  String _buildShellCommand(List<String> args, {String? workingDir}) {
+    final dockerCommand = args.map(_shellQuote).join(' ');
+    final directory = workingDir?.trim();
+    final command = [
+      if (directory != null && directory.isNotEmpty)
+        'cd ${_shellQuote(directory)}',
+      dockerCommand,
+    ].join(' && ');
+    return 'sh -lc ${_shellQuote(command)}';
   }
 
   Future<String> _runComposeProjectCommand(

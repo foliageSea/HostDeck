@@ -1,5 +1,6 @@
 import type { AxiosProgressEvent } from 'axios'
 import { http } from '@/lib/http'
+import { consumeServerSentEvents } from '@/lib/sse'
 
 export interface DockerContainerNetwork {
   name: string
@@ -190,6 +191,35 @@ export interface DockerComposeCreatePayload {
   startAfterCreate?: boolean
 }
 
+export interface DockerComposeCreateResult {
+  projectName: string
+  workingDir: string
+  configFiles: string[]
+  started: boolean
+  startError?: string
+  output?: string
+}
+
+export type DockerComposeCreateStreamEvent =
+  | { event: 'phase'; data: { phase: string; message: string } }
+  | { event: 'stdout' | 'stderr'; data: { text: string } }
+  | { event: 'done'; data: DockerComposeCreateResult }
+  | { event: 'error'; data: { message: string } }
+
+export interface DockerImagePullProgress {
+  id?: string
+  progress?: string
+  progressDetail?: { current?: number; total?: number }
+  status?: string
+  [key: string]: unknown
+}
+
+export type DockerImagePullStreamEvent =
+  | { event: 'progress'; data: DockerImagePullProgress }
+  | { event: 'stderr'; data: { text: string } }
+  | { event: 'done'; data: { image: string } }
+  | { event: 'error'; data: { message: string } }
+
 export interface DockerCreateContainerPayload {
   image: string
   name?: string
@@ -272,17 +302,69 @@ export const dockerApi = {
   },
 
   async createComposeProject(connectionId: string, payload: DockerComposeCreatePayload) {
-    const response = await http.post<{
-      projectName: string
-      workingDir: string
-      configFiles: string[]
-      started: boolean
-      startError?: string
-      output: string
-    }>('/api/docker/compose/project', payload, {
-      params: { connectionId },
-    })
+    const response = await http.post<DockerComposeCreateResult>(
+      '/api/docker/compose/project',
+      payload,
+      {
+        params: { connectionId },
+      },
+    )
     return response.data
+  },
+
+  async createComposeProjectStream(
+    connectionId: string,
+    payload: DockerComposeCreatePayload,
+    onEvent: (event: DockerComposeCreateStreamEvent) => void,
+    signal?: AbortSignal,
+  ) {
+    const query = new URLSearchParams({ connectionId })
+    const response = await fetch(`/api/docker/compose/project/stream?${query}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal,
+    })
+
+    if (!response.ok) {
+      const body = await response.text()
+      let message = body || `创建编排项目失败 (${response.status})`
+      try {
+        const parsed = JSON.parse(body) as { message?: string }
+        message = parsed.message || message
+      } catch {
+        // Keep the plain response body when it is not JSON.
+      }
+      throw new Error(message)
+    }
+    if (!response.body) {
+      throw new Error('浏览器未提供流式响应。')
+    }
+
+    let result: DockerComposeCreateResult | undefined
+    let streamError: string | undefined
+    await consumeServerSentEvents(response.body, (message) => {
+      const data = JSON.parse(message.data) as Record<string, unknown>
+      const event = { event: message.event, data } as DockerComposeCreateStreamEvent
+      onEvent(event)
+      if (event.event === 'done') {
+        result = event.data
+      } else if (event.event === 'error') {
+        streamError = event.data.message
+      }
+    })
+
+    if (streamError) {
+      throw new Error(streamError)
+    }
+    if (!result) {
+      throw new Error('创建编排项目的输出流意外结束。')
+    }
+    return result
   },
 
   async listComposeServices(connectionId: string, payload: DockerComposeProjectPayload) {
@@ -652,6 +734,61 @@ export const dockerApi = {
       { params: { connectionId } },
     )
     return response.data
+  },
+
+  async pullImageStream(
+    connectionId: string,
+    image: string,
+    onEvent: (event: DockerImagePullStreamEvent) => void,
+    signal?: AbortSignal,
+  ) {
+    const query = new URLSearchParams({ connectionId })
+    const response = await fetch(`/api/docker/images/pull/stream?${query}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ image }),
+      signal,
+    })
+
+    if (!response.ok) {
+      const body = await response.text()
+      let message = body || `拉取镜像失败 (${response.status})`
+      try {
+        const parsed = JSON.parse(body) as { message?: string }
+        message = parsed.message || message
+      } catch {
+        // Keep the plain response body when it is not JSON.
+      }
+      throw new Error(message)
+    }
+    if (!response.body) {
+      throw new Error('浏览器未提供流式响应。')
+    }
+
+    let result: { image: string } | undefined
+    let streamError: string | undefined
+    await consumeServerSentEvents(response.body, (message) => {
+      const data = JSON.parse(message.data) as Record<string, unknown>
+      const event = { event: message.event, data } as DockerImagePullStreamEvent
+      onEvent(event)
+      if (event.event === 'done') {
+        result = event.data
+      } else if (event.event === 'error') {
+        streamError = event.data.message
+      }
+    })
+
+    if (streamError) {
+      throw new Error(streamError)
+    }
+    if (!result) {
+      throw new Error('镜像拉取输出流意外结束。')
+    }
+    return result
   },
 
   async importImage(

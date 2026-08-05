@@ -10,6 +10,10 @@ void registerDockerRoutes(Router router, DockerController controller) {
   router.get('/api/docker/compose/projects', controller.listComposeProjects);
   router.post('/api/docker/compose/project', controller.createComposeProject);
   router.post(
+    '/api/docker/compose/project/stream',
+    controller.createComposeProjectStream,
+  );
+  router.post(
     '/api/docker/compose/project/services',
     controller.listComposeServices,
   );
@@ -92,6 +96,7 @@ void registerDockerRoutes(Router router, DockerController controller) {
   router.post('/api/docker/images/prune', controller.pruneImages);
   router.delete('/api/docker/images/<id>', controller.removeImage);
   router.post('/api/docker/images/pull', controller.pullImage);
+  router.post('/api/docker/images/pull/stream', controller.pullImageStream);
   router.post('/api/docker/images/import', controller.importImage);
   router.post('/api/docker/images/tag', controller.tagImage);
   router.get('/api/docker/images/<id>/export', controller.exportImage);

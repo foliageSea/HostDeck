@@ -6,6 +6,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
 
 import 'package:host_deck/server/core/http/result.dart';
+import 'package:host_deck/server/core/http/server_sent_event.dart';
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
@@ -172,6 +173,46 @@ class DockerController {
         return Result.fail(500, e.toString());
       }
     });
+  }
+
+  /// 创建 Compose 项目并通过 SSE 返回实时输出
+  Future<Response> createComposeProjectStream(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final body = await request.readAsString();
+        final decoded = jsonDecode(body);
+        if (decoded is! Map<String, dynamic>) {
+          return Result.fail(400, 'Invalid compose project payload');
+        }
+
+        return Response.ok(
+          _encodeComposeCreateEvents(
+            _dockerService.createComposeProjectStream(session, decoded),
+          ),
+          headers: {
+            'content-type': 'text/event-stream; charset=utf-8',
+            'cache-control': 'no-cache, no-transform',
+            'x-accel-buffering': 'no',
+          },
+        );
+      } on FormatException catch (error) {
+        return Result.fail(400, error.message);
+      } catch (error) {
+        return Result.fail(500, error.toString());
+      }
+    });
+  }
+
+  Stream<List<int>> _encodeComposeCreateEvents(
+    Stream<DockerComposeCreateEvent> events,
+  ) async* {
+    try {
+      await for (final event in events) {
+        yield encodeServerSentEvent(event.event, event.data);
+      }
+    } catch (error) {
+      yield encodeServerSentEvent('error', {'message': error.toString()});
+    }
   }
 
   /// 获取 Compose 项目服务
@@ -675,6 +716,50 @@ class DockerController {
         return Result.fail(500, e.toString());
       }
     });
+  }
+
+  /// 拉取镜像并通过 SSE 返回实时进度
+  Future<Response> pullImageStream(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final body = await request.readAsString();
+        final decoded = jsonDecode(body);
+        if (decoded is! Map<String, dynamic>) {
+          return Result.fail(400, 'Invalid image pull payload');
+        }
+        final image = decoded['image']?.toString().trim() ?? '';
+        if (image.isEmpty) {
+          return Result.fail(400, 'image is required');
+        }
+
+        return Response.ok(
+          _encodeImagePullEvents(
+            _dockerService.pullImageStream(session, image),
+          ),
+          headers: {
+            'content-type': 'text/event-stream; charset=utf-8',
+            'cache-control': 'no-cache, no-transform',
+            'x-accel-buffering': 'no',
+          },
+        );
+      } on FormatException catch (error) {
+        return Result.fail(400, error.message);
+      } catch (error) {
+        return Result.fail(500, error.toString());
+      }
+    });
+  }
+
+  Stream<List<int>> _encodeImagePullEvents(
+    Stream<DockerImagePullEvent> events,
+  ) async* {
+    try {
+      await for (final event in events) {
+        yield encodeServerSentEvent(event.event, event.data);
+      }
+    } catch (error) {
+      yield encodeServerSentEvent('error', {'message': error.toString()});
+    }
   }
 
   /// 导入镜像

@@ -6,6 +6,7 @@ import { dockerApi, type DockerComposeCreatePayload } from '@/api/docker'
 import { filesApi } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
+import { useDockerOutputStore } from '@/stores/docker-output'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import { FilePickerDialog, type FilePickerConfirmPayload } from '@/views/Files/components'
@@ -20,6 +21,7 @@ const props = defineProps<{
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
+const outputStore = useDockerOutputStore()
 const creatingComposeProject = ref(false)
 const showWorkingDirPicker = ref(false)
 const createForm = ref<DockerComposeCreatePayload>({
@@ -61,7 +63,12 @@ function openWorkingDirPicker() {
   showWorkingDirPicker.value = true
 }
 
-const composeFileNames = ['compose.yaml', 'compose.yml', 'docker-compose.yaml', 'docker-compose.yml']
+const composeFileNames = [
+  'compose.yaml',
+  'compose.yml',
+  'docker-compose.yaml',
+  'docker-compose.yml',
+]
 
 async function loadExistingComposeFile(connectionId: string, directory: string, fileName: string) {
   try {
@@ -134,7 +141,28 @@ async function submitCreateComposeProject() {
   creatingComposeProject.value = true
   try {
     const connectionId = requireConnectionId()
-    const result = await dockerApi.createComposeProject(connectionId, payload)
+    const taskTitle = `创建编排 · ${payload.projectName}`
+    const taskId = outputStore.createTask(connectionId, taskTitle)
+    desktopStore.openWindow('docker-output', { taskId, title: taskTitle })
+    const taskPromise = outputStore.runTask(taskId, async ({ append, signal }) => {
+      const result = await dockerApi.createComposeProjectStream(
+        connectionId,
+        payload,
+        (event) => {
+          if (event.event === 'phase') {
+            append(`> ${event.data.message}\n`)
+          } else if (event.event === 'stdout' || event.event === 'stderr') {
+            append(event.data.text)
+          } else if (event.event === 'error') {
+            append(`\n[错误] ${event.data.message}\n`)
+          }
+        },
+        signal,
+      )
+      append(`\n> ${result.started ? '编排项目已创建并启动' : '编排项目已创建'}\n`)
+      return result
+    })
+    const result = await taskPromise
     window.dispatchEvent(
       new CustomEvent('docker:compose-created', {
         detail: {
@@ -157,6 +185,9 @@ async function submitCreateComposeProject() {
     }
     closeWindow()
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return
+    }
     console.error('Failed to create compose project', error)
     getUiApi().message.error(error instanceof Error ? error.message : '创建编排项目失败。')
   } finally {
