@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
 import { authApi, type ConnectParams, type ConnectResponse } from '@/api/auth'
-import type { SavedServer } from '@/api/server'
+import type { SavedServer, ServerUpdatePayload } from '@/api/server'
 import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
@@ -18,6 +18,7 @@ type ServerFormState = {
 }
 
 type ConnectionFormState = Omit<ServerFormState, 'name'>
+type CredentialMode = 'password' | 'privateKey'
 
 const sshStore = useSshStore()
 const settingsStore = useSettingsStore()
@@ -27,6 +28,8 @@ const deletingServerId = ref<number | null>(null)
 const serverEditorVisible = ref(false)
 const editingServerId = ref<number | null>(null)
 const serverEditorMode = ref<'create' | 'edit'>('create')
+const credentialMode = ref<CredentialMode>('password')
+const initialCredentialMode = ref<CredentialMode>('password')
 
 const connectionForm = reactive<ConnectionFormState>({
   host: '',
@@ -103,6 +106,8 @@ function applyServerForm(server: SavedServer) {
   serverForm.port = server.port
   serverForm.privateKey = ''
   serverForm.username = server.username
+  credentialMode.value = server.hasPrivateKey && !server.hasPassword ? 'privateKey' : 'password'
+  initialCredentialMode.value = credentialMode.value
 }
 
 function applyServer(server: SavedServer) {
@@ -119,6 +124,8 @@ function openCreateServerModal() {
   serverEditorMode.value = 'create'
   editingServerId.value = null
   resetServerForm()
+  credentialMode.value = 'password'
+  initialCredentialMode.value = 'password'
   serverEditorVisible.value = true
 }
 
@@ -145,6 +152,19 @@ function resetServerForm() {
   serverForm.port = 22
   serverForm.privateKey = ''
   serverForm.username = ''
+}
+
+function handleCredentialModeChange(mode: string | number) {
+  if (mode !== 'password' && mode !== 'privateKey') {
+    return
+  }
+
+  credentialMode.value = mode
+  if (mode === 'password') {
+    serverForm.privateKey = ''
+  } else {
+    serverForm.password = ''
+  }
 }
 
 const connectMutation = useMutation<ConnectResponse, Error, ConnectParams>({
@@ -175,21 +195,36 @@ const connectMutation = useMutation<ConnectResponse, Error, ConnectParams>({
 
 const saveServerMutation = useMutation<SavedServer | void, Error, void>({
   mutationFn: async () => {
-    const payload = {
+    const basePayload = {
       host: serverForm.host,
       name: serverForm.name || `${serverForm.username}@${serverForm.host}`,
       port: serverForm.port,
       username: serverForm.username,
-      ...(serverForm.password ? { password: serverForm.password } : {}),
-      ...(serverForm.privateKey ? { privateKey: serverForm.privateKey } : {}),
     }
 
     if (editingServerId.value !== null && serverEditorMode.value === 'edit') {
+      const payload: ServerUpdatePayload = {
+        ...basePayload,
+        ...(credentialMode.value === 'password'
+          ? {
+              ...(serverForm.password ? { password: serverForm.password } : {}),
+              privateKey: null,
+            }
+          : {
+              password: null,
+              ...(serverForm.privateKey ? { privateKey: serverForm.privateKey } : {}),
+            }),
+      }
       await sshStore.updateServer(editingServerId.value, payload)
       return
     }
 
-    return sshStore.addServer(payload)
+    return sshStore.addServer({
+      ...basePayload,
+      ...(credentialMode.value === 'password'
+        ? { password: serverForm.password }
+        : { privateKey: serverForm.privateKey }),
+    })
   },
   onSuccess: (savedServer) => {
     const isCreating = serverEditorMode.value === 'create'
@@ -233,6 +268,25 @@ const testConnectionMutation = useMutation<{ success: boolean }, Error, ConnectP
 const isConnecting = computed(() => connectMutation.isPending.value)
 const isSavingServer = computed(() => saveServerMutation.isPending.value)
 const isTesting = computed(() => testConnectionMutation.isPending.value)
+const hasSelectedCredential = computed(() =>
+  Boolean(credentialMode.value === 'password' ? serverForm.password : serverForm.privateKey),
+)
+const canUseSavedCredential = computed(
+  () =>
+    serverEditorMode.value === 'edit' &&
+    credentialMode.value === initialCredentialMode.value &&
+    !hasSelectedCredential.value,
+)
+const canSaveServer = computed(
+  () =>
+    Boolean(serverForm.host && serverForm.username) &&
+    (hasSelectedCredential.value || canUseSavedCredential.value),
+)
+const canTestConnection = computed(
+  () =>
+    Boolean(serverForm.host && serverForm.username) &&
+    (hasSelectedCredential.value || canUseSavedCredential.value),
+)
 const canConnect = computed(() =>
   Boolean(selectedServer.value?.id && connectionForm.host && connectionForm.username),
 )
@@ -257,15 +311,16 @@ function handleConnect() {
 }
 
 function handleTestConnection() {
-  const hasSecretInput = Boolean(serverForm.password || serverForm.privateKey)
+  const hasSecretInput = hasSelectedCredential.value
   testConnectionMutation.mutate({
-    ...(!hasSecretInput && serverEditorMode.value === 'edit' && editingServerId.value !== null
+    ...(!hasSecretInput && canUseSavedCredential.value && editingServerId.value !== null
       ? { serverId: editingServerId.value }
       : {}),
     host: serverForm.host,
-    password: serverForm.password || undefined,
+    password: credentialMode.value === 'password' ? serverForm.password || undefined : undefined,
     port: serverForm.port,
-    privateKey: serverForm.privateKey || undefined,
+    privateKey:
+      credentialMode.value === 'privateKey' ? serverForm.privateKey || undefined : undefined,
     username: serverForm.username,
   })
 }
@@ -278,6 +333,8 @@ function handleCloseServerEditor() {
   serverEditorVisible.value = false
   editingServerId.value = null
   resetServerForm()
+  credentialMode.value = 'password'
+  initialCredentialMode.value = 'password'
 }
 
 async function handleDeleteServer(serverId?: number) {
@@ -480,50 +537,62 @@ onMounted(async () => {
             </NFormItemGi>
           </NGrid>
 
-          <NGrid :cols="2" :x-gap="12">
-            <NFormItemGi label="用户名" path="username">
-              <NInput v-model:value="serverForm.username" placeholder="root" />
-            </NFormItemGi>
-            <NFormItemGi label="密码" path="password">
-              <NInput
-                v-model:value="serverForm.password"
-                type="password"
-                show-password-on="click"
-                :placeholder="serverEditorMode === 'edit' ? '留空则保留已保存密码' : '可选'"
-              />
-            </NFormItemGi>
-          </NGrid>
-
-          <NFormItem label="私钥" path="privateKey">
-            <NInput
-              v-model:value="serverForm.privateKey"
-              type="textarea"
-              :rows="4"
-              :placeholder="
-                serverEditorMode === 'edit'
-                  ? '留空则保留已保存私钥'
-                  : '-----BEGIN OPENSSH PRIVATE KEY-----'
-              "
-            />
+          <NFormItem label="用户名" path="username">
+            <NInput v-model:value="serverForm.username" placeholder="root" />
           </NFormItem>
 
-          <div class="flex justify-end gap-[12px]">
+          <NFormItem label="认证方式">
+            <NTabs
+              :value="credentialMode"
+              type="segment"
+              animated
+              class="w-full"
+              @update:value="handleCredentialModeChange"
+            >
+              <NTabPane name="password" tab="密码">
+                <NInput
+                  v-model:value="serverForm.password"
+                  type="password"
+                  show-password-on="click"
+                  :placeholder="serverEditorMode === 'edit' ? '留空则保留已保存密码' : '请输入密码'"
+                />
+              </NTabPane>
+              <NTabPane name="privateKey" tab="私钥">
+                <NInput
+                  v-model:value="serverForm.privateKey"
+                  type="textarea"
+                  :rows="4"
+                  :placeholder="
+                    serverEditorMode === 'edit'
+                      ? '留空则保留已保存私钥'
+                      : '-----BEGIN OPENSSH PRIVATE KEY-----'
+                  "
+                />
+              </NTabPane>
+            </NTabs>
+          </NFormItem>
+
+          <div
+            class="flex items-center justify-between gap-[12px] lt-sm:flex-col lt-sm:items-stretch"
+          >
             <NButton
               :loading="isTesting"
-              :disabled="!serverForm.host || !serverForm.username"
+              :disabled="!canTestConnection"
               @click="handleTestConnection"
             >
               测试连接
             </NButton>
-            <NButton @click="handleCloseServerEditor"> 取消 </NButton>
-            <NButton
-              attr-type="submit"
-              type="primary"
-              :loading="isSavingServer"
-              :disabled="!serverForm.host || !serverForm.username"
-            >
-              {{ serverEditorMode === 'create' ? '保存服务器配置' : '更新服务器配置' }}
-            </NButton>
+            <div class="flex justify-end gap-[12px]">
+              <NButton @click="handleCloseServerEditor">取消</NButton>
+              <NButton
+                attr-type="submit"
+                type="primary"
+                :loading="isSavingServer"
+                :disabled="!canSaveServer"
+              >
+                {{ serverEditorMode === 'create' ? '保存服务器配置' : '更新服务器配置' }}
+              </NButton>
+            </div>
           </div>
         </NForm>
       </NModal>

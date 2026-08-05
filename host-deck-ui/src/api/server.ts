@@ -14,6 +14,11 @@ export interface SavedServer {
   createdAt?: number
 }
 
+export type ServerUpdatePayload = Partial<Omit<SavedServer, 'password' | 'privateKey'>> & {
+  password?: string | null
+  privateKey?: string | null
+}
+
 export const serverApi = {
   list: () =>
     http.get<SavedServer[]>('/api/servers').then((res: AxiosResponse<SavedServer[]>) => res.data),
@@ -21,7 +26,7 @@ export const serverApi = {
     http
       .post<SavedServer>('/api/servers', server)
       .then((res: AxiosResponse<SavedServer>) => res.data),
-  update: (id: number, server: Partial<SavedServer>) =>
+  update: (id: number, server: ServerUpdatePayload) =>
     http
       .put<{ success: boolean }>(`/api/servers/${id}`, server)
       .then((res: AxiosResponse<{ success: boolean }>) => res.data),

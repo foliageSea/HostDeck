@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { MonitorResponse } from '@/api/system'
 import { authApi, type ConnectParams } from '@/api/auth'
-import { serverApi, type SavedServer } from '@/api/server'
+import { serverApi, type SavedServer, type ServerUpdatePayload } from '@/api/server'
 import { getUiApi } from '@/lib/ui'
 
 export { type SavedServer }
@@ -258,7 +258,7 @@ export const useSshStore = defineStore('ssh', () => {
     savedServers.value = savedServers.value.filter((server) => server.id !== id)
   }
 
-  async function updateServer(id: number, payload: Partial<SavedServer>) {
+  async function updateServer(id: number, payload: ServerUpdatePayload) {
     await serverApi.update(id, payload)
     const targetIndex = savedServers.value.findIndex((server) => server.id === id)
 
