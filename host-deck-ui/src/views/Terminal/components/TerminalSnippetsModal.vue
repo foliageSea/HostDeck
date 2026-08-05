@@ -21,6 +21,10 @@ const form = reactive({
   command: '',
   name: '',
 })
+const snippetActionOptions = [
+  { key: 'edit', label: '编辑' },
+  { key: 'remove', label: '删除' },
+]
 
 function resetForm() {
   editingId.value = null
@@ -103,6 +107,17 @@ function removeSnippet(snippet: TerminalSnippet) {
   })
 }
 
+function handleSnippetAction(snippet: TerminalSnippet, key: string | number) {
+  if (key === 'edit') {
+    openEditEditor(snippet)
+    return
+  }
+
+  if (key === 'remove') {
+    removeSnippet(snippet)
+  }
+}
+
 function selectSnippet(snippet: TerminalSnippet) {
   emit('select', snippet.command)
   emit('update:show', false)
@@ -130,7 +145,7 @@ watch(
     @update:show="(value: boolean) => emit('update:show', value)"
   >
     <template #header-extra>
-      <NButton type="primary" @click="openCreateEditor">新增片段</NButton>
+      <NButton size="small" secondary @click="openCreateEditor">新增片段</NButton>
     </template>
 
     <div v-if="loading" class="flex min-h-[220px] items-center justify-center">
@@ -138,7 +153,7 @@ watch(
     </div>
     <NEmpty v-else-if="snippets.length === 0" class="py-[48px]" description="暂无命令片段">
       <template #extra>
-        <NButton type="primary" @click="openCreateEditor">新增第一个片段</NButton>
+        <NButton size="small" secondary @click="openCreateEditor">新增第一个片段</NButton>
       </template>
     </NEmpty>
     <div
@@ -155,11 +170,14 @@ watch(
             >
           </div>
           <NSpace size="small" class="mt-[27px] shrink-0 self-start">
-            <NButton size="small" type="primary" @click="selectSnippet(snippet)">填入</NButton>
-            <NButton size="small" secondary @click="openEditEditor(snippet)">编辑</NButton>
-            <NButton size="small" secondary type="error" @click="removeSnippet(snippet)"
-              >删除</NButton
+            <NButton size="small" secondary @click="selectSnippet(snippet)">填入</NButton>
+            <NDropdown
+              trigger="click"
+              :options="snippetActionOptions"
+              @select="(key: string | number) => handleSnippetAction(snippet, key)"
             >
+              <NButton size="small" secondary>操作</NButton>
+            </NDropdown>
           </NSpace>
         </div>
       </div>
