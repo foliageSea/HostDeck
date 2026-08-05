@@ -64,6 +64,7 @@ class ServerService {
       log: _log,
       accessService: _container!.accessService,
       operationLogService: _container!.operationLogService,
+      portForwardRepository: _container!.portForwardRepository,
       serverRepository: _container!.serverRepository,
     );
 

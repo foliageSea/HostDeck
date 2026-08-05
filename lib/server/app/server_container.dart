@@ -38,6 +38,7 @@ class ServerContainer {
   final ApiRoutes apiRoutes;
   final AccessAuthService accessService;
   final OperationLogService operationLogService;
+  final PortForwardRepository portForwardRepository;
   final ServerRepository serverRepository;
 
   ServerContainer._({
@@ -46,6 +47,7 @@ class ServerContainer {
     required this.apiRoutes,
     required this.accessService,
     required this.operationLogService,
+    required this.portForwardRepository,
     required this.serverRepository,
   });
 
@@ -96,6 +98,7 @@ class ServerContainer {
       portForwardService: portForwardService,
       accessService: accessService,
       operationLogService: operationLogService,
+      portForwardRepository: portForwardRepository,
       serverRepository: serverRepository,
       apiRoutes: ApiRoutes(
         accessController: AccessController(accessService),

@@ -4,14 +4,16 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 
 import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
+import 'package:host_deck/server/features/port_forwards/port_forward_repository.dart';
 import 'package:host_deck/server/features/servers/server_config.dart';
 import 'package:host_deck/server/features/servers/server_repository.dart';
 
 Middleware operationLogMiddleware(
   OperationLogService service,
   ServerRepository serverRepository,
+  PortForwardRepository portForwardRepository,
 ) {
-  final policies = _policies(serverRepository);
+  final policies = _policies(serverRepository, portForwardRepository);
   return (innerHandler) {
     return (request) async {
       final policy = _findPolicy(policies, request.method, request.url.path);
@@ -249,6 +251,7 @@ String? _portForwardTarget(
   Request request,
   Map<String, dynamic>? data,
   _OperationPolicy policy,
+  PortForwardRepository portForwardRepository,
 ) {
   final bindHost = _string(data?['bindHost']);
   final localPort = _string(data?['localPort']);
@@ -258,9 +261,37 @@ String? _portForwardTarget(
       localPort != null &&
       remoteHost != null &&
       remotePort != null) {
-    return '$bindHost:$localPort -> $remoteHost:$remotePort';
+    return _formatPortForwardTarget(
+      bindHost,
+      localPort,
+      remoteHost,
+      remotePort,
+    );
   }
+
+  final ruleId = int.tryParse(policy.targetFromPath(request.url.path) ?? '');
+  if (ruleId != null) {
+    final rule = portForwardRepository.getRule(ruleId);
+    if (rule != null) {
+      return _formatPortForwardTarget(
+        rule.bindHost,
+        rule.localPort.toString(),
+        rule.remoteHost,
+        rule.remotePort.toString(),
+      );
+    }
+  }
+
   return _defaultTarget(request, data, policy);
+}
+
+String _formatPortForwardTarget(
+  String bindHost,
+  String localPort,
+  String remoteHost,
+  String remotePort,
+) {
+  return '$bindHost:$localPort -> $remoteHost:$remotePort';
 }
 
 String _serverTarget(ServerConfig server) {
@@ -274,7 +305,10 @@ String? _formatHostTarget(String? username, String? host, String? port) {
   return '$username@$host:$port';
 }
 
-List<_OperationPolicy> _policies(ServerRepository serverRepository) => [
+List<_OperationPolicy> _policies(
+  ServerRepository serverRepository,
+  PortForwardRepository portForwardRepository,
+) => [
   _OperationPolicy(
     'POST',
     r'api/connect',
@@ -332,32 +366,40 @@ List<_OperationPolicy> _policies(ServerRepository serverRepository) => [
     r'api/port-forwards',
     'portForward',
     'create',
-    targetResolver: _portForwardTarget,
+    targetResolver: (request, data, policy) =>
+        _portForwardTarget(request, data, policy, portForwardRepository),
   ),
   _OperationPolicy(
     'PUT',
     r'api/port-forwards/([^/]+)',
     'portForward',
     'update',
-    targetResolver: _portForwardTarget,
+    targetResolver: (request, data, policy) =>
+        _portForwardTarget(request, data, policy, portForwardRepository),
   ),
   _OperationPolicy(
     'DELETE',
     r'api/port-forwards/([^/]+)',
     'portForward',
     'delete',
+    targetResolver: (request, data, policy) =>
+        _portForwardTarget(request, data, policy, portForwardRepository),
   ),
   _OperationPolicy(
     'POST',
     r'api/port-forwards/([^/]+)/start',
     'portForward',
     'start',
+    targetResolver: (request, data, policy) =>
+        _portForwardTarget(request, data, policy, portForwardRepository),
   ),
   _OperationPolicy(
     'POST',
     r'api/port-forwards/([^/]+)/stop',
     'portForward',
     'stop',
+    targetResolver: (request, data, policy) =>
+        _portForwardTarget(request, data, policy, portForwardRepository),
   ),
   _OperationPolicy('POST', r'api/files/write', 'file', 'write'),
   _OperationPolicy('POST', r'api/files/delete', 'file', 'delete'),

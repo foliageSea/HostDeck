@@ -11,6 +11,7 @@ import 'package:host_deck/server/features/access/access_middleware.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_middleware.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
+import 'package:host_deck/server/features/port_forwards/port_forward_repository.dart';
 import 'package:host_deck/server/features/servers/server_repository.dart';
 import 'package:host_deck/utils/app_settings.dart';
 
@@ -20,6 +21,7 @@ Future<Handler> buildServerHandler({
   required Logger log,
   required AccessAuthService accessService,
   required OperationLogService operationLogService,
+  required PortForwardRepository portForwardRepository,
   required ServerRepository serverRepository,
 }) async {
   Handler? staticHandler;
@@ -78,6 +80,7 @@ Future<Handler> buildServerHandler({
   final apiHandler = operationLogMiddleware(
     operationLogService,
     serverRepository,
+    portForwardRepository,
   )(accessMiddleware(accessService)(apiRoutes.router.call));
   var cascade = Cascade().add(apiHandler);
   cascade = cascade.add((request) async {

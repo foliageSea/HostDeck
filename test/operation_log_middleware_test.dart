@@ -8,6 +8,8 @@ import 'package:host_deck/server/core/http/result.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_middleware.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_repository.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
+import 'package:host_deck/server/features/port_forwards/port_forward_repository.dart';
+import 'package:host_deck/server/features/port_forwards/port_forward_rule.dart';
 import 'package:host_deck/server/features/servers/server_config.dart';
 import 'package:host_deck/server/features/servers/server_repository.dart';
 
@@ -16,6 +18,7 @@ void main() {
     late DatabaseService databaseService;
     late Directory dataDirectory;
     late OperationLogRepository repository;
+    late PortForwardRepository portForwardRepository;
     late ServerRepository serverRepository;
     late Handler handler;
 
@@ -24,6 +27,7 @@ void main() {
       databaseService = DatabaseService(dataDir: dataDirectory.path);
       await databaseService.init();
       repository = OperationLogRepository(databaseService);
+      portForwardRepository = PortForwardRepository(databaseService);
       serverRepository = ServerRepository(databaseService);
     });
 
@@ -37,6 +41,7 @@ void main() {
           operationLogMiddleware(
             OperationLogService(repository),
             serverRepository,
+            portForwardRepository,
           )((request) async {
             expect(
               await request.readAsString(),
@@ -68,6 +73,7 @@ void main() {
           operationLogMiddleware(
             OperationLogService(repository),
             serverRepository,
+            portForwardRepository,
           )((request) async {
             return Result.fail(404, 'Server not found');
           });
@@ -98,6 +104,7 @@ void main() {
       handler = operationLogMiddleware(
         OperationLogService(repository),
         serverRepository,
+        portForwardRepository,
       )((request) => Result.ok({'connectionId': 'c1'}));
 
       await handler(
@@ -116,6 +123,7 @@ void main() {
       handler = operationLogMiddleware(
         OperationLogService(repository),
         serverRepository,
+        portForwardRepository,
       )((request) => Result.ok({'success': true}));
 
       await handler(
@@ -133,5 +141,50 @@ void main() {
         '127.0.0.1:8080 -> db.internal:5432',
       );
     });
+
+    test(
+      'formats an existing port-forward rule for lifecycle operations',
+      () async {
+        final rule = portForwardRepository.addRule(
+          const PortForwardRule(
+            name: 'Database',
+            enabled: false,
+            bindHost: '127.0.0.1',
+            localPort: 15432,
+            remoteHost: 'db.internal',
+            remotePort: 5432,
+          ),
+        );
+        handler = operationLogMiddleware(
+          OperationLogService(repository),
+          serverRepository,
+          portForwardRepository,
+        )((request) => Result.ok({'success': true}));
+
+        await handler(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/port-forwards/${rule.id}/start'),
+          ),
+        );
+        await handler(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/port-forwards/${rule.id}/stop'),
+          ),
+        );
+        await handler(
+          Request(
+            'DELETE',
+            Uri.parse('http://localhost/api/port-forwards/${rule.id}'),
+          ),
+        );
+
+        expect(
+          repository.list().map((log) => log.target),
+          everyElement('127.0.0.1:15432 -> db.internal:5432'),
+        );
+      },
+    );
   });
 }
