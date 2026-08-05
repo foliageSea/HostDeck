@@ -101,7 +101,7 @@ function toggleDockPin(appId: DesktopAppId) {
           <X :size="20" />
         </button>
 
-        <div class="mx-auto w-full max-w-[1040px]">
+        <div class="launchpad-content mx-auto w-full max-w-[1040px]">
           <div
             class="mx-auto flex max-w-[360px] items-center gap-[9px] rounded-[10px] bg-[rgba(255,255,255,0.2)] px-[12px] ring-1 ring-[rgba(148,163,184,0.32)] focus-within:ring-[var(--app-primary-color)]"
           >
@@ -127,7 +127,7 @@ function toggleDockPin(appId: DesktopAppId) {
                 @click="openApp(app.id)"
               >
                 <span
-                  class="app-radius-card flex h-[76px] w-[76px] items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.22)] shadow-[0_14px_32px_rgba(15,23,42,0.18)] transition-transform duration-150 group-hover:scale-[1.06] group-active:scale-[0.96]"
+                  class="app-radius-card flex h-[76px] w-[76px] items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.22)] transition-transform duration-150 group-hover:scale-[1.06] group-active:scale-[0.96]"
                 >
                   <AppIcon :color="iconColors[app.id]" :name="app.icon" :size="38" />
                 </span>
@@ -167,14 +167,31 @@ function toggleDockPin(appId: DesktopAppId) {
 .launchpad-enter-active,
 .launchpad-leave-active {
   transition:
-    opacity 180ms ease,
-    backdrop-filter 180ms ease;
+    opacity 220ms ease,
+    backdrop-filter 220ms ease;
 }
 
 .launchpad-enter-from,
 .launchpad-leave-to {
   opacity: 0;
   backdrop-filter: blur(0);
+}
+
+.launchpad-content {
+  transform-origin: center 42%;
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.launchpad-enter-from .launchpad-content {
+  opacity: 0;
+  transform: translateY(18px) scale(0.96);
+}
+
+.launchpad-leave-to .launchpad-content {
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
 }
 
 @media (max-width: 640px) {
@@ -187,6 +204,14 @@ function toggleDockPin(appId: DesktopAppId) {
 @media (hover: none) {
   .group > button:last-child {
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launchpad-enter-active,
+  .launchpad-leave-active,
+  .launchpad-content {
+    transition-duration: 1ms;
   }
 }
 </style>
