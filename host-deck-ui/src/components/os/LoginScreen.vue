@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
+import { Server } from '@lucide/vue'
 import { authApi, type ConnectParams, type ConnectResponse } from '@/api/auth'
 import type { SavedServer, ServerUpdatePayload } from '@/api/server'
 import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
@@ -113,11 +114,6 @@ function applyServerForm(server: SavedServer) {
 function applyServer(server: SavedServer) {
   selectedServerId.value = server.id ?? null
   applyConnectionForm(server)
-}
-
-function getUsernameAvatarText(username: string) {
-  const normalizedUsername = username.trim()
-  return normalizedUsername ? Array.from(normalizedUsername)[0].toUpperCase() : '?'
 }
 
 function openCreateServerModal() {
@@ -449,7 +445,7 @@ onMounted(async () => {
                   "
                   aria-hidden="true"
                 >
-                  {{ getUsernameAvatarText(server.username) }}
+                  <Server :size="19" :stroke-width="2" />
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center justify-between gap-[12px]">
