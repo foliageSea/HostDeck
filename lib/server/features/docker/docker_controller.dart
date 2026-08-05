@@ -10,17 +10,28 @@ import 'package:host_deck/server/core/http/server_sent_event.dart';
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/features/docker/docker_compose_service.dart';
 import 'package:host_deck/server/features/docker/docker_container.dart';
+import 'package:host_deck/server/features/docker/docker_container_service.dart';
 import 'package:host_deck/server/features/docker/docker_image.dart';
-import 'package:host_deck/server/features/docker/docker_service.dart';
+import 'package:host_deck/server/features/docker/docker_image_service.dart';
+import 'package:host_deck/server/features/docker/docker_resource_service.dart';
 
 class DockerController {
   final SshService _sshService;
-  final DockerService _dockerService;
+  final DockerContainerService _containerService;
+  final DockerImageService _imageService;
+  final DockerResourceService _resourceService;
+  final DockerComposeService _composeService;
   final SharedSshSessionResolver _sessionResolver;
 
-  DockerController(this._sshService, this._dockerService)
-    : _sessionResolver = SharedSshSessionResolver(
+  DockerController(
+    this._sshService,
+    this._containerService,
+    this._imageService,
+    this._resourceService,
+    this._composeService,
+  ) : _sessionResolver = SharedSshSessionResolver(
         _sshService,
         type: SharedSshSessionType.shell,
       );
@@ -129,7 +140,7 @@ class DockerController {
   Future<Response> checkDocker(Request request) async {
     return _withSession(request, (session) async {
       try {
-        final available = await _dockerService.isDockerAvailable(session);
+        final available = await _containerService.isDockerAvailable(session);
         return Result.ok({'available': available});
       } catch (e) {
         return Result.ok({'available': false});
@@ -141,7 +152,7 @@ class DockerController {
   Future<Response> checkCompose(Request request) async {
     return _withSession(request, (session) async {
       try {
-        final available = await _dockerService.isComposeAvailable(session);
+        final available = await _composeService.isComposeAvailable(session);
         return Result.ok({'available': available});
       } catch (e) {
         return Result.ok({'available': false});
@@ -153,7 +164,7 @@ class DockerController {
   Future<Response> listComposeProjects(Request request) async {
     return _withSession(request, (session) async {
       try {
-        final projects = await _dockerService.listComposeProjects(session);
+        final projects = await _composeService.listComposeProjects(session);
         return Result.ok(projects);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -167,7 +178,10 @@ class DockerController {
       try {
         final body = await request.readAsString();
         final data = jsonDecode(body) as Map<String, dynamic>;
-        final result = await _dockerService.createComposeProject(session, data);
+        final result = await _composeService.createComposeProject(
+          session,
+          data,
+        );
         return Result.ok(result);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -187,7 +201,7 @@ class DockerController {
 
         return Response.ok(
           _encodeComposeCreateEvents(
-            _dockerService.createComposeProjectStream(session, decoded),
+            _composeService.createComposeProjectStream(session, decoded),
           ),
           headers: {
             'content-type': 'text/event-stream; charset=utf-8',
@@ -224,7 +238,7 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        final services = await _dockerService.listComposeServices(
+        final services = await _composeService.listComposeServices(
           session,
           projectName: payload.projectName,
           configFiles: payload.configFiles,
@@ -240,28 +254,28 @@ class DockerController {
   Future<Response> upComposeProject(Request request) async {
     return _handleComposeProjectAction(
       request,
-      _dockerService.upComposeProject,
+      _composeService.upComposeProject,
     );
   }
 
   Future<Response> stopComposeProject(Request request) async {
     return _handleComposeProjectAction(
       request,
-      _dockerService.stopComposeProject,
+      _composeService.stopComposeProject,
     );
   }
 
   Future<Response> restartComposeProject(Request request) async {
     return _handleComposeProjectAction(
       request,
-      _dockerService.restartComposeProject,
+      _composeService.restartComposeProject,
     );
   }
 
   Future<Response> downComposeProject(Request request) async {
     return _handleComposeProjectAction(
       request,
-      _dockerService.downComposeProject,
+      _composeService.downComposeProject,
     );
   }
 
@@ -274,7 +288,7 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        final logs = await _dockerService.getComposeLogs(
+        final logs = await _composeService.getComposeLogs(
           session,
           projectName: payload.projectName,
           configFiles: payload.configFiles,
@@ -295,7 +309,7 @@ class DockerController {
     final keyword = request.url.queryParameters['keyword'] ?? '';
     return _withSession(request, (session) async {
       try {
-        final containers = await _dockerService.listContainers(session);
+        final containers = await _containerService.listContainers(session);
         final filteredContainers = containers
             .where(
               (container) => _matchesContainerStatus(container, statusFilter),
@@ -340,7 +354,7 @@ class DockerController {
     final keyword = request.url.queryParameters['keyword'] ?? '';
     return _withSession(request, (session) async {
       try {
-        final images = await _dockerService.listImages(session);
+        final images = await _imageService.listImages(session);
         final filteredImages = images
             .where((image) => _matchesImageKeyword(image, keyword))
             .toList();
@@ -365,7 +379,7 @@ class DockerController {
   Future<Response> listNetworks(Request request) async {
     return _withSession(request, (session) async {
       try {
-        final networks = await _dockerService.listNetworks(session);
+        final networks = await _resourceService.listNetworks(session);
         return Result.ok(networks.map((item) => item.toJson()).toList());
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -377,7 +391,7 @@ class DockerController {
   Future<Response> listVolumes(Request request) async {
     return _withSession(request, (session) async {
       try {
-        final volumes = await _dockerService.listVolumes(session);
+        final volumes = await _resourceService.listVolumes(session);
         return Result.ok(volumes.map((item) => item.toJson()).toList());
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -387,27 +401,43 @@ class DockerController {
 
   /// 启动容器
   Future<Response> startContainer(Request request, String id) async {
-    return _handleContainerAction(request, id, _dockerService.startContainer);
+    return _handleContainerAction(
+      request,
+      id,
+      _containerService.startContainer,
+    );
   }
 
   /// 停止容器
   Future<Response> stopContainer(Request request, String id) async {
-    return _handleContainerAction(request, id, _dockerService.stopContainer);
+    return _handleContainerAction(request, id, _containerService.stopContainer);
   }
 
   /// 重启容器
   Future<Response> restartContainer(Request request, String id) async {
-    return _handleContainerAction(request, id, _dockerService.restartContainer);
+    return _handleContainerAction(
+      request,
+      id,
+      _containerService.restartContainer,
+    );
   }
 
   /// 暂停容器
   Future<Response> pauseContainer(Request request, String id) async {
-    return _handleContainerAction(request, id, _dockerService.pauseContainer);
+    return _handleContainerAction(
+      request,
+      id,
+      _containerService.pauseContainer,
+    );
   }
 
   /// 取消暂停容器
   Future<Response> unpauseContainer(Request request, String id) async {
-    return _handleContainerAction(request, id, _dockerService.unpauseContainer);
+    return _handleContainerAction(
+      request,
+      id,
+      _containerService.unpauseContainer,
+    );
   }
 
   /// 重命名容器
@@ -421,7 +451,7 @@ class DockerController {
           return Result.fail(400, 'newName is required');
         }
 
-        await _dockerService.renameContainer(session, id, newName);
+        await _containerService.renameContainer(session, id, newName);
         return Result.ok({'success': true});
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -435,7 +465,7 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        await _dockerService.removeContainer(session, id, force: force);
+        await _containerService.removeContainer(session, id, force: force);
         return Result.ok({'success': true});
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -455,7 +485,7 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        final logs = await _dockerService.getContainerLogs(
+        final logs = await _containerService.getContainerLogs(
           session,
           containerId,
           tail: tail,
@@ -472,7 +502,7 @@ class DockerController {
   Future<Response> inspectContainer(Request request, String id) async {
     return _withSession(request, (session) async {
       try {
-        final detail = await _dockerService.inspectContainer(session, id);
+        final detail = await _containerService.inspectContainer(session, id);
         return Result.ok(detail);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -484,7 +514,7 @@ class DockerController {
   Future<Response> getContainerStats(Request request, String id) async {
     return _withSession(request, (session) async {
       try {
-        final stats = await _dockerService.getContainerStats(session, id);
+        final stats = await _containerService.getContainerStats(session, id);
         return Result.ok(stats);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -496,7 +526,7 @@ class DockerController {
   Future<Response> inspectNetwork(Request request, String id) async {
     return _withSession(request, (session) async {
       try {
-        final detail = await _dockerService.inspectNetwork(session, id);
+        final detail = await _resourceService.inspectNetwork(session, id);
         return Result.ok(detail);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -508,7 +538,7 @@ class DockerController {
   Future<Response> inspectVolume(Request request, String name) async {
     return _withSession(request, (session) async {
       try {
-        final detail = await _dockerService.inspectVolume(session, name);
+        final detail = await _resourceService.inspectVolume(session, name);
         return Result.ok(detail);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -525,7 +555,7 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        final diagnostics = await _dockerService.getContainerDiagnostics(
+        final diagnostics = await _containerService.getContainerDiagnostics(
           session,
           ids,
         );
@@ -542,7 +572,7 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        await _dockerService.removeImage(session, id, force: force);
+        await _imageService.removeImage(session, id, force: force);
         return Result.ok({'success': true});
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -556,7 +586,7 @@ class DockerController {
       try {
         final body = await request.readAsString();
         final data = jsonDecode(body) as Map<String, dynamic>;
-        final result = await _dockerService.createNetwork(session, data);
+        final result = await _resourceService.createNetwork(session, data);
         return Result.ok(result);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -570,7 +600,7 @@ class DockerController {
       try {
         final body = await request.readAsString();
         final data = jsonDecode(body) as Map<String, dynamic>;
-        final result = await _dockerService.createVolume(session, data);
+        final result = await _resourceService.createVolume(session, data);
         return Result.ok(result);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -582,7 +612,7 @@ class DockerController {
   Future<Response> removeNetwork(Request request, String id) async {
     return _withSession(request, (session) async {
       try {
-        await _dockerService.removeNetwork(session, id);
+        await _resourceService.removeNetwork(session, id);
         return Result.ok({'success': true});
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -594,7 +624,7 @@ class DockerController {
   Future<Response> removeVolume(Request request, String name) async {
     return _withSession(request, (session) async {
       try {
-        await _dockerService.removeVolume(session, name);
+        await _resourceService.removeVolume(session, name);
         return Result.ok({'success': true});
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -611,7 +641,7 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        await _dockerService.connectNetwork(session, id, payload.container);
+        await _resourceService.connectNetwork(session, id, payload.container);
         return Result.ok({'success': true});
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -628,7 +658,7 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        await _dockerService.disconnectNetwork(
+        await _resourceService.disconnectNetwork(
           session,
           id,
           payload.container,
@@ -645,7 +675,7 @@ class DockerController {
   Future<Response> pruneNetworks(Request request) async {
     return _withSession(request, (session) async {
       try {
-        final deleted = await _dockerService.pruneNetworks(session);
+        final deleted = await _resourceService.pruneNetworks(session);
         return Result.ok({
           'success': true,
           'deleted': deleted,
@@ -661,7 +691,7 @@ class DockerController {
   Future<Response> pruneVolumes(Request request) async {
     return _withSession(request, (session) async {
       try {
-        final deleted = await _dockerService.pruneVolumes(session);
+        final deleted = await _resourceService.pruneVolumes(session);
         return Result.ok({
           'success': true,
           'deleted': deleted,
@@ -688,7 +718,7 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        final result = await _dockerService.pruneBuildCache(
+        final result = await _resourceService.pruneBuildCache(
           session,
           includeAll: includeAll,
         );
@@ -710,7 +740,7 @@ class DockerController {
           return Result.fail(400, 'image is required');
         }
 
-        final output = await _dockerService.pullImage(session, image);
+        final output = await _imageService.pullImage(session, image);
         return Result.ok({'success': true, 'output': output});
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -733,9 +763,7 @@ class DockerController {
         }
 
         return Response.ok(
-          _encodeImagePullEvents(
-            _dockerService.pullImageStream(session, image),
-          ),
+          _encodeImagePullEvents(_imageService.pullImageStream(session, image)),
           headers: {
             'content-type': 'text/event-stream; charset=utf-8',
             'cache-control': 'no-cache, no-transform',
@@ -780,7 +808,7 @@ class DockerController {
           final filename = headerValue.parameters['filename'];
           if (partName != 'file' || filename == null) continue;
 
-          final output = await _dockerService.importImage(session, part);
+          final output = await _imageService.importImage(session, part);
           return Result.ok({'success': true, 'output': output});
         }
 
@@ -803,7 +831,7 @@ class DockerController {
           return Result.fail(400, 'sourceImage and targetImage are required');
         }
 
-        await _dockerService.tagImage(session, sourceImage, targetImage);
+        await _imageService.tagImage(session, sourceImage, targetImage);
         return Result.ok({'success': true});
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -821,7 +849,7 @@ class DockerController {
           return Response.badRequest(body: 'image is required');
         }
 
-        final stream = await _dockerService.exportImage(session, imageRef);
+        final stream = await _imageService.exportImage(session, imageRef);
         final filename = _downloadFilenameForImage(imageRef);
         final encodedFilename = Uri.encodeComponent(filename);
 
@@ -843,7 +871,7 @@ class DockerController {
   Future<Response> getImageHistory(Request request, String id) async {
     return _withSession(request, (session) async {
       try {
-        final history = await _dockerService.getImageHistory(session, id);
+        final history = await _imageService.getImageHistory(session, id);
         return Result.ok(history);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -855,7 +883,7 @@ class DockerController {
   Future<Response> getImageCreateDefaults(Request request, String id) async {
     return _withSession(request, (session) async {
       try {
-        final defaults = await _dockerService.getImageCreateDefaults(
+        final defaults = await _imageService.getImageCreateDefaults(
           session,
           id,
         );
@@ -870,7 +898,7 @@ class DockerController {
   Future<Response> getImageContainers(Request request, String id) async {
     return _withSession(request, (session) async {
       try {
-        final containers = await _dockerService.getImageContainers(session, id);
+        final containers = await _imageService.getImageContainers(session, id);
         return Result.ok(containers);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -884,7 +912,7 @@ class DockerController {
       try {
         final body = await request.readAsString();
         final data = jsonDecode(body) as Map<String, dynamic>;
-        final result = await _dockerService.createContainer(session, data);
+        final result = await _containerService.createContainer(session, data);
         return Result.ok(result);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -896,7 +924,7 @@ class DockerController {
   Future<Response> recreateContainer(Request request, String id) async {
     return _withSession(request, (session) async {
       try {
-        final result = await _dockerService.recreateContainer(session, id);
+        final result = await _containerService.recreateContainer(session, id);
         return Result.ok(result);
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -908,7 +936,7 @@ class DockerController {
   Future<Response> batchStartContainers(Request request) async {
     return _handleBatchContainerAction(
       request,
-      _dockerService.batchStartContainers,
+      _containerService.batchStartContainers,
       successMessage: 'Containers started',
     );
   }
@@ -917,7 +945,7 @@ class DockerController {
   Future<Response> batchStopContainers(Request request) async {
     return _handleBatchContainerAction(
       request,
-      _dockerService.batchStopContainers,
+      _containerService.batchStopContainers,
       successMessage: 'Containers stopped',
     );
   }
@@ -926,7 +954,7 @@ class DockerController {
   Future<Response> removeStoppedContainers(Request request) async {
     return _withSession(request, (session) async {
       try {
-        final removedCount = await _dockerService.removeStoppedContainers(
+        final removedCount = await _containerService.removeStoppedContainers(
           session,
         );
         return Result.ok({'success': true, 'removedCount': removedCount});
@@ -951,7 +979,7 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        final output = await _dockerService.pruneImages(
+        final output = await _imageService.pruneImages(
           session,
           includeUnused: includeUnused,
         );

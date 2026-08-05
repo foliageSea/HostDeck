@@ -8,8 +8,13 @@ import 'package:host_deck/server/features/access/access_controller.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/auth/auth_controller.dart';
+import 'package:host_deck/server/features/docker/docker_compose_service.dart';
+import 'package:host_deck/server/features/docker/docker_container_service.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
-import 'package:host_deck/server/features/docker/docker_service.dart';
+import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
+import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
+import 'package:host_deck/server/features/docker/docker_image_service.dart';
+import 'package:host_deck/server/features/docker/docker_resource_service.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
 import 'package:host_deck/server/features/files/file_service.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_controller.dart';
@@ -85,7 +90,21 @@ class ServerContainer {
     final monitorService = MonitorService(sshRepository);
     final agentService = AgentService(sshRepository);
     final fileService = FileService(sshRepository);
-    final dockerService = DockerService(sshRepository);
+    final dockerEngineRepository = DockerEngineRepository(sshRepository);
+    final dockerEngineMapper = DockerEngineMapper();
+    final dockerContainerService = DockerContainerService(
+      dockerEngineRepository,
+      dockerEngineMapper,
+    );
+    final dockerImageService = DockerImageService(
+      dockerEngineRepository,
+      dockerEngineMapper,
+    );
+    final dockerResourceService = DockerResourceService(
+      dockerEngineRepository,
+      dockerEngineMapper,
+    );
+    final dockerComposeService = DockerComposeService(sshRepository);
     final processService = ProcessService(sshRepository);
     portForwardRepository.setAllDisabled();
     final portForwardService = PortForwardService(
@@ -120,7 +139,13 @@ class ServerContainer {
           terminalSnippetRepository,
         ),
         serverController: ServerController(serverRepository),
-        dockerController: DockerController(sshService, dockerService),
+        dockerController: DockerController(
+          sshService,
+          dockerContainerService,
+          dockerImageService,
+          dockerResourceService,
+          dockerComposeService,
+        ),
         processController: ProcessController(sshService, processService),
         runtimeController: RuntimeController(sshService),
         settingsController: SettingsController(),
