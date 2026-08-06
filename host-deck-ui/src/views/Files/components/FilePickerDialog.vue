@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ArrowUp, FolderAdd, Renew, Search } from '@vicons/carbon'
+import { ArrowUp, FolderAdd, Renew, Search, SortAscending, SortDescending } from '@vicons/carbon'
 import { computed, ref, watch } from 'vue'
 import { filesApi, type FileItem } from '@/api/files'
+import type { FileSortDirection, FileSortKey } from '@/stores/file'
 import { dirname, resolve } from '@/utils/path'
 import FileBrowserContent from './FileBrowserContent.vue'
 import type {
@@ -48,7 +49,42 @@ const loadError = ref('')
 const newDirectoryName = ref('')
 const searchKeyword = ref('')
 const showCreateDirectoryDialog = ref(false)
+const sortKey = ref<FileSortKey>('name')
+const sortDirection = ref<FileSortDirection>('asc')
 let loadToken = 0
+
+const sortOptions: { label: string; value: FileSortKey }[] = [
+  { label: '名称', value: 'name' },
+  { label: '大小', value: 'size' },
+  { label: '修改时间', value: 'modifyTime' },
+]
+
+function compareFileValue(left: FileItem, right: FileItem, key: FileSortKey) {
+  if (key === 'size') {
+    return left.size - right.size
+  }
+
+  if (key === 'modifyTime') {
+    const leftTime = left.modifyTime ? new Date(left.modifyTime).getTime() : Number.NaN
+    const rightTime = right.modifyTime ? new Date(right.modifyTime).getTime() : Number.NaN
+
+    if (Number.isNaN(leftTime) && Number.isNaN(rightTime)) {
+      return 0
+    }
+
+    if (Number.isNaN(leftTime)) {
+      return 1
+    }
+
+    if (Number.isNaN(rightTime)) {
+      return -1
+    }
+
+    return leftTime - rightTime
+  }
+
+  return left.filename.localeCompare(right.filename)
+}
 
 const sortedFiles = computed(() =>
   [...files.value]
@@ -56,6 +92,11 @@ const sortedFiles = computed(() =>
     .sort((left, right) => {
       if (left.isDirectory !== right.isDirectory) {
         return left.isDirectory ? -1 : 1
+      }
+
+      const result = compareFileValue(left, right, sortKey.value)
+      if (result !== 0) {
+        return sortDirection.value === 'asc' ? result : -result
       }
 
       return left.filename.localeCompare(right.filename)
@@ -175,6 +216,17 @@ function isSelectable(file: FileItem) {
   }
 
   return props.mode === 'directory' ? file.isDirectory : !file.isDirectory
+}
+
+function updateSortKey(key: FileSortKey) {
+  if (sortKey.value !== key) {
+    sortDirection.value = 'asc'
+  }
+  sortKey.value = key
+}
+
+function toggleSortDirection() {
+  sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
 }
 
 async function loadFiles(path: string) {
@@ -366,6 +418,32 @@ function confirmSelection() {
               </NIcon>
             </template>
           </NInput>
+          <NSelect
+            :value="sortKey"
+            :options="sortOptions"
+            class="w-[116px] flex-none"
+            :disabled="loading || !connectionId"
+            @update:value="updateSortKey"
+          />
+          <NTooltip>
+            <template #trigger>
+              <NButton
+                quaternary
+                size="small"
+                data-testid="sort-direction"
+                :disabled="loading || !connectionId"
+                @click="toggleSortDirection"
+              >
+                <template #icon>
+                  <NIcon>
+                    <SortAscending v-if="sortDirection === 'asc'" />
+                    <SortDescending v-else />
+                  </NIcon>
+                </template>
+              </NButton>
+            </template>
+            {{ sortDirection === 'asc' ? '升序' : '降序' }}
+          </NTooltip>
           <NButton
             quaternary
             size="small"

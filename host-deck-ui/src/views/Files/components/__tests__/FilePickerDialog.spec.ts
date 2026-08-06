@@ -62,6 +62,15 @@ function createWrapper(props: Partial<InstanceType<typeof FilePickerDialog>['$pr
           },
           template: '<input :value="value" @input="handleInput" />',
         }),
+        NSelect: defineComponent({
+          name: 'NSelect',
+          props: ['value', 'options', 'disabled'],
+          emits: ['update:value'],
+          template: '<select />',
+        }),
+        NTooltip: defineComponent({
+          template: '<span><slot name="trigger" /><slot /></span>',
+        }),
         NModal: defineComponent({
           props: ['show'],
           emits: ['update:show'],
@@ -97,6 +106,70 @@ describe('FilePickerDialog', () => {
     await flushPromises()
 
     expect(filesApi.list).toHaveBeenCalledWith('conn-1', '/var')
+  })
+
+  it('sorts files by the selected field and keeps directories first', async () => {
+    const archiveFile: FileItem = {
+      filename: 'archive.log',
+      isDirectory: false,
+      longname: 'archive.log',
+      size: 256,
+      modifyTime: '2024-01-02T00:00:00Z',
+    }
+    const recentFile: FileItem = {
+      filename: 'recent.log',
+      isDirectory: false,
+      longname: 'recent.log',
+      size: 64,
+      modifyTime: '2024-02-02T00:00:00Z',
+    }
+    vi.mocked(filesApi.list).mockResolvedValue([recentFile, archiveFile, directoryItem])
+
+    const wrapper = createWrapper()
+    await flushPromises()
+
+    const browser = getBrowser(wrapper)
+    const sortSelect = wrapper.findComponent({ name: 'NSelect' })
+    expect(browser.props('files')).toEqual([directoryItem, archiveFile, recentFile])
+
+    sortSelect.vm.$emit('update:value', 'size')
+    await wrapper.vm.$nextTick()
+    expect(browser.props('files')).toEqual([directoryItem, recentFile, archiveFile])
+
+    sortSelect.vm.$emit('update:value', 'modifyTime')
+    await wrapper.vm.$nextTick()
+    expect(browser.props('files')).toEqual([directoryItem, archiveFile, recentFile])
+  })
+
+  it('toggles sort direction and resets to ascending when changing the field', async () => {
+    const olderFile: FileItem = {
+      filename: 'older.log',
+      isDirectory: false,
+      longname: 'older.log',
+      size: 64,
+      modifyTime: '2024-01-02T00:00:00Z',
+    }
+    const newerFile: FileItem = {
+      filename: 'newer.log',
+      isDirectory: false,
+      longname: 'newer.log',
+      size: 256,
+      modifyTime: '2024-02-02T00:00:00Z',
+    }
+    vi.mocked(filesApi.list).mockResolvedValue([olderFile, newerFile])
+
+    const wrapper = createWrapper()
+    await flushPromises()
+    const browser = getBrowser(wrapper)
+    const sortSelect = wrapper.findComponent({ name: 'NSelect' })
+    const directionButton = wrapper.find('[data-testid="sort-direction"]')
+
+    await directionButton.trigger('click')
+    expect(browser.props('files')).toEqual([olderFile, newerFile])
+
+    sortSelect.vm.$emit('update:value', 'size')
+    await wrapper.vm.$nextTick()
+    expect(browser.props('files')).toEqual([olderFile, newerFile])
   })
 
   it('navigates into directories on open', async () => {
