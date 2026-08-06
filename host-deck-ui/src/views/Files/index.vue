@@ -851,6 +851,7 @@ async function openFile(file: FileItem) {
   }
 
   await fileStore.navigateTo(file.filename)
+  clearSearch()
   syncPathInput()
 }
 
