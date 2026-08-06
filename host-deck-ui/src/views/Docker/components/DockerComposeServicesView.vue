@@ -136,7 +136,6 @@ onMounted(() => {
             settingsStore.isDark ? 'text-[rgba(226,232,240,0.58)]' : 'text-[rgba(71,85,105,0.78)]'
           "
         >
-          <span :title="project.workingDir || '-'">工作目录：{{ project.workingDir || '-' }}</span>
           <span :title="getConfigTitle(project)">配置文件：{{ project.configFiles || '-' }}</span>
         </div>
       </div>
