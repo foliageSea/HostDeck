@@ -62,19 +62,6 @@ function selectWindow(index: number) {
   switcherVisible.value = false
 }
 
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  const editableElement = target.closest('input, textarea, select, [contenteditable]')
-  if (!(editableElement instanceof HTMLElement)) {
-    return false
-  }
-
-  return editableElement.contentEditable !== 'false'
-}
-
 function handleKeyDown(event: KeyboardEvent) {
   if (event.key === 'Escape' && launchpadVisible.value) {
     event.preventDefault()
@@ -91,18 +78,6 @@ function handleKeyDown(event: KeyboardEvent) {
     event.preventDefault()
     event.stopPropagation()
     switcherVisible.value = false
-    return
-  }
-
-  if (event.key === 'Escape' && !isEditableTarget(event.target)) {
-    const activeWindowId = desktopStore.activeWindowId
-    if (!activeWindowId) {
-      return
-    }
-
-    event.preventDefault()
-    event.stopPropagation()
-    desktopStore.closeWindow(activeWindowId)
     return
   }
 
