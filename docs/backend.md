@@ -20,7 +20,11 @@
 - `--port <value>`：绑定端口，默认 `8080`。
 - `--web-dir <path>`：静态前端资源目录。
 - `--data-dir <path>`：sqlite 与配置目录。
+- `--log-dir <path>`：日志文件目录，默认是数据目录下的 `logs`。
+- `--log-max-days <days>`：日志最大保留天数，默认 `30`。
 - `--help`：打印帮助。
+
+纯 B/S 服务日志按本地日期写入 `hostdeck-server-YYYY-MM-DD.log`，同时保留 `stderr` 输出。过期日志在启动和日期切换时清理。
 
 ## 路由注册
 

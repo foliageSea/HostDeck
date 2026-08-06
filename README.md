@@ -129,8 +129,12 @@ HOSTDECK_ACCESS_PASSWORD=replace-with-a-strong-password dart run bin/server.dart
 - `--port <value>`：监听端口，默认 `8080`
 - `--web-dir <path>`：静态前端资源目录
 - `--data-dir <path>`：sqlite 与配置文件目录
+- `--log-dir <path>`：日志文件目录，默认是数据目录下的 `logs`
+- `--log-max-days <days>`：日志最大保留天数，默认 `30`
 
 如果未显式传入 `--web-dir`，`bin/server.dart` 会尝试从可执行文件旁的 `../web` 自动发现静态资源目录。
+
+纯 B/S 服务同时向 `stderr` 和日志文件输出日志。日志文件按本地日期命名为 `hostdeck-server-YYYY-MM-DD.log`，服务启动及日期切换时会删除超过保留天数的日志文件。
 
 非 loopback 监听必须配置 `HOSTDECK_ACCESS_PASSWORD` 或 `HOSTDECK_API_TOKEN`。浏览器使用访问密码登录，Agent CLI 通过 `--token` 或 `HOSTDECK_TOKEN` 发送 Bearer Token；详见 `docs/access-control.md`。
 

@@ -58,6 +58,10 @@ dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
 - `--port <value>`：监听端口，默认 `8080`。
 - `--web-dir <path>`：静态前端资源目录。
 - `--data-dir <path>`：sqlite 与配置文件目录。
+- `--log-dir <path>`：日志文件目录，默认是数据目录下的 `logs`。
+- `--log-max-days <days>`：日志最大保留天数，默认 `30`。
+
+纯 B/S 服务按本地日期生成 `hostdeck-server-YYYY-MM-DD.log`，并在启动和日期切换时清理超过保留天数的日志。
 
 ## 前端独立开发
 
