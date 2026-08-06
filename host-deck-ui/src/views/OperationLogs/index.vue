@@ -2,7 +2,11 @@
 import { computed, h, onMounted, ref } from 'vue'
 import { NButton, NDataTable, NTag, type DataTableColumns, type SelectOption } from 'naive-ui'
 import { Renew, TrashCan } from '@vicons/carbon'
-import { operationLogApi, type OperationLogItem, type OperationLogStatus } from '@/api/operation-log'
+import {
+  operationLogApi,
+  type OperationLogItem,
+  type OperationLogStatus,
+} from '@/api/operation-log'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -12,6 +16,9 @@ const loading = ref(false)
 const logs = ref<OperationLogItem[]>([])
 const category = ref('')
 const status = ref<OperationLogStatus | ''>('')
+const previewVisible = ref(false)
+const previewTitle = ref('')
+const previewContent = ref('')
 
 const categoryOptions: SelectOption[] = [
   { label: '全部模块', value: '' },
@@ -91,6 +98,29 @@ const actionLabels: Record<string, string> = {
 }
 
 const filteredSummary = computed(() => `${logs.value.length} 条记录，最多保留最近 1000 条`)
+
+function openPreview(title: string, content: string) {
+  previewTitle.value = title
+  previewContent.value = content
+  previewVisible.value = true
+}
+
+function renderPreviewCell(title: string, value?: string | null) {
+  if (!value) {
+    return '-'
+  }
+
+  return h(
+    'span',
+    {
+      class: 'operation-log-preview-cell',
+      title: '点击查看详情',
+      onClick: () => openPreview(title, value),
+    },
+    value,
+  )
+}
+
 const columns: DataTableColumns<OperationLogItem> = [
   {
     title: '时间',
@@ -113,8 +143,8 @@ const columns: DataTableColumns<OperationLogItem> = [
   {
     title: '目标',
     key: 'target',
-    ellipsis: { tooltip: true },
-    render: (row) => row.target || '-',
+    ellipsis: true,
+    render: (row) => renderPreviewCell('目标详情', row.target),
   },
   {
     title: '状态',
@@ -130,8 +160,8 @@ const columns: DataTableColumns<OperationLogItem> = [
   {
     title: '错误',
     key: 'errorMessage',
-    ellipsis: { tooltip: true },
-    render: (row) => row.errorMessage || '-',
+    ellipsis: true,
+    render: (row) => renderPreviewCell('错误详情', row.errorMessage),
   },
 ]
 
@@ -219,7 +249,13 @@ onMounted(() => {
           </template>
           刷新
         </NButton>
-        <NButton size="small" tertiary type="error" :disabled="logs.length === 0" @click="clearLogs">
+        <NButton
+          size="small"
+          tertiary
+          type="error"
+          :disabled="logs.length === 0"
+          @click="clearLogs"
+        >
           <template #icon>
             <NIcon :size="15">
               <TrashCan />
@@ -240,5 +276,42 @@ onMounted(() => {
       flex-height
       size="small"
     />
+
+    <NModal
+      v-model:show="previewVisible"
+      preset="card"
+      :title="previewTitle"
+      style="width: min(720px, calc(100vw - 32px))"
+    >
+      <pre class="operation-log-preview-content">{{ previewContent }}</pre>
+    </NModal>
   </div>
 </template>
+
+<style scoped>
+.operation-log-preview-cell {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.operation-log-preview-cell:hover {
+  color: var(--n-text-color-hover);
+  text-decoration: underline;
+}
+
+.operation-log-preview-content {
+  max-height: 60vh;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+}
+</style>
