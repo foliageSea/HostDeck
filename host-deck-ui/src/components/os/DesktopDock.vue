@@ -18,6 +18,7 @@ const bouncingAppId = ref<DesktopAppId | null>(null)
 const hoveredDockIndex = ref<number | null>(null)
 const draggedAppId = ref<DesktopAppId | null>(null)
 const dragOverAppId = ref<DesktopAppId | null>(null)
+const dragOverSide = ref<'before' | 'after'>('before')
 const selectorPosition = ref<{
   x: number
   y: number
@@ -115,6 +116,14 @@ function getDockIconColor(appId: DesktopAppId) {
 function getDockItemStyle(index: number, appId: DesktopAppId) {
   const hoveredIndex = hoveredDockIndex.value
   const isOpen = isAppOpen(appId)
+
+  if (draggedAppId.value) {
+    return {
+      '--dock-scale': '1',
+      '--dock-lift': isOpen ? '-2px' : '0px',
+      '--dock-spread': '0px',
+    }
+  }
 
   if (hoveredIndex === null) {
     return {
@@ -278,6 +287,13 @@ function handleDragOver(event: DragEvent, appId: DesktopAppId) {
 
   event.preventDefault()
   dragOverAppId.value = appId
+  const target = event.currentTarget
+  if (target instanceof HTMLElement) {
+    dragOverSide.value =
+      event.clientX < target.getBoundingClientRect().left + target.offsetWidth / 2
+        ? 'before'
+        : 'after'
+  }
   if (event.dataTransfer) {
     event.dataTransfer.dropEffect = 'move'
   }
@@ -295,6 +311,7 @@ function handleDrop(event: DragEvent, targetAppId: DesktopAppId) {
 function handleDragEnd() {
   draggedAppId.value = null
   dragOverAppId.value = null
+  dragOverSide.value = 'before'
 }
 
 function openLaunchpad() {
@@ -310,7 +327,11 @@ function openLaunchpad() {
       ref="selectorTarget"
       class="app-radius-card desktop-dock absolute bottom-0 left-1/2 flex translate-x-[-50%] items-center gap-[12px] rounded-[24px] p-[10px] backdrop-blur-[16px]"
       :class="[
-        { 'dock-auto-hide': settingsStore.dockAutoHide, 'dock-expanded': isDockExpanded },
+        {
+          'dock-auto-hide': settingsStore.dockAutoHide,
+          'dock-expanded': isDockExpanded,
+          'dock-dragging': draggedAppId,
+        },
         settingsStore.isDark
           ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.3)]'
           : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.36)]',
@@ -346,6 +367,8 @@ function openLaunchpad() {
           :class="{
             'dock-entry-dragging': draggedAppId === app.id,
             'dock-entry-drag-over': dragOverAppId === app.id,
+            'dock-entry-drag-over-before': dragOverAppId === app.id && dragOverSide === 'before',
+            'dock-entry-drag-over-after': dragOverAppId === app.id && dragOverSide === 'after',
           }"
           draggable="true"
           @mouseenter="hoveredDockIndex = index"
@@ -361,14 +384,8 @@ function openLaunchpad() {
               <div
                 class="app-radius-surface dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
                 :class="[
-                  settingsStore.isDark
-                    ? 'bg-[#000] text-[#e2e8f0]'
-                    : 'bg-[#fff] text-[#1e293b]',
-                  isAppOpen(app.id)
-                    ? settingsStore.isDark
-                      ? 'bg-[#000]'
-                      : 'bg-[#fff]'
-                    : '',
+                  settingsStore.isDark ? 'bg-[#000] text-[#e2e8f0]' : 'bg-[#fff] text-[#1e293b]',
+                  isAppOpen(app.id) ? (settingsStore.isDark ? 'bg-[#000]' : 'bg-[#fff]') : '',
                   { 'dock-item-bounce': bouncingAppId === app.id },
                 ]"
                 :style="getDockItemStyle(index, app.id)"
@@ -468,16 +485,47 @@ function openLaunchpad() {
 }
 
 .dock-entry-dragging {
-  opacity: 0.45;
+  opacity: 0.28;
+  filter: saturate(0.7);
 }
 
 .dock-entry-drag-over::before {
   position: absolute;
-  inset: 3px;
-  border: 2px solid var(--app-primary-color);
-  border-radius: 18px;
+  inset: 0;
+  border: 1px dashed color-mix(in srgb, var(--app-primary-color) 70%, transparent);
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--app-primary-color) 10%, transparent);
   pointer-events: none;
   content: '';
+}
+
+.dock-entry-drag-over::after {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--app-primary-color);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--app-primary-color) 18%, transparent),
+    0 0 12px color-mix(in srgb, var(--app-primary-color) 55%, transparent);
+  pointer-events: none;
+  content: '';
+  z-index: 2;
+}
+
+.dock-entry-drag-over-before::after {
+  left: -8px;
+}
+
+.dock-entry-drag-over-after::after {
+  right: -8px;
+}
+
+.dock-dragging .dock-item {
+  transition:
+    opacity 160ms ease,
+    background-color 160ms ease;
 }
 
 .dock-app-enter-active,
