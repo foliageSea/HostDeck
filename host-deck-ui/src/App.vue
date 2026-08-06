@@ -21,6 +21,7 @@ import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import { useUploadCenterStore } from '@/stores/upload-center'
+import { useSuppressNativeTitles } from '@/hooks/useSuppressNativeTitles'
 
 const sshStore = useSshStore()
 const accessStore = useAccessStore()
@@ -28,6 +29,8 @@ const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const uploadCenterStore = useUploadCenterStore()
 let unsubscribeElectronWindowState: (() => void) | undefined
+
+useSuppressNativeTitles()
 
 const theme = computed(() => (settingsStore.isDark ? darkTheme : null))
 const radiusVars = computed(() => {
