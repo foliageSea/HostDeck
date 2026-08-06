@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:logging/logging.dart';
 
 import 'package:host_deck/server/core/database/database_service.dart';
@@ -28,6 +30,7 @@ import 'package:host_deck/server/features/processes/process_service.dart';
 import 'package:host_deck/server/features/runtime/runtime_controller.dart';
 import 'package:host_deck/server/features/servers/server_controller.dart';
 import 'package:host_deck/server/features/servers/server_repository.dart';
+import 'package:host_deck/server/features/settings/log_export_service.dart';
 import 'package:host_deck/server/features/settings/settings_controller.dart';
 import 'package:host_deck/server/features/system/monitor_history_service.dart';
 import 'package:host_deck/server/features/system/monitor_service.dart';
@@ -58,6 +61,8 @@ class ServerContainer {
 
   static Future<ServerContainer> create({
     required String? dataDir,
+    String? logDir,
+    Future<void> Function()? flushLogs,
     required Logger log,
     String? adminPassword,
     String? apiToken,
@@ -148,7 +153,13 @@ class ServerContainer {
         ),
         processController: ProcessController(sshService, processService),
         runtimeController: RuntimeController(sshService),
-        settingsController: SettingsController(),
+        settingsController: SettingsController(
+          LogExportService(
+            logDirectory: logDir == null ? null : Directory(logDir),
+            flushLogs: flushLogs,
+            log: log,
+          ),
+        ),
         portForwardController: PortForwardController(
           portForwardRepository,
           portForwardService,

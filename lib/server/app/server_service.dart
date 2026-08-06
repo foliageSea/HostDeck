@@ -15,6 +15,8 @@ class ServerService {
   String host;
   String? webDir;
   String? dataDir;
+  String? logDir;
+  Future<void> Function()? flushLogs;
   String? adminPassword;
   String? apiToken;
   bool secureCookies;
@@ -27,6 +29,8 @@ class ServerService {
     this.host = '127.0.0.1',
     this.webDir,
     this.dataDir,
+    this.logDir,
+    this.flushLogs,
     this.adminPassword,
     this.apiToken,
     this.secureCookies = false,
@@ -53,6 +57,8 @@ class ServerService {
 
     _container = await ServerContainer.create(
       dataDir: dataDir,
+      logDir: logDir,
+      flushLogs: flushLogs,
       log: _log,
       adminPassword: adminPassword,
       apiToken: apiToken,

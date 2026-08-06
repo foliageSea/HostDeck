@@ -10,7 +10,8 @@ import 'package:host_deck/utils/runtime_paths.dart';
 
 Future<void> main(List<String> args) async {
   final config = _parseArgs(args);
-  final logging = await _configureLogging(config);
+  final logDirectory = await _resolveLogDirectory(config);
+  final logging = await _configureLogging(config, logDirectory);
   AppSettings.configure(dataDir: config.dataDir);
 
   final server = ServerService(
@@ -18,6 +19,8 @@ Future<void> main(List<String> args) async {
     port: config.port,
     webDir: config.webDir,
     dataDir: config.dataDir,
+    logDir: logging.isFileLoggingEnabled ? logDirectory.path : null,
+    flushLogs: logging.flush,
     adminPassword: Platform.environment['HOSTDECK_ACCESS_PASSWORD'],
     apiToken: Platform.environment['HOSTDECK_API_TOKEN'],
     secureCookies:
@@ -68,20 +71,24 @@ Future<void> main(List<String> args) async {
   }
 }
 
-Future<_LoggingHandle> _configureLogging(_ServerConfig config) async {
+Future<Directory> _resolveLogDirectory(_ServerConfig config) async {
+  if (config.logDir != null) {
+    return Directory(config.logDir!);
+  }
+
+  final dataDirectory = await RuntimePaths.resolveDataDirectory(
+    overridePath: config.dataDir,
+  );
+  return Directory(p.join(dataDirectory.path, 'logs'));
+}
+
+Future<_LoggingHandle> _configureLogging(
+  _ServerConfig config,
+  Directory logDirectory,
+) async {
   Logger.root.level = Level.ALL;
   DailyFileLogger? fileLogger;
   try {
-    final logDirectory = config.logDir == null
-        ? Directory(
-            p.join(
-              (await RuntimePaths.resolveDataDirectory(
-                overridePath: config.dataDir,
-              )).path,
-              'logs',
-            ),
-          )
-        : Directory(config.logDir!);
     fileLogger = DailyFileLogger(
       directory: logDirectory,
       maxDays: config.logMaxDays,
@@ -225,6 +232,12 @@ class _LoggingHandle {
   final DailyFileLogger? _fileLogger;
 
   const _LoggingHandle(this._subscription, this._fileLogger);
+
+  bool get isFileLoggingEnabled => _fileLogger != null;
+
+  Future<void> flush() async {
+    await _fileLogger?.flush();
+  }
 
   Future<void> close() async {
     await _subscription.cancel();

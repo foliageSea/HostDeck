@@ -6,4 +6,5 @@ void registerSettingsRoutes(Router router, SettingsController controller) {
   router.get('/api/settings/ui', controller.getUiSettings);
   router.put('/api/settings/ui', controller.saveUiSettings);
   router.post('/api/settings/ui/wallpapers', controller.uploadWallpaper);
+  router.get('/api/settings/logs/export', controller.exportLogs);
 }

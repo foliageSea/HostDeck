@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Renew } from '@vicons/carbon'
+import { isAxiosError } from 'axios'
 import { computed, onMounted, ref } from 'vue'
+import { settingsApi } from '@/api/settings'
+import { downloadBlob } from '@/lib/download'
 import { getUiApi } from '@/lib/ui'
 import WallpaperSection from './components/WallpaperSection.vue'
 import { useWallpaperSettings } from './hooks/useWallpaperSettings'
@@ -12,6 +15,7 @@ const { settingsStore } = controller
 const clearingBrowserCache = ref(false)
 const externalAccess = ref(false)
 const externalAccessLoading = ref(false)
+const exportingLogs = ref(false)
 const canClearBrowserCache = computed(() => Boolean(window.hostDeck?.app?.clearBrowserCache))
 const canManageExternalAccess = computed(() =>
   Boolean(window.hostDeck?.app?.getExternalAccess && window.hostDeck?.app?.setExternalAccess),
@@ -58,6 +62,38 @@ async function updateExternalAccess(value: boolean) {
     getUiApi().message.error(error instanceof Error ? error.message : '更新外部访问设置失败。')
   } finally {
     externalAccessLoading.value = false
+  }
+}
+
+async function getExportErrorMessage(error: unknown) {
+  if (isAxiosError(error) && error.response?.data instanceof Blob) {
+    try {
+      const payload = JSON.parse(await error.response.data.text()) as { message?: unknown }
+      if (typeof payload.message === 'string' && payload.message.trim()) {
+        return payload.message
+      }
+    } catch {
+      // Fall back to the Axios error message.
+    }
+  }
+  return error instanceof Error ? error.message : '导出日志失败。'
+}
+
+function buildLogArchiveName() {
+  const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+  return `hostdeck-logs-${timestamp}.zip`
+}
+
+async function exportLogs() {
+  exportingLogs.value = true
+  try {
+    const archive = await settingsApi.exportLogs()
+    downloadBlob(archive, buildLogArchiveName())
+    getUiApi().message.success('日志已导出。')
+  } catch (error) {
+    getUiApi().message.error(await getExportErrorMessage(error))
+  } finally {
+    exportingLogs.value = false
   }
 }
 </script>
@@ -174,7 +210,7 @@ async function updateExternalAccess(value: boolean) {
         </NCard>
       </NTabPane>
 
-      <NTabPane v-if="canClearBrowserCache || canManageExternalAccess" name="app" tab="应用">
+      <NTabPane name="app" tab="应用">
         <NCard title="应用维护" size="large">
           <div class="flex flex-col gap-[12px]">
             <div
@@ -187,6 +223,20 @@ async function updateExternalAccess(value: boolean) {
                 </div>
               </div>
               <NTag type="info" size="small" :bordered="false">v{{ appVersion }}</NTag>
+            </div>
+
+            <div
+              class="app-radius-item flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="text-[14px] font-600">运行日志</div>
+                <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
+                  导出运行日志，用于问题排查。
+                </div>
+              </div>
+              <NButton type="primary" secondary :loading="exportingLogs" @click="exportLogs">
+                导出日志
+              </NButton>
             </div>
             <div
               v-if="canManageExternalAccess"

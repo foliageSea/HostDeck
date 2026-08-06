@@ -7,9 +7,14 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
 
 import 'package:host_deck/server/core/http/result.dart';
+import 'package:host_deck/server/features/settings/log_export_service.dart';
 import 'package:host_deck/utils/app_settings.dart';
 
 class SettingsController {
+  final LogExportService _logExportService;
+
+  SettingsController(this._logExportService);
+
   Future<Response> getUiSettings(Request request) async {
     try {
       final settings = await AppSettings.getUiSettings();
@@ -101,6 +106,32 @@ class SettingsController {
       return Result.fail(400, 'No wallpaper file found');
     } catch (e) {
       return Result.fail(500, e.toString());
+    }
+  }
+
+  Future<Response> exportLogs(Request request) async {
+    try {
+      final archive = await _logExportService.createArchive();
+      final timestamp = DateTime.now()
+          .toUtc()
+          .toIso8601String()
+          .replaceAll('-', '')
+          .replaceAll(':', '')
+          .replaceAll('.', '');
+      return Response.ok(
+        archive.openReadAndDelete(),
+        headers: {
+          HttpHeaders.contentTypeHeader: 'application/zip',
+          'content-disposition':
+              'attachment; filename="hostdeck-logs-$timestamp.zip"',
+          HttpHeaders.cacheControlHeader: 'no-store',
+          'x-content-type-options': 'nosniff',
+        },
+      );
+    } on LogExportUnavailable catch (error) {
+      return Result.fail(404, error.message);
+    } catch (_) {
+      return Result.fail(500, '导出日志失败。');
     }
   }
 

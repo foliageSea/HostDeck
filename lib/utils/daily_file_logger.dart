@@ -46,6 +46,22 @@ class DailyFileLogger {
     );
   }
 
+  Future<void> flush() async {
+    if (_closed) {
+      await _pendingWrite;
+      return;
+    }
+
+    _pendingWrite = _pendingWrite
+        .then((_) async {
+          await _sink?.flush();
+        })
+        .catchError((Object error, StackTrace stackTrace) {
+          _onError?.call(error, stackTrace);
+        });
+    await _pendingWrite;
+  }
+
   Future<void> close() async {
     if (_closed) {
       return;

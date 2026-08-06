@@ -34,6 +34,24 @@ void main() {
     expect(content, contains('Error: failure\nstack trace'));
   });
 
+  test('flushes pending messages without closing the logger', () async {
+    final logger = DailyFileLogger(
+      directory: logDirectory,
+      maxDays: 30,
+      now: () => DateTime(2026, 8, 6, 10),
+    );
+    await logger.initialize();
+
+    logger.write('message before export');
+    await logger.flush();
+
+    final content = await File(
+      p.join(logDirectory.path, 'hostdeck-server-2026-08-06.log'),
+    ).readAsString();
+    expect(content, contains('message before export'));
+    await logger.close();
+  });
+
   test('switches files when the local date changes', () async {
     var now = DateTime(2026, 8, 6, 23, 59);
     final logger = DailyFileLogger(

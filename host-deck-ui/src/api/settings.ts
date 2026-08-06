@@ -33,4 +33,11 @@ export const settingsApi = {
     })
     return response.data
   },
+
+  exportLogs: async () => {
+    const response = await http.get<Blob>('/api/settings/logs/export', {
+      responseType: 'blob',
+    })
+    return response.data
+  },
 }
