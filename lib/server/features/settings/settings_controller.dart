@@ -112,12 +112,14 @@ class SettingsController {
   Future<Response> exportLogs(Request request) async {
     try {
       final archive = await _logExportService.createArchive();
-      final timestamp = DateTime.now()
-          .toUtc()
-          .toIso8601String()
-          .replaceAll('-', '')
-          .replaceAll(':', '')
-          .replaceAll('.', '');
+      final now = DateTime.now();
+      final timestamp =
+          '${now.year.toString().padLeft(4, '0')}'
+          '${now.month.toString().padLeft(2, '0')}'
+          '${now.day.toString().padLeft(2, '0')}T'
+          '${now.hour.toString().padLeft(2, '0')}'
+          '${now.minute.toString().padLeft(2, '0')}'
+          '${now.second.toString().padLeft(2, '0')}';
       return Response.ok(
         archive.openReadAndDelete(),
         headers: {

@@ -80,7 +80,9 @@ async function getExportErrorMessage(error: unknown) {
 }
 
 function buildLogArchiveName() {
-  const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}T${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
   return `hostdeck-logs-${timestamp}.zip`
 }
 

@@ -41,10 +41,18 @@ void main() {
     expect(response.headers[HttpHeaders.contentTypeHeader], 'application/zip');
     expect(response.headers[HttpHeaders.cacheControlHeader], 'no-store');
     expect(response.headers['x-content-type-options'], 'nosniff');
-    expect(
-      response.headers['content-disposition'],
-      startsWith('attachment; filename="hostdeck-logs-'),
+    final disposition = response.headers['content-disposition']!;
+    const filenamePrefix = 'attachment; filename="hostdeck-logs-';
+    const filenameSuffix = '.zip"';
+    expect(disposition, startsWith(filenamePrefix));
+    expect(disposition, endsWith(filenameSuffix));
+    final timestamp = disposition.substring(
+      filenamePrefix.length,
+      disposition.length - filenameSuffix.length,
     );
+    expect(timestamp.length, 15);
+    expect(timestamp[8], 'T');
+    expect(int.tryParse(timestamp.replaceFirst('T', '')), isNotNull);
     expect(archive.single.name, 'hostdeck-server-2026-08-06.log');
     expect(utf8.decode(archive.single.readBytes()!), 'server log');
   });
