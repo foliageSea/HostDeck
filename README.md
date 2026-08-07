@@ -86,6 +86,14 @@ pnpm --dir host-deck-ui install
 
 ## 开发模式
 
+Windows PowerShell 可以用一个脚本依次启动后端和前端：
+
+```powershell
+.\dev.ps1
+```
+
+脚本通过 FVM 的 Dart SDK 启动后端，等待 `8080` 端口就绪后在隐藏的后台进程中启动 Vite。运行期间按 `r` 只重启后端，按 `q` 退出并停止前后端进程。
+
 ### 1. Flutter 桌面壳调试模式
 
 当前 Flutter 桌面调试模式会在 WebView 中加载 Vite 开发服务器，所以需要前端和 Flutter 同时启动。
