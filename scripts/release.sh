@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 UI_DIR="$ROOT_DIR/host-deck-ui"
 PUBSPEC_PATH="$ROOT_DIR/pubspec.yaml"
 PACKAGE_JSON_PATH="$UI_DIR/package.json"
+ELECTRON_PACKAGE_JSON_PATH="$ROOT_DIR/host-deck-electron/package.json"
 REMOTE="${RELEASE_REMOTE:-origin}"
 VERSION_ARG_PROVIDED=0
 
@@ -122,6 +123,7 @@ cd "$ROOT_DIR"
 
 [ -f "$PUBSPEC_PATH" ] || fail "pubspec.yaml not found"
 [ -f "$PACKAGE_JSON_PATH" ] || fail "host-deck-ui/package.json not found"
+[ -f "$ELECTRON_PACKAGE_JSON_PATH" ] || fail "host-deck-electron/package.json not found"
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "not inside a git repository"
 CURRENT_BRANCH="$(git branch --show-current)"
@@ -186,6 +188,16 @@ fs.writeFileSync(file, text.replace(/^version:\s*[^\s#]+(\s*(?:#.*)?)$/m, `versi
 echo "Syncing frontend package version..."
 pnpm --dir "$UI_DIR" sync:version
 
+echo "Syncing Electron package version..."
+node -e '
+const fs = require("node:fs")
+const file = process.argv[1]
+const version = process.argv[2]
+const packageJson = JSON.parse(fs.readFileSync(file, "utf8"))
+packageJson.version = version
+fs.writeFileSync(file, `${JSON.stringify(packageJson, null, 2)}\n`)
+' "$ELECTRON_PACKAGE_JSON_PATH" "$VERSION"
+
 echo "Refreshing pnpm lockfile..."
 pnpm --dir "$UI_DIR" install --lockfile-only
 
@@ -199,7 +211,7 @@ fi
 echo "Changed files:"
 git status --short
 
-git add pubspec.yaml host-deck-ui/package.json host-deck-ui/pnpm-lock.yaml
+git add pubspec.yaml host-deck-ui/package.json host-deck-ui/pnpm-lock.yaml host-deck-electron/package.json
 
 git commit -m "chore(release): 发布 $TAG"
 git tag -a "$TAG" -m "Release $TAG"
