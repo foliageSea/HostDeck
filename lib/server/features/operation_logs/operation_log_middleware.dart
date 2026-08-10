@@ -650,4 +650,14 @@ List<_OperationPolicy> _policies(
     'docker',
     'composeDown',
   ),
+  _OperationPolicy('POST', r'api/cron-tasks', 'cron', 'create'),
+  _OperationPolicy('PUT', r'api/cron-tasks/([^/]+)', 'cron', 'update'),
+  _OperationPolicy('DELETE', r'api/cron-tasks/([^/]+)', 'cron', 'delete'),
+  _OperationPolicy('POST', r'api/cron-tasks/([^/]+)/run', 'cron', 'run'),
+  _OperationPolicy(
+    'POST',
+    r'api/cron-tasks/([^/]+)/history/sync',
+    'cron',
+    'syncHistory',
+  ),
 ];

@@ -4,6 +4,7 @@ import 'package:host_deck/server/features/auth/auth_controller.dart';
 import 'package:host_deck/server/features/access/access_controller.dart';
 import 'package:host_deck/server/features/agent/agent_controller.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
+import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_controller.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_controller.dart';
@@ -17,6 +18,7 @@ import 'package:host_deck/server/routes/auth_routes.dart';
 import 'package:host_deck/server/routes/access_routes.dart';
 import 'package:host_deck/server/routes/agent_routes.dart';
 import 'package:host_deck/server/routes/docker_routes.dart';
+import 'package:host_deck/server/routes/cron_task_routes.dart';
 import 'package:host_deck/server/routes/file_routes.dart';
 import 'package:host_deck/server/routes/operation_log_routes.dart';
 import 'package:host_deck/server/routes/port_forward_routes.dart';
@@ -37,6 +39,7 @@ class ApiRoutes {
   final TerminalController terminalController;
   final ServerController serverController;
   final DockerController dockerController;
+  final CronTaskController cronTaskController;
   final ProcessController processController;
   final RuntimeController runtimeController;
   final SettingsController settingsController;
@@ -52,6 +55,7 @@ class ApiRoutes {
     required this.terminalController,
     required this.serverController,
     required this.dockerController,
+    required this.cronTaskController,
     required this.processController,
     required this.runtimeController,
     required this.settingsController,
@@ -73,6 +77,7 @@ class ApiRoutes {
     registerOperationLogRoutes(router, operationLogController);
     registerTerminalRoutes(router, terminalController);
     registerDockerRoutes(router, dockerController);
+    registerCronTaskRoutes(router, cronTaskController);
     return router;
   }
 }

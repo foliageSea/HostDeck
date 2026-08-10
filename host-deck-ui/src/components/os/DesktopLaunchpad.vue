@@ -22,6 +22,7 @@ const searchInput = ref<HTMLInputElement | null>(null)
 const iconColors: Partial<Record<DesktopAppId, string>> = {
   dashboard: '#0ea5e9',
   docker: '#0284c7',
+  'cron-tasks': '#d97706',
   files: '#f59e0b',
   opencode: '#a855f7',
   'operation-logs': '#64748b',

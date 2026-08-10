@@ -14,6 +14,7 @@ export type AppIconKey =
   | 'process'
   | 'port-forward'
   | 'operation-log'
+  | 'cron-task'
 
 export type DesktopAppId =
   | 'terminal'
@@ -34,3 +35,4 @@ export type DesktopAppId =
   | 'processes'
   | 'port-forward'
   | 'operation-logs'
+  | 'cron-tasks'

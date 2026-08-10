@@ -125,6 +125,49 @@ class DatabaseService {
       ''');
       _setVersion(4);
     }
+
+    // v4 -> v5: Store managed cron tasks and their remote execution history.
+    if (currentVersion < 5) {
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS cron_tasks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          connectionId TEXT NOT NULL,
+          name TEXT NOT NULL,
+          schedule TEXT NOT NULL,
+          command TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          templateType TEXT,
+          createdAt INTEGER NOT NULL,
+          updatedAt INTEGER NOT NULL
+        )
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_cron_tasks_connection_updated
+        ON cron_tasks(connectionId, updatedAt DESC)
+      ''');
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS cron_execution_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          taskId INTEGER NOT NULL,
+          connectionId TEXT NOT NULL,
+          triggerType TEXT NOT NULL,
+          startedAt INTEGER NOT NULL,
+          finishedAt INTEGER,
+          durationMs INTEGER,
+          exitCode INTEGER,
+          status TEXT NOT NULL,
+          stdout TEXT,
+          stderr TEXT,
+          createdAt INTEGER NOT NULL,
+          UNIQUE(taskId, startedAt)
+        )
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_cron_execution_history_task_started
+        ON cron_execution_history(taskId, startedAt DESC)
+      ''');
+      _setVersion(5);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

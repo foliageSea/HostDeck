@@ -34,6 +34,8 @@ declare module 'vue' {
     NCheckbox: typeof import('naive-ui')['NCheckbox']
     NColorPicker: typeof import('naive-ui')['NColorPicker']
     NDataTable: typeof import('naive-ui')['NDataTable']
+    NDrawer: typeof import('naive-ui')['NDrawer']
+    NDrawerContent: typeof import('naive-ui')['NDrawerContent']
     NDropdown: typeof import('naive-ui')['NDropdown']
     NEmpty: typeof import('naive-ui')['NEmpty']
     NForm: typeof import('naive-ui')['NForm']
@@ -63,6 +65,8 @@ declare module 'vue' {
     NTag: typeof import('naive-ui')['NTag']
     NTooltip: typeof import('naive-ui')['NTooltip']
     RoundedButton: typeof import('./src/components/common/RoundedButton.vue')['default']
+    RouterLink: typeof import('vue-router')['RouterLink']
+    RouterView: typeof import('vue-router')['RouterView']
     UiApiBridge: typeof import('./src/components/common/UiApiBridge.vue')['default']
   }
 }

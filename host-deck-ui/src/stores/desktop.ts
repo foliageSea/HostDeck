@@ -12,6 +12,7 @@ import DockerCreateContainerView from '@/views/Docker/components/DockerCreateCon
 import DockerComposeServicesView from '@/views/Docker/components/DockerComposeServicesView.vue'
 import DockerOutputView from '@/views/Docker/components/DockerOutputView.vue'
 import DockerView from '@/views/Docker/index.vue'
+import CronTasksView from '@/views/CronTasks/index.vue'
 import FilesView from '@/views/Files/index.vue'
 import IframeAppView from '@/views/IframeApp/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
@@ -41,6 +42,7 @@ export const defaultDockAppIds: DesktopAppId[] = [
   'opencode',
   'port-forward',
   'operation-logs',
+  'cron-tasks',
   'processes',
   'dashboard',
 ]
@@ -48,6 +50,7 @@ export const defaultDockAppIds: DesktopAppId[] = [
 const launchpadAppIds = new Set<DesktopAppId>([
   ...defaultDockAppIds,
   'runtime-sessions',
+  'cron-tasks',
   'settings',
 ])
 
@@ -510,6 +513,17 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 820,
         title: '操作记录',
         width: 1080,
+        showInLaunchpad: true,
+      },
+      'cron-tasks': {
+        component: markRaw(CronTasksView),
+        height: 700,
+        icon: 'cron-task',
+        id: 'cron-tasks',
+        minHeight: 520,
+        minWidth: 880,
+        title: '定时任务',
+        width: 1120,
         showInLaunchpad: true,
       },
       processes: {

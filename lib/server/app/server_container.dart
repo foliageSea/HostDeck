@@ -11,6 +11,9 @@ import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/auth/auth_controller.dart';
 import 'package:host_deck/server/features/docker/docker_compose_service.dart';
+import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
+import 'package:host_deck/server/features/crontabs/cron_task_repository.dart';
+import 'package:host_deck/server/features/crontabs/cron_task_service.dart';
 import 'package:host_deck/server/features/docker/docker_container_service.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
 import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
@@ -89,10 +92,12 @@ class ServerContainer {
     final terminalSnippetRepository = TerminalSnippetRepository(
       databaseService,
     );
+    final cronTaskRepository = CronTaskRepository(databaseService);
     final operationLogService = OperationLogService(operationLogRepository);
     final sshService = SshService();
     final monitorHistoryService = MonitorHistoryService();
     final monitorService = MonitorService(sshRepository);
+    final cronTaskService = CronTaskService(sshRepository, cronTaskRepository);
     final agentService = AgentService(sshRepository);
     final fileService = FileService(sshRepository);
     final dockerEngineRepository = DockerEngineRepository(sshRepository);
@@ -150,6 +155,11 @@ class ServerContainer {
           dockerImageService,
           dockerResourceService,
           dockerComposeService,
+        ),
+        cronTaskController: CronTaskController(
+          sshService,
+          cronTaskRepository,
+          cronTaskService,
         ),
         processController: ProcessController(sshService, processService),
         runtimeController: RuntimeController(sshService),

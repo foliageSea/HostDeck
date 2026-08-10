@@ -13,6 +13,7 @@ import {
   Terminal,
   ApplicationWeb,
   Connect,
+  Time,
 } from '@vicons/carbon'
 import { LogoDocker } from '@vicons/ionicons5'
 import type { Component } from 'vue'
@@ -31,6 +32,7 @@ const props = withDefaults(
 
 const iconMap: Record<AppIconKey, Component> = {
   dashboard: ChartLine,
+  'cron-task': Time,
   docker: LogoDocker,
   editor: Document,
   folder: Folder,
