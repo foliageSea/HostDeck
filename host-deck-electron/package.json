@@ -1,7 +1,7 @@
 {
   "name": "host-deck-electron",
   "private": true,
-  "version": "0.2.3",
+  "version": "0.3.1",
   "main": "src/main/index.cjs",
   "scripts": {
     "dev": "vite --config vite.config.mjs",
