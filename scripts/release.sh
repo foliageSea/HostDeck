@@ -201,8 +201,8 @@ fs.writeFileSync(file, `${JSON.stringify(packageJson, null, 2)}\n`)
 echo "Refreshing pnpm lockfile..."
 pnpm --dir "$UI_DIR" install --lockfile-only
 
-echo "Running frontend build..."
-pnpm --dir "$UI_DIR" build
+# echo "Running frontend build..."
+# pnpm --dir "$UI_DIR" build
 
 if [ -z "$(git status --porcelain)" ]; then
   fail "no version changes detected"
