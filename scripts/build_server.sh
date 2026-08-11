@@ -14,7 +14,10 @@ flutter pub get
 
 echo "Building Dart CLI bundle..."
 rm -rf "$BUILD_DIR"
+APP_VERSION="$(sed -n 's/^version:[[:space:]]*//p' "$ROOT_DIR/pubspec.yaml")"
+test -n "$APP_VERSION"
 dart build cli --target bin/server.dart --output "$BUILD_DIR"
+printf '%s' "$APP_VERSION" > "$BUILD_DIR/bundle/VERSION"
 
 echo "Copying web assets..."
 rm -rf "$BUILD_DIR/bundle/web"

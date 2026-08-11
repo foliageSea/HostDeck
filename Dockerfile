@@ -1,3 +1,5 @@
+ARG HOSTDECK_VERSION=dev
+
 FROM node:20-bookworm-slim AS web-builder
 WORKDIR /src/host-deck-ui
 
@@ -18,7 +20,11 @@ RUN flutter pub get
 RUN dart build cli --target bin/server.dart -o build/server
 
 FROM debian:bookworm-slim AS runtime
+ARG HOSTDECK_VERSION
 WORKDIR /app
+
+LABEL org.opencontainers.image.version="${HOSTDECK_VERSION}"
+ENV HOSTDECK_VERSION="${HOSTDECK_VERSION}"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

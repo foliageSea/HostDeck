@@ -57,7 +57,9 @@ pnpm --dir host-deck-ui release 1.0.1
 ```bash
 pnpm --dir host-deck-ui build
 flutter pub get
+APP_VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml)"
 dart build cli --target bin/server.dart --output build/server
+printf '%s' "$APP_VERSION" > build/server/bundle/VERSION
 # 将 host-deck-ui/dist 的内容同步到 build/server/bundle/web/
 ```
 
@@ -84,9 +86,12 @@ dart build cli --target bin/server.dart --output build/server
 Dockerfile 当前以 `host-deck-ui/` 为前端来源。
 
 ```bash
-docker build -t host-deck:local .
-docker run --rm -p 8080:8080 -e HOSTDECK_ACCESS_PASSWORD=replace-with-a-strong-password -v host-deck-data:/data host-deck:local
+VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml)"
+docker build --build-arg HOSTDECK_VERSION="$VERSION" -t "host-deck:$VERSION" -t host-deck:latest .
+docker run --rm -p 8080:8080 -e HOSTDECK_ACCESS_PASSWORD=replace-with-a-strong-password -v host-deck-data:/data "host-deck:$VERSION"
 ```
+
+`HOSTDECK_VERSION` 会写入镜像的 `org.opencontainers.image.version` 标签，并在容器启动时显示在服务横幅中。Docker 镜像 tag 必须由 `docker build -t` 指定，不能在 Dockerfile 内动态生成。
 
 容器默认启动参数：
 

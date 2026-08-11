@@ -8,9 +8,14 @@ import 'package:host_deck/utils/app_settings.dart';
 import 'package:host_deck/utils/daily_file_logger.dart';
 import 'package:host_deck/utils/runtime_paths.dart';
 
+const _appVersion = String.fromEnvironment(
+  'HOSTDECK_VERSION',
+  defaultValue: 'dev',
+);
+
 Future<void> main(List<String> args) async {
   final config = _parseArgs(args);
-  _printBanner();
+  _printBanner(await _resolveAppVersion());
   final logDirectory = await _resolveLogDirectory(config);
   final logging = await _configureLogging(config, logDirectory);
   AppSettings.configure(dataDir: config.dataDir);
@@ -194,14 +199,46 @@ String? _resolveDefaultWebDir() {
   return null;
 }
 
-void _printBanner() {
+Future<String> _resolveAppVersion() async {
+  final runtimeVersion = Platform.environment['HOSTDECK_VERSION'];
+  if (runtimeVersion != null && runtimeVersion.isNotEmpty) {
+    return runtimeVersion;
+  }
+
+  if (_appVersion != 'dev') {
+    return _appVersion;
+  }
+
+  final executableDir = File(Platform.resolvedExecutable).parent;
+  final versionFile = File(p.join(executableDir.parent.path, 'VERSION'));
+  if (await versionFile.exists()) {
+    final bundledVersion = (await versionFile.readAsString()).trim();
+    if (bundledVersion.isNotEmpty) {
+      return bundledVersion;
+    }
+  }
+
+  final pubspec = File(p.join(Directory.current.path, 'pubspec.yaml'));
+  if (!await pubspec.exists()) {
+    return _appVersion;
+  }
+
+  final content = await pubspec.readAsString();
+  final match = RegExp(
+    r'^version:\s*([^\s#]+)',
+    multiLine: true,
+  ).firstMatch(content);
+  return match?.group(1) ?? _appVersion;
+}
+
+void _printBanner(String version) {
   stdout.writeln('''
   ██╗  ██╗ ██████╗ ███████╗████████╗██████╗ ███████╗ ██████╗██╗  ██╗
   ██║  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██╔════╝██║ ██╔╝
   ███████║██║   ██║███████╗   ██║   ██║  ██║█████╗  ██║     █████╔╝
   ██╔══██║██║   ██║╚════██║   ██║   ██║  ██║██╔══╝  ██║     ██╔═██╗
   ██║  ██║╚██████╔╝███████║   ██║   ██████╔╝███████╗╚██████╗██║  ██╗
-  ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝
+  ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝ v$version
 ''');
   stdout.flush();
 }

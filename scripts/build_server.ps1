@@ -32,7 +32,13 @@ Write-Host 'Building Dart CLI bundle...'
 if (Test-Path $buildDir) {
   Remove-Item $buildDir -Recurse -Force
 }
+$pubspecPath = Join-Path $RootDir 'pubspec.yaml'
+$versionLine = Get-Content -LiteralPath $pubspecPath | Where-Object { $_ -match '^version:\s*\S+' } | Select-Object -First 1
+if ($versionLine -notmatch '^version:\s*(?<version>\S+)') {
+  throw "Unable to resolve the application version from $pubspecPath"
+}
 Invoke-Native -Command dart -Args @('build', 'cli', '--target', 'bin/server.dart', '--output', $buildDir)
+Set-Content -LiteralPath (Join-Path $buildDir 'bundle\VERSION') -Value $Matches.version -NoNewline -Encoding ascii
 
 $targetWebDir = Join-Path $buildDir 'bundle\web'
 if (Test-Path $targetWebDir) {
