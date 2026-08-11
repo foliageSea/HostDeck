@@ -15,6 +15,47 @@ import 'package:host_deck/server/features/port_forwards/port_forward_repository.
 import 'package:host_deck/server/features/servers/server_repository.dart';
 import 'package:host_deck/utils/app_settings.dart';
 
+Middleware accessLogMiddleware(Logger log) {
+  return (innerHandler) {
+    return (request) async {
+      final stopwatch = Stopwatch()..start();
+      try {
+        final response = await innerHandler(request);
+        stopwatch.stop();
+        final message = formatAccessLog(
+          request,
+          response.statusCode,
+          stopwatch.elapsed,
+        );
+        if (response.statusCode >= 500) {
+          log.severe(message);
+        } else if (response.statusCode >= 400) {
+          log.warning(message);
+        } else {
+          log.info(message);
+        }
+        return response;
+      } on HijackException {
+        rethrow;
+      } catch (error, stackTrace) {
+        stopwatch.stop();
+        log.severe(
+          formatAccessLog(request, 500, stopwatch.elapsed),
+          error,
+          stackTrace,
+        );
+        rethrow;
+      }
+    };
+  };
+}
+
+String formatAccessLog(Request request, int statusCode, Duration elapsed) {
+  final path = request.url.path.isEmpty ? '/' : '/${request.url.path}';
+  final query = request.url.hasQuery ? ' | ${request.url.query}' : '';
+  return '${request.method} $path $statusCode ${elapsed.inMilliseconds}ms$query';
+}
+
 Future<Handler> buildServerHandler({
   required ApiRoutes apiRoutes,
   required String staticPath,
@@ -94,16 +135,6 @@ Future<Handler> buildServerHandler({
   cascade = cascade.add(spaFallback);
 
   return Pipeline()
-      .addMiddleware(
-        logRequests(
-          logger: (message, isError) {
-            if (isError) {
-              log.severe(message);
-            } else {
-              log.info(message);
-            }
-          },
-        ),
-      )
+      .addMiddleware(accessLogMiddleware(log))
       .addHandler(cascade.handler);
 }

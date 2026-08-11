@@ -105,9 +105,9 @@ Future<_LoggingHandle> _configureLogging(
   }
 
   final subscription = Logger.root.onRecord.listen((record) {
-    final ts = record.time.toIso8601String();
-    final msg =
-        '[$ts] [${record.level.name}] [${record.loggerName}] ${record.message}';
+    final ts = _formatLogTimestamp(record.time);
+    final level = record.level.name.padRight(7);
+    final msg = '$ts $level ${record.loggerName} | ${record.message}';
     stderr.writeln(msg);
     if (record.error != null) {
       stderr.writeln('Error: ${record.error}');
@@ -125,6 +125,14 @@ Future<_LoggingHandle> _configureLogging(
     fileLogger?.write(details.toString());
   });
   return _LoggingHandle(subscription, fileLogger);
+}
+
+String _formatLogTimestamp(DateTime value) {
+  final local = value.toLocal();
+  String pad(int number, int width) => number.toString().padLeft(width, '0');
+  return '${pad(local.year, 4)}-${pad(local.month, 2)}-${pad(local.day, 2)} '
+      '${pad(local.hour, 2)}:${pad(local.minute, 2)}:${pad(local.second, 2)}.'
+      '${pad(local.millisecond, 3)}';
 }
 
 _ServerConfig _parseArgs(List<String> args) {
