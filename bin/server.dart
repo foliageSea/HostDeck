@@ -10,6 +10,7 @@ import 'package:host_deck/utils/runtime_paths.dart';
 
 Future<void> main(List<String> args) async {
   final config = _parseArgs(args);
+  _printBanner();
   final logDirectory = await _resolveLogDirectory(config);
   final logging = await _configureLogging(config, logDirectory);
   AppSettings.configure(dataDir: config.dataDir);
@@ -191,6 +192,18 @@ String? _resolveDefaultWebDir() {
     return candidate.path;
   }
   return null;
+}
+
+void _printBanner() {
+  stdout.writeln('''
+  ██╗  ██╗ ██████╗ ███████╗████████╗██████╗ ███████╗ ██████╗██╗  ██╗
+  ██║  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝██╔════╝██║ ██╔╝
+  ███████║██║   ██║███████╗   ██║   ██║  ██║█████╗  ██║     █████╔╝
+  ██╔══██║██║   ██║╚════██║   ██║   ██║  ██║██╔══╝  ██║     ██╔═██╗
+  ██║  ██║╚██████╔╝███████║   ██║   ██████╔╝███████╗╚██████╗██║  ██╗
+  ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝
+''');
+  stdout.flush();
 }
 
 Never _printUsageAndExit({int exitCode = 0}) {
