@@ -1,23 +1,24 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:logging/logging.dart';
-import 'package:path/path.dart' as p;
+import 'package:host_deck/server/app/server_cli.dart';
+import 'package:host_deck/server/app/server_lifecycle.dart';
+import 'package:host_deck/server/app/server_logging.dart';
+import 'package:host_deck/server/app/server_runtime.dart';
 import 'package:host_deck/server/app/server_service.dart';
 import 'package:host_deck/utils/app_settings.dart';
-import 'package:host_deck/utils/daily_file_logger.dart';
-import 'package:host_deck/utils/runtime_paths.dart';
-
-const _appVersion = String.fromEnvironment(
-  'HOSTDECK_VERSION',
-  defaultValue: 'dev',
-);
 
 Future<void> main(List<String> args) async {
-  final config = _parseArgs(args);
-  _printBanner(await _resolveAppVersion());
-  final logDirectory = await _resolveLogDirectory(config);
-  final logging = await _configureLogging(config, logDirectory);
+  final config = parseServerArgs(args);
+  _printBanner(await resolveAppVersion());
+  final logDirectory = await resolveServerLogDirectory(
+    logDir: config.logDir,
+    dataDir: config.dataDir,
+  );
+  final logging = await configureServerLogging(
+    directory: logDirectory,
+    maxDays: config.logMaxDays,
+  );
   AppSettings.configure(dataDir: config.dataDir);
 
   final server = ServerService(
@@ -47,219 +48,11 @@ Future<void> main(List<String> args) async {
     exit(1);
   }
 
-  final stopSignals = <ProcessSignal>[ProcessSignal.sigint];
-  if (!Platform.isWindows) {
-    stopSignals.add(ProcessSignal.sigterm);
-  }
-
-  final subscriptions = <StreamSubscription<ProcessSignal>>[];
-  var isStopping = false;
-  for (final signal in stopSignals) {
-    try {
-      subscriptions.add(
-        signal.watch().listen((_) async {
-          if (isStopping) {
-            return;
-          }
-          isStopping = true;
-          log.info('Received ${signal.name}, shutting down...');
-          await server.stop();
-          for (final sub in subscriptions) {
-            await sub.cancel();
-          }
-          await logging.close();
-          exit(0);
-        }),
-      );
-    } on SignalException {
-      log.warning('Signal ${signal.name} is not supported on this platform.');
-    }
-  }
-}
-
-Future<Directory> _resolveLogDirectory(_ServerConfig config) async {
-  if (config.logDir != null) {
-    return Directory(config.logDir!);
-  }
-
-  final dataDirectory = await RuntimePaths.resolveDataDirectory(
-    overridePath: config.dataDir,
+  registerServerShutdownHandlers(
+    log: log,
+    stopServer: server.stop,
+    closeLogging: logging.close,
   );
-  return Directory(p.join(dataDirectory.path, 'logs'));
-}
-
-Future<_LoggingHandle> _configureLogging(
-  _ServerConfig config,
-  Directory logDirectory,
-) async {
-  Logger.root.level = Level.ALL;
-  DailyFileLogger? fileLogger;
-  try {
-    fileLogger = DailyFileLogger(
-      directory: logDirectory,
-      maxDays: config.logMaxDays,
-      onError: (error, stackTrace) {
-        stderr.writeln('Failed to write log file: $error');
-        stderr.writeln(stackTrace);
-      },
-    );
-    await fileLogger.initialize();
-  } catch (e, st) {
-    stderr.writeln('Failed to initialize file logging: $e');
-    stderr.writeln(st);
-    fileLogger = null;
-  }
-
-  final subscription = Logger.root.onRecord.listen((record) {
-    final msg = formatLogRecord(record);
-    stderr.writeln(formatConsoleLogRecord(record));
-    if (record.error != null) {
-      stderr.writeln('Error: ${record.error}');
-    }
-    if (record.stackTrace != null) {
-      stderr.writeln(record.stackTrace);
-    }
-    final details = StringBuffer(msg);
-    if (record.error != null) {
-      details.write('\nError: ${record.error}');
-    }
-    if (record.stackTrace != null) {
-      details.write('\n${record.stackTrace}');
-    }
-    fileLogger?.write(details.toString());
-  });
-  return _LoggingHandle(subscription, fileLogger);
-}
-
-String _formatLogTimestamp(DateTime value) {
-  final local = value.toLocal();
-  String pad(int number, int width) => number.toString().padLeft(width, '0');
-  return '${pad(local.year, 4)}-${pad(local.month, 2)}-${pad(local.day, 2)} '
-      '${pad(local.hour, 2)}:${pad(local.minute, 2)}:${pad(local.second, 2)}.'
-      '${pad(local.millisecond, 3)}';
-}
-
-String formatLogRecord(LogRecord record) {
-  const loggerNameWidth = 24;
-  final timestamp = _formatLogTimestamp(record.time);
-  final level = record.level.name.padRight(7);
-  final loggerName = record.loggerName.padRight(loggerNameWidth);
-  return '$timestamp $level $loggerName | ${record.message}';
-}
-
-String formatConsoleLogRecord(LogRecord record) {
-  const loggerNameWidth = 24;
-  const reset = '\x1B[0m';
-  final timestamp = _formatLogTimestamp(record.time);
-  final level = record.level.name.padRight(7);
-  final loggerName = record.loggerName.padRight(loggerNameWidth);
-  return '$timestamp ${_ansiColorForLevel(record.level)}$level$reset '
-      '$loggerName | ${record.message}';
-}
-
-String _ansiColorForLevel(Level level) {
-  if (level >= Level.SEVERE) {
-    return '\x1B[31m';
-  }
-  if (level >= Level.WARNING) {
-    return '\x1B[33m';
-  }
-  if (level >= Level.INFO) {
-    return '\x1B[36m';
-  }
-  if (level >= Level.CONFIG) {
-    return '\x1B[34m';
-  }
-  return '\x1B[90m';
-}
-
-_ServerConfig _parseArgs(List<String> args) {
-  final values = <String, String>{};
-
-  for (var i = 0; i < args.length; i++) {
-    final token = args[i];
-    if (!token.startsWith('--')) {
-      continue;
-    }
-
-    final key = token.substring(2);
-    if (key == 'help' || key == 'h') {
-      _printUsageAndExit();
-    }
-
-    if (i + 1 >= args.length || args[i + 1].startsWith('--')) {
-      stderr.writeln('Missing value for option --$key');
-      _printUsageAndExit(exitCode: 64);
-    }
-
-    values[key] = args[i + 1];
-    i++;
-  }
-
-  final port = int.tryParse(values['port'] ?? '') ?? 8080;
-  if (port <= 0 || port > 65535) {
-    stderr.writeln('Invalid port: $port');
-    _printUsageAndExit(exitCode: 64);
-  }
-
-  final webDir = values['web-dir'] ?? _resolveDefaultWebDir();
-  final logMaxDaysValue = values['log-max-days'];
-  final logMaxDays = logMaxDaysValue == null
-      ? 30
-      : int.tryParse(logMaxDaysValue);
-  if (logMaxDays == null || logMaxDays <= 0) {
-    stderr.writeln('Invalid log max days: ${logMaxDaysValue ?? ''}');
-    _printUsageAndExit(exitCode: 64);
-  }
-
-  return _ServerConfig(
-    host: values['host'] ?? '127.0.0.1',
-    port: port,
-    webDir: webDir,
-    dataDir: values['data-dir'],
-    logDir: values['log-dir'],
-    logMaxDays: logMaxDays,
-  );
-}
-
-String? _resolveDefaultWebDir() {
-  final executableDir = File(Platform.resolvedExecutable).parent;
-  final candidate = Directory(p.join(executableDir.path, '..', 'web'));
-  if (candidate.existsSync()) {
-    return candidate.path;
-  }
-  return null;
-}
-
-Future<String> _resolveAppVersion() async {
-  final runtimeVersion = Platform.environment['HOSTDECK_VERSION'];
-  if (runtimeVersion != null && runtimeVersion.isNotEmpty) {
-    return runtimeVersion;
-  }
-
-  if (_appVersion != 'dev') {
-    final executableDir = File(Platform.resolvedExecutable).parent;
-    final versionFile = File(p.join(executableDir.parent.path, 'VERSION'));
-    if (await versionFile.exists()) {
-      final bundledVersion = (await versionFile.readAsString()).trim();
-      if (bundledVersion.isNotEmpty) {
-        return bundledVersion;
-      }
-    }
-    return _appVersion;
-  }
-
-  final pubspec = File(p.join(Directory.current.path, 'pubspec.yaml'));
-  if (!await pubspec.exists()) {
-    return _appVersion;
-  }
-
-  final content = await pubspec.readAsString();
-  final match = RegExp(
-    r'^version:\s*([^\s#]+)',
-    multiLine: true,
-  ).firstMatch(content);
-  return match?.group(1) ?? _appVersion;
 }
 
 void _printBanner(String version) {
@@ -272,64 +65,4 @@ void _printBanner(String version) {
   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝ v$version
 ''');
   stdout.flush();
-}
-
-Never _printUsageAndExit({int exitCode = 0}) {
-  stdout.writeln('''
-HostDeck Server
-
-Usage:
-  dart run bin/server.dart [options]
-
-Options:
-  --host <value>       Bind host, default: 127.0.0.1
-  --port <value>       Bind port, default: 8080
-  --web-dir <path>     Static web root directory (e.g. host-deck-ui/dist)
-  --data-dir <path>    Data directory for sqlite and settings
-  --log-dir <path>     Log directory, default: <data-dir>/logs
-  --log-max-days <n>   Days to retain log files, default: 30
-  --help               Show this help
-
-Environment:
-  HOSTDECK_ACCESS_PASSWORD Enable browser password login
-  HOSTDECK_API_TOKEN       Enable Bearer authentication for CLI/API clients
-  HOSTDECK_SECURE_COOKIES  Set true when HTTPS terminates at a reverse proxy
-''');
-  exit(exitCode);
-}
-
-class _ServerConfig {
-  final String host;
-  final int port;
-  final String? webDir;
-  final String? dataDir;
-  final String? logDir;
-  final int logMaxDays;
-
-  const _ServerConfig({
-    required this.host,
-    required this.port,
-    required this.webDir,
-    required this.dataDir,
-    required this.logDir,
-    required this.logMaxDays,
-  });
-}
-
-class _LoggingHandle {
-  final StreamSubscription<LogRecord> _subscription;
-  final DailyFileLogger? _fileLogger;
-
-  const _LoggingHandle(this._subscription, this._fileLogger);
-
-  bool get isFileLoggingEnabled => _fileLogger != null;
-
-  Future<void> flush() async {
-    await _fileLogger?.flush();
-  }
-
-  Future<void> close() async {
-    await _subscription.cancel();
-    await _fileLogger?.close();
-  }
 }

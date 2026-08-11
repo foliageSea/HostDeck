@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../bin/server.dart' as server;
+import 'package:host_deck/server/app/server_logging.dart' as server;
 import 'package:logging/logging.dart';
 
 void main() {
