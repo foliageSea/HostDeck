@@ -112,7 +112,7 @@ Future<_LoggingHandle> _configureLogging(
 
   final subscription = Logger.root.onRecord.listen((record) {
     final msg = formatLogRecord(record);
-    stderr.writeln(msg);
+    stderr.writeln(formatConsoleLogRecord(record));
     if (record.error != null) {
       stderr.writeln('Error: ${record.error}');
     }
@@ -145,6 +145,32 @@ String formatLogRecord(LogRecord record) {
   final level = record.level.name.padRight(7);
   final loggerName = record.loggerName.padRight(loggerNameWidth);
   return '$timestamp $level $loggerName | ${record.message}';
+}
+
+String formatConsoleLogRecord(LogRecord record) {
+  const loggerNameWidth = 24;
+  const reset = '\x1B[0m';
+  final timestamp = _formatLogTimestamp(record.time);
+  final level = record.level.name.padRight(7);
+  final loggerName = record.loggerName.padRight(loggerNameWidth);
+  return '$timestamp ${_ansiColorForLevel(record.level)}$level$reset '
+      '$loggerName | ${record.message}';
+}
+
+String _ansiColorForLevel(Level level) {
+  if (level >= Level.SEVERE) {
+    return '\x1B[31m';
+  }
+  if (level >= Level.WARNING) {
+    return '\x1B[33m';
+  }
+  if (level >= Level.INFO) {
+    return '\x1B[36m';
+  }
+  if (level >= Level.CONFIG) {
+    return '\x1B[34m';
+  }
+  return '\x1B[90m';
 }
 
 _ServerConfig _parseArgs(List<String> args) {

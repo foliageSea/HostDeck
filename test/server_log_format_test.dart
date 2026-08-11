@@ -28,4 +28,14 @@ void main() {
       endsWith('LongerThanTwentyFourCharacterLogger | Slow response'),
     );
   });
+
+  test('colors the console level while preserving the plain file format', () {
+    final record = LogRecord(Level.WARNING, 'Slow response', 'AppSettings');
+
+    expect(
+      server.formatConsoleLogRecord(record),
+      contains('\x1B[33mWARNING\x1B[0m'),
+    );
+    expect(server.formatLogRecord(record), isNot(contains('\x1B[')));
+  });
 }
