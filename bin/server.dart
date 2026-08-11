@@ -111,9 +111,7 @@ Future<_LoggingHandle> _configureLogging(
   }
 
   final subscription = Logger.root.onRecord.listen((record) {
-    final ts = _formatLogTimestamp(record.time);
-    final level = record.level.name.padRight(7);
-    final msg = '$ts $level ${record.loggerName} | ${record.message}';
+    final msg = formatLogRecord(record);
     stderr.writeln(msg);
     if (record.error != null) {
       stderr.writeln('Error: ${record.error}');
@@ -139,6 +137,14 @@ String _formatLogTimestamp(DateTime value) {
   return '${pad(local.year, 4)}-${pad(local.month, 2)}-${pad(local.day, 2)} '
       '${pad(local.hour, 2)}:${pad(local.minute, 2)}:${pad(local.second, 2)}.'
       '${pad(local.millisecond, 3)}';
+}
+
+String formatLogRecord(LogRecord record) {
+  const loggerNameWidth = 24;
+  final timestamp = _formatLogTimestamp(record.time);
+  final level = record.level.name.padRight(7);
+  final loggerName = record.loggerName.padRight(loggerNameWidth);
+  return '$timestamp $level $loggerName | ${record.message}';
 }
 
 _ServerConfig _parseArgs(List<String> args) {
