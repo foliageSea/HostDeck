@@ -212,16 +212,15 @@ Future<String> _resolveAppVersion() async {
   }
 
   if (_appVersion != 'dev') {
-    return _appVersion;
-  }
-
-  final executableDir = File(Platform.resolvedExecutable).parent;
-  final versionFile = File(p.join(executableDir.parent.path, 'VERSION'));
-  if (await versionFile.exists()) {
-    final bundledVersion = (await versionFile.readAsString()).trim();
-    if (bundledVersion.isNotEmpty) {
-      return bundledVersion;
+    final executableDir = File(Platform.resolvedExecutable).parent;
+    final versionFile = File(p.join(executableDir.parent.path, 'VERSION'));
+    if (await versionFile.exists()) {
+      final bundledVersion = (await versionFile.readAsString()).trim();
+      if (bundledVersion.isNotEmpty) {
+        return bundledVersion;
+      }
     }
+    return _appVersion;
   }
 
   final pubspec = File(p.join(Directory.current.path, 'pubspec.yaml'));
