@@ -10,7 +10,6 @@ import 'package:host_deck/server/core/http/server_sent_event.dart';
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
-import 'package:host_deck/server/features/docker/docker_compose_service.dart';
 import 'package:host_deck/server/features/docker/docker_container.dart';
 import 'package:host_deck/server/features/docker/docker_container_service.dart';
 import 'package:host_deck/server/features/docker/docker_image.dart';
@@ -22,7 +21,6 @@ class DockerController {
   final DockerContainerService _containerService;
   final DockerImageService _imageService;
   final DockerResourceService _resourceService;
-  final DockerComposeService _composeService;
   final SharedSshSessionResolver _sessionResolver;
 
   DockerController(
@@ -30,10 +28,9 @@ class DockerController {
     this._containerService,
     this._imageService,
     this._resourceService,
-    this._composeService,
   ) : _sessionResolver = SharedSshSessionResolver(
         _sshService,
-        type: SharedSshSessionType.shell,
+        type: SharedSshSessionType.sftp,
       );
 
   Future<SshSession> _resolveSession(Request request) async {
@@ -144,160 +141,6 @@ class DockerController {
         return Result.ok({'available': available});
       } catch (e) {
         return Result.ok({'available': false});
-      }
-    });
-  }
-
-  /// 检查 Docker Compose 可用性
-  Future<Response> checkCompose(Request request) async {
-    return _withSession(request, (session) async {
-      try {
-        final available = await _composeService.isComposeAvailable(session);
-        return Result.ok({'available': available});
-      } catch (e) {
-        return Result.ok({'available': false});
-      }
-    });
-  }
-
-  /// 获取 Compose 项目列表
-  Future<Response> listComposeProjects(Request request) async {
-    return _withSession(request, (session) async {
-      try {
-        final projects = await _composeService.listComposeProjects(session);
-        return Result.ok(projects);
-      } catch (e) {
-        return Result.fail(500, e.toString());
-      }
-    });
-  }
-
-  /// 创建 Compose 项目
-  Future<Response> createComposeProject(Request request) async {
-    return _withSession(request, (session) async {
-      try {
-        final body = await request.readAsString();
-        final data = jsonDecode(body) as Map<String, dynamic>;
-        final result = await _composeService.createComposeProject(
-          session,
-          data,
-        );
-        return Result.ok(result);
-      } catch (e) {
-        return Result.fail(500, e.toString());
-      }
-    });
-  }
-
-  /// 创建 Compose 项目并通过 SSE 返回实时输出
-  Future<Response> createComposeProjectStream(Request request) async {
-    return _withSession(request, (session) async {
-      try {
-        final body = await request.readAsString();
-        final decoded = jsonDecode(body);
-        if (decoded is! Map<String, dynamic>) {
-          return Result.fail(400, 'Invalid compose project payload');
-        }
-
-        return Response.ok(
-          _encodeComposeCreateEvents(
-            _composeService.createComposeProjectStream(session, decoded),
-          ),
-          headers: {
-            'content-type': 'text/event-stream; charset=utf-8',
-            'cache-control': 'no-cache, no-transform',
-            'x-accel-buffering': 'no',
-          },
-        );
-      } on FormatException catch (error) {
-        return Result.fail(400, error.message);
-      } catch (error) {
-        return Result.fail(500, error.toString());
-      }
-    });
-  }
-
-  Stream<List<int>> _encodeComposeCreateEvents(
-    Stream<DockerComposeCreateEvent> events,
-  ) async* {
-    try {
-      await for (final event in events) {
-        yield encodeServerSentEvent(event.event, event.data);
-      }
-    } catch (error) {
-      yield encodeServerSentEvent('error', {'message': error.toString()});
-    }
-  }
-
-  /// 获取 Compose 项目服务
-  Future<Response> listComposeServices(Request request) async {
-    final payload = await _parseComposeProjectPayload(request);
-    if (payload == null) {
-      return Result.fail(400, 'Missing or invalid compose project payload');
-    }
-
-    return _withSession(request, (session) async {
-      try {
-        final services = await _composeService.listComposeServices(
-          session,
-          projectName: payload.projectName,
-          configFiles: payload.configFiles,
-          workingDir: payload.workingDir,
-        );
-        return Result.ok(services);
-      } catch (e) {
-        return Result.fail(500, e.toString());
-      }
-    });
-  }
-
-  Future<Response> upComposeProject(Request request) async {
-    return _handleComposeProjectAction(
-      request,
-      _composeService.upComposeProject,
-    );
-  }
-
-  Future<Response> stopComposeProject(Request request) async {
-    return _handleComposeProjectAction(
-      request,
-      _composeService.stopComposeProject,
-    );
-  }
-
-  Future<Response> restartComposeProject(Request request) async {
-    return _handleComposeProjectAction(
-      request,
-      _composeService.restartComposeProject,
-    );
-  }
-
-  Future<Response> downComposeProject(Request request) async {
-    return _handleComposeProjectAction(
-      request,
-      _composeService.downComposeProject,
-    );
-  }
-
-  Future<Response> getComposeLogs(Request request) async {
-    final tail = _parseTail(request.url.queryParameters['tail']);
-    final payload = await _parseComposeProjectPayload(request);
-    if (payload == null) {
-      return Result.fail(400, 'Missing or invalid compose project payload');
-    }
-
-    return _withSession(request, (session) async {
-      try {
-        final logs = await _composeService.getComposeLogs(
-          session,
-          projectName: payload.projectName,
-          configFiles: payload.configFiles,
-          workingDir: payload.workingDir,
-          tail: tail,
-        );
-        return Result.ok({'logs': logs});
-      } catch (e) {
-        return Result.fail(500, e.toString());
       }
     });
   }
@@ -1033,36 +876,6 @@ class DockerController {
     });
   }
 
-  Future<Response> _handleComposeProjectAction(
-    Request request,
-    Future<String> Function(
-      SshSession, {
-      required String projectName,
-      required List<String> configFiles,
-      String? workingDir,
-    })
-    action,
-  ) async {
-    final payload = await _parseComposeProjectPayload(request);
-    if (payload == null) {
-      return Result.fail(400, 'Missing or invalid compose project payload');
-    }
-
-    return _withSession(request, (session) async {
-      try {
-        final output = await action(
-          session,
-          projectName: payload.projectName,
-          configFiles: payload.configFiles,
-          workingDir: payload.workingDir,
-        );
-        return Result.ok({'success': true, 'output': output});
-      } catch (e) {
-        return Result.fail(500, e.toString());
-      }
-    });
-  }
-
   Future<List<String>?> _parseIds(Request request) async {
     try {
       final body = await request.readAsString();
@@ -1076,38 +889,6 @@ class DockerController {
           .map((id) => id.toString().trim())
           .where((id) => id.isNotEmpty)
           .toList();
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<_ComposeProjectPayload?> _parseComposeProjectPayload(
-    Request request,
-  ) async {
-    try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
-      final projectName = data['projectName']?.toString().trim() ?? '';
-      final workingDir = data['workingDir']?.toString().trim();
-      final configFilesValue = data['configFiles'];
-      final configFiles = configFilesValue is List
-          ? configFilesValue
-                .map((item) => item.toString().trim())
-                .where((item) => item.isNotEmpty)
-                .toList()
-          : <String>[];
-
-      if (projectName.isEmpty || configFiles.isEmpty) {
-        return null;
-      }
-
-      return _ComposeProjectPayload(
-        projectName: projectName,
-        configFiles: configFiles,
-        workingDir: workingDir == null || workingDir.isEmpty
-            ? null
-            : workingDir,
-      );
     } catch (_) {
       return null;
     }
@@ -1247,18 +1028,6 @@ class _PaginationParams {
   final int pageSize;
 
   const _PaginationParams({required this.page, required this.pageSize});
-}
-
-class _ComposeProjectPayload {
-  final String projectName;
-  final List<String> configFiles;
-  final String? workingDir;
-
-  const _ComposeProjectPayload({
-    required this.projectName,
-    required this.configFiles,
-    this.workingDir,
-  });
 }
 
 class _NetworkContainerPayload {

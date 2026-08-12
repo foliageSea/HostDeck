@@ -11,7 +11,6 @@ import 'package:host_deck/server/features/access/access_controller.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/auth/auth_controller.dart';
-import 'package:host_deck/server/features/docker/docker_compose_service.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_repository.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_service.dart';
@@ -21,6 +20,7 @@ import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
 import 'package:host_deck/server/features/docker/docker_image_service.dart';
 import 'package:host_deck/server/features/docker/docker_resource_service.dart';
+import 'package:host_deck/server/features/docker/docker_socket_tunnel_service.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
 import 'package:host_deck/server/features/files/file_service.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_controller.dart';
@@ -48,6 +48,7 @@ class ServerContainer {
   final GetIt _getIt;
   final DatabaseService databaseService;
   final PortForwardService portForwardService;
+  final DockerSocketTunnelService dockerSocketTunnelService;
   final ApiRoutes apiRoutes;
   final AccessAuthService accessService;
   final OperationLogService operationLogService;
@@ -58,6 +59,7 @@ class ServerContainer {
     required GetIt getIt,
     required this.databaseService,
     required this.portForwardService,
+    required this.dockerSocketTunnelService,
     required this.apiRoutes,
     required this.accessService,
     required this.operationLogService,
@@ -130,8 +132,14 @@ class ServerContainer {
     getIt.registerLazySingleton<FileService>(
       () => FileService(getIt<SshRepository>()),
     );
+    getIt.registerLazySingleton<DockerSocketTunnelService>(
+      DockerSocketTunnelService.new,
+    );
     getIt.registerLazySingleton<DockerEngineRepository>(
-      () => DockerEngineRepository(getIt<SshRepository>()),
+      () => DockerEngineRepository(
+        tunnelService: getIt<DockerSocketTunnelService>(),
+      ),
+      dispose: (repository) => repository.close(),
     );
     getIt.registerLazySingleton<DockerEngineMapper>(DockerEngineMapper.new);
     getIt.registerLazySingleton<DockerContainerService>(
@@ -151,9 +159,6 @@ class ServerContainer {
         getIt<DockerEngineRepository>(),
         getIt<DockerEngineMapper>(),
       ),
-    );
-    getIt.registerLazySingleton<DockerComposeService>(
-      () => DockerComposeService(getIt<SshRepository>()),
     );
     getIt.registerLazySingleton<ProcessService>(
       () => ProcessService(getIt<SshRepository>()),
@@ -205,7 +210,6 @@ class ServerContainer {
           getIt<DockerContainerService>(),
           getIt<DockerImageService>(),
           getIt<DockerResourceService>(),
-          getIt<DockerComposeService>(),
         ),
         cronTaskController: CronTaskController(
           getIt<SshService>(),
@@ -232,6 +236,7 @@ class ServerContainer {
       getIt: getIt,
       databaseService: getIt<DatabaseService>(),
       portForwardService: getIt<PortForwardService>(),
+      dockerSocketTunnelService: getIt<DockerSocketTunnelService>(),
       accessService: getIt<AccessAuthService>(),
       operationLogService: getIt<OperationLogService>(),
       portForwardRepository: getIt<PortForwardRepository>(),
@@ -241,6 +246,7 @@ class ServerContainer {
   }
 
   Future<void> dispose() async {
+    await dockerSocketTunnelService.stopAll();
     await portForwardService.stopAll();
     databaseService.close();
     await _getIt.reset(dispose: true);

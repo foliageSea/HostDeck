@@ -11,7 +11,6 @@ export type DockerTabName =
   | 'images'
   | 'networks'
   | 'volumes'
-  | 'compose'
 
 export interface DangerActionConfirmOptions {
   title: string

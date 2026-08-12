@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
-const { warning } = vi.hoisted(() => ({ warning: vi.fn() }))
+const { openWindow, warning } = vi.hoisted(() => ({
+  openWindow: vi.fn(),
+  warning: vi.fn(),
+}))
 
 vi.mock('@/api/docker', () => ({ dockerApi: {} }))
 vi.mock('@/lib/ui', () => ({
@@ -9,7 +12,8 @@ vi.mock('@/lib/ui', () => ({
     message: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }),
 }))
-vi.mock('@/stores/desktop', () => ({ useDesktopStore: () => ({ openWindow: vi.fn() }) }))
+vi.mock('@/stores/desktop', () => ({ useDesktopStore: () => ({ openWindow }) }))
+vi.mock('@/stores/docker-output', () => ({ useDockerOutputStore: () => ({}) }))
 vi.mock('@/stores/ssh', () => ({
   useSshStore: () => ({ connectionId: 'conn-1', host: 'host.example', username: 'deploy' }),
 }))
@@ -45,5 +49,34 @@ describe('useDockerView dangerous actions', () => {
         title: '删除容器',
       }),
     )
+  })
+
+  it('opens the existing SSH terminal for a running container', async () => {
+    openWindow.mockReset()
+    const controller = useDockerView({
+      connectionId: 'conn-1',
+      host: 'host.example',
+      username: 'deploy',
+    })
+
+    await controller.enterShell({
+      createdAt: '',
+      id: 'container-1',
+      image: 'nginx:latest',
+      name: 'web',
+      networks: [],
+      ports: [],
+      state: 'running',
+      status: 'Up',
+    })
+
+    expect(openWindow).toHaveBeenCalledWith('terminal', {
+      connectionId: 'conn-1',
+      host: 'host.example',
+      startupCommand:
+        'docker exec -it container-1 bash || docker exec -it container-1 sh',
+      title: 'Shell · web',
+      username: 'deploy',
+    })
   })
 })

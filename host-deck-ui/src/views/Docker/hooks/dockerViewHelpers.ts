@@ -1,9 +1,3 @@
-import type {
-  DockerComposeProject,
-  DockerComposeProjectPayload,
-  DockerComposeService,
-} from '@/api/docker'
-
 import type { DockerTabName } from './dockerViewTypes'
 
 export function formatTime(value?: string) {
@@ -29,57 +23,12 @@ export function formatDateTime(value: Date | null) {
 
 export function createLoadedTabs(): Record<DockerTabName, boolean> {
   return {
-    compose: false,
     containers: false,
     images: false,
     networks: false,
     overview: false,
     volumes: false,
   }
-}
-
-export function getComposeConfigFiles(project: DockerComposeProject) {
-  return project.configFiles
-    .split(',')
-    .map((file) => file.trim())
-    .filter(Boolean)
-}
-
-export function getComposeProjectPayload(
-  project: DockerComposeProject,
-): DockerComposeProjectPayload | null {
-  const configFiles = getComposeConfigFiles(project)
-  if (!project.name || configFiles.length === 0) {
-    return null
-  }
-
-  return {
-    configFiles,
-    projectName: project.name,
-    workingDir: project.workingDir || undefined,
-  }
-}
-
-export function getComposeStatusType(project: DockerComposeProject) {
-  const status = project.status.toLowerCase()
-  if (status.includes('running')) {
-    return 'success'
-  }
-  if (status.includes('exited') || status.includes('stopped')) {
-    return 'warning'
-  }
-  return 'default'
-}
-
-export function getComposeServiceStatusType(service: DockerComposeService) {
-  const state = `${service.state} ${service.status}`.toLowerCase()
-  if (state.includes('running')) {
-    return 'success'
-  }
-  if (state.includes('exit') || state.includes('stop')) {
-    return 'warning'
-  }
-  return 'default'
 }
 
 export function parseContainerHostPort(portText: string) {

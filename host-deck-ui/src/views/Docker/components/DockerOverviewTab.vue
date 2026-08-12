@@ -24,27 +24,7 @@ const overviewCards = computed(() => [
     label: '存储卷数',
     value: props.controller.volumes.length,
   },
-  {
-    label: '编排项目',
-    value: props.controller.composeProjects.length,
-  },
 ])
-
-const composeStatusText = computed(() => {
-  if (props.controller.composeAvailable === null) {
-    return '检测中'
-  }
-
-  return props.controller.composeAvailable ? '可用' : '不可用'
-})
-
-const composeStatusType = computed(() => {
-  if (props.controller.composeAvailable === null) {
-    return 'default'
-  }
-
-  return props.controller.composeAvailable ? 'success' : 'warning'
-})
 </script>
 
 <template>
@@ -71,7 +51,6 @@ const composeStatusType = computed(() => {
         </template>
 
         <template #meta>
-          <NTag round size="small" :type="composeStatusType">Compose {{ composeStatusText }}</NTag>
           <NTag round size="small">容器 {{ controller.containerSummary.total }}</NTag>
           <NTag round size="small">镜像 {{ controller.imageSummary.total }}</NTag>
         </template>
@@ -80,7 +59,7 @@ const composeStatusType = computed(() => {
 
     <DockerSummaryCards :controller="controller" />
 
-    <div class="grid grid-cols-4 gap-[12px] lt-md:grid-cols-2 lt-sm:grid-cols-1">
+    <div class="grid grid-cols-3 gap-[12px] lt-md:grid-cols-2 lt-sm:grid-cols-1">
       <NCard
         v-for="card in overviewCards"
         :key="card.label"
