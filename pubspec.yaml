@@ -35,6 +35,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   get: ^4.7.3
+  get_it: ^9.2.1
   shelf_plus: ^1.11.0
   shelf_web_socket: ^3.0.0
   dartssh2: ^2.22.0

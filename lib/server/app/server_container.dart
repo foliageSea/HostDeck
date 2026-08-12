@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:host_deck/server/core/database/database_service.dart';
@@ -44,6 +45,7 @@ import 'package:host_deck/server/routes/api_routes.dart';
 import 'package:host_deck/utils/app_settings.dart';
 
 class ServerContainer {
+  final GetIt _getIt;
   final DatabaseService databaseService;
   final PortForwardService portForwardService;
   final ApiRoutes apiRoutes;
@@ -53,6 +55,7 @@ class ServerContainer {
   final ServerRepository serverRepository;
 
   ServerContainer._({
+    required GetIt getIt,
     required this.databaseService,
     required this.portForwardService,
     required this.apiRoutes,
@@ -60,7 +63,7 @@ class ServerContainer {
     required this.operationLogService,
     required this.portForwardRepository,
     required this.serverRepository,
-  });
+  }) : _getIt = getIt;
 
   static Future<ServerContainer> create({
     required String? dataDir,
@@ -71,110 +74,175 @@ class ServerContainer {
     String? apiToken,
     bool secureCookies = false,
   }) async {
-    final databaseService = DatabaseService(dataDir: dataDir);
     AppSettings.configure(dataDir: dataDir);
-    try {
-      await databaseService.init();
-      log.info('Database initialized.');
-    } catch (e) {
-      log.severe('Database initialization failed: $e');
-    }
+    final getIt = GetIt.asNewInstance();
 
-    final sshRepository = SshRepository();
-    final accessService = AccessAuthService(
-      password: adminPassword,
-      apiToken: apiToken,
-      secureCookies: secureCookies,
+    getIt.registerSingletonAsync<DatabaseService>(() async {
+      final databaseService = DatabaseService(dataDir: dataDir);
+      try {
+        await databaseService.init();
+        log.info('Database initialized.');
+      } catch (e) {
+        log.severe('Database initialization failed: $e');
+      }
+      return databaseService;
+    });
+    getIt.registerLazySingleton<SshRepository>(SshRepository.new);
+    getIt.registerLazySingleton<SshService>(SshService.new);
+    getIt.registerLazySingleton<AccessAuthService>(
+      () => AccessAuthService(
+        password: adminPassword,
+        apiToken: apiToken,
+        secureCookies: secureCookies,
+      ),
     );
-    final serverRepository = ServerRepository(databaseService);
-    final portForwardRepository = PortForwardRepository(databaseService);
-    final operationLogRepository = OperationLogRepository(databaseService);
-    final terminalSnippetRepository = TerminalSnippetRepository(
-      databaseService,
+    getIt.registerLazySingleton<ServerRepository>(
+      () => ServerRepository(getIt<DatabaseService>()),
     );
-    final cronTaskRepository = CronTaskRepository(databaseService);
-    final operationLogService = OperationLogService(operationLogRepository);
-    final sshService = SshService();
-    final monitorHistoryService = MonitorHistoryService();
-    final monitorService = MonitorService(sshRepository);
-    final cronTaskService = CronTaskService(sshRepository, cronTaskRepository);
-    final agentService = AgentService(sshRepository);
-    final fileService = FileService(sshRepository);
-    final dockerEngineRepository = DockerEngineRepository(sshRepository);
-    final dockerEngineMapper = DockerEngineMapper();
-    final dockerContainerService = DockerContainerService(
-      dockerEngineRepository,
-      dockerEngineMapper,
+    getIt.registerLazySingleton<PortForwardRepository>(
+      () => PortForwardRepository(getIt<DatabaseService>()),
     );
-    final dockerImageService = DockerImageService(
-      dockerEngineRepository,
-      dockerEngineMapper,
+    getIt.registerLazySingleton<OperationLogRepository>(
+      () => OperationLogRepository(getIt<DatabaseService>()),
     );
-    final dockerResourceService = DockerResourceService(
-      dockerEngineRepository,
-      dockerEngineMapper,
+    getIt.registerLazySingleton<TerminalSnippetRepository>(
+      () => TerminalSnippetRepository(getIt<DatabaseService>()),
     );
-    final dockerComposeService = DockerComposeService(sshRepository);
-    final processService = ProcessService(sshRepository);
-    portForwardRepository.setAllDisabled();
-    final portForwardService = PortForwardService(
-      sshService,
-      onRunningChanged: portForwardRepository.setEnabled,
+    getIt.registerLazySingleton<CronTaskRepository>(
+      () => CronTaskRepository(getIt<DatabaseService>()),
     );
-
-    return ServerContainer._(
-      databaseService: databaseService,
-      portForwardService: portForwardService,
-      accessService: accessService,
-      operationLogService: operationLogService,
-      portForwardRepository: portForwardRepository,
-      serverRepository: serverRepository,
-      apiRoutes: ApiRoutes(
-        accessController: AccessController(accessService),
+    getIt.registerLazySingleton<OperationLogService>(
+      () => OperationLogService(getIt<OperationLogRepository>()),
+    );
+    getIt.registerLazySingleton<MonitorHistoryService>(
+      MonitorHistoryService.new,
+    );
+    getIt.registerLazySingleton<MonitorService>(
+      () => MonitorService(getIt<SshRepository>()),
+    );
+    getIt.registerLazySingleton<CronTaskService>(
+      () =>
+          CronTaskService(getIt<SshRepository>(), getIt<CronTaskRepository>()),
+    );
+    getIt.registerLazySingleton<AgentService>(
+      () => AgentService(getIt<SshRepository>()),
+    );
+    getIt.registerLazySingleton<FileService>(
+      () => FileService(getIt<SshRepository>()),
+    );
+    getIt.registerLazySingleton<DockerEngineRepository>(
+      () => DockerEngineRepository(getIt<SshRepository>()),
+    );
+    getIt.registerLazySingleton<DockerEngineMapper>(DockerEngineMapper.new);
+    getIt.registerLazySingleton<DockerContainerService>(
+      () => DockerContainerService(
+        getIt<DockerEngineRepository>(),
+        getIt<DockerEngineMapper>(),
+      ),
+    );
+    getIt.registerLazySingleton<DockerImageService>(
+      () => DockerImageService(
+        getIt<DockerEngineRepository>(),
+        getIt<DockerEngineMapper>(),
+      ),
+    );
+    getIt.registerLazySingleton<DockerResourceService>(
+      () => DockerResourceService(
+        getIt<DockerEngineRepository>(),
+        getIt<DockerEngineMapper>(),
+      ),
+    );
+    getIt.registerLazySingleton<DockerComposeService>(
+      () => DockerComposeService(getIt<SshRepository>()),
+    );
+    getIt.registerLazySingleton<ProcessService>(
+      () => ProcessService(getIt<SshRepository>()),
+    );
+    getIt.registerLazySingleton<PortForwardService>(
+      () => PortForwardService(
+        getIt<SshService>(),
+        onRunningChanged: getIt<PortForwardRepository>().setEnabled,
+      ),
+    );
+    getIt.registerLazySingleton<LogExportService>(
+      () => LogExportService(
+        logDirectory: logDir == null ? null : Directory(logDir),
+        flushLogs: flushLogs,
+        log: log,
+      ),
+    );
+    getIt.registerLazySingleton<ApiRoutes>(
+      () => ApiRoutes(
+        accessController: AccessController(getIt<AccessAuthService>()),
         authController: AuthController(
-          sshService,
-          monitorHistoryService,
-          serverRepository,
+          getIt<SshService>(),
+          getIt<MonitorHistoryService>(),
+          getIt<ServerRepository>(),
         ),
-        agentController: AgentController(sshService, agentService),
+        agentController: AgentController(
+          getIt<SshService>(),
+          getIt<AgentService>(),
+        ),
         systemController: SystemController(
-          sshService,
-          monitorService,
-          monitorHistoryService,
+          getIt<SshService>(),
+          getIt<MonitorService>(),
+          getIt<MonitorHistoryService>(),
         ),
-        fileController: FileController(sshService, fileService),
-        operationLogController: OperationLogController(operationLogRepository),
+        fileController: FileController(
+          getIt<SshService>(),
+          getIt<FileService>(),
+        ),
+        operationLogController: OperationLogController(
+          getIt<OperationLogRepository>(),
+        ),
         terminalController: TerminalController(
-          sshService,
-          terminalSnippetRepository,
+          getIt<SshService>(),
+          getIt<TerminalSnippetRepository>(),
         ),
-        serverController: ServerController(serverRepository),
+        serverController: ServerController(getIt<ServerRepository>()),
         dockerController: DockerController(
-          sshService,
-          dockerContainerService,
-          dockerImageService,
-          dockerResourceService,
-          dockerComposeService,
+          getIt<SshService>(),
+          getIt<DockerContainerService>(),
+          getIt<DockerImageService>(),
+          getIt<DockerResourceService>(),
+          getIt<DockerComposeService>(),
         ),
         cronTaskController: CronTaskController(
-          sshService,
-          cronTaskRepository,
-          cronTaskService,
+          getIt<SshService>(),
+          getIt<CronTaskRepository>(),
+          getIt<CronTaskService>(),
         ),
-        processController: ProcessController(sshService, processService),
-        runtimeController: RuntimeController(sshService),
-        settingsController: SettingsController(
-          LogExportService(
-            logDirectory: logDir == null ? null : Directory(logDir),
-            flushLogs: flushLogs,
-            log: log,
-          ),
+        processController: ProcessController(
+          getIt<SshService>(),
+          getIt<ProcessService>(),
         ),
+        runtimeController: RuntimeController(getIt<SshService>()),
+        settingsController: SettingsController(getIt<LogExportService>()),
         portForwardController: PortForwardController(
-          portForwardRepository,
-          portForwardService,
+          getIt<PortForwardRepository>(),
+          getIt<PortForwardService>(),
         ),
       ),
     );
+
+    await getIt.allReady();
+    getIt<PortForwardRepository>().setAllDisabled();
+
+    return ServerContainer._(
+      getIt: getIt,
+      databaseService: getIt<DatabaseService>(),
+      portForwardService: getIt<PortForwardService>(),
+      accessService: getIt<AccessAuthService>(),
+      operationLogService: getIt<OperationLogService>(),
+      portForwardRepository: getIt<PortForwardRepository>(),
+      serverRepository: getIt<ServerRepository>(),
+      apiRoutes: getIt<ApiRoutes>(),
+    );
+  }
+
+  Future<void> dispose() async {
+    await portForwardService.stopAll();
+    databaseService.close();
+    await _getIt.reset(dispose: true);
   }
 }

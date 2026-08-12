@@ -102,8 +102,7 @@ class ServerService {
         _log.warning('Failed to delete HostDeck discovery file: $e');
       }
     }
-    await _container?.portForwardService.stopAll();
-    _container?.databaseService.close();
+    await _container?.dispose();
     _container = null;
   }
 
