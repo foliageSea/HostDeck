@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, h } from 'vue'
-import { ApplicationWeb, Logout, Moon, Settings, Sun } from '@vicons/carbon'
+import { computed, h, ref } from 'vue'
+import { ApplicationWeb, Information, Logout, Moon, Settings, Sun } from '@vicons/carbon'
 import { NIcon } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
 import { getUiApi } from '@/lib/ui'
@@ -14,6 +14,7 @@ import type { DesktopAppId } from '@/types/desktop'
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const desktopStore = useDesktopStore()
+const aboutVisible = ref(false)
 
 const currentTime = computed(() =>
   new Intl.DateTimeFormat('zh-CN', {
@@ -55,6 +56,7 @@ function renderMenuIcon(icon: typeof Settings) {
 const appMenuOptions = computed<DropdownOption[]>(() => [
   { key: 'runtime-sessions', label: '会话管理', icon: renderMenuIcon(ApplicationWeb) },
   { key: 'settings', label: '设置', icon: renderMenuIcon(Settings) },
+  { key: 'about', label: '关于', icon: renderMenuIcon(Information) },
 ])
 const hostLabel = computed(() => sshStore.host || '未连接主机')
 const monitorData = computed(() => sshStore.monitorData)
@@ -95,6 +97,11 @@ function formatSpeed(value: number) {
 }
 
 function handleAppMenuSelect(key: string | number) {
+  if (key === 'about') {
+    aboutVisible.value = true
+    return
+  }
+
   desktopStore.openWindow(key as DesktopAppId)
 }
 
@@ -234,5 +241,18 @@ function disconnect() {
       </NButton>
       <span>{{ currentTime }}</span>
     </div>
+
+    <NModal v-model:show="aboutVisible" preset="card" title="关于 HostDeck" class="w-[min(400px,calc(100vw-32px))]">
+      <div class="flex flex-col items-center gap-[16px] py-[8px] text-center">
+        <img class="h-[56px] w-[56px] object-contain" src="/favicon.png" alt="HostDeck" />
+        <div>
+          <h2 class="m-0 text-[18px] font-700">HostDeck</h2>
+          <p class="mb-0 mt-[4px] text-[13px] text-[rgba(100,116,139,0.9)]">远程主机工作台</p>
+        </div>
+        <NButton tag="a" href="https://github.com/foliageSea/HostDeck" target="_blank" rel="noopener noreferrer">
+          项目仓库
+        </NButton>
+      </div>
+    </NModal>
   </header>
 </template>
