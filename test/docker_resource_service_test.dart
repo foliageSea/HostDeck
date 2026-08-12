@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
-import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
@@ -78,8 +77,6 @@ void main() {
   });
 }
 
-class _FakeSshRepository extends SshRepository {}
-
 class _FakeSshSession implements SshSession {
   @override
   final String id = 'session-1';
@@ -123,7 +120,7 @@ class _FakeDockerEngineRepository extends DockerEngineRepository {
   _FakeDockerEngineRepository({
     required this.jsonLists,
     required this.jsonObjects,
-  }) : super(_FakeSshRepository());
+  }) : super();
 
   final Map<String, List<dynamic>> jsonLists;
   final Map<String, Map<String, dynamic>> jsonObjects;

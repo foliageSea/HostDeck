@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/features/docker/docker_container_service.dart';
 import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
@@ -9,7 +8,7 @@ import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
 void main() {
   group('DockerContainerService logs decoding', () {
     final service = DockerContainerService(
-      DockerEngineRepository(SshRepository()),
+      DockerEngineRepository(),
       DockerEngineMapper(),
     );
 

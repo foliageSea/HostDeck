@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/features/docker/docker_socket_tunnel_service.dart';
+
+typedef DockerEngineEndpointProvider = Future<Uri> Function(SshSession session);
+typedef DockerEngineHttpClientFactory = HttpClient Function();
 
 class DockerEngineHttpException implements Exception {
   final int statusCode;
@@ -48,15 +53,22 @@ class DockerEngineStreamEvent {
 }
 
 class DockerEngineRepository {
-  static const _statusMarker = '__HOST_DECK_HTTP_STATUS__';
+  final DockerEngineEndpointProvider _endpointProvider;
+  final HttpClient _httpClient;
 
-  final SshRepository _sshRepository;
-  final String socketPath;
+  DockerEngineRepository({
+    DockerSocketTunnelService? tunnelService,
+    DockerEngineEndpointProvider? endpointProvider,
+    DockerEngineHttpClientFactory? httpClientFactory,
+  }) : _endpointProvider =
+           endpointProvider ??
+           (tunnelService ?? DockerSocketTunnelService()).endpoint,
+       _httpClient = (httpClientFactory ?? HttpClient.new)() {
+    _httpClient.autoUncompress = false;
+    _httpClient.maxConnectionsPerHost = 4;
+  }
 
-  DockerEngineRepository(
-    this._sshRepository, {
-    this.socketPath = '/var/run/docker.sock',
-  });
+  void close() => _httpClient.close(force: true);
 
   Future<bool> ping(SshSession session) async {
     try {
@@ -121,13 +133,7 @@ class DockerEngineRepository {
       body: body,
       headers: headers,
     );
-
-    final trimmed = response.trim();
-    if (trimmed.isEmpty) {
-      return null;
-    }
-
-    return jsonDecode(trimmed);
+    return response.trim().isEmpty ? null : jsonDecode(response);
   }
 
   Future<Map<String, dynamic>> requestJsonObject(
@@ -146,11 +152,9 @@ class DockerEngineRepository {
       body: body,
       headers: headers,
     );
-
     if (decoded is Map) {
       return Map<String, dynamic>.from(decoded);
     }
-
     throw Exception('Docker Engine API did not return a JSON object');
   }
 
@@ -170,11 +174,9 @@ class DockerEngineRepository {
       body: body,
       headers: headers,
     );
-
     if (decoded is List) {
       return decoded;
     }
-
     throw Exception('Docker Engine API did not return a JSON array');
   }
 
@@ -186,44 +188,45 @@ class DockerEngineRepository {
     Object? body,
     Map<String, String>? headers,
   }) async {
-    final command = _buildRequestCommand(
+    final response = await _send(
+      session,
       method: method,
       path: path,
       queryParameters: queryParameters,
       body: body,
       headers: headers,
-      mergeStderr: true,
     );
-    final output = await _sshRepository.execBytes(session, command);
-    final markerBytes = Uint8List.fromList(utf8.encode('\n$_statusMarker:'));
-    final markerIndex = _lastIndexOfBytes(output, markerBytes);
+    final bytes = await _readBytes(response);
+    _throwForStatus(response.statusCode, bytes);
+    return DockerEngineResponse(
+      statusCode: response.statusCode,
+      bodyBytes: bytes,
+    );
+  }
 
-    if (markerIndex < 0) {
-      final outputText = utf8.decode(output, allowMalformed: true);
-      final message = outputText.trim().isEmpty
-          ? 'Docker Engine API request failed without a response marker'
-          : outputText.trim();
-      throw Exception(message);
+  Future<Stream<Uint8List>> requestByteStream(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+  }) async {
+    final response = await _send(
+      session,
+      method: method,
+      path: path,
+      queryParameters: queryParameters,
+      body: body,
+      headers: headers,
+    );
+    if (response.statusCode >= 400) {
+      final bytes = await _readBytes(response);
+      _throwForStatus(response.statusCode, bytes);
     }
-
-    final bodyBytes = Uint8List.sublistView(output, 0, markerIndex);
-    final statusStart = markerIndex + markerBytes.length;
-    final statusBytes = Uint8List.sublistView(output, statusStart);
-    final statusText = utf8.decode(statusBytes, allowMalformed: true).trim();
-    final statusCode = int.tryParse(statusText);
-    if (statusCode == null) {
-      throw Exception('Invalid Docker Engine API status code: $statusText');
-    }
-
-    if (statusCode >= 400) {
-      final bodyText = utf8.decode(bodyBytes, allowMalformed: true);
-      throw DockerEngineHttpException(
-        statusCode,
-        _extractErrorMessage(bodyText),
-      );
-    }
-
-    return DockerEngineResponse(statusCode: statusCode, bodyBytes: bodyBytes);
+    return response.map(
+      (chunk) => chunk is Uint8List ? chunk : Uint8List.fromList(chunk),
+    );
   }
 
   Stream<DockerEngineStreamEvent> requestStream(
@@ -235,164 +238,93 @@ class DockerEngineRepository {
     Map<String, String>? headers,
     Duration timeout = const Duration(hours: 1),
   }) async* {
-    final command = _buildRequestCommand(
+    final response = await _send(
+      session,
       method: method,
       path: path,
       queryParameters: queryParameters,
       body: body,
       headers: headers,
-      mergeStderr: false,
     );
-    const retainedTailLength = 128;
-    final stderr = StringBuffer();
-    var pending = '';
-    int? exitCode;
-
-    await for (final event in _sshRepository.execStream(
-      session,
-      command,
-      timeout: timeout,
-    )) {
-      if (event.completed) {
-        exitCode = event.exitCode;
-        continue;
-      }
-
-      if (event.source == SshExecStreamSource.stderr) {
-        stderr.write(event.text);
-        yield DockerEngineStreamEvent.output(
-          DockerEngineStreamSource.stderr,
-          event.text,
-        );
-        continue;
-      }
-
-      pending += event.text;
-      if (pending.length > retainedTailLength) {
-        final emitLength = pending.length - retainedTailLength;
-        yield DockerEngineStreamEvent.output(
-          DockerEngineStreamSource.body,
-          pending.substring(0, emitLength),
-        );
-        pending = pending.substring(emitLength);
-      }
+    if (response.statusCode >= 400) {
+      final bytes = await _readBytes(response);
+      _throwForStatus(response.statusCode, bytes);
     }
 
-    final marker = '\n$_statusMarker:';
-    final markerIndex = pending.lastIndexOf(marker);
-    if (markerIndex < 0) {
-      final message = stderr.toString().trim();
-      throw Exception(
-        message.isEmpty
-            ? 'Docker Engine API request failed without a response marker'
-            : message,
-      );
+    await for (final text in const Utf8Decoder(
+      allowMalformed: true,
+    ).bind(response).timeout(timeout)) {
+      yield DockerEngineStreamEvent.output(DockerEngineStreamSource.body, text);
     }
-
-    final remainingBody = pending.substring(0, markerIndex);
-    if (remainingBody.isNotEmpty) {
-      yield DockerEngineStreamEvent.output(
-        DockerEngineStreamSource.body,
-        remainingBody,
-      );
-    }
-    final statusText = pending.substring(markerIndex + marker.length).trim();
-    final statusCode = int.tryParse(statusText);
-    if (statusCode == null || statusCode == 0) {
-      throw Exception('Invalid Docker Engine API status code: $statusText');
-    }
-
-    yield DockerEngineStreamEvent.completed(statusCode, exitCode);
+    yield DockerEngineStreamEvent.completed(response.statusCode, 0);
   }
 
-  String _buildRequestCommand({
+  Future<HttpClientResponse> _send(
+    SshSession session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
     Object? body,
     Map<String, String>? headers,
-    required bool mergeStderr,
-  }) {
-    final normalizedHeaders = <String, String>{...?headers};
-    final args = <String>[
-      'curl',
-      '--silent',
-      '--show-error',
-      '--no-buffer',
-      '--globoff',
-      '--unix-socket ${_shellQuote(socketPath)}',
-      '-X ${_shellQuote(method.toUpperCase())}',
-      '--write-out ${_shellQuote('\n$_statusMarker:%{http_code}')}',
-    ];
+  }) async {
+    final endpoint = await _endpointProvider(session);
+    final uri = endpoint
+        .resolveUri(Uri.parse(path))
+        .replace(
+          queryParameters: queryParameters == null || queryParameters.isEmpty
+              ? null
+              : queryParameters,
+        );
+    final request = await _httpClient.openUrl(method.toUpperCase(), uri);
+    headers?.forEach(request.headers.set);
 
-    if (body != null && !normalizedHeaders.containsKey('Content-Type')) {
-      normalizedHeaders['Content-Type'] = 'application/json';
-    }
-    normalizedHeaders.forEach((key, value) {
-      args.add('-H ${_shellQuote('$key: $value')}');
-    });
     if (body != null) {
-      final encodedBody = body is String ? body : jsonEncode(body);
-      args.add('--data-binary ${_shellQuote(encodedBody)}');
+      if (!_hasHeader(headers, HttpHeaders.contentTypeHeader)) {
+        request.headers.contentType = body is Stream<List<int>>
+            ? ContentType.binary
+            : ContentType.json;
+      }
+      if (body is Stream<List<int>>) {
+        await request.addStream(body);
+      } else if (body is List<int>) {
+        request.add(body);
+      } else if (body is String) {
+        request.add(utf8.encode(body));
+      } else {
+        request.add(utf8.encode(jsonEncode(body)));
+      }
     }
-    args.add(_shellQuote(_buildUrl(path, queryParameters)));
-
-    final command = '${args.join(' ')}${mergeStderr ? ' 2>&1' : ''}';
-    return 'sh -lc ${_shellQuote(command)}';
+    return request.close();
   }
 
-  String _buildUrl(String path, Map<String, String>? queryParameters) {
-    final uri = Uri(
-      scheme: 'http',
-      host: 'localhost',
-      path: path,
-      queryParameters: queryParameters == null || queryParameters.isEmpty
-          ? null
-          : queryParameters,
-    );
-    return uri.toString();
+  bool _hasHeader(Map<String, String>? headers, String name) {
+    return headers?.keys.any((key) => key.toLowerCase() == name) ?? false;
   }
 
-  String _extractErrorMessage(String body) {
-    final trimmed = body.trim();
-    if (trimmed.isEmpty) {
-      return 'Docker Engine API returned an empty error response';
+  Future<Uint8List> _readBytes(Stream<List<int>> stream) async {
+    final builder = BytesBuilder(copy: false);
+    await for (final chunk in stream) {
+      builder.add(chunk);
     }
+    return builder.takeBytes();
+  }
 
+  void _throwForStatus(int statusCode, Uint8List bodyBytes) {
+    if (statusCode < 400) {
+      return;
+    }
+    final body = utf8.decode(bodyBytes, allowMalformed: true).trim();
+    var message = body.isEmpty
+        ? 'Docker Engine API returned an empty error response'
+        : body;
     try {
-      final decoded = jsonDecode(trimmed);
+      final decoded = jsonDecode(body);
       if (decoded is Map && decoded['message'] != null) {
-        return decoded['message'].toString();
+        message = decoded['message'].toString();
       }
     } catch (_) {
-      // Ignore JSON decode failure and fall back to the raw response body.
+      // Preserve a non-JSON Engine error response verbatim.
     }
-
-    return trimmed;
-  }
-
-  String _shellQuote(String value) {
-    return "'${value.replaceAll("'", "'\\''")}'";
-  }
-
-  int _lastIndexOfBytes(Uint8List bytes, Uint8List pattern) {
-    if (pattern.isEmpty || bytes.length < pattern.length) {
-      return -1;
-    }
-
-    for (var index = bytes.length - pattern.length; index >= 0; index--) {
-      var matched = true;
-      for (var offset = 0; offset < pattern.length; offset++) {
-        if (bytes[index + offset] != pattern[offset]) {
-          matched = false;
-          break;
-        }
-      }
-      if (matched) {
-        return index;
-      }
-    }
-
-    return -1;
+    throw DockerEngineHttpException(statusCode, message);
   }
 }

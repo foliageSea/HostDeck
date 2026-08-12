@@ -6,31 +6,6 @@ void registerDockerRoutes(Router router, DockerController controller) {
   router.post('/api/docker/session', controller.createSession);
   router.delete('/api/docker/session', controller.closeSession);
   router.get('/api/docker/check', controller.checkDocker);
-  router.get('/api/docker/compose/check', controller.checkCompose);
-  router.get('/api/docker/compose/projects', controller.listComposeProjects);
-  router.post('/api/docker/compose/project', controller.createComposeProject);
-  router.post(
-    '/api/docker/compose/project/stream',
-    controller.createComposeProjectStream,
-  );
-  router.post(
-    '/api/docker/compose/project/services',
-    controller.listComposeServices,
-  );
-  router.post('/api/docker/compose/project/up', controller.upComposeProject);
-  router.post(
-    '/api/docker/compose/project/stop',
-    controller.stopComposeProject,
-  );
-  router.post(
-    '/api/docker/compose/project/restart',
-    controller.restartComposeProject,
-  );
-  router.post(
-    '/api/docker/compose/project/down',
-    controller.downComposeProject,
-  );
-  router.post('/api/docker/compose/project/logs', controller.getComposeLogs);
   router.get('/api/docker/containers', controller.listContainers);
   router.get(
     '/api/docker/containers/<id>/inspect',

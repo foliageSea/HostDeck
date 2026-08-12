@@ -1,8 +1,6 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:dartssh2/dartssh2.dart';
 import 'package:logging/logging.dart';
 
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
@@ -165,80 +163,13 @@ class DockerImageService {
     SshSession session,
     Stream<List<int>> archive,
   ) async {
-    final permit = await session.acquireOperation();
-    SSHSession? process;
-    StreamSubscription<Uint8List>? stdoutSubscription;
-    StreamSubscription<Uint8List>? stderrSubscription;
-
-    try {
-      process = await session.client.execute(
-        'sh -lc ${_shellQuote('docker load')}',
-      );
-    } catch (_) {
-      permit.release();
-      rethrow;
-    }
-
-    final stdoutBuffer = BytesBuilder(copy: false);
-    final stderrBuffer = BytesBuilder(copy: false);
-    final stdoutDone = Completer<void>();
-    final stderrDone = Completer<void>();
-
-    stdoutSubscription = process.stdout.listen(
-      stdoutBuffer.add,
-      onError: stdoutDone.completeError,
-      onDone: stdoutDone.complete,
+    return _engineRepository.requestText(
+      session,
+      method: 'POST',
+      path: '/images/load',
+      body: archive,
+      headers: {'Content-Type': 'application/x-tar'},
     );
-    stderrSubscription = process.stderr.listen(
-      stderrBuffer.add,
-      onError: stderrDone.completeError,
-      onDone: stderrDone.complete,
-    );
-
-    try {
-      await process.stdin.addStream(
-        archive.map(
-          (chunk) => chunk is Uint8List ? chunk : Uint8List.fromList(chunk),
-        ),
-      );
-      await process.stdin.close();
-      await process.done;
-      await stdoutDone.future;
-      await stderrDone.future;
-
-      final stdout = utf8.decode(
-        stdoutBuffer.takeBytes(),
-        allowMalformed: true,
-      );
-      final stderr = utf8.decode(
-        stderrBuffer.takeBytes(),
-        allowMalformed: true,
-      );
-
-      if (process.exitCode != null && process.exitCode != 0) {
-        final output = [
-          stderr.trim(),
-          stdout.trim(),
-        ].where((value) => value.isNotEmpty).join('\n');
-        throw Exception(
-          output.isNotEmpty
-              ? output
-              : 'docker load failed with exit code ${process.exitCode}',
-        );
-      }
-
-      return [
-        stdout.trim(),
-        stderr.trim(),
-      ].where((value) => value.isNotEmpty).join('\n');
-    } catch (_) {
-      process.close();
-      rethrow;
-    } finally {
-      await stdoutSubscription.cancel();
-      await stderrSubscription.cancel();
-      permit.release();
-    }
   }
 
   Future<void> tagImage(
@@ -267,86 +198,11 @@ class DockerImageService {
       throw Exception('image is required');
     }
 
-    await _engineRepository.requestJsonObject(
+    return _engineRepository.requestByteStream(
       session,
       method: 'GET',
-      path: '/images/${Uri.encodeComponent(normalizedImageRef)}/json',
+      path: '/images/${Uri.encodeComponent(normalizedImageRef)}/get',
     );
-
-    final command =
-        'sh -lc ${_shellQuote('docker save ${_shellQuote(normalizedImageRef)}')}';
-    final permit = await session.acquireOperation();
-    final SSHSession process;
-    try {
-      process = await session.client.execute(command);
-    } catch (_) {
-      permit.release();
-      rethrow;
-    }
-
-    final controller = StreamController<Uint8List>();
-    final stderrBuffer = BytesBuilder(copy: false);
-    StreamSubscription<Uint8List>? stdoutSubscription;
-    StreamSubscription<Uint8List>? stderrSubscription;
-    var released = false;
-
-    void releaseOnce() {
-      if (released) {
-        return;
-      }
-      released = true;
-      permit.release();
-    }
-
-    controller.onListen = () {
-      stderrSubscription = process.stderr.listen((data) {
-        if (stderrBuffer.length < 8192) {
-          stderrBuffer.add(data);
-        }
-      });
-
-      stdoutSubscription = process.stdout.listen(
-        controller.add,
-        onError: (Object error, StackTrace stackTrace) async {
-          controller.addError(error, stackTrace);
-          releaseOnce();
-          await controller.close();
-        },
-        onDone: () async {
-          try {
-            await process.done;
-            await stderrSubscription?.cancel();
-
-            if (process.exitCode != null && process.exitCode != 0) {
-              final stderr = utf8.decode(
-                stderrBuffer.takeBytes(),
-                allowMalformed: true,
-              );
-              controller.addError(
-                Exception(
-                  stderr.trim().isEmpty
-                      ? 'docker save failed with exit code ${process.exitCode}'
-                      : stderr.trim(),
-                ),
-              );
-            }
-          } finally {
-            releaseOnce();
-          }
-
-          await controller.close();
-        },
-      );
-    };
-
-    controller.onCancel = () async {
-      await stdoutSubscription?.cancel();
-      await stderrSubscription?.cancel();
-      process.close();
-      releaseOnce();
-    };
-
-    return controller.stream;
   }
 
   Future<List<Map<String, dynamic>>> getImageHistory(
@@ -446,10 +302,6 @@ class DockerImageService {
     } catch (_) {
       return <String>{};
     }
-  }
-
-  String _shellQuote(String value) {
-    return "'${value.replaceAll("'", "'\\''")}'";
   }
 
   String _normalizeContainerName(String value) {
