@@ -8,6 +8,13 @@ import 'package:host_deck/server/features/docker/docker_container.dart';
 import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
 
+class DockerContainerLogEvent {
+  final String event;
+  final String text;
+
+  const DockerContainerLogEvent(this.event, this.text);
+}
+
 class DockerContainerService {
   final DockerEngineRepository _engineRepository;
   final DockerEngineMapper _mapper;
@@ -111,13 +118,17 @@ class DockerContainerService {
     );
   }
 
-  Future<String> getContainerLogs(
+  Stream<DockerContainerLogEvent> getContainerLogs(
     SshSession session,
     String containerId, {
     int tail = 100,
     bool timestamps = false,
-  }) async {
-    final logs = await _engineRepository.requestBytes(
+  }) async* {
+    final inspect = await inspectContainer(session, containerId);
+    final config =
+        inspect['Config'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final multiplexed = config['Tty'] != true;
+    final logs = await _engineRepository.requestByteStream(
       session,
       method: 'GET',
       path: '/containers/$containerId/logs',
@@ -126,9 +137,88 @@ class DockerContainerService {
         'stderr': '1',
         'tail': tail.toString(),
         'timestamps': timestamps ? '1' : '0',
+        'follow': '1',
       },
     );
-    return _decodeDockerLogs(logs);
+    yield* decodeDockerLogStream(logs, multiplexed: multiplexed);
+  }
+
+  Stream<DockerContainerLogEvent> decodeDockerLogStream(
+    Stream<Uint8List> source, {
+    required bool multiplexed,
+  }) async* {
+    if (!multiplexed) {
+      final decoder = _IncrementalUtf8Decoder();
+      await for (final chunk in source) {
+        final text = decoder.add(chunk);
+        if (text.isNotEmpty) {
+          yield DockerContainerLogEvent('stdout', text);
+        }
+      }
+      final text = decoder.close();
+      if (text.isNotEmpty) {
+        yield DockerContainerLogEvent('stdout', text);
+      }
+      return;
+    }
+
+    var pending = Uint8List(0);
+    final decoders = <int, _IncrementalUtf8Decoder>{
+      1: _IncrementalUtf8Decoder(),
+      2: _IncrementalUtf8Decoder(),
+    };
+    await for (final chunk in source) {
+      pending = Uint8List.fromList([...pending, ...chunk]);
+      var offset = 0;
+      while (pending.length - offset >= 8) {
+        final streamType = pending[offset];
+        if ((streamType != 0 && streamType != 1 && streamType != 2) ||
+            pending[offset + 1] != 0 ||
+            pending[offset + 2] != 0 ||
+            pending[offset + 3] != 0) {
+          throw const FormatException('Invalid Docker log stream frame');
+        }
+        final frameLength =
+            (pending[offset + 4] << 24) |
+            (pending[offset + 5] << 16) |
+            (pending[offset + 6] << 8) |
+            pending[offset + 7];
+        final frameEnd = offset + 8 + frameLength;
+        if (frameEnd > pending.length) {
+          break;
+        }
+
+        final decoder = decoders[streamType];
+        if (decoder != null) {
+          final text = decoder.add(
+            Uint8List.sublistView(pending, offset + 8, frameEnd),
+          );
+          if (text.isNotEmpty) {
+            yield DockerContainerLogEvent(
+              streamType == 2 ? 'stderr' : 'stdout',
+              text,
+            );
+          }
+        }
+        offset = frameEnd;
+      }
+      if (offset > 0) {
+        pending = Uint8List.sublistView(pending, offset);
+      }
+    }
+
+    if (pending.isNotEmpty) {
+      throw const FormatException('Incomplete Docker log stream frame');
+    }
+    for (final entry in decoders.entries) {
+      final text = entry.value.close();
+      if (text.isNotEmpty) {
+        yield DockerContainerLogEvent(
+          entry.key == 2 ? 'stderr' : 'stdout',
+          text,
+        );
+      }
+    }
   }
 
   Future<Map<String, dynamic>> createContainer(
@@ -441,5 +531,48 @@ class DockerContainerService {
           (config['Cmd'] as List?)?.map((e) => e.toString()).toList() ??
           <String>[],
     };
+  }
+}
+
+class _IncrementalUtf8Decoder {
+  final List<int> _pending = [];
+
+  String add(List<int> bytes) {
+    _pending.addAll(bytes);
+    final incompleteStart = _incompleteSequenceStart(_pending);
+    final completeLength = incompleteStart ?? _pending.length;
+    if (completeLength == 0) {
+      return '';
+    }
+    final complete = _pending.sublist(0, completeLength);
+    _pending.removeRange(0, completeLength);
+    return utf8.decode(complete, allowMalformed: true);
+  }
+
+  String close() {
+    if (_pending.isEmpty) {
+      return '';
+    }
+    final text = utf8.decode(_pending, allowMalformed: true);
+    _pending.clear();
+    return text;
+  }
+
+  int? _incompleteSequenceStart(List<int> bytes) {
+    if (bytes.isEmpty) {
+      return null;
+    }
+    var start = bytes.length - 1;
+    while (start > 0 && (bytes[start] & 0xc0) == 0x80) {
+      start--;
+    }
+    final lead = bytes[start];
+    final expectedLength = switch (lead) {
+      >= 0xc2 && <= 0xdf => 2,
+      >= 0xe0 && <= 0xef => 3,
+      >= 0xf0 && <= 0xf4 => 4,
+      _ => 1,
+    };
+    return bytes.length - start < expectedLength ? start : null;
   }
 }

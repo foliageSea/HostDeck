@@ -173,6 +173,12 @@ export type DockerImagePullStreamEvent =
   | { event: 'done'; data: { image: string } }
   | { event: 'error'; data: { message: string } }
 
+export type DockerContainerLogStreamEvent =
+  | { event: 'connected'; data: Record<string, never> }
+  | { event: 'stdout' | 'stderr'; data: { text: string } }
+  | { event: 'done'; data: Record<string, never> }
+  | { event: 'error'; data: { message: string } }
+
 export interface DockerCreateContainerPayload {
   image: string
   name?: string
@@ -475,27 +481,59 @@ export const dockerApi = {
     return response.data
   },
 
-  async getContainerLogs(connectionId: string, containerId: string, tail = 200) {
-    const response = await http.get<{ logs: string }>('/api/docker/containers/logs', {
-      params: { connectionId, containerId, tail },
-    })
-    return response.data
-  },
-
-  async getContainerLogsAdvanced(
+  async streamContainerLogs(
     connectionId: string,
     containerId: string,
     options: { tail?: number; timestamps?: boolean } = {},
+    onEvent: (event: DockerContainerLogStreamEvent) => void,
+    signal?: AbortSignal,
   ) {
-    const response = await http.get<{ logs: string }>('/api/docker/containers/logs', {
-      params: {
-        connectionId,
-        containerId,
-        tail: options.tail ?? 200,
-        timestamps: options.timestamps ?? false,
-      },
+    const query = new URLSearchParams({
+      connectionId,
+      containerId,
+      tail: String(options.tail ?? 200),
+      timestamps: String(options.timestamps ?? false),
     })
-    return response.data
+    const response = await fetch(`/api/docker/containers/logs?${query}`, {
+      credentials: 'same-origin',
+      headers: { Accept: 'text/event-stream' },
+      signal,
+    })
+
+    if (!response.ok) {
+      const body = await response.text()
+      let message = body || `获取容器日志失败 (${response.status})`
+      try {
+        const parsed = JSON.parse(body) as { message?: string }
+        message = parsed.message || message
+      } catch {
+        // Keep a plain error response verbatim.
+      }
+      throw new Error(message)
+    }
+    if (!response.body) {
+      throw new Error('浏览器未提供流式响应。')
+    }
+
+    let completed = false
+    let streamError: string | undefined
+    await consumeServerSentEvents(response.body, (message) => {
+      const data = JSON.parse(message.data) as Record<string, unknown>
+      const event = { event: message.event, data } as DockerContainerLogStreamEvent
+      onEvent(event)
+      if (event.event === 'done') {
+        completed = true
+      } else if (event.event === 'error') {
+        streamError = event.data.message
+      }
+    })
+
+    if (streamError) {
+      throw new Error(streamError)
+    }
+    if (!completed) {
+      throw new Error('容器日志流意外结束。')
+    }
   },
 
   async inspectContainer(connectionId: string, containerId: string) {

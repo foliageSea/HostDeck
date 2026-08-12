@@ -71,9 +71,10 @@ export function useDockerView(props: DockerViewProps) {
   const logsTitle = ref('')
   const logsContent = ref('')
   const logsTail = ref(200)
-  const logsAutoRefresh = ref(false)
   const logsKeyword = ref('')
   const logsLastUpdatedAt = ref<Date | null>(null)
+  const logsStreamStatus = ref<'connecting' | 'live' | 'ended' | 'error'>('connecting')
+  const logsStreamError = ref('')
   const logsContainerId = ref('')
   const logsContainerName = ref('')
   const inspectVisible = ref(false)
@@ -101,7 +102,8 @@ export function useDockerView(props: DockerViewProps) {
   const renamingContainerId = ref('')
   const renamingContainerName = ref('')
 
-  let logsRefreshTimer: number | null = null
+  let logsAbortController: AbortController | null = null
+  let logsStreamGeneration = 0
   let requestQueue = Promise.resolve()
   let pendingDockerCheck: Promise<boolean> | null = null
   const pendingTabLoads: Partial<Record<DockerTabName, Promise<void>>> = {}
@@ -336,35 +338,79 @@ export function useDockerView(props: DockerViewProps) {
     return Math.round(amount * 1024 ** unitIndex)
   }
 
-  async function refreshLogs(silent = false) {
+  function stopLogsStream() {
+    logsStreamGeneration += 1
+    logsAbortController?.abort()
+    logsAbortController = null
+  }
+
+  function appendLogs(text: string) {
+    const maxLength = 2 * 1024 * 1024
+    logsContent.value += text
+    if (logsContent.value.length > maxLength) {
+      logsContent.value = logsContent.value.slice(logsContent.value.length - maxLength)
+    }
+    logsLastUpdatedAt.value = new Date()
+  }
+
+  async function refreshLogs() {
     if (!logsContainerId.value) {
       return
     }
 
-    try {
-      if (silent) {
-        logsRefreshing.value = true
-      } else {
-        logsLoading.value = true
-      }
+    stopLogsStream()
+    const generation = logsStreamGeneration
+    const abortController = new AbortController()
+    logsAbortController = abortController
+    logsContent.value = ''
+    logsStreamError.value = ''
+    logsStreamStatus.value = 'connecting'
+    logsLoading.value = true
+    logsRefreshing.value = true
 
+    try {
       const connectionId = requireConnectionId()
-      const result = await queueDockerRequest(() =>
-        dockerApi.getContainerLogsAdvanced(connectionId, logsContainerId.value, {
+      await dockerApi.streamContainerLogs(
+        connectionId,
+        logsContainerId.value,
+        {
           tail: logsTail.value,
           timestamps: true,
-        }),
+        },
+        (event) => {
+          if (generation !== logsStreamGeneration) {
+            return
+          }
+          if (event.event === 'connected') {
+            logsStreamStatus.value = 'live'
+            logsLoading.value = false
+            logsRefreshing.value = false
+          } else if (event.event === 'stdout' || event.event === 'stderr') {
+            logsStreamStatus.value = 'live'
+            logsLoading.value = false
+            logsRefreshing.value = false
+            appendLogs(event.data.text)
+          } else if (event.event === 'done') {
+            logsStreamStatus.value = 'ended'
+          }
+        },
+        abortController.signal,
       )
-      logsContent.value = result.logs
-      logsLastUpdatedAt.value = new Date()
     } catch (error) {
-      console.error('Failed to refresh logs', error)
-      if (!silent) {
-        logsContent.value = error instanceof Error ? error.message : '日志加载失败。'
+      if (abortController.signal.aborted || generation !== logsStreamGeneration) {
+        return
       }
+      console.error('Failed to refresh logs', error)
+      logsStreamStatus.value = 'error'
+      logsStreamError.value = error instanceof Error ? error.message : '日志加载失败。'
     } finally {
-      logsLoading.value = false
-      logsRefreshing.value = false
+      if (generation === logsStreamGeneration) {
+        logsLoading.value = false
+        logsRefreshing.value = false
+        if (logsAbortController === abortController) {
+          logsAbortController = null
+        }
+      }
     }
   }
 
@@ -564,19 +610,6 @@ export function useDockerView(props: DockerViewProps) {
     return pendingTabLoads[tab]
   }
 
-  function syncLogsRefreshTimer() {
-    if (logsRefreshTimer) {
-      clearInterval(logsRefreshTimer)
-      logsRefreshTimer = null
-    }
-
-    if (logsVisible.value && logsAutoRefresh.value) {
-      logsRefreshTimer = window.setInterval(() => {
-        void refreshLogs(true)
-      }, 4000)
-    }
-  }
-
   async function refreshContainerResource(containerId: string) {
     containerResourceLoadingMap.value = {
       ...containerResourceLoadingMap.value,
@@ -774,12 +807,14 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   async function viewLogs(container: DockerContainer) {
+    stopLogsStream()
     logsVisible.value = true
     logsTitle.value = `容器日志 · ${container.name}`
     logsContainerId.value = container.id
     logsContainerName.value = container.name
     logsKeyword.value = ''
     logsLastUpdatedAt.value = null
+    logsContent.value = ''
     await refreshLogs()
   }
 
@@ -1530,15 +1565,20 @@ export function useDockerView(props: DockerViewProps) {
   })
 
   onBeforeUnmount(() => {
-    if (logsRefreshTimer) {
-      clearInterval(logsRefreshTimer)
-      logsRefreshTimer = null
-    }
+    stopLogsStream()
     window.removeEventListener('docker:container-created', handleContainerCreated)
   })
 
-  watch([logsVisible, logsAutoRefresh], () => {
-    syncLogsRefreshTimer()
+  watch(logsVisible, (visible) => {
+    if (!visible) {
+      stopLogsStream()
+    }
+  })
+
+  watch(activeConnectionId, () => {
+    if (logsVisible.value) {
+      void refreshLogs()
+    }
   })
 
   watch(containerStatusFilter, async () => {
@@ -1563,7 +1603,7 @@ export function useDockerView(props: DockerViewProps) {
 
   watch(logsTail, async (value, previous) => {
     if (value !== previous && logsVisible.value) {
-      await refreshLogs()
+      void refreshLogs()
     }
   })
 
@@ -1640,12 +1680,13 @@ export function useDockerView(props: DockerViewProps) {
     inspectVisible,
     isContainerPortPinned,
     loading,
-    logsAutoRefresh,
     logsContainerName,
     logsKeyword,
     logsLastUpdatedAt,
     logsLoading,
     logsRefreshing,
+    logsStreamError,
+    logsStreamStatus,
     logsTail,
     logsTitle,
     logsVisible,

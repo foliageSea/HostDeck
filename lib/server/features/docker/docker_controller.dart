@@ -316,7 +316,7 @@ class DockerController {
     });
   }
 
-  /// 获取容器日志
+  /// 通过 SSE 持续获取容器日志
   Future<Response> getContainerLogs(Request request) async {
     final containerId = request.url.queryParameters['containerId'];
     final tail = _parseTail(request.url.queryParameters['tail']);
@@ -328,17 +328,39 @@ class DockerController {
 
     return _withSession(request, (session) async {
       try {
-        final logs = await _containerService.getContainerLogs(
-          session,
-          containerId,
-          tail: tail,
-          timestamps: timestamps,
+        return Response.ok(
+          _encodeContainerLogEvents(
+            _containerService.getContainerLogs(
+              session,
+              containerId,
+              tail: tail,
+              timestamps: timestamps,
+            ),
+          ),
+          headers: {
+            'content-type': 'text/event-stream; charset=utf-8',
+            'cache-control': 'no-cache, no-transform',
+            'x-accel-buffering': 'no',
+          },
         );
-        return Result.ok({'logs': logs});
       } catch (e) {
         return Result.fail(500, e.toString());
       }
     });
+  }
+
+  Stream<List<int>> _encodeContainerLogEvents(
+    Stream<DockerContainerLogEvent> events,
+  ) async* {
+    try {
+      yield encodeServerSentEvent('connected', const <String, dynamic>{});
+      await for (final event in events) {
+        yield encodeServerSentEvent(event.event, {'text': event.text});
+      }
+      yield encodeServerSentEvent('done', const <String, dynamic>{});
+    } catch (error) {
+      yield encodeServerSentEvent('error', {'message': error.toString()});
+    }
   }
 
   /// 获取容器 inspect 详情

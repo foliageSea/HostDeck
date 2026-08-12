@@ -65,7 +65,7 @@ class DockerEngineRepository {
            (tunnelService ?? DockerSocketTunnelService()).endpoint,
        _httpClient = (httpClientFactory ?? HttpClient.new)() {
     _httpClient.autoUncompress = false;
-    _httpClient.maxConnectionsPerHost = 4;
+    _httpClient.maxConnectionsPerHost = 16;
   }
 
   void close() => _httpClient.close(force: true);
