@@ -117,19 +117,7 @@ function getImageName(image: DockerImage) {
 
       <template #actions>
         <div class="flex min-w-0 items-center gap-[6px]">
-          <NInput
-            v-model:value="controller.pullImageName"
-            class="w-[220px] lt-sm:w-[min(200px,55vw)]"
-            placeholder="镜像名称，如 nginx:latest"
-            :disabled="controller.pullingImage"
-            @keyup.enter="controller.pullImage"
-          />
-          <NButton
-            type="primary"
-            :loading="controller.pullingImage"
-            :disabled="!controller.pullImageName.trim()"
-            @click="controller.pullImage"
-          >
+          <NButton type="primary" @click="controller.openPullImageDialog">
             <template #icon>
               <NIcon><Download /></NIcon>
             </template>

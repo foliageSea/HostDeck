@@ -17,7 +17,6 @@ import {
 } from '@/api/docker'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
-import { useDockerOutputStore } from '@/stores/docker-output'
 import { useSshStore } from '@/stores/ssh'
 import { useUploadCenterStore } from '@/stores/upload-center'
 
@@ -36,7 +35,6 @@ export function useDockerView(props: DockerViewProps) {
   const desktopStore = useDesktopStore()
   const sshStore = useSshStore()
   const uploadCenterStore = useUploadCenterStore()
-  const outputStore = useDockerOutputStore()
 
   const activeTab = ref<DockerTabName>('overview')
   const loading = ref(false)
@@ -84,6 +82,10 @@ export function useDockerView(props: DockerViewProps) {
   const importingImage = ref(false)
   const pullingImage = ref(false)
   const pullImageName = ref('')
+  const pullImageVisible = ref(false)
+  const pullImageOutput = ref('')
+  const pullImageError = ref('')
+  const pullImageStatus = ref<'idle' | 'pulling' | 'success' | 'error' | 'cancelled'>('idle')
   const imageTagVisible = ref(false)
   const imageTagging = ref(false)
   const imageTagSource = ref('')
@@ -104,6 +106,7 @@ export function useDockerView(props: DockerViewProps) {
 
   let logsAbortController: AbortController | null = null
   let logsStreamGeneration = 0
+  let pullImageAbortController: AbortController | null = null
   let requestQueue = Promise.resolve()
   let pendingDockerCheck: Promise<boolean> | null = null
   const pendingTabLoads: Partial<Record<DockerTabName, Promise<void>>> = {}
@@ -1106,6 +1109,29 @@ export function useDockerView(props: DockerViewProps) {
     })
   }
 
+  function openPullImageDialog() {
+    if (pullingImage.value) {
+      return
+    }
+    pullImageName.value = ''
+    pullImageOutput.value = ''
+    pullImageError.value = ''
+    pullImageStatus.value = 'idle'
+    pullImageVisible.value = true
+  }
+
+  function appendPullImageOutput(text: string) {
+    const maxLength = 1024 * 1024
+    pullImageOutput.value += text
+    if (pullImageOutput.value.length > maxLength) {
+      pullImageOutput.value = pullImageOutput.value.slice(-maxLength)
+    }
+  }
+
+  function cancelPullImage() {
+    pullImageAbortController?.abort()
+  }
+
   async function pullImage() {
     const image = pullImageName.value.trim()
     if (!image) {
@@ -1113,43 +1139,53 @@ export function useDockerView(props: DockerViewProps) {
     }
 
     pullingImage.value = true
+    pullImageStatus.value = 'pulling'
+    pullImageOutput.value = `开始拉取镜像 ${image}\n\n`
+    pullImageError.value = ''
+    pullImageVisible.value = true
+    const abortController = new AbortController()
+    pullImageAbortController = abortController
     try {
       const connectionId = requireConnectionId()
-      const taskTitle = `拉取镜像 · ${image}`
-      const taskId = outputStore.createTask(connectionId, taskTitle)
-      desktopStore.openWindow('docker-output', { taskId, title: taskTitle })
       pullImageName.value = ''
-      await outputStore.runTask(taskId, async ({ append, signal }) => {
-        const result = await dockerApi.pullImageStream(
-          connectionId,
-          image,
-          (event) => {
-            if (event.event === 'progress') {
-              const prefix = event.data.id ? `[${event.data.id}] ` : ''
-              const status = event.data.status || '处理中'
-              const progress = event.data.progress ? ` ${event.data.progress}` : ''
-              append(`${prefix}${status}${progress}\n`)
-            } else if (event.event === 'stderr') {
-              append(event.data.text)
-            } else if (event.event === 'error') {
-              append(`\n[错误] ${event.data.message}\n`)
-            }
-          },
-          signal,
-        )
-        append(`\n> 镜像 ${result.image} 拉取完成\n`)
-        return result
-      })
+      const result = await dockerApi.pullImageStream(
+        connectionId,
+        image,
+        (event) => {
+          if (event.event === 'progress') {
+            const prefix = event.data.id ? `[${event.data.id}] ` : ''
+            const status = event.data.status || '处理中'
+            const progress = event.data.progress ? ` ${event.data.progress}` : ''
+            appendPullImageOutput(`${prefix}${status}${progress}\n`)
+          } else if (event.event === 'stderr') {
+            appendPullImageOutput(event.data.text)
+          } else if (event.event === 'error') {
+            appendPullImageOutput(`\n[错误] ${event.data.message}\n`)
+          }
+        },
+        abortController.signal,
+      )
+      appendPullImageOutput(`\n> 镜像 ${result.image} 拉取完成\n`)
+      pullImageStatus.value = 'success'
       getUiApi().message.success(`镜像 ${image} 已拉取。`)
       await refreshTabsAfterChange('images')
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (
+        abortController.signal.aborted ||
+        (error instanceof DOMException && error.name === 'AbortError')
+      ) {
+        pullImageStatus.value = 'cancelled'
+        appendPullImageOutput('\n> 拉取已取消\n')
         return
       }
       console.error('Failed to pull image', error)
-      getUiApi().message.error(error instanceof Error ? error.message : '拉取镜像失败。')
+      const message = error instanceof Error ? error.message : '拉取镜像失败。'
+      pullImageStatus.value = 'error'
+      pullImageError.value = message
+      appendPullImageOutput(`\n[错误] ${message}\n`)
     } finally {
       pullingImage.value = false
+      pullImageAbortController = null
     }
   }
 
@@ -1566,6 +1602,7 @@ export function useDockerView(props: DockerViewProps) {
 
   onBeforeUnmount(() => {
     stopLogsStream()
+    cancelPullImage()
     window.removeEventListener('docker:container-created', handleContainerCreated)
   })
 
@@ -1699,6 +1736,12 @@ export function useDockerView(props: DockerViewProps) {
     pullImage,
     pullingImage,
     pullImageName,
+    pullImageVisible,
+    pullImageOutput,
+    pullImageError,
+    pullImageStatus,
+    cancelPullImage,
+    openPullImageDialog,
     requireConnectionId,
     refresh,
     refreshActiveTab,

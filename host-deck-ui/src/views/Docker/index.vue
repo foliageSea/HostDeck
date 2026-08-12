@@ -7,6 +7,7 @@ import DockerContainersTab from './components/DockerContainersTab.vue'
 import DockerImageHistoryModal from './components/DockerImageHistoryModal.vue'
 import DockerImageRefsModal from './components/DockerImageRefsModal.vue'
 import DockerImageTagModal from './components/DockerImageTagModal.vue'
+import DockerImagePullModal from './components/DockerImagePullModal.vue'
 import DockerInspectModal from './components/DockerInspectModal.vue'
 import DockerImagesTab from './components/DockerImagesTab.vue'
 import DockerLogsModal from './components/DockerLogsModal.vue'
@@ -87,7 +88,6 @@ const controller: DockerViewController = reactive(useDockerView(props))
         <NTabPane name="volumes" tab="存储" class="docker-internal-scroll-pane">
           <DockerVolumesTab :controller="controller" />
         </NTabPane>
-
       </NTabs>
     </NSpin>
 
@@ -97,6 +97,7 @@ const controller: DockerViewController = reactive(useDockerView(props))
     <DockerImageTagModal :controller="controller" />
     <DockerImageHistoryModal :controller="controller" />
     <DockerImageRefsModal :controller="controller" />
+    <DockerImagePullModal :controller="controller" />
   </div>
 </template>
 
