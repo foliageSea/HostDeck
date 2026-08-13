@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { LogoDocker } from '@vicons/ionicons5'
-import { dockerApi, type DockerCreateContainerPayload, type DockerImage } from '@/api/docker'
+import {
+  dockerApi,
+  type DockerContainerInspect,
+  type DockerCreateContainerPayload,
+  type DockerImage,
+} from '@/api/docker'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -10,6 +15,7 @@ import { useSshStore } from '@/stores/ssh'
 const props = defineProps<{
   windowId?: string
   connectionId?: string
+  containerId?: string
   host?: string
 }>()
 
@@ -17,6 +23,7 @@ const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const loadingImages = ref(false)
+const loadingContainer = ref(false)
 const loadingImageDefaults = ref(false)
 const creatingContainer = ref(false)
 const images = ref<DockerImage[]>([])
@@ -32,8 +39,10 @@ const createVolumesText = ref('')
 const createCmdText = ref('')
 const createEntrypointText = ref('')
 let imageDefaultsRequestId = 0
+let applyingInspect = false
 
 const activeConnectionId = computed(() => props.connectionId ?? sshStore.connectionId)
+const editing = computed(() => Boolean(props.containerId))
 const createImageOptions = computed(() =>
   images.value
     .filter((item) => item.repository && item.tag && !item.dangling)
@@ -98,6 +107,68 @@ function getImageVolumeDefaults(image: DockerImage, volumes: string[]) {
   })
 }
 
+function getInspectPorts(inspect: DockerContainerInspect) {
+  const result: string[] = []
+  const configuredPorts = new Set<string>()
+  const portBindings = inspect.HostConfig?.PortBindings ?? {}
+  for (const [containerPort, bindings] of Object.entries(portBindings)) {
+    for (const binding of bindings ?? []) {
+      if (!binding.HostPort) continue
+      configuredPorts.add(containerPort)
+      result.push(
+        binding.HostIp && binding.HostIp !== '0.0.0.0'
+          ? `${binding.HostIp}:${binding.HostPort}:${containerPort}`
+          : `${binding.HostPort}:${containerPort}`,
+      )
+    }
+  }
+  for (const containerPort of Object.keys(inspect.Config?.ExposedPorts ?? {})) {
+    if (!configuredPorts.has(containerPort)) {
+      result.push(containerPort)
+    }
+  }
+  return result
+}
+
+function getInspectVolumes(inspect: DockerContainerInspect) {
+  return (inspect.Mounts ?? [])
+    .filter((mount) => mount.Destination && (mount.Type === 'volume' ? mount.Name : mount.Source))
+    .map((mount) => {
+      const source = mount.Type === 'volume' ? mount.Name : mount.Source
+      return `${source}:${mount.Destination}${mount.RW === false ? ':ro' : ''}`
+    })
+}
+
+async function loadContainer() {
+  if (!props.containerId) return
+
+  loadingContainer.value = true
+  try {
+    const inspect = await dockerApi.inspectContainer(requireConnectionId(), props.containerId)
+    if (inspect.State?.Running) {
+      throw new Error('只能编辑已停止的容器。')
+    }
+    applyingInspect = true
+    createForm.value = {
+      image: inspect.Config?.Image ?? '',
+      name: inspect.Name?.replace(/^\//, '') ?? '',
+      restartPolicy: inspect.HostConfig?.RestartPolicy?.Name || 'no',
+      start: false,
+    }
+    applyingInspect = false
+    setTextIfChanged(createPortsText, getInspectPorts(inspect))
+    setTextIfChanged(createEnvText, inspect.Config?.Env ?? [])
+    setTextIfChanged(createVolumesText, getInspectVolumes(inspect))
+    setTextIfChanged(createCmdText, inspect.Config?.Cmd ?? [])
+    setTextIfChanged(createEntrypointText, inspect.Config?.Entrypoint ?? [])
+  } catch (error) {
+    console.error('Failed to load container configuration', error)
+    getUiApi().message.error(error instanceof Error ? error.message : '加载容器配置失败。')
+  } finally {
+    loadingContainer.value = false
+  }
+}
+
 function closeWindow() {
   if (props.windowId) {
     desktopStore.closeWindow(props.windowId)
@@ -150,7 +221,7 @@ async function loadImageDefaults(image: DockerImage | undefined) {
   }
 }
 
-async function submitCreateContainer() {
+async function submitContainer() {
   if (!createForm.value.image?.trim()) {
     getUiApi().message.error('镜像名称不能为空。')
     return
@@ -171,9 +242,16 @@ async function submitCreateContainer() {
       start: createForm.value.start === true,
     }
 
-    const result = await dockerApi.createContainer(connectionId, payload)
+    const result = props.containerId
+      ? await dockerApi.replaceContainer(connectionId, props.containerId, payload)
+      : await dockerApi.createContainer(connectionId, payload)
     window.dispatchEvent(new CustomEvent('docker:container-created', { detail: { connectionId } }))
-    getUiApi().message.success(`容器创建成功：${result.containerId.slice(0, 12)}`)
+    const containerId = 'newContainerId' in result ? result.newContainerId : result.containerId
+    getUiApi().message.success(
+      editing.value
+        ? `容器保存成功，新 ID：${containerId.slice(0, 12)}`
+        : `容器创建成功：${containerId.slice(0, 12)}`,
+    )
     closeWindow()
   } catch (error) {
     console.error('Failed to create container', error)
@@ -184,12 +262,17 @@ async function submitCreateContainer() {
 }
 
 onMounted(() => {
-  void loadImages()
+  void Promise.all([loadImages(), loadContainer()])
 })
 
-watch(selectedImage, (image) => {
-  void loadImageDefaults(image)
-})
+watch(
+  () => createForm.value.image,
+  () => {
+    if (applyingInspect) return
+    void loadImageDefaults(selectedImage.value)
+  },
+  { flush: 'sync' },
+)
 </script>
 
 <template>
@@ -212,14 +295,17 @@ watch(selectedImage, (image) => {
       <div class="min-w-0">
         <div class="mb-[4px] flex items-center gap-[8px]">
           <NIcon :size="20"><LogoDocker /></NIcon>
-          <h2 class="m-0 text-[18px]">新建容器</h2>
+          <h2 class="m-0 text-[18px]">{{ editing ? '编辑容器' : '新建容器' }}</h2>
         </div>
       </div>
 
       <NButton @click="loadImages" :loading="loadingImages">刷新镜像</NButton>
     </div>
 
-    <NSpin :show="loadingImages" class="create-container-body min-h-0 flex-1 overflow-hidden">
+    <NSpin
+      :show="loadingImages || loadingContainer"
+      class="create-container-body min-h-0 flex-1 overflow-hidden"
+    >
       <div
         class="h-full min-h-0 overflow-auto p-[18px] app-scrollbar"
         :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'"
@@ -252,7 +338,7 @@ watch(selectedImage, (image) => {
                 ]"
               />
             </NFormItemGi>
-            <NFormItemGi label="创建后立即启动">
+            <NFormItemGi :label="editing ? '保存后立即启动' : '创建后立即启动'">
               <NSwitch v-model:value="createForm.start" />
             </NFormItemGi>
           </NGrid>
@@ -317,9 +403,9 @@ watch(selectedImage, (image) => {
     >
       <NSpace>
         <NButton @click="closeWindow">取消</NButton>
-        <NButton type="primary" :loading="creatingContainer" @click="submitCreateContainer"
-          >创建</NButton
-        >
+        <NButton type="primary" :loading="creatingContainer" @click="submitContainer">{{
+          editing ? '保存' : '创建'
+        }}</NButton>
       </NSpace>
     </div>
   </div>

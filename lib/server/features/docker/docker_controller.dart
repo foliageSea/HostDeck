@@ -159,19 +159,9 @@ class DockerController {
             )
             .where((container) => _matchesContainerKeyword(container, keyword))
             .toList();
-        final prioritizedContainers = statusFilter.trim().toLowerCase() == 'all'
-            ? [
-                ...filteredContainers.where(
-                  (container) => container.state.toLowerCase() == 'running',
-                ),
-                ...filteredContainers.where(
-                  (container) => container.state.toLowerCase() != 'running',
-                ),
-              ]
-            : filteredContainers;
         return Result.ok(
           _pageResponse(
-            prioritizedContainers,
+            filteredContainers,
             pagination,
             (container) => container.toJson(),
             summary: {
@@ -791,6 +781,26 @@ class DockerController {
       try {
         final result = await _containerService.recreateContainer(session, id);
         return Result.ok(result);
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 使用新配置替换已停止的容器
+  Future<Response> replaceContainer(Request request, String id) async {
+    return _withSession(request, (session) async {
+      try {
+        final body = await request.readAsString();
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final result = await _containerService.replaceContainer(
+          session,
+          id,
+          data,
+        );
+        return Result.ok(result);
+      } on StateError catch (e) {
+        return Result.fail(400, e.message);
       } catch (e) {
         return Result.fail(500, e.toString());
       }

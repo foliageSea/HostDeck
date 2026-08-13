@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
+import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/docker/docker_container_service.dart';
 import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
@@ -110,4 +114,179 @@ void main() {
       await expectLater(stream.toList(), throwsA(isA<FormatException>()));
     });
   });
+
+  group('DockerContainerService replacement', () {
+    test('replaces a stopped container and removes the original', () async {
+      final repository = _FakeDockerEngineRepository();
+      final service = DockerContainerService(repository, DockerEngineMapper());
+
+      final result = await service.replaceContainer(
+        _FakeSshSession(),
+        'old-id',
+        {
+          'image': 'nginx:latest',
+          'name': 'web',
+          'ports': ['8080:80'],
+          'start': false,
+        },
+      );
+
+      expect(result['newContainerId'], 'new-id');
+      expect(repository.createdName, 'web');
+      expect(repository.removedIds, ['old-id']);
+      expect(repository.renames.first.$1, 'old-id');
+    });
+
+    test(
+      'restores the original name when replacement creation fails',
+      () async {
+        final repository = _FakeDockerEngineRepository(failCreate: true);
+        final service = DockerContainerService(
+          repository,
+          DockerEngineMapper(),
+        );
+
+        await expectLater(
+          service.replaceContainer(_FakeSshSession(), 'old-id', {
+            'image': 'nginx:latest',
+            'name': 'web',
+            'start': false,
+          }),
+          throwsException,
+        );
+
+        expect(repository.removedIds, isEmpty);
+        expect(repository.renames.last, ('old-id', 'web'));
+      },
+    );
+
+    test(
+      'removes the replacement and restores the original when start fails',
+      () async {
+        final repository = _FakeDockerEngineRepository(failStart: true);
+        final service = DockerContainerService(
+          repository,
+          DockerEngineMapper(),
+        );
+
+        await expectLater(
+          service.replaceContainer(_FakeSshSession(), 'old-id', {
+            'image': 'nginx:latest',
+            'name': 'web',
+            'start': true,
+          }),
+          throwsException,
+        );
+
+        expect(repository.removedIds, ['new-id']);
+        expect(repository.renames.last, ('old-id', 'web'));
+      },
+    );
+
+    test('rejects editing a running container', () async {
+      final repository = _FakeDockerEngineRepository(running: true);
+      final service = DockerContainerService(repository, DockerEngineMapper());
+
+      await expectLater(
+        service.replaceContainer(_FakeSshSession(), 'old-id', {
+          'image': 'nginx:latest',
+          'name': 'web',
+        }),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(repository.renames, isEmpty);
+    });
+  });
+}
+
+class _FakeDockerEngineRepository extends DockerEngineRepository {
+  final bool failCreate;
+  final bool failStart;
+  final bool running;
+  final List<(String, String)> renames = [];
+  final List<String> removedIds = [];
+  String? createdName;
+
+  _FakeDockerEngineRepository({
+    this.failCreate = false,
+    this.failStart = false,
+    this.running = false,
+  });
+
+  @override
+  Future<Map<String, dynamic>> requestJsonObject(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+  }) async {
+    if (method == 'GET' && path == '/containers/old-id/json') {
+      return {
+        'Name': '/web',
+        'State': {'Running': running},
+      };
+    }
+    if (method == 'POST' && path == '/containers/create') {
+      createdName = queryParameters?['name'];
+      if (failCreate) {
+        throw Exception('create failed');
+      }
+      return {'Id': 'new-id'};
+    }
+    throw UnimplementedError('$method $path');
+  }
+
+  @override
+  Future<DockerEngineResponse> request(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+  }) async {
+    if (method == 'POST' && path.endsWith('/rename')) {
+      renames.add((path.split('/')[2], queryParameters!['name']!));
+    } else if (method == 'POST' && path == '/containers/new-id/start') {
+      if (failStart) {
+        throw Exception('start failed');
+      }
+    } else if (method == 'DELETE') {
+      removedIds.add(path.split('/')[2]);
+    } else {
+      throw UnimplementedError('$method $path');
+    }
+    return DockerEngineResponse(statusCode: 204, bodyBytes: Uint8List(0));
+  }
+}
+
+class _FakeSshSession implements SshSession {
+  @override
+  String get id => 'session-1';
+  @override
+  String get connectionId => 'connection-1';
+  @override
+  SSHClient get client => throw UnimplementedError();
+  @override
+  SSHSession? get shell => null;
+  @override
+  final SshOperationLimiter operationLimiter = SshOperationLimiter(
+    maxConcurrentOperations: 1,
+  );
+  @override
+  Stream<String> get output => const Stream.empty();
+  @override
+  StreamController<String> get outputController => StreamController.broadcast();
+  @override
+  Future<SshOperationPermit> acquireOperation() => operationLimiter.acquire();
+  @override
+  Future<T> runOperation<T>(FutureOr<T> Function() action) =>
+      operationLimiter.run(action);
+  @override
+  Future<SftpClient> sftp() => throw UnimplementedError();
+  @override
+  Future<void> close() async {}
 }

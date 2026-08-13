@@ -1282,6 +1282,27 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
+  function openEditContainer(container: DockerContainer) {
+    if (container.state === 'running') {
+      getUiApi().message.warning('请先停止容器再编辑。')
+      return
+    }
+
+    try {
+      const connectionId = requireConnectionId()
+      desktopStore.openWindow('docker-create-container', {
+        connectionId,
+        containerId: container.id,
+        host: props.host ?? sshStore.host,
+        title: `编辑容器 · ${container.name}`,
+        username: props.username ?? sshStore.username,
+      })
+    } catch (error) {
+      console.error('Failed to open edit container window', error)
+      getUiApi().message.error(error instanceof Error ? error.message : '打开编辑容器窗口失败。')
+    }
+  }
+
   async function batchStartSelected() {
     if (selectedStoppedIds.value.length === 0) {
       getUiApi().message.warning('请选择未运行容器。')
@@ -1732,6 +1753,7 @@ export function useDockerView(props: DockerViewProps) {
     openImageTagDialog,
     openContainerPort,
     openCreateContainer,
+    openEditContainer,
     openRenameDialog,
     pullImage,
     pullingImage,

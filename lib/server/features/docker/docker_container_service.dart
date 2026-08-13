@@ -336,6 +336,71 @@ class DockerContainerService {
     };
   }
 
+  Future<Map<String, dynamic>> replaceContainer(
+    SshSession session,
+    String containerId,
+    Map<String, dynamic> payload,
+  ) async {
+    final inspect = await inspectContainer(session, containerId);
+    final state =
+        inspect['State'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    if (state['Running'] == true) {
+      throw StateError('只能编辑已停止的容器');
+    }
+
+    final originalName = _normalizeContainerName(
+      inspect['Name']?.toString() ?? '',
+    );
+    final requestedName = payload['name']?.toString().trim() ?? '';
+    final replacementName = requestedName.isEmpty
+        ? originalName
+        : requestedName;
+    final temporaryName =
+        '${originalName.isEmpty ? 'container' : originalName}-hostdeck-${DateTime.now().microsecondsSinceEpoch}';
+
+    await renameContainer(session, containerId, temporaryName);
+    String newContainerId = '';
+    final startAfterReplace = payload['start'] == true;
+    try {
+      final createResult = await createContainer(session, <String, dynamic>{
+        ...payload,
+        'name': replacementName,
+        'start': false,
+      });
+      newContainerId = (createResult['containerId'] ?? '').toString();
+      if (newContainerId.isEmpty) {
+        throw Exception('Docker Engine 未返回新容器 ID');
+      }
+      if (startAfterReplace) {
+        await startContainer(session, newContainerId);
+      }
+      await removeContainer(session, containerId);
+    } catch (_) {
+      if (newContainerId.isNotEmpty) {
+        try {
+          await removeContainer(session, newContainerId, force: true);
+        } catch (cleanupError) {
+          _log.warning('Failed to remove replacement container: $cleanupError');
+        }
+      }
+      try {
+        await renameContainer(session, containerId, originalName);
+      } catch (rollbackError) {
+        _log.severe(
+          'Failed to restore original container name: $rollbackError',
+        );
+      }
+      rethrow;
+    }
+
+    return {
+      'oldContainerId': containerId,
+      'newContainerId': newContainerId,
+      'name': replacementName,
+      'started': startAfterReplace,
+    };
+  }
+
   Future<int> batchStartContainers(
     SshSession session,
     List<String> containerIds,

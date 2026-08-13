@@ -49,6 +49,10 @@ void registerDockerRoutes(Router router, DockerController controller) {
     '/api/docker/containers/<id>/recreate',
     controller.recreateContainer,
   );
+  router.post(
+    '/api/docker/containers/<id>/replace',
+    controller.replaceContainer,
+  );
   router.delete('/api/docker/containers/<id>', controller.removeContainer);
   router.post('/api/docker/containers', controller.createContainer);
   router.get('/api/docker/containers/logs', controller.getContainerLogs);

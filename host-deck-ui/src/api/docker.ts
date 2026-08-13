@@ -197,7 +197,9 @@ export interface DockerContainerInspect {
   Config?: {
     Image?: string
     Cmd?: string[]
+    Entrypoint?: string[]
     Env?: string[]
+    ExposedPorts?: Record<string, Record<string, never>>
     Labels?: Record<string, string>
   }
   State?: {
@@ -210,6 +212,7 @@ export interface DockerContainerInspect {
     }
   }
   HostConfig?: {
+    PortBindings?: Record<string, Array<{ HostIp?: string; HostPort?: string }> | null>
     RestartPolicy?: {
       Name?: string
     }
@@ -220,6 +223,7 @@ export interface DockerContainerInspect {
   }
   Mounts?: Array<{
     Type?: string
+    Name?: string
     Source?: string
     Destination?: string
     RW?: boolean
@@ -471,6 +475,16 @@ export const dockerApi = {
       name: string
       started: boolean
     }>(`/api/docker/containers/${id}/recreate`, null, { params: { connectionId } })
+    return response.data
+  },
+
+  async replaceContainer(connectionId: string, id: string, payload: DockerCreateContainerPayload) {
+    const response = await http.post<{
+      oldContainerId: string
+      newContainerId: string
+      name: string
+      started: boolean
+    }>(`/api/docker/containers/${id}/replace`, payload, { params: { connectionId } })
     return response.data
   },
 

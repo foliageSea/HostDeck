@@ -29,6 +29,7 @@ function getContainerRowMoreActionOptions(container: DockerContainer) {
     { key: 'divider-1', type: 'divider' },
     { key: 'pause-toggle', label: paused ? '恢复' : '暂停', disabled: !isRunning },
     { key: 'inspect', label: 'Inspect' },
+    { key: 'edit', label: '编辑', disabled: isRunning },
     { key: 'rename', label: '重命名' },
     { key: 'recreate', label: '重建' },
     { key: 'divider-2', type: 'divider' },
@@ -66,6 +67,9 @@ function handleContainerRowMoreAction(container: DockerContainer, key: string) {
       break
     case 'inspect':
       props.controller.viewInspect(container)
+      break
+    case 'edit':
+      props.controller.openEditContainer(container)
       break
     case 'rename':
       props.controller.openRenameDialog(container)
@@ -377,7 +381,9 @@ function isPaused(container: DockerContainer) {
                     >
                       <template #icon>
                         <NIcon>
-                          <component :is="controller.isContainerPortPinned(port) ? PinFilled : Pin" />
+                          <component
+                            :is="controller.isContainerPortPinned(port) ? PinFilled : Pin"
+                          />
                         </NIcon>
                       </template>
                     </NButton>
@@ -387,7 +393,9 @@ function isPaused(container: DockerContainer) {
               <NDropdown
                 trigger="click"
                 :options="getContainerRowMoreActionOptions(container)"
-                @select="(key: string | number) => handleContainerRowMoreAction(container, String(key))"
+                @select="
+                  (key: string | number) => handleContainerRowMoreAction(container, String(key))
+                "
               >
                 <NButton size="tiny" quaternary>更多</NButton>
               </NDropdown>

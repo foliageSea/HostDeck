@@ -80,6 +80,34 @@ describe('useDockerView dangerous actions', () => {
       username: 'deploy',
     })
   })
+
+  it('opens the container form in edit mode for a stopped container', () => {
+    openWindow.mockReset()
+    const controller = useDockerView({
+      connectionId: 'conn-1',
+      host: 'host.example',
+      username: 'deploy',
+    })
+
+    controller.openEditContainer({
+      createdAt: '',
+      id: 'container-1',
+      image: 'nginx:latest',
+      name: 'web',
+      networks: [],
+      ports: [],
+      state: 'exited',
+      status: 'Exited',
+    })
+
+    expect(openWindow).toHaveBeenCalledWith('docker-create-container', {
+      connectionId: 'conn-1',
+      containerId: 'container-1',
+      host: 'host.example',
+      title: '编辑容器 · web',
+      username: 'deploy',
+    })
+  })
 })
 
 describe('useDockerView container logs', () => {
