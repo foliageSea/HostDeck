@@ -6,6 +6,7 @@ import 'package:host_deck/server/features/agent/agent_controller.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
+import 'package:host_deck/server/features/logs/server_log_controller.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_controller.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_controller.dart';
 import 'package:host_deck/server/features/processes/process_controller.dart';
@@ -20,6 +21,7 @@ import 'package:host_deck/server/routes/agent_routes.dart';
 import 'package:host_deck/server/routes/docker_routes.dart';
 import 'package:host_deck/server/routes/cron_task_routes.dart';
 import 'package:host_deck/server/routes/file_routes.dart';
+import 'package:host_deck/server/routes/log_routes.dart';
 import 'package:host_deck/server/routes/operation_log_routes.dart';
 import 'package:host_deck/server/routes/port_forward_routes.dart';
 import 'package:host_deck/server/routes/process_routes.dart';
@@ -36,6 +38,7 @@ class ApiRoutes {
   final SystemController systemController;
   final FileController fileController;
   final OperationLogController operationLogController;
+  final ServerLogController serverLogController;
   final TerminalController terminalController;
   final ServerController serverController;
   final DockerController dockerController;
@@ -52,6 +55,7 @@ class ApiRoutes {
     required this.systemController,
     required this.fileController,
     required this.operationLogController,
+    required this.serverLogController,
     required this.terminalController,
     required this.serverController,
     required this.dockerController,
@@ -75,6 +79,7 @@ class ApiRoutes {
     registerProcessRoutes(router, processController);
     registerFileRoutes(router, fileController);
     registerOperationLogRoutes(router, operationLogController);
+    registerLogRoutes(router, serverLogController);
     registerTerminalRoutes(router, terminalController);
     registerDockerRoutes(router, dockerController);
     registerCronTaskRoutes(router, cronTaskController);

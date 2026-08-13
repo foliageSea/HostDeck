@@ -23,6 +23,8 @@ import 'package:host_deck/server/features/docker/docker_resource_service.dart';
 import 'package:host_deck/server/features/docker/docker_socket_tunnel_service.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
 import 'package:host_deck/server/features/files/file_service.dart';
+import 'package:host_deck/server/features/logs/server_log_controller.dart';
+import 'package:host_deck/server/features/logs/server_log_service.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_controller.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_repository.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
@@ -75,9 +77,11 @@ class ServerContainer {
     String? adminPassword,
     String? apiToken,
     bool secureCookies = false,
+    required ServerLogService logService,
   }) async {
     AppSettings.configure(dataDir: dataDir);
     final getIt = GetIt.asNewInstance();
+    getIt.registerSingleton<ServerLogService>(logService);
 
     getIt.registerSingletonAsync<DatabaseService>(() async {
       final databaseService = DatabaseService(dataDir: dataDir);
@@ -200,6 +204,7 @@ class ServerContainer {
         operationLogController: OperationLogController(
           getIt<OperationLogRepository>(),
         ),
+        serverLogController: ServerLogController(getIt<ServerLogService>()),
         terminalController: TerminalController(
           getIt<SshService>(),
           getIt<TerminalSnippetRepository>(),

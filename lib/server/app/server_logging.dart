@@ -2,13 +2,22 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:host_deck/utils/daily_file_logger.dart';
+import 'package:host_deck/server/features/logs/server_log_entry.dart';
+import 'package:host_deck/server/features/logs/server_log_service.dart';
 import 'package:logging/logging.dart';
 
 class ServerLoggingHandle {
-  final StreamSubscription<LogRecord> _subscription;
+  final StreamSubscription<ServerLogEntry> _subscription;
   final DailyFileLogger? _fileLogger;
+  final ServerLogService logService;
+  final bool _ownsLogService;
 
-  const ServerLoggingHandle(this._subscription, this._fileLogger);
+  const ServerLoggingHandle(
+    this._subscription,
+    this._fileLogger,
+    this.logService,
+    this._ownsLogService,
+  );
 
   bool get isFileLoggingEnabled => _fileLogger != null;
 
@@ -19,14 +28,18 @@ class ServerLoggingHandle {
   Future<void> close() async {
     await _subscription.cancel();
     await _fileLogger?.close();
+    if (_ownsLogService) {
+      await logService.dispose();
+    }
   }
 }
 
 Future<ServerLoggingHandle> configureServerLogging({
   required Directory directory,
   required int maxDays,
+  ServerLogService? logService,
 }) async {
-  Logger.root.level = Level.ALL;
+  final effectiveLogService = logService ?? ServerLogService();
   DailyFileLogger? fileLogger;
   try {
     fileLogger = DailyFileLogger(
@@ -44,43 +57,56 @@ Future<ServerLoggingHandle> configureServerLogging({
     fileLogger = null;
   }
 
-  final subscription = Logger.root.onRecord.listen((record) {
-    final message = formatLogRecord(record);
-    stderr.writeln(formatConsoleLogRecord(record));
-    if (record.error != null) {
-      stderr.writeln('Error: ${record.error}');
+  final subscription = effectiveLogService.subscribe().listen((entry) {
+    final message = formatServerLogEntry(entry);
+    stderr.writeln(formatConsoleServerLogEntry(entry));
+    if (entry.error != null) {
+      stderr.writeln('Error: ${entry.error}');
     }
-    if (record.stackTrace != null) {
-      stderr.writeln(record.stackTrace);
+    if (entry.stackTrace != null) {
+      stderr.writeln(entry.stackTrace);
     }
     final details = StringBuffer(message);
-    if (record.error != null) {
-      details.write('\nError: ${record.error}');
+    if (entry.error != null) {
+      details.write('\nError: ${entry.error}');
     }
-    if (record.stackTrace != null) {
-      details.write('\n${record.stackTrace}');
+    if (entry.stackTrace != null) {
+      details.write('\n${entry.stackTrace}');
     }
     fileLogger?.write(details.toString());
   });
-  return ServerLoggingHandle(subscription, fileLogger);
+  return ServerLoggingHandle(
+    subscription,
+    fileLogger,
+    effectiveLogService,
+    logService == null,
+  );
 }
 
 String formatLogRecord(LogRecord record) {
+  return formatServerLogEntry(ServerLogEntry.fromRecord(0, record));
+}
+
+String formatServerLogEntry(ServerLogEntry entry) {
   const loggerNameWidth = 24;
-  final timestamp = _formatLogTimestamp(record.time);
-  final level = record.level.name.padRight(7);
-  final loggerName = record.loggerName.padRight(loggerNameWidth);
-  return '$timestamp $level $loggerName | ${record.message}';
+  final timestamp = _formatLogTimestamp(entry.timestamp);
+  final level = entry.level.padRight(7);
+  final loggerName = entry.logger.padRight(loggerNameWidth);
+  return '$timestamp $level $loggerName | ${entry.message}';
 }
 
 String formatConsoleLogRecord(LogRecord record) {
+  return formatConsoleServerLogEntry(ServerLogEntry.fromRecord(0, record));
+}
+
+String formatConsoleServerLogEntry(ServerLogEntry entry) {
   const loggerNameWidth = 24;
   const reset = '\x1B[0m';
-  final timestamp = _formatLogTimestamp(record.time);
-  final level = record.level.name.padRight(7);
-  final loggerName = record.loggerName.padRight(loggerNameWidth);
-  return '$timestamp ${_ansiColorForLevel(record.level)}$level$reset '
-      '$loggerName | ${record.message}';
+  final timestamp = _formatLogTimestamp(entry.timestamp);
+  final level = entry.level.padRight(7);
+  final loggerName = entry.logger.padRight(loggerNameWidth);
+  return '$timestamp ${_ansiColorForLevel(Level(entry.level, entry.levelValue))}$level$reset '
+      '$loggerName | ${entry.message}';
 }
 
 String _formatLogTimestamp(DateTime value) {

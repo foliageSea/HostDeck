@@ -33,6 +33,7 @@ Future<void> main(List<String> args) async {
     secureCookies:
         Platform.environment['HOSTDECK_SECURE_COOKIES']?.toLowerCase() ==
         'true',
+    logService: logging.logService,
   );
 
   final log = Logger('ServerEntrypoint');

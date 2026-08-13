@@ -6,6 +6,8 @@ import 'package:logging/logging.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'server/app/server_service.dart';
+import 'server/app/server_logging.dart';
+import 'server/features/logs/server_log_entry.dart';
 import 'utils/asset_extractor.dart';
 import 'utils/app_settings.dart';
 
@@ -48,7 +50,7 @@ class _MyAppState extends State<MyApp> {
 
   final ServerService _serverService = ServerService();
   final _log = Logger('MyApp');
-  StreamSubscription<LogRecord>? _logSubscription;
+  StreamSubscription<ServerLogEntry>? _logSubscription;
 
   bool _isRunning = false;
   bool _showLogs = false;
@@ -68,19 +70,17 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _initLogging() {
-    Logger.root.level = Level.ALL;
-    _logSubscription = Logger.root.onRecord.listen((record) {
-      final msg =
-          '[${record.level.name}] [${record.loggerName}]: ${record.message}';
-      final errorMsg = record.error != null ? '\nError: ${record.error}' : '';
-      final stackTraceMsg = record.stackTrace != null
-          ? '\n${record.stackTrace}'
+    _logSubscription = _serverService.logService.subscribe().listen((entry) {
+      final msg = '[${entry.level}] [${entry.logger}]: ${entry.message}';
+      final errorMsg = entry.error != null ? '\nError: ${entry.error}' : '';
+      final stackTraceMsg = entry.stackTrace != null
+          ? '\n${entry.stackTrace}'
           : '';
 
       final fullMsg = '$msg$errorMsg$stackTraceMsg';
 
       // 输出到控制台
-      debugPrint(fullMsg);
+      debugPrint(formatConsoleServerLogEntry(entry));
       // 输出到 UI
       _addLog(fullMsg);
     });
@@ -102,7 +102,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
     _logSubscription?.cancel();
-    _serverService.stop();
+    unawaited(_serverService.dispose());
     _scrollController.dispose();
     _portController.dispose();
     super.dispose();

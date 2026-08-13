@@ -18,6 +18,10 @@ export function setAccessUnauthorizedHandler(handler: () => void) {
   accessUnauthorizedHandler = handler
 }
 
+export function handleAccessUnauthorized() {
+  accessUnauthorizedHandler?.()
+}
+
 let isHandlingSessionError = false
 
 function handleSessionError(message = 'SSH 会话已失效，请重新连接。') {
@@ -81,7 +85,7 @@ http.interceptors.response.use(
       error.message = errorMessage
 
       if (status === 401 && url !== '/api/access/login') {
-        accessUnauthorizedHandler?.()
+        handleAccessUnauthorized()
       }
 
       if (url && url.includes('/api/')) {

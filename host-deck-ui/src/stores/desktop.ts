@@ -15,6 +15,7 @@ import FilesView from '@/views/Files/index.vue'
 import IframeAppView from '@/views/IframeApp/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
 import OperationLogsView from '@/views/OperationLogs/index.vue'
+import RealtimeLogsView from '@/views/RealtimeLogs/index.vue'
 import PortForwardView from '@/views/PortForward/index.vue'
 import ProcessesView from '@/views/Processes/index.vue'
 import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
@@ -40,6 +41,7 @@ export const defaultDockAppIds: DesktopAppId[] = [
   'opencode',
   'port-forward',
   'operation-logs',
+  'realtime-logs',
   'cron-tasks',
   'processes',
   'dashboard',
@@ -487,6 +489,17 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 820,
         title: '操作记录',
         width: 1080,
+        showInLaunchpad: true,
+      },
+      'realtime-logs': {
+        component: markRaw(RealtimeLogsView),
+        height: 700,
+        icon: 'realtime-log',
+        id: 'realtime-logs',
+        minHeight: 420,
+        minWidth: 720,
+        title: '实时日志',
+        width: 1160,
         showInLaunchpad: true,
       },
       'cron-tasks': {

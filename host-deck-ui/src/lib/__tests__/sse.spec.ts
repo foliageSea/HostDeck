@@ -25,4 +25,27 @@ describe('consumeServerSentEvents', () => {
       { event: 'stdout', data: 'first\nsecond' },
     ])
   })
+
+  it('parses event ids and valid retry intervals without changing basic events', async () => {
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            'id: 42\nretry: 1500\nevent: log\ndata: {"message":"ready"}\n\n' +
+              'retry: invalid\ndata: plain\n\n',
+          ),
+        )
+        controller.close()
+      },
+    })
+    const events: Array<{ event: string; data: string; id?: string; retry?: number }> = []
+
+    await consumeServerSentEvents(stream, (event) => events.push(event))
+
+    expect(events).toEqual([
+      { event: 'log', data: '{"message":"ready"}', id: '42', retry: 1500 },
+      { event: 'message', data: 'plain' },
+    ])
+  })
 })

@@ -26,6 +26,7 @@ const iconColors: Partial<Record<DesktopAppId, string>> = {
   files: '#f59e0b',
   opencode: '#a855f7',
   'operation-logs': '#64748b',
+  'realtime-logs': '#0891b2',
   'port-forward': '#0891b2',
   processes: '#16a34a',
   'runtime-sessions': '#0d9488',

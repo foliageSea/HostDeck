@@ -42,6 +42,7 @@ const iconMap: Record<AppIconKey, Component> = {
   media: Image,
   opencode: ApplicationWeb,
   'operation-log': ListBoxes,
+  'realtime-log': Terminal,
   process: Activity,
   'port-forward': Connect,
   runtime: ApplicationWeb,

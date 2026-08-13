@@ -1,10 +1,14 @@
 export interface ServerSentEvent {
   event: string
   data: string
+  id?: string
+  retry?: number
 }
 
 function parseEventBlock(block: string): ServerSentEvent | null {
   let event = 'message'
+  let id: string | undefined
+  let retry: number | undefined
   const data: string[] = []
 
   for (const line of block.split(/\r?\n/)) {
@@ -19,10 +23,23 @@ function parseEventBlock(block: string): ServerSentEvent | null {
       event = value
     } else if (field === 'data') {
       data.push(value)
+    } else if (field === 'id' && !value.includes('\0')) {
+      id = value
+    } else if (field === 'retry' && /^\d+$/.test(value)) {
+      retry = Number(value)
     }
   }
 
-  return data.length > 0 ? { event, data: data.join('\n') } : null
+  if (data.length === 0) {
+    return null
+  }
+
+  return {
+    event,
+    data: data.join('\n'),
+    ...(id !== undefined ? { id } : {}),
+    ...(retry !== undefined ? { retry } : {}),
+  }
 }
 
 export async function consumeServerSentEvents(

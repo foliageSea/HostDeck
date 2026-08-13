@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 
 import 'package:host_deck/server/app/server_container.dart';
 import 'package:host_deck/server/app/server_handlers.dart';
+import 'package:host_deck/server/features/logs/server_log_service.dart';
 import 'package:host_deck/utils/hostdeck_discovery.dart';
 
 class ServerService {
@@ -20,7 +21,10 @@ class ServerService {
   String? adminPassword;
   String? apiToken;
   bool secureCookies;
+  final ServerLogService logService;
+  final bool _ownsLogService;
   ServerContainer? _container;
+  bool _disposed = false;
 
   bool get isRunning => _server != null;
 
@@ -34,9 +38,14 @@ class ServerService {
     this.adminPassword,
     this.apiToken,
     this.secureCookies = false,
-  });
+    ServerLogService? logService,
+  }) : logService = logService ?? ServerLogService(),
+       _ownsLogService = logService == null;
 
   Future<void> start() async {
+    if (_disposed) {
+      throw StateError('ServerService has been disposed.');
+    }
     if (isRunning) return;
 
     final staticPath = webDir?.trim() ?? '';
@@ -63,6 +72,7 @@ class ServerService {
       adminPassword: adminPassword,
       apiToken: apiToken,
       secureCookies: secureCookies,
+      logService: logService,
     );
     final handler = await buildServerHandler(
       apiRoutes: _container!.apiRoutes,
@@ -104,6 +114,15 @@ class ServerService {
     }
     await _container?.dispose();
     _container = null;
+  }
+
+  Future<void> dispose() async {
+    if (_disposed) return;
+    await stop();
+    if (_ownsLogService) {
+      await logService.dispose();
+    }
+    _disposed = true;
   }
 
   Object _parseBindAddress(String value) {

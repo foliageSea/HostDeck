@@ -34,6 +34,8 @@ const dockIconColors: Partial<Record<DesktopAppId, string>> = {
   files: '#f59e0b',
   opencode: '#a855f7',
   'port-forward': '#06b6d4',
+  'operation-logs': '#64748b',
+  'realtime-logs': '#06b6d4',
   processes: '#22c55e',
   'runtime-sessions': '#22c55e',
   settings: '#94a3b8',
