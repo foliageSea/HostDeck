@@ -36,6 +36,8 @@ import 'package:host_deck/server/features/processes/process_service.dart';
 import 'package:host_deck/server/features/runtime/runtime_controller.dart';
 import 'package:host_deck/server/features/servers/server_controller.dart';
 import 'package:host_deck/server/features/servers/server_repository.dart';
+import 'package:host_deck/server/features/server_metrics/server_metrics_controller.dart';
+import 'package:host_deck/server/features/server_metrics/server_metrics_service.dart';
 import 'package:host_deck/server/features/settings/log_export_service.dart';
 import 'package:host_deck/server/features/settings/settings_controller.dart';
 import 'package:host_deck/server/features/system/monitor_history_service.dart';
@@ -125,6 +127,10 @@ class ServerContainer {
     );
     getIt.registerLazySingleton<MonitorService>(
       () => MonitorService(getIt<SshRepository>()),
+    );
+    getIt.registerLazySingleton<ServerMetricsService>(
+      ServerMetricsService.new,
+      dispose: (service) => service.dispose(),
     );
     getIt.registerLazySingleton<CronTaskService>(
       () =>
@@ -226,6 +232,9 @@ class ServerContainer {
           getIt<ProcessService>(),
         ),
         runtimeController: RuntimeController(getIt<SshService>()),
+        serverMetricsController: ServerMetricsController(
+          getIt<ServerMetricsService>(),
+        ),
         settingsController: SettingsController(getIt<LogExportService>()),
         portForwardController: PortForwardController(
           getIt<PortForwardRepository>(),

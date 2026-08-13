@@ -1,13 +1,26 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { ArrowDownToLine, Pause, Play, RotateCw, Trash2 } from '@lucide/vue'
+import {
+  Activity,
+  ArrowDownToLine,
+  Clock3,
+  Cpu,
+  Gauge,
+  MemoryStick,
+  Pause,
+  Play,
+  RotateCw,
+  Trash2,
+} from '@lucide/vue'
 import type { SelectOption } from 'naive-ui'
 import type { RealtimeLogItem } from '@/api/logs'
 import { useSettingsStore } from '@/stores/settings'
 import { useRealtimeLogs } from './useRealtimeLogs'
+import { useServerMetrics } from './useServerMetrics'
 
 const settingsStore = useSettingsStore()
 const controller = useRealtimeLogs()
+const metrics = useServerMetrics()
 const logElement = ref<HTMLElement>()
 const level = ref('')
 const logger = ref('')
@@ -101,6 +114,43 @@ function togglePaused() {
   controller.setPaused(!controller.paused.value)
 }
 
+function reconnectStreams() {
+  controller.reconnect()
+  metrics.reconnect()
+}
+
+function formatBytes(value?: number) {
+  if (value === undefined) return '--'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = value
+  let unitIndex = 0
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex += 1
+  }
+  const precision = unitIndex === 0 ? 0 : size >= 100 ? 0 : 1
+  return `${size.toFixed(precision)} ${units[unitIndex]}`
+}
+
+function formatUptime(value?: number) {
+  if (value === undefined) return '--'
+  const totalSeconds = Math.floor(value / 1000)
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  if (days > 0) return `${days}天 ${hours}小时`
+  if (hours > 0) return `${hours}小时 ${minutes}分`
+  return `${minutes}分 ${totalSeconds % 60}秒`
+}
+
+function formatCpu(value?: number | null) {
+  return value === undefined || value === null ? '--' : `${value.toFixed(1)}%`
+}
+
+function formatLag(value?: number) {
+  return value === undefined ? '--' : `${value.toFixed(value >= 10 ? 0 : 1)} ms`
+}
+
 watch(
   () => filteredLogs.value.length,
   () => {
@@ -162,12 +212,43 @@ watch(autoScroll, (enabled) => {
         </NTooltip>
         <NTooltip>
           <template #trigger>
-            <NButton aria-label="重新连接" size="small" quaternary @click="controller.reconnect">
+            <NButton aria-label="重新连接" size="small" quaternary @click="reconnectStreams">
               <template #icon><RotateCw /></template>
             </NButton>
           </template>
           重新连接日志流
         </NTooltip>
+      </div>
+    </div>
+
+    <div class="metrics-strip" aria-label="服务运行指标">
+      <div class="metrics-heading">
+        <Activity :size="14" />
+        <span>服务进程</span>
+        <span class="metrics-dot" :class="`metrics-${metrics.connectionStatus.value}`" />
+      </div>
+      <div class="metric-item">
+        <Cpu :size="14" />
+        <span class="metric-label">CPU</span>
+        <strong>{{ formatCpu(metrics.snapshot.value?.cpuPercent) }}</strong>
+      </div>
+      <div class="metric-item">
+        <MemoryStick :size="14" />
+        <span class="metric-label">内存</span>
+        <strong>{{ formatBytes(metrics.snapshot.value?.rssBytes) }}</strong>
+        <span class="metric-secondary"
+          >峰值 {{ formatBytes(metrics.snapshot.value?.peakRssBytes) }}</span
+        >
+      </div>
+      <div class="metric-item">
+        <Gauge :size="14" />
+        <span class="metric-label">事件循环</span>
+        <strong>{{ formatLag(metrics.snapshot.value?.eventLoopLagMs) }}</strong>
+      </div>
+      <div class="metric-item">
+        <Clock3 :size="14" />
+        <span class="metric-label">运行</span>
+        <strong>{{ formatUptime(metrics.snapshot.value?.uptimeMs) }}</strong>
       </div>
     </div>
 
@@ -239,6 +320,7 @@ watch(autoScroll, (enabled) => {
 }
 
 .log-toolbar,
+.metrics-strip,
 .log-statusbar {
   z-index: 1;
   flex: none;
@@ -248,6 +330,61 @@ watch(autoScroll, (enabled) => {
 
 .log-toolbar {
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+.metrics-strip {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  color: #aab5c4;
+  scrollbar-width: none;
+}
+.metrics-strip::-webkit-scrollbar {
+  display: none;
+}
+.metrics-heading,
+.metric-item {
+  display: flex;
+  height: 38px;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-right: 1px solid rgba(148, 163, 184, 0.14);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.metrics-heading {
+  color: #d7dee9;
+  font-weight: 700;
+}
+.metrics-heading > svg,
+.metric-item > svg {
+  color: #38bdf8;
+}
+.metric-item strong {
+  color: #e2e8f0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.metric-label,
+.metric-secondary {
+  color: #748094;
+}
+.metrics-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #64748b;
+}
+.metrics-connected {
+  background: #22c55e;
+}
+.metrics-connecting,
+.metrics-reconnecting {
+  background: #f59e0b;
 }
 .log-statusbar {
   border-top: 1px solid rgba(148, 163, 184, 0.18);
@@ -374,9 +511,21 @@ watch(autoScroll, (enabled) => {
   background: #f8fafc;
 }
 .realtime-logs-light .log-toolbar,
+.realtime-logs-light .metrics-strip,
 .realtime-logs-light .log-statusbar {
   border-color: #d9e0e9;
   background: #eef2f6;
+}
+.realtime-logs-light .metrics-strip {
+  color: #526176;
+}
+.realtime-logs-light .metrics-heading,
+.realtime-logs-light .metric-item strong {
+  color: #263244;
+}
+.realtime-logs-light .metric-label,
+.realtime-logs-light .metric-secondary {
+  color: #778397;
 }
 .realtime-logs-light .log-output {
   background: #f8fafc;

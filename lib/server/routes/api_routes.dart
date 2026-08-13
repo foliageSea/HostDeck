@@ -12,6 +12,7 @@ import 'package:host_deck/server/features/port_forwards/port_forward_controller.
 import 'package:host_deck/server/features/processes/process_controller.dart';
 import 'package:host_deck/server/features/runtime/runtime_controller.dart';
 import 'package:host_deck/server/features/servers/server_controller.dart';
+import 'package:host_deck/server/features/server_metrics/server_metrics_controller.dart';
 import 'package:host_deck/server/features/settings/settings_controller.dart';
 import 'package:host_deck/server/features/system/system_controller.dart';
 import 'package:host_deck/server/features/terminal/terminal_controller.dart';
@@ -27,6 +28,7 @@ import 'package:host_deck/server/routes/port_forward_routes.dart';
 import 'package:host_deck/server/routes/process_routes.dart';
 import 'package:host_deck/server/routes/runtime_routes.dart';
 import 'package:host_deck/server/routes/server_routes.dart';
+import 'package:host_deck/server/routes/server_metrics_routes.dart';
 import 'package:host_deck/server/routes/settings_routes.dart';
 import 'package:host_deck/server/routes/system_routes.dart';
 import 'package:host_deck/server/routes/terminal_routes.dart';
@@ -45,6 +47,7 @@ class ApiRoutes {
   final CronTaskController cronTaskController;
   final ProcessController processController;
   final RuntimeController runtimeController;
+  final ServerMetricsController serverMetricsController;
   final SettingsController settingsController;
   final PortForwardController portForwardController;
 
@@ -62,6 +65,7 @@ class ApiRoutes {
     required this.cronTaskController,
     required this.processController,
     required this.runtimeController,
+    required this.serverMetricsController,
     required this.settingsController,
     required this.portForwardController,
   });
@@ -73,6 +77,7 @@ class ApiRoutes {
     registerAgentRoutes(router, agentController);
     registerServerRoutes(router, serverController);
     registerRuntimeRoutes(router, runtimeController);
+    registerServerMetricsRoutes(router, serverMetricsController);
     registerSettingsRoutes(router, settingsController);
     registerPortForwardRoutes(router, portForwardController);
     registerSystemRoutes(router, systemController);
