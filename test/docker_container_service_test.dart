@@ -113,6 +113,21 @@ void main() {
 
       await expectLater(stream.toList(), throwsA(isA<FormatException>()));
     });
+
+    test('follows the Docker Engine log stream', () async {
+      final repository = _LogsDockerEngineRepository();
+      final logService = DockerContainerService(
+        repository,
+        DockerEngineMapper(),
+      );
+
+      final events = await logService
+          .getContainerLogs(_FakeSshSession(), 'container-1')
+          .toList();
+
+      expect(repository.queryParameters?['follow'], '1');
+      expect(events.single.text, 'hello\n');
+    });
   });
 
   group('DockerContainerService stats streaming', () {
@@ -334,6 +349,37 @@ class _StatsDockerEngineRepository extends DockerEngineRepository {
       },
       'pids_stats': {'current': 4},
     });
+  }
+}
+
+class _LogsDockerEngineRepository extends DockerEngineRepository {
+  Map<String, String>? queryParameters;
+
+  @override
+  Future<Map<String, dynamic>> requestJsonObject(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+  }) async {
+    return {
+      'Config': {'Tty': true},
+    };
+  }
+
+  @override
+  Future<Stream<Uint8List>> requestByteStream(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+  }) async {
+    this.queryParameters = queryParameters;
+    return Stream.value(Uint8List.fromList(utf8.encode('hello\n')));
   }
 }
 

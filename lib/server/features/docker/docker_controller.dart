@@ -330,6 +330,7 @@ class DockerController {
           headers: {
             'content-type': 'text/event-stream; charset=utf-8',
             'cache-control': 'no-cache, no-transform',
+            'connection': 'keep-alive',
             'x-accel-buffering': 'no',
           },
         );
@@ -343,9 +344,20 @@ class DockerController {
     Stream<DockerContainerLogEvent> events,
   ) async* {
     try {
+      // Flush the connected event through buffering proxies immediately.
+      yield utf8.encode(': ${' '.padRight(16 * 1024)}\n\n');
       yield encodeServerSentEvent('connected', const <String, dynamic>{});
-      await for (final event in events) {
-        yield encodeServerSentEvent(event.event, {'text': event.text});
+      await for (final event in events.timeout(
+        const Duration(seconds: 15),
+        onTimeout: (sink) {
+          sink.add(const DockerContainerLogEvent('heartbeat', ''));
+        },
+      )) {
+        if (event.event == 'heartbeat') {
+          yield utf8.encode(': heartbeat\n\n');
+        } else {
+          yield encodeServerSentEvent(event.event, {'text': event.text});
+        }
       }
       yield encodeServerSentEvent('done', const <String, dynamic>{});
     } catch (error) {

@@ -46,6 +46,35 @@ describe('dockerApi.streamContainerLogs', () => {
     expect(events.map((event) => event.event)).toEqual(['connected', 'stdout', 'stderr', 'done'])
   })
 
+  it('reports connected as soon as the streaming response is established', async () => {
+    const abortController = new AbortController()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        abortController.signal.addEventListener('abort', () => controller.close())
+      },
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(stream, {
+          headers: { 'Content-Type': 'text/event-stream' },
+        }),
+      ),
+    )
+    const events: DockerContainerLogStreamEvent[] = []
+
+    const request = dockerApi.streamContainerLogs(
+      'conn-1',
+      'container-1',
+      {},
+      (event) => events.push(event),
+      abortController.signal,
+    )
+    await vi.waitFor(() => expect(events.map((event) => event.event)).toEqual(['connected']))
+    abortController.abort()
+    await expect(request).rejects.toThrow('容器日志流意外结束。')
+  })
+
   it('reports a server error event', async () => {
     vi.stubGlobal(
       'fetch',

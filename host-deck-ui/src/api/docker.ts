@@ -554,10 +554,22 @@ export const dockerApi = {
 
     let completed = false
     let streamError: string | undefined
+    let connected = false
+    const reportConnected = () => {
+      if (!connected) {
+        connected = true
+        onEvent({ event: 'connected', data: {} })
+      }
+    }
+    reportConnected()
     await consumeServerSentEvents(response.body, (message) => {
       const data = JSON.parse(message.data) as Record<string, unknown>
       const event = { event: message.event, data } as DockerContainerLogStreamEvent
-      onEvent(event)
+      if (event.event === 'connected') {
+        reportConnected()
+      } else {
+        onEvent(event)
+      }
       if (event.event === 'done') {
         completed = true
       } else if (event.event === 'error') {
