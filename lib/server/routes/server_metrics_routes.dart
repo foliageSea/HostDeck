@@ -7,5 +7,5 @@ void registerServerMetricsRoutes(
   ServerMetricsController controller,
 ) {
   router.get('/api/server/metrics', controller.snapshot);
-  router.get('/api/ws/server-metrics', controller.wsMetrics);
+  router.get('/api/server/metrics/stream', controller.stream);
 }

@@ -56,6 +56,35 @@ void main() {
     expect(snapshot.eventLoopLagMs, greaterThanOrEqualTo(0));
   });
 
+  test('ServerMetricsService shares an in-flight sample', () async {
+    var reads = 0;
+    final sampler = LinuxProcessCpuSampler(
+      processorCount: 1,
+      readFile: (path) async {
+        reads++;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        return path == '/proc/self/stat'
+            ? _processStat(userTicks: 100, systemTicks: 50)
+            : 'cpu  100 20 30 400 10 0 0 0 0 0\n';
+      },
+    );
+    final service = ServerMetricsService(
+      cpuSampler: sampler,
+      currentRss: () => 1234,
+      maxRss: () => 5678,
+      enableLinuxCpu: true,
+    );
+    addTearDown(service.dispose);
+
+    final snapshots = await Future.wait([
+      service.getSnapshot(),
+      service.getSnapshot(),
+    ]);
+
+    expect(identical(snapshots[0], snapshots[1]), isTrue);
+    expect(reads, 2);
+  });
+
   test('ServerMetricsSnapshot serializes API contract', () {
     const snapshot = ServerMetricsSnapshot(
       timestamp: 1000,

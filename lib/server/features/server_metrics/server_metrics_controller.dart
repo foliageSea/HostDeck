@@ -2,9 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:shelf/shelf.dart';
-import 'package:shelf_web_socket/shelf_web_socket.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
+import 'package:host_deck/server/core/http/server_sent_event.dart';
 import 'package:host_deck/server/core/http/result.dart';
 import 'package:host_deck/server/features/server_metrics/server_metrics_service.dart';
 
@@ -21,65 +20,30 @@ class ServerMetricsController {
     }
   }
 
-  Handler get wsMetrics {
-    return (Request request) {
-      return webSocketHandler((WebSocketChannel channel, String? protocol) {
-        Timer? timer;
-        var isActive = true;
-        var isSampling = false;
+  Response stream(Request request) {
+    return Response.ok(
+      _encodeSnapshots(),
+      headers: const {
+        'content-type': 'text/event-stream; charset=utf-8',
+        'cache-control': 'no-cache, no-transform',
+        'connection': 'keep-alive',
+        'x-accel-buffering': 'no',
+      },
+      context: const {'shelf.io.buffer_output': false},
+    );
+  }
 
-        Future<void> sendSnapshot() async {
-          if (!isActive || isSampling) return;
-          isSampling = true;
-          try {
-            final snapshot = await _metricsService.getSnapshot();
-            if (isActive) {
-              channel.sink.add(
-                jsonEncode({
-                  'code': 200,
-                  'data': snapshot.toJson(),
-                  'message': 'success',
-                }),
-              );
-            }
-          } catch (e) {
-            if (isActive) {
-              channel.sink.add(
-                jsonEncode({
-                  'code': 500,
-                  'data': null,
-                  'message': e.toString(),
-                }),
-              );
-            }
-          } finally {
-            isSampling = false;
-          }
-        }
-
-        void dispose() {
-          isActive = false;
-          timer?.cancel();
-          timer = null;
-        }
-
-        unawaited(sendSnapshot());
-        timer = Timer.periodic(
-          const Duration(seconds: 3),
-          (_) => unawaited(sendSnapshot()),
-        );
-        channel.stream.listen(
-          (message) {
-            if (message == 'ping') {
-              channel.sink.add('pong');
-            } else if (message == 'refresh') {
-              unawaited(sendSnapshot());
-            }
-          },
-          onDone: dispose,
-          onError: (_) => dispose(),
-        );
-      })(request);
-    };
+  Stream<List<int>> _encodeSnapshots() async* {
+    yield <int>[
+      ...utf8.encode(': ${' '.padRight(2048)}\n\n'),
+      ...encodeServerSentEvent('connected', const {}, retry: 3000),
+    ];
+    try {
+      await for (final snapshot in _metricsService.watchSnapshots()) {
+        yield encodeServerSentEvent('metrics', snapshot.toJson());
+      }
+    } catch (error) {
+      yield encodeServerSentEvent('error', {'message': error.toString()});
+    }
   }
 }

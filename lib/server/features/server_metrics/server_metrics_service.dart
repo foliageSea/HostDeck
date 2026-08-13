@@ -84,12 +84,17 @@ class LinuxProcessCpuSampler {
 
 class ServerMetricsService {
   static const _lagProbeInterval = Duration(seconds: 1);
+  static const _defaultSampleInterval = Duration(seconds: 3);
 
   final Stopwatch _uptime = Stopwatch()..start();
   final LinuxProcessCpuSampler? _cpuSampler;
   final int Function() _currentRss;
   final int Function() _maxRss;
+  final Duration _sampleInterval;
+  late final StreamController<ServerMetricsSnapshot> _snapshotController;
   Timer? _lagTimer;
+  Timer? _sampleTimer;
+  Future<ServerMetricsSnapshot>? _sampling;
   Duration _expectedLagProbe = _lagProbeInterval;
   double _eventLoopLagMs = 0;
 
@@ -98,15 +103,40 @@ class ServerMetricsService {
     int Function()? currentRss,
     int Function()? maxRss,
     bool? enableLinuxCpu,
+    Duration sampleInterval = _defaultSampleInterval,
   }) : _cpuSampler = (enableLinuxCpu ?? Platform.isLinux)
            ? (cpuSampler ?? LinuxProcessCpuSampler())
            : null,
        _currentRss = currentRss ?? (() => ProcessInfo.currentRss),
-       _maxRss = maxRss ?? (() => ProcessInfo.maxRss) {
+       _maxRss = maxRss ?? (() => ProcessInfo.maxRss),
+       _sampleInterval = sampleInterval {
+    _snapshotController = StreamController<ServerMetricsSnapshot>.broadcast(
+      onListen: _startSampling,
+      onCancel: _stopSampling,
+    );
     _startLagProbe();
   }
 
-  Future<ServerMetricsSnapshot> getSnapshot() async {
+  Future<ServerMetricsSnapshot> getSnapshot() {
+    final sampling = _sampling;
+    if (sampling != null) return sampling;
+
+    late final Future<ServerMetricsSnapshot> nextSampling;
+    nextSampling = _collectSnapshot().whenComplete(() {
+      if (identical(_sampling, nextSampling)) {
+        _sampling = null;
+      }
+    });
+    _sampling = nextSampling;
+    return nextSampling;
+  }
+
+  Stream<ServerMetricsSnapshot> watchSnapshots() async* {
+    yield await getSnapshot();
+    yield* _snapshotController.stream;
+  }
+
+  Future<ServerMetricsSnapshot> _collectSnapshot() async {
     return ServerMetricsSnapshot(
       timestamp: DateTime.now().millisecondsSinceEpoch,
       uptimeMs: _uptime.elapsedMilliseconds,
@@ -117,6 +147,33 @@ class ServerMetricsService {
     );
   }
 
+  void _startSampling() {
+    if (_sampleTimer != null) return;
+    _sampleTimer = Timer.periodic(
+      _sampleInterval,
+      (_) => unawaited(_sampleAndPublish()),
+    );
+  }
+
+  void _stopSampling() {
+    if (_snapshotController.hasListener) return;
+    _sampleTimer?.cancel();
+    _sampleTimer = null;
+  }
+
+  Future<void> _sampleAndPublish() async {
+    try {
+      final snapshot = await getSnapshot();
+      if (!_snapshotController.isClosed && _snapshotController.hasListener) {
+        _snapshotController.add(snapshot);
+      }
+    } catch (error, stackTrace) {
+      if (!_snapshotController.isClosed && _snapshotController.hasListener) {
+        _snapshotController.addError(error, stackTrace);
+      }
+    }
+  }
+
   void _startLagProbe() {
     _lagTimer = Timer.periodic(_lagProbeInterval, (_) {
       final lag = _uptime.elapsed - _expectedLagProbe;
@@ -125,9 +182,12 @@ class ServerMetricsService {
     });
   }
 
-  void dispose() {
+  Future<void> dispose() async {
     _lagTimer?.cancel();
     _lagTimer = null;
+    _sampleTimer?.cancel();
+    _sampleTimer = null;
     _uptime.stop();
+    await _snapshotController.close();
   }
 }

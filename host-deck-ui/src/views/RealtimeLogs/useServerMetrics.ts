@@ -1,116 +1,81 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import type { ServerMetricsSnapshot } from '@/api/server-metrics'
+import {
+  ServerMetricsStreamHttpError,
+  serverMetricsApi,
+  type ServerMetricsSnapshot,
+} from '@/api/server-metrics'
 
-export type ServerMetricsConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'stopped'
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value)
-}
-
-function parseSnapshot(payload: unknown): ServerMetricsSnapshot | null {
-  if (!payload || typeof payload !== 'object') return null
-  const message = payload as { code?: unknown; data?: unknown }
-  if (message.code !== 200 || !message.data || typeof message.data !== 'object') return null
-
-  const data = message.data as Record<string, unknown>
-  if (
-    !isFiniteNumber(data.timestamp) ||
-    !isFiniteNumber(data.uptimeMs) ||
-    !isFiniteNumber(data.rssBytes) ||
-    !isFiniteNumber(data.peakRssBytes) ||
-    (data.cpuPercent !== null && !isFiniteNumber(data.cpuPercent)) ||
-    !isFiniteNumber(data.eventLoopLagMs)
-  ) {
-    return null
-  }
-
-  return {
-    timestamp: data.timestamp,
-    uptimeMs: data.uptimeMs,
-    rssBytes: data.rssBytes,
-    peakRssBytes: data.peakRssBytes,
-    cpuPercent: data.cpuPercent,
-    eventLoopLagMs: data.eventLoopLagMs,
-  }
-}
+export type ServerMetricsConnectionStatus =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'unauthorized'
+  | 'stopped'
 
 export function useServerMetrics() {
   const snapshot = ref<ServerMetricsSnapshot | null>(null)
   const connectionStatus = ref<ServerMetricsConnectionStatus>('connecting')
 
-  let socket: WebSocket | null = null
+  let controller: AbortController | undefined
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined
-  let pingTimer: ReturnType<typeof setInterval> | undefined
   let generation = 0
-  let stopped = false
+  let reconnectAttempt = 0
+  const reconnectDelaysMs = [1000, 2000, 4000, 8000, 15000]
 
-  function clearTimers() {
+  function clearReconnectTimer() {
     if (reconnectTimer) clearTimeout(reconnectTimer)
-    if (pingTimer) clearInterval(pingTimer)
     reconnectTimer = undefined
-    pingTimer = undefined
   }
 
-  function closeSocket() {
-    const current = socket
-    socket = null
-    if (current) {
-      current.onopen = null
-      current.onmessage = null
-      current.onerror = null
-      current.onclose = null
-      current.close(1000, 'Normal Closure')
-    }
+  function scheduleReconnect(streamGeneration: number) {
+    if (streamGeneration !== generation) return
+    connectionStatus.value = 'reconnecting'
+    const delay =
+      reconnectDelaysMs[Math.min(reconnectAttempt, reconnectDelaysMs.length - 1)] ?? 15000
+    reconnectAttempt += 1
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = undefined
+      if (streamGeneration === generation) void openStream(streamGeneration)
+    }, delay)
   }
 
-  function connect() {
-    generation += 1
-    const currentGeneration = generation
-    clearTimers()
-    closeSocket()
-    connectionStatus.value = snapshot.value ? 'reconnecting' : 'connecting'
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const current = new WebSocket(`${protocol}//${window.location.host}/api/ws/server-metrics`)
-    socket = current
-
-    current.onopen = () => {
-      if (currentGeneration !== generation) return
-      connectionStatus.value = 'connected'
-      pingTimer = setInterval(() => {
-        if (current.readyState === WebSocket.OPEN) current.send('ping')
-      }, 10000)
-    }
-    current.onmessage = (event) => {
-      if (currentGeneration !== generation || event.data === 'pong') return
-      try {
-        const nextSnapshot = parseSnapshot(JSON.parse(String(event.data)) as unknown)
-        if (nextSnapshot) snapshot.value = nextSnapshot
-      } catch {
-        // Ignore malformed samples and keep the previous valid snapshot.
+  async function openStream(streamGeneration: number) {
+    if (streamGeneration !== generation) return
+    controller = new AbortController()
+    connectionStatus.value = reconnectAttempt === 0 ? 'connecting' : 'reconnecting'
+    try {
+      await serverMetricsApi.stream((event) => {
+        if (streamGeneration !== generation) return
+        if (event.event === 'connected') {
+          connectionStatus.value = 'connected'
+          reconnectAttempt = 0
+        } else {
+          snapshot.value = event.data
+        }
+      }, controller.signal)
+    } catch (error) {
+      if (streamGeneration !== generation || controller.signal.aborted) return
+      if (error instanceof ServerMetricsStreamHttpError && error.status === 401) {
+        connectionStatus.value = 'unauthorized'
+        return
       }
-    }
-    current.onerror = () => current.close()
-    current.onclose = () => {
-      if (currentGeneration !== generation || stopped) return
-      if (pingTimer) clearInterval(pingTimer)
-      pingTimer = undefined
-      socket = null
-      connectionStatus.value = 'reconnecting'
-      reconnectTimer = setTimeout(connect, 3000)
+      scheduleReconnect(streamGeneration)
     }
   }
 
   function reconnect() {
-    stopped = false
-    connect()
+    generation += 1
+    controller?.abort()
+    clearReconnectTimer()
+    reconnectAttempt = 0
+    void openStream(generation)
   }
 
   function stop() {
-    stopped = true
     generation += 1
-    clearTimers()
-    closeSocket()
+    controller?.abort()
+    controller = undefined
+    clearReconnectTimer()
     connectionStatus.value = 'stopped'
   }
 

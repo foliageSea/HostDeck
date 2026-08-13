@@ -1,41 +1,21 @@
 import { defineComponent, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { connections, streamMock } = vi.hoisted(() => ({
+  connections: [] as Array<{
+    onEvent: (event: unknown) => void
+    reject: (error: Error) => void
+  }>,
+  streamMock: vi.fn(),
+}))
+
+vi.mock('@/api/server-metrics', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/server-metrics')>()
+  return { ...actual, serverMetricsApi: { stream: streamMock } }
+})
+
 import { useServerMetrics } from '../useServerMetrics'
-
-class MockWebSocket {
-  static readonly OPEN = 1
-  static instances: MockWebSocket[] = []
-
-  readonly url: string
-  readyState = MockWebSocket.OPEN
-  onopen: (() => void) | null = null
-  onmessage: ((event: MessageEvent) => void) | null = null
-  onerror: (() => void) | null = null
-  onclose: (() => void) | null = null
-  send = vi.fn()
-  close = vi.fn(() => {
-    this.readyState = 3
-  })
-
-  constructor(url: string | URL) {
-    this.url = String(url)
-    MockWebSocket.instances.push(this)
-  }
-
-  open() {
-    this.onopen?.()
-  }
-
-  message(data: string) {
-    this.onmessage?.({ data } as MessageEvent)
-  }
-
-  disconnect() {
-    this.readyState = 3
-    this.onclose?.()
-  }
-}
 
 function mountController() {
   let controller: ReturnType<typeof useServerMetrics> | undefined
@@ -54,39 +34,39 @@ function mountController() {
 describe('useServerMetrics', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    MockWebSocket.instances = []
-    vi.stubGlobal('WebSocket', MockWebSocket)
+    connections.length = 0
+    streamMock.mockReset()
+    streamMock.mockImplementation(
+      (onEvent: (event: unknown) => void, signal?: AbortSignal) =>
+        new Promise<void>((resolve, reject) => {
+          connections.push({ onEvent, reject })
+          signal?.addEventListener('abort', () => resolve(), { once: true })
+        }),
+    )
   })
 
   afterEach(() => {
     vi.useRealTimers()
-    vi.unstubAllGlobals()
   })
 
-  it('connects and accepts valid metric snapshots', async () => {
+  it('connects and accepts metric snapshots', async () => {
     const { controller, wrapper } = mountController()
     await nextTick()
-    const socket = MockWebSocket.instances[0]
-    expect(socket?.url).toBe('ws://localhost:3000/api/ws/server-metrics')
 
-    socket?.open()
-    socket?.message(
-      JSON.stringify({
-        code: 200,
-        data: {
-          timestamp: 1000,
-          uptimeMs: 2000,
-          rssBytes: 3000,
-          peakRssBytes: 4000,
-          cpuPercent: 12.5,
-          eventLoopLagMs: 1.25,
-        },
-      }),
-    )
+    connections[0]?.onEvent({ event: 'connected' })
+    connections[0]?.onEvent({
+      event: 'metrics',
+      data: {
+        timestamp: 1000,
+        uptimeMs: 2000,
+        rssBytes: 3000,
+        peakRssBytes: 4000,
+        cpuPercent: 12.5,
+        eventLoopLagMs: 1.25,
+      },
+    })
 
     expect(controller.connectionStatus.value).toBe('connected')
-    expect(controller.snapshot.value?.rssBytes).toBe(3000)
-    socket?.message('{invalid')
     expect(controller.snapshot.value?.rssBytes).toBe(3000)
     wrapper.unmount()
   })
@@ -94,15 +74,16 @@ describe('useServerMetrics', () => {
   it('reconnects after disconnect and stops after unmount', async () => {
     const { controller, wrapper } = mountController()
     await nextTick()
-    MockWebSocket.instances[0]?.disconnect()
+    connections[0]?.reject(new Error('disconnected'))
+    await Promise.resolve()
     expect(controller.connectionStatus.value).toBe('reconnecting')
 
-    await vi.advanceTimersByTimeAsync(3000)
-    expect(MockWebSocket.instances).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(streamMock).toHaveBeenCalledTimes(2)
 
     wrapper.unmount()
-    await vi.advanceTimersByTimeAsync(3000)
-    expect(MockWebSocket.instances).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(15000)
+    expect(streamMock).toHaveBeenCalledTimes(2)
     expect(controller.connectionStatus.value).toBe('stopped')
   })
 })
