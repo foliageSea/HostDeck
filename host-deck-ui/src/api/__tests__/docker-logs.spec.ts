@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { dockerApi, type DockerContainerLogStreamEvent } from '@/api/docker'
+import {
+  dockerApi,
+  type DockerContainerLogStreamEvent,
+  type DockerContainerStatsStreamEvent,
+} from '@/api/docker'
 
 function sseResponse(body: string, status = 200) {
   return new Response(body, {
@@ -63,5 +67,33 @@ describe('dockerApi.streamContainerLogs', () => {
     await expect(
       dockerApi.streamContainerLogs('conn-1', 'container-1', {}, () => undefined),
     ).rejects.toThrow('容器日志流意外结束。')
+  })
+})
+
+describe('dockerApi.streamContainerStats', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('streams numeric resource samples', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        sseResponse(
+          'event: connected\ndata: {}\n\n' +
+            'event: stats\ndata: {"id":"container-1","name":"web","timestamp":1,"cpuPercent":2.5,"memoryPercent":10,"memoryUsage":100,"memoryLimit":1000,"networkRxBytes":20,"networkTxBytes":30,"networkRxBytesPerSecond":4,"networkTxBytesPerSecond":5,"blockReadBytes":0,"blockWriteBytes":0,"pids":2}\n\n',
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const events: DockerContainerStatsStreamEvent[] = []
+
+    await dockerApi.streamContainerStats('conn-1', 'container/1', (event) => events.push(event))
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/docker/containers/container%2F1/stats/stream?connectionId=conn-1',
+      expect.objectContaining({ credentials: 'same-origin' }),
+    )
+    expect(events.map((event) => event.event)).toEqual(['connected', 'stats'])
+    expect(events[1]?.data).toEqual(expect.objectContaining({ cpuPercent: 2.5 }))
   })
 })

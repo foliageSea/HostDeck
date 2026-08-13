@@ -145,6 +145,29 @@ class DockerEngineMapper {
   }
 
   Map<String, dynamic> mapContainerStats(Map<String, dynamic> json) {
+    final sample = mapContainerStatsSample(json);
+    final cpuPercent = sample['cpuPercent'] as double;
+    final memoryPercent = sample['memoryPercent'] as double;
+    final memoryUsage = sample['memoryUsage'] as int;
+    final memoryLimit = sample['memoryLimit'] as int;
+    final rxBytes = sample['networkRxBytes'] as int;
+    final txBytes = sample['networkTxBytes'] as int;
+    final readBytes = sample['blockReadBytes'] as int;
+    final writeBytes = sample['blockWriteBytes'] as int;
+
+    return {
+      'id': sample['id'],
+      'name': sample['name'],
+      'cpuPercent': _formatPercent(cpuPercent),
+      'memPercent': _formatPercent(memoryPercent),
+      'memUsage': '${_formatBytes(memoryUsage)} / ${_formatBytes(memoryLimit)}',
+      'netIO': '${_formatBytes(rxBytes)} / ${_formatBytes(txBytes)}',
+      'blockIO': '${_formatBytes(readBytes)} / ${_formatBytes(writeBytes)}',
+      'pids': sample['pids'].toString(),
+    };
+  }
+
+  Map<String, dynamic> mapContainerStatsSample(Map<String, dynamic> json) {
     final cpuStats = _asMap(json['cpu_stats']);
     final preCpuStats = _asMap(json['precpu_stats']);
     final cpuUsage = _asMap(cpuStats['cpu_usage']);
@@ -164,7 +187,7 @@ class DockerEngineMapper {
     final memoryUsage = _toDouble(memoryStats['usage']);
     final memoryLimit = _toDouble(memoryStats['limit']);
     final memoryCache = _extractMemoryCache(_asMap(memoryStats['stats']));
-    final workingSet = (memoryUsage - memoryCache).clamp(0, double.infinity);
+    final workingSet = (memoryUsage - memoryCache).clamp(0.0, double.infinity);
     final memoryPercent = memoryLimit > 0
         ? (workingSet / memoryLimit) * 100
         : 0.0;
@@ -200,16 +223,26 @@ class DockerEngineMapper {
     final pidsStats = _asMap(json['pids_stats']);
     final name = _normalizeContainerName((json['name'] ?? '').toString());
 
-    return {
+    return <String, dynamic>{
       'id': (json['id'] ?? '').toString(),
       'name': name,
-      'cpuPercent': _formatPercent(cpuPercent),
-      'memPercent': _formatPercent(memoryPercent),
-      'memUsage': '${_formatBytes(workingSet)} / ${_formatBytes(memoryLimit)}',
-      'netIO': '${_formatBytes(rxBytes)} / ${_formatBytes(txBytes)}',
-      'blockIO': '${_formatBytes(readBytes)} / ${_formatBytes(writeBytes)}',
-      'pids': _toInt(pidsStats['current']).toString(),
+      'timestamp': _parseStatsTimestamp(json['read']),
+      'cpuPercent': cpuPercent,
+      'memoryPercent': memoryPercent,
+      'memoryUsage': workingSet.round(),
+      'memoryLimit': memoryLimit.round(),
+      'networkRxBytes': rxBytes.round(),
+      'networkTxBytes': txBytes.round(),
+      'blockReadBytes': readBytes.round(),
+      'blockWriteBytes': writeBytes.round(),
+      'pids': _toInt(pidsStats['current']),
     };
+  }
+
+  int _parseStatsTimestamp(dynamic value) {
+    final parsed = DateTime.tryParse(value?.toString() ?? '');
+    return parsed?.millisecondsSinceEpoch ??
+        DateTime.now().millisecondsSinceEpoch;
   }
 
   List<DockerNetwork> mapNetworkSummaries(List<dynamic> networks) {

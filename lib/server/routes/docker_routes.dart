@@ -12,6 +12,10 @@ void registerDockerRoutes(Router router, DockerController controller) {
     controller.inspectContainer,
   );
   router.get('/api/docker/containers/<id>/stats', controller.getContainerStats);
+  router.get(
+    '/api/docker/containers/<id>/stats/stream',
+    controller.streamContainerStats,
+  );
   router.post(
     '/api/docker/containers/<id>/shell',
     controller.createContainerShellSession,

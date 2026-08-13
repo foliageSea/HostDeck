@@ -76,6 +76,44 @@ void main() {
       expect(stats['pids'], '12');
     });
 
+    test('maps stats payload into numeric chart sample', () {
+      final stats = mapper.mapContainerStatsSample({
+        'id': 'container-1',
+        'name': '/web',
+        'read': '2026-08-13T10:00:00.000Z',
+        'cpu_stats': {
+          'system_cpu_usage': 2000,
+          'online_cpus': 2,
+          'cpu_usage': {'total_usage': 400},
+        },
+        'precpu_stats': {
+          'system_cpu_usage': 1000,
+          'cpu_usage': {'total_usage': 200},
+        },
+        'memory_stats': {
+          'usage': 300,
+          'limit': 1000,
+          'stats': {'cache': 100},
+        },
+        'networks': {
+          'eth0': {'rx_bytes': 1024, 'tx_bytes': 2048},
+        },
+        'pids_stats': {'current': 4},
+      });
+
+      expect(
+        stats['timestamp'],
+        DateTime.utc(2026, 8, 13, 10).millisecondsSinceEpoch,
+      );
+      expect(stats['cpuPercent'], 40.0);
+      expect(stats['memoryPercent'], 20.0);
+      expect(stats['memoryUsage'], 200);
+      expect(stats['memoryLimit'], 1000);
+      expect(stats['networkRxBytes'], 1024);
+      expect(stats['networkTxBytes'], 2048);
+      expect(stats['pids'], 4);
+    });
+
     test('builds create request body from ui payload', () {
       final request = mapper.buildCreateRequest({
         'image': 'nginx:latest',

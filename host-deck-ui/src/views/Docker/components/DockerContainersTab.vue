@@ -107,21 +107,6 @@ function getContainerStatusType(container: DockerContainer) {
   return 'default'
 }
 
-function getContainerResource(container: DockerContainer) {
-  if (!props.controller.containerResourceLoadedMap[container.id]) {
-    return ''
-  }
-
-  const stats = props.controller.statsMap[container.id]
-  const diagnostics = props.controller.diagnosticsMap[container.id]
-
-  if (!stats) {
-    return '暂无数据'
-  }
-
-  return `${stats.cpuPercent} CPU / ${stats.memUsage}${diagnostics ? ` / 重启 ${diagnostics.restartCount}` : ''}`
-}
-
 function getPortsTitle(container: DockerContainer) {
   return container.ports.length ? container.ports.join('\n') : '无端口映射'
 }
@@ -255,21 +240,6 @@ function isPaused(container: DockerContainer) {
               <strong :title="container.image">{{ container.image }}</strong>
             </div>
             <div class="docker-card-field">
-              <span>资源</span>
-              <strong v-if="controller.containerResourceLoadedMap[container.id]">{{
-                getContainerResource(container)
-              }}</strong>
-              <NButton
-                v-else
-                text
-                type="primary"
-                :loading="controller.containerResourceLoadingMap[container.id]"
-                @click="controller.refreshContainerResource(container.id)"
-              >
-                获取资源
-              </NButton>
-            </div>
-            <div class="docker-card-field">
               <span>创建时间</span>
               <strong>{{ controller.formatTime(container.createdAt) }}</strong>
             </div>
@@ -338,6 +308,14 @@ function isPaused(container: DockerContainer) {
                 quaternary
                 @click="controller.confirmContainerAction(container, 'restart')"
                 >重启
+              </NButton>
+              <NButton
+                size="tiny"
+                quaternary
+                :disabled="container.state !== 'running'"
+                @click="controller.viewStats(container)"
+              >
+                监控
               </NButton>
               <NPopover v-if="container.ports.length" trigger="hover" placement="top-end">
                 <template #trigger>

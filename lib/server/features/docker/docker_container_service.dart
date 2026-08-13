@@ -15,6 +15,12 @@ class DockerContainerLogEvent {
   const DockerContainerLogEvent(this.event, this.text);
 }
 
+class DockerContainerStatsEvent {
+  final Map<String, dynamic> data;
+
+  const DockerContainerStatsEvent(this.data);
+}
+
 class DockerContainerService {
   final DockerEngineRepository _engineRepository;
   final DockerEngineMapper _mapper;
@@ -271,6 +277,58 @@ class DockerContainerService {
       queryParameters: {'stream': 'false'},
     );
     return _mapper.mapContainerStats(json);
+  }
+
+  Stream<DockerContainerStatsEvent> streamContainerStats(
+    SshSession session,
+    String containerId,
+  ) async* {
+    final source = await _engineRepository.requestByteStream(
+      session,
+      method: 'GET',
+      path: '/containers/$containerId/stats',
+      queryParameters: {'stream': 'true'},
+    );
+    Map<String, dynamic>? previous;
+
+    final lines = const LineSplitter().bind(utf8.decoder.bind(source));
+    await for (final line in lines) {
+      if (line.trim().isEmpty) {
+        continue;
+      }
+
+      final decoded = jsonDecode(line);
+      if (decoded is! Map) {
+        continue;
+      }
+
+      final sample = _mapper.mapContainerStatsSample(
+        Map<String, dynamic>.from(decoded),
+      );
+      final elapsedSeconds = previous == null
+          ? 0.0
+          : ((sample['timestamp'] as int) - (previous['timestamp'] as int)) /
+                1000;
+      sample['networkRxBytesPerSecond'] = _calculateRate(
+        sample['networkRxBytes'] as int,
+        previous?['networkRxBytes'] as int?,
+        elapsedSeconds,
+      );
+      sample['networkTxBytesPerSecond'] = _calculateRate(
+        sample['networkTxBytes'] as int,
+        previous?['networkTxBytes'] as int?,
+        elapsedSeconds,
+      );
+      previous = sample;
+      yield DockerContainerStatsEvent(sample);
+    }
+  }
+
+  double _calculateRate(int current, int? previous, double elapsedSeconds) {
+    if (previous == null || elapsedSeconds <= 0 || current < previous) {
+      return 0;
+    }
+    return (current - previous) / elapsedSeconds;
   }
 
   Future<List<Map<String, dynamic>>> getContainerDiagnostics(

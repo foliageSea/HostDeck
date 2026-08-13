@@ -2,10 +2,9 @@ import { computed, onBeforeUnmount, onMounted, ref, watch, type UnwrapNestedRefs
 import {
   dockerApi,
   type DockerContainer,
-  type DockerContainerDiagnostic,
   type DockerContainerStatusFilter,
   type DockerContainerSummary,
-  type DockerContainerStats,
+  type DockerContainerStatsSample,
   type DockerCreateNetworkPayload,
   type DockerCreateVolumePayload,
   type DockerImageContainerRef,
@@ -57,10 +56,13 @@ export function useDockerView(props: DockerViewProps) {
   const networkSearchKeyword = ref('')
   const volumes = ref<DockerVolume[]>([])
   const volumeSearchKeyword = ref('')
-  const statsMap = ref<Record<string, DockerContainerStats>>({})
-  const diagnosticsMap = ref<Record<string, DockerContainerDiagnostic>>({})
-  const containerResourceLoadingMap = ref<Record<string, boolean>>({})
-  const containerResourceLoadedMap = ref<Record<string, boolean>>({})
+  const statsVisible = ref(false)
+  const statsTitle = ref('')
+  const statsContainerId = ref('')
+  const statsContainerName = ref('')
+  const statsSamples = ref<DockerContainerStatsSample[]>([])
+  const statsStreamStatus = ref<'connecting' | 'live' | 'ended' | 'error'>('connecting')
+  const statsStreamError = ref('')
   const selectedContainerIds = ref<string[]>([])
   const batchProcessing = ref(false)
   const logsVisible = ref(false)
@@ -106,6 +108,8 @@ export function useDockerView(props: DockerViewProps) {
 
   let logsAbortController: AbortController | null = null
   let logsStreamGeneration = 0
+  let statsAbortController: AbortController | null = null
+  let statsStreamGeneration = 0
   let pullImageAbortController: AbortController | null = null
   let requestQueue = Promise.resolve()
   let pendingDockerCheck: Promise<boolean> | null = null
@@ -347,6 +351,78 @@ export function useDockerView(props: DockerViewProps) {
     logsAbortController = null
   }
 
+  function stopStatsStream() {
+    statsStreamGeneration += 1
+    statsAbortController?.abort()
+    statsAbortController = null
+  }
+
+  function appendStatsSample(sample: DockerContainerStatsSample) {
+    const cutoff = sample.timestamp - 5 * 60 * 1000
+    statsSamples.value = [...statsSamples.value, sample]
+      .filter((item) => item.timestamp >= cutoff)
+      .slice(-300)
+  }
+
+  async function refreshStatsStream() {
+    if (!statsContainerId.value) {
+      return
+    }
+
+    stopStatsStream()
+    const generation = statsStreamGeneration
+    const abortController = new AbortController()
+    statsAbortController = abortController
+    statsSamples.value = []
+    statsStreamError.value = ''
+    statsStreamStatus.value = 'connecting'
+
+    try {
+      await dockerApi.streamContainerStats(
+        requireConnectionId(),
+        statsContainerId.value,
+        (event) => {
+          if (generation !== statsStreamGeneration) {
+            return
+          }
+          if (event.event === 'connected') {
+            statsStreamStatus.value = 'live'
+          } else if (event.event === 'stats') {
+            statsStreamStatus.value = 'live'
+            appendStatsSample(event.data)
+          } else if (event.event === 'done') {
+            statsStreamStatus.value = 'ended'
+          }
+        },
+        abortController.signal,
+      )
+    } catch (error) {
+      if (abortController.signal.aborted || generation !== statsStreamGeneration) {
+        return
+      }
+      console.error('Failed to stream container stats', error)
+      statsStreamStatus.value = 'error'
+      statsStreamError.value = error instanceof Error ? error.message : '容器资源监控失败。'
+    } finally {
+      if (statsAbortController === abortController) {
+        statsAbortController = null
+      }
+    }
+  }
+
+  function viewStats(container: DockerContainer) {
+    if (container.state !== 'running') {
+      getUiApi().message.warning('容器未运行，无法监控资源。')
+      return
+    }
+
+    statsContainerId.value = container.id
+    statsContainerName.value = container.name
+    statsTitle.value = `资源监控 · ${container.name}`
+    statsVisible.value = true
+    void refreshStatsStream()
+  }
+
   function appendLogs(text: string) {
     const maxLength = 2 * 1024 * 1024
     logsContent.value += text
@@ -427,10 +503,6 @@ export function useDockerView(props: DockerViewProps) {
     containerSummary.value = { total: 0, running: 0, stopped: 0 }
     imageSummary.value = { total: 0, dangling: 0 }
     selectedContainerIds.value = []
-    statsMap.value = {}
-    diagnosticsMap.value = {}
-    containerResourceLoadingMap.value = {}
-    containerResourceLoadedMap.value = {}
     imageExportingMap.value = {}
     loadedTabs.value = createLoadedTabs()
   }
@@ -461,10 +533,6 @@ export function useDockerView(props: DockerViewProps) {
     selectedContainerIds.value = selectedContainerIds.value.filter((id) =>
       result.items.some((container) => container.id === id),
     )
-    statsMap.value = {}
-    diagnosticsMap.value = {}
-    containerResourceLoadingMap.value = {}
-    containerResourceLoadedMap.value = {}
   }
 
   async function loadImagesPage(page = imagePage.value, pageSize = imagePageSize.value) {
@@ -611,53 +679,6 @@ export function useDockerView(props: DockerViewProps) {
     })
 
     return pendingTabLoads[tab]
-  }
-
-  async function refreshContainerResource(containerId: string) {
-    containerResourceLoadingMap.value = {
-      ...containerResourceLoadingMap.value,
-      [containerId]: true,
-    }
-
-    try {
-      const connectionId = requireConnectionId()
-      const [stats, diagnostics] = await Promise.all([
-        queueDockerRequest(() => dockerApi.getContainerStats(connectionId, containerId)).catch(
-          () => null,
-        ),
-        queueDockerRequest(() =>
-          dockerApi.getContainerDiagnostics(connectionId, [containerId]),
-        ).catch(() => []),
-      ])
-
-      if (stats) {
-        statsMap.value = {
-          ...statsMap.value,
-          [containerId]: stats,
-        }
-      }
-
-      const diagnostic = diagnostics[0]
-      if (diagnostic) {
-        diagnosticsMap.value = {
-          ...diagnosticsMap.value,
-          [containerId]: diagnostic,
-        }
-      }
-
-      containerResourceLoadedMap.value = {
-        ...containerResourceLoadedMap.value,
-        [containerId]: true,
-      }
-    } catch (error) {
-      console.error('Failed to refresh container resource', error)
-      getUiApi().message.error(error instanceof Error ? error.message : '加载容器资源失败。')
-    } finally {
-      containerResourceLoadingMap.value = {
-        ...containerResourceLoadingMap.value,
-        [containerId]: false,
-      }
-    }
   }
 
   async function loadDockerState() {
@@ -1623,6 +1644,7 @@ export function useDockerView(props: DockerViewProps) {
 
   onBeforeUnmount(() => {
     stopLogsStream()
+    stopStatsStream()
     cancelPullImage()
     window.removeEventListener('docker:container-created', handleContainerCreated)
   })
@@ -1633,9 +1655,18 @@ export function useDockerView(props: DockerViewProps) {
     }
   })
 
+  watch(statsVisible, (visible) => {
+    if (!visible) {
+      stopStatsStream()
+    }
+  })
+
   watch(activeConnectionId, () => {
     if (logsVisible.value) {
       void refreshLogs()
+    }
+    if (statsVisible.value) {
+      void refreshStatsStream()
     }
   })
 
@@ -1681,8 +1712,6 @@ export function useDockerView(props: DockerViewProps) {
     confirmRemoveVolume,
     containerPage,
     containerPagination,
-    containerResourceLoadedMap,
-    containerResourceLoadingMap,
     containers,
     containerSearchKeyword,
     containerStatusFilter,
@@ -1696,7 +1725,6 @@ export function useDockerView(props: DockerViewProps) {
     displayedLogs,
     dockerAvailable,
     downloadLogs,
-    diagnosticsMap,
     enterShell,
     formatDateTime,
     formatTime,
@@ -1769,7 +1797,6 @@ export function useDockerView(props: DockerViewProps) {
     refreshActiveTab,
     refreshContainers,
     refreshImages,
-    refreshContainerResource,
     refreshLogs,
     refreshNetworks,
     refreshVolumes,
@@ -1783,7 +1810,13 @@ export function useDockerView(props: DockerViewProps) {
     setContainerSearchKeyword,
     setContainerStatusFilter,
     setImageSearchKeyword,
-    statsMap,
+    refreshStatsStream,
+    statsContainerName,
+    statsSamples,
+    statsStreamError,
+    statsStreamStatus,
+    statsTitle,
+    statsVisible,
     stoppedContainers,
     submitRenameContainer,
     submitTagImage,
@@ -1794,6 +1827,7 @@ export function useDockerView(props: DockerViewProps) {
     viewImageRefs,
     viewInspect,
     viewLogs,
+    viewStats,
     viewNetworkInspect,
     viewVolumeInspect,
     volumeSearchKeyword,

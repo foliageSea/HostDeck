@@ -115,6 +115,23 @@ void main() {
     });
   });
 
+  group('DockerContainerService stats streaming', () {
+    test('maps streamed samples and calculates network rates', () async {
+      final repository = _StatsDockerEngineRepository();
+      final service = DockerContainerService(repository, DockerEngineMapper());
+
+      final events = await service
+          .streamContainerStats(_FakeSshSession(), 'container-1')
+          .toList();
+
+      expect(repository.queryParameters, {'stream': 'true'});
+      expect(events, hasLength(2));
+      expect(events.first.data['networkRxBytesPerSecond'], 0);
+      expect(events.last.data['networkRxBytesPerSecond'], 1024);
+      expect(events.last.data['networkTxBytesPerSecond'], 2048);
+    });
+  });
+
   group('DockerContainerService replacement', () {
     test('replaces a stopped container and removes the original', () async {
       final repository = _FakeDockerEngineRepository();
@@ -260,6 +277,63 @@ class _FakeDockerEngineRepository extends DockerEngineRepository {
       throw UnimplementedError('$method $path');
     }
     return DockerEngineResponse(statusCode: 204, bodyBytes: Uint8List(0));
+  }
+}
+
+class _StatsDockerEngineRepository extends DockerEngineRepository {
+  Map<String, String>? queryParameters;
+
+  @override
+  Future<Stream<Uint8List>> requestByteStream(
+    SshSession session, {
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Object? body,
+    Map<String, String>? headers,
+  }) async {
+    this.queryParameters = queryParameters;
+    final first = _statsPayload(
+      '2026-08-13T10:00:00.000Z',
+      rxBytes: 1024,
+      txBytes: 2048,
+    );
+    final second = _statsPayload(
+      '2026-08-13T10:00:01.000Z',
+      rxBytes: 2048,
+      txBytes: 4096,
+    );
+    final bytes = Uint8List.fromList(utf8.encode('$first\n$second\n'));
+    return Stream.fromIterable([
+      Uint8List.sublistView(bytes, 0, 17),
+      Uint8List.sublistView(bytes, 17),
+    ]);
+  }
+
+  String _statsPayload(
+    String read, {
+    required int rxBytes,
+    required int txBytes,
+  }) {
+    return jsonEncode({
+      'id': 'container-1',
+      'name': '/web',
+      'read': read,
+      'cpu_stats': {
+        'system_cpu_usage': 2000,
+        'online_cpus': 2,
+        'cpu_usage': {'total_usage': 400},
+      },
+      'precpu_stats': {
+        'system_cpu_usage': 1000,
+        'cpu_usage': {'total_usage': 200},
+      },
+      'memory_stats': {'usage': 300, 'limit': 1000, 'stats': {}},
+      'networks': {
+        'eth0': {'rx_bytes': rxBytes, 'tx_bytes': txBytes},
+      },
+      'pids_stats': {'current': 4},
+    });
   }
 }
 

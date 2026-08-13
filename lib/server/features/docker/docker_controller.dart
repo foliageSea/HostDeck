@@ -377,6 +377,44 @@ class DockerController {
     });
   }
 
+  /// 通过 SSE 持续获取容器资源统计。
+  Future<Response> streamContainerStats(Request request, String id) async {
+    return _withSession(request, (session) async {
+      try {
+        return Response.ok(
+          _encodeContainerStatsEvents(
+            _containerService.streamContainerStats(session, id),
+          ),
+          headers: {
+            'content-type': 'text/event-stream; charset=utf-8',
+            'cache-control': 'no-cache, no-transform',
+            'connection': 'keep-alive',
+            'x-accel-buffering': 'no',
+          },
+        );
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  Stream<List<int>> _encodeContainerStatsEvents(
+    Stream<DockerContainerStatsEvent> events,
+  ) async* {
+    try {
+      // Flush headers and the connected event through buffering proxies before
+      // Docker Engine finishes its first stats sampling interval.
+      yield utf8.encode(': ${' '.padRight(2048)}\n\n');
+      yield encodeServerSentEvent('connected', const <String, dynamic>{});
+      await for (final event in events) {
+        yield encodeServerSentEvent('stats', event.data);
+      }
+      yield encodeServerSentEvent('done', const <String, dynamic>{});
+    } catch (error) {
+      yield encodeServerSentEvent('error', {'message': error.toString()});
+    }
+  }
+
   /// 获取网络 inspect 详情
   Future<Response> inspectNetwork(Request request, String id) async {
     return _withSession(request, (session) async {
