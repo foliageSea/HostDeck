@@ -9,6 +9,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $projectRoot = $PSScriptRoot
+$frontendPort = 5178
 $backendProcess = $null
 $frontendProcess = $null
 
@@ -99,10 +100,11 @@ function Restart-Backend {
     Write-Host "Restarting backend ..." -ForegroundColor Yellow
     Stop-ProcessTree -Process $script:backendProcess
     $script:backendProcess = Start-Backend
+    Write-Host "Frontend is available at http://localhost:$frontendPort" -ForegroundColor Green
 }
 
 function Start-Frontend {
-    Write-Host "Starting frontend at http://localhost:5178 ..." -ForegroundColor Cyan
+    Write-Host "Starting frontend at http://localhost:$frontendPort ..." -ForegroundColor Cyan
     $process = Start-Process `
         -FilePath "pnpm.cmd" `
         -ArgumentList @("--dir", "host-deck-ui", "dev") `

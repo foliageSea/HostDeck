@@ -4,6 +4,7 @@ set -euo pipefail
 
 backend_host="127.0.0.1"
 backend_port=8080
+frontend_port=5178
 startup_timeout_seconds=30
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 backend_pid=""
@@ -134,10 +135,11 @@ restart_backend() {
   stop_process_tree "$backend_pid"
   backend_pid=""
   start_backend
+  printf 'Frontend is available at http://localhost:%s\n' "$frontend_port"
 }
 
 start_frontend() {
-  printf 'Starting frontend at http://localhost:5178 ...\n'
+  printf 'Starting frontend at http://localhost:%s ...\n' "$frontend_port"
   (
     cd "$project_root"
     exec pnpm --dir host-deck-ui dev
