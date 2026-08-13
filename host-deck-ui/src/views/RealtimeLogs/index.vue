@@ -397,6 +397,7 @@ watch(autoScroll, (enabled) => {
 .log-output {
   padding: 7px 0 16px;
   background: #0b1018;
+  user-select: text;
 }
 .log-entry {
   padding: 2px 12px;
