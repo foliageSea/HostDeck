@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/docker/docker_socket_tunnel_service.dart';
+import 'package:logging/logging.dart';
 
 void main() {
   test('lazily reuses a loopback endpoint per connection', () async {
@@ -59,6 +60,31 @@ void main() {
       Socket.connect(endpoint.host, endpoint.port),
       throwsA(isA<SocketException>()),
     );
+  });
+
+  test('logs tunnel creation and destruction', () async {
+    final messages = <String>[];
+    final subscription = Logger.root.onRecord.listen((record) {
+      if (record.loggerName == 'DockerSocketTunnelService') {
+        messages.add(record.message);
+      }
+    });
+    addTearDown(subscription.cancel);
+
+    final service = DockerSocketTunnelService(
+      channelFactory: (_) async => _FakeChannel(),
+      disconnectFutureProvider: (_) => Completer<void>().future,
+    );
+    addTearDown(service.stopAll);
+
+    final endpoint = await service.endpoint(_FakeSshSession('connection-1'));
+    await service.stop('connection-1');
+
+    expect(messages, hasLength(2));
+    expect(messages[0], contains('Created Docker SSH port forward'));
+    expect(messages[0], contains(endpoint.toString()));
+    expect(messages[1], contains('Destroyed Docker SSH port forward'));
+    expect(messages[1], contains(endpoint.toString()));
   });
 }
 

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
+import 'package:logging/logging.dart';
 
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 
@@ -23,6 +24,7 @@ class DockerSocketTunnelService {
   final String socketPath;
   final DockerSocketChannelFactory? _channelFactory;
   final DockerSshDisconnectFutureProvider _disconnectFutureProvider;
+  final _log = Logger('DockerSocketTunnelService');
   final Map<String, Future<_DockerSocketTunnel>> _tunnels = {};
 
   DockerSocketTunnelService({
@@ -58,7 +60,12 @@ class DockerSocketTunnelService {
       return;
     }
     try {
-      await (await future).close();
+      final tunnel = await future;
+      await tunnel.close();
+      _log.info(
+        'Destroyed Docker SSH port forward for connection $connectionId '
+        'at ${tunnel.endpoint}.',
+      );
     } catch (_) {
       // A failed startup has no live listener left to clean up.
     }
@@ -74,6 +81,10 @@ class DockerSocketTunnelService {
     late final _DockerSocketTunnel tunnel;
     tunnel = _DockerSocketTunnel(listener, () => _openChannel(session));
     tunnel.start();
+    _log.info(
+      'Created Docker SSH port forward for connection ${session.connectionId} '
+      'at ${tunnel.endpoint} to $socketPath.',
+    );
 
     unawaited(
       _disconnectFutureProvider(session).then(
