@@ -1,14 +1,11 @@
-import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
-const { openWindow, streamContainerLogs, streamContainerStats, warning } = vi.hoisted(() => ({
+const { openWindow, warning } = vi.hoisted(() => ({
   openWindow: vi.fn(),
-  streamContainerLogs: vi.fn(),
-  streamContainerStats: vi.fn(),
   warning: vi.fn(),
 }))
 
-vi.mock('@/api/docker', () => ({ dockerApi: { streamContainerLogs, streamContainerStats } }))
+vi.mock('@/api/docker', () => ({ dockerApi: {} }))
 vi.mock('@/lib/ui', () => ({
   getUiApi: () => ({
     dialog: { warning },
@@ -111,7 +108,7 @@ describe('useDockerView dangerous actions', () => {
   })
 })
 
-describe('useDockerView container logs', () => {
+describe('useDockerView container windows', () => {
   const container = {
     createdAt: '',
     id: 'container-1',
@@ -123,130 +120,30 @@ describe('useDockerView container logs', () => {
     status: 'Up',
   }
 
-  it('appends streamed logs and marks the stream as ended', async () => {
-    streamContainerLogs.mockReset()
-    streamContainerLogs.mockImplementation(
-      async (
-        _connectionId: string,
-        _containerId: string,
-        _options: unknown,
-        onEvent: (event: { event: string; data: Record<string, string> }) => void,
-      ) => {
-        onEvent({ event: 'connected', data: {} })
-        onEvent({ event: 'stdout', data: { text: 'hello\n' } })
-        onEvent({ event: 'stderr', data: { text: 'error\n' } })
-        onEvent({ event: 'done', data: {} })
-      },
-    )
+  it('opens a standalone log window', () => {
+    openWindow.mockReset()
     const controller = useDockerView({ connectionId: 'conn-1' })
 
-    await controller.viewLogs(container)
+    controller.viewLogs(container)
 
-    expect(controller.displayedLogs.value).toBe('hello\nerror\n')
-    expect(controller.logsStreamStatus.value).toBe('ended')
-    expect(streamContainerLogs).toHaveBeenCalledWith(
-      'conn-1',
-      'container-1',
-      { tail: 200, timestamps: true },
-      expect.any(Function),
-      expect.any(AbortSignal),
-    )
+    expect(openWindow).toHaveBeenCalledWith('docker-container-logs', {
+      connectionId: 'conn-1',
+      containerId: 'container-1',
+      containerName: 'web',
+      title: '容器日志 · web',
+    })
   })
 
-  it('aborts the stream when the log modal closes', async () => {
-    streamContainerLogs.mockReset()
-    let signal: AbortSignal | undefined
-    streamContainerLogs.mockImplementation(
-      async (
-        _connectionId: string,
-        _containerId: string,
-        _options: unknown,
-        _onEvent: unknown,
-        requestSignal: AbortSignal,
-      ) => {
-        signal = requestSignal
-        await new Promise<void>((resolve) =>
-          requestSignal.addEventListener('abort', () => resolve()),
-        )
-      },
-    )
+  it('opens a standalone resource monitoring window', () => {
+    openWindow.mockReset()
     const controller = useDockerView({ connectionId: 'conn-1' })
-    const pending = controller.viewLogs(container)
-
-    await nextTick()
-    controller.logsVisible.value = false
-    await nextTick()
-    await pending
-
-    expect(signal?.aborted).toBe(true)
-  })
-})
-
-describe('useDockerView container stats', () => {
-  const container = {
-    createdAt: '',
-    id: 'container-1',
-    image: 'nginx:latest',
-    name: 'web',
-    networks: [],
-    ports: [],
-    state: 'running',
-    status: 'Up',
-  }
-
-  it('appends streamed resource samples', async () => {
-    streamContainerStats.mockReset()
-    streamContainerStats.mockImplementation(
-      async (
-        _connectionId: string,
-        _containerId: string,
-        onEvent: (event: { event: string; data: Record<string, unknown> }) => void,
-      ) => {
-        onEvent({ event: 'connected', data: {} })
-        onEvent({
-          event: 'stats',
-          data: {
-            id: 'container-1',
-            name: 'web',
-            timestamp: Date.now(),
-            cpuPercent: 2,
-            memoryPercent: 3,
-          },
-        })
-      },
-    )
-    const controller = useDockerView({ connectionId: 'conn-1' })
-
     controller.viewStats(container)
-    await nextTick()
 
-    expect(controller.statsStreamStatus.value).toBe('live')
-    expect(controller.statsSamples.value).toHaveLength(1)
-  })
-
-  it('aborts the stream when the stats modal closes', async () => {
-    streamContainerStats.mockReset()
-    let signal: AbortSignal | undefined
-    streamContainerStats.mockImplementation(
-      async (
-        _connectionId: string,
-        _containerId: string,
-        _onEvent: unknown,
-        requestSignal: AbortSignal,
-      ) => {
-        signal = requestSignal
-        await new Promise<void>((resolve) =>
-          requestSignal.addEventListener('abort', () => resolve()),
-        )
-      },
-    )
-    const controller = useDockerView({ connectionId: 'conn-1' })
-
-    controller.viewStats(container)
-    await nextTick()
-    controller.statsVisible.value = false
-    await nextTick()
-
-    expect(signal?.aborted).toBe(true)
+    expect(openWindow).toHaveBeenCalledWith('docker-container-stats', {
+      connectionId: 'conn-1',
+      containerId: 'container-1',
+      containerName: 'web',
+      title: '资源监控 · web',
+    })
   })
 })

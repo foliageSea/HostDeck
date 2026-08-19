@@ -29,6 +29,8 @@ export type DesktopAppId =
   | 'docker-create-compose'
   | 'docker-compose-services'
   | 'docker-output'
+  | 'docker-container-logs'
+  | 'docker-container-stats'
   | 'settings'
   | 'logout'
   | 'editor'

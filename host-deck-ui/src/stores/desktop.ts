@@ -11,6 +11,8 @@ import DockerCreateContainerView from '@/views/Docker/components/DockerCreateCon
 import DockerCreateComposeView from '@/views/Docker/components/DockerCreateComposeView.vue'
 import DockerComposeServicesView from '@/views/Docker/components/DockerComposeServicesView.vue'
 import DockerOutputView from '@/views/Docker/components/DockerOutputView.vue'
+import DockerContainerLogsView from '@/views/Docker/components/DockerContainerLogsView.vue'
+import DockerContainerStatsView from '@/views/Docker/components/DockerContainerStatsView.vue'
 import DockerView from '@/views/Docker/index.vue'
 import CronTasksView from '@/views/CronTasks/index.vue'
 import FilesView from '@/views/Files/index.vue'
@@ -494,6 +496,28 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 620,
         title: 'Docker 执行输出',
         width: 780,
+      },
+      'docker-container-logs': {
+        component: markRaw(DockerContainerLogsView),
+        height: 700,
+        hide: true,
+        icon: 'docker',
+        id: 'docker-container-logs',
+        minHeight: 420,
+        minWidth: 720,
+        title: '容器日志',
+        width: 1080,
+      },
+      'docker-container-stats': {
+        component: markRaw(DockerContainerStatsView),
+        height: 760,
+        hide: true,
+        icon: 'docker',
+        id: 'docker-container-stats',
+        minHeight: 620,
+        minWidth: 880,
+        title: '容器资源监控',
+        width: 1180,
       },
       'port-forward': {
         component: markRaw(PortForwardView),

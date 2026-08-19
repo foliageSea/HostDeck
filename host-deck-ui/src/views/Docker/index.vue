@@ -11,11 +11,9 @@ import DockerImageTagModal from './components/DockerImageTagModal.vue'
 import DockerImagePullModal from './components/DockerImagePullModal.vue'
 import DockerInspectModal from './components/DockerInspectModal.vue'
 import DockerImagesTab from './components/DockerImagesTab.vue'
-import DockerLogsModal from './components/DockerLogsModal.vue'
 import DockerNetworksTab from './components/DockerNetworksTab.vue'
 import DockerOverviewTab from './components/DockerOverviewTab.vue'
 import DockerRenameContainerModal from './components/DockerRenameContainerModal.vue'
-import DockerStatsModal from './components/DockerStatsModal.vue'
 import DockerVolumesTab from './components/DockerVolumesTab.vue'
 import { useDockerView, type DockerViewController } from './hooks/useDockerView'
 
@@ -97,10 +95,8 @@ const controller: DockerViewController = reactive(useDockerView(props))
       </NTabs>
     </NSpin>
 
-    <DockerLogsModal :controller="controller" />
     <DockerInspectModal :controller="controller" />
     <DockerRenameContainerModal :controller="controller" />
-    <DockerStatsModal :controller="controller" />
     <DockerImageTagModal :controller="controller" />
     <DockerImageHistoryModal :controller="controller" />
     <DockerImageRefsModal :controller="controller" />
