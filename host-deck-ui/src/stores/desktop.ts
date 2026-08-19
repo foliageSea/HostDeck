@@ -8,6 +8,8 @@ import type { AppIconKey, DesktopAppId } from '@/types/desktop'
 import { basename, normalize } from '@/utils/path'
 import DashboardView from '@/views/Dashboard/index.vue'
 import DockerCreateContainerView from '@/views/Docker/components/DockerCreateContainerView.vue'
+import DockerCreateComposeView from '@/views/Docker/components/DockerCreateComposeView.vue'
+import DockerComposeServicesView from '@/views/Docker/components/DockerComposeServicesView.vue'
 import DockerOutputView from '@/views/Docker/components/DockerOutputView.vue'
 import DockerView from '@/views/Docker/index.vue'
 import CronTasksView from '@/views/CronTasks/index.vue'
@@ -457,6 +459,30 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 720,
         title: '新建容器',
         width: 820,
+      },
+      'docker-create-compose': {
+        component: markRaw(DockerCreateComposeView),
+        height: 720,
+        hide: true,
+        icon: 'docker',
+        id: 'docker-create-compose',
+        minimizable: false,
+        minHeight: 560,
+        minWidth: 760,
+        title: '新建编排',
+        width: 860,
+      },
+      'docker-compose-services': {
+        component: markRaw(DockerComposeServicesView),
+        height: 680,
+        hide: true,
+        icon: 'docker',
+        id: 'docker-compose-services',
+        minimizable: false,
+        minHeight: 480,
+        minWidth: 760,
+        title: '编排服务',
+        width: 960,
       },
       'docker-output': {
         component: markRaw(DockerOutputView),

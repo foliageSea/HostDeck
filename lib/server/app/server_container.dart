@@ -15,6 +15,7 @@ import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_repository.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_service.dart';
 import 'package:host_deck/server/features/docker/docker_container_service.dart';
+import 'package:host_deck/server/features/docker/docker_compose_service.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
 import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
@@ -152,6 +153,9 @@ class ServerContainer {
       dispose: (repository) => repository.close(),
     );
     getIt.registerLazySingleton<DockerEngineMapper>(DockerEngineMapper.new);
+    getIt.registerLazySingleton<DockerComposeService>(
+      () => DockerComposeService(getIt<SshRepository>()),
+    );
     getIt.registerLazySingleton<DockerContainerService>(
       () => DockerContainerService(
         getIt<DockerEngineRepository>(),
@@ -221,6 +225,7 @@ class ServerContainer {
           getIt<DockerContainerService>(),
           getIt<DockerImageService>(),
           getIt<DockerResourceService>(),
+          getIt<DockerComposeService>(),
         ),
         cronTaskController: CronTaskController(
           getIt<SshService>(),

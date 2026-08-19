@@ -12,6 +12,7 @@ import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/docker/docker_container.dart';
 import 'package:host_deck/server/features/docker/docker_container_service.dart';
+import 'package:host_deck/server/features/docker/docker_compose_service.dart';
 import 'package:host_deck/server/features/docker/docker_image.dart';
 import 'package:host_deck/server/features/docker/docker_image_service.dart';
 import 'package:host_deck/server/features/docker/docker_resource_service.dart';
@@ -21,16 +22,23 @@ class DockerController {
   final DockerContainerService _containerService;
   final DockerImageService _imageService;
   final DockerResourceService _resourceService;
+  final DockerComposeService _composeService;
   final SharedSshSessionResolver _sessionResolver;
+  final SharedSshSessionResolver _composeSessionResolver;
 
   DockerController(
     this._sshService,
     this._containerService,
     this._imageService,
     this._resourceService,
+    this._composeService,
   ) : _sessionResolver = SharedSshSessionResolver(
         _sshService,
         type: SharedSshSessionType.sftp,
+      ),
+      _composeSessionResolver = SharedSshSessionResolver(
+        _sshService,
+        type: SharedSshSessionType.shell,
       );
 
   Future<SshSession> _resolveSession(Request request) async {
@@ -39,6 +47,17 @@ class DockerController {
 
   Response _sessionErrorResponse(Object error) {
     return _sessionResolver.errorResponse(error);
+  }
+
+  Future<Response> _withComposeSession(
+    Request request,
+    Future<Response> Function(SshSession session) action,
+  ) async {
+    try {
+      return action(await _composeSessionResolver.resolveFromRequest(request));
+    } catch (error) {
+      return _composeSessionResolver.errorResponse(error);
+    }
   }
 
   Future<Response> _withSession(
@@ -143,6 +162,158 @@ class DockerController {
         return Result.ok({'available': false});
       }
     });
+  }
+
+  Future<Response> checkCompose(Request request) async {
+    return _withComposeSession(request, (session) async {
+      return Result.ok({
+        'available': await _composeService.isComposeAvailable(session),
+      });
+    });
+  }
+
+  Future<Response> listComposeProjects(Request request) async {
+    return _withComposeSession(request, (session) async {
+      try {
+        return Result.ok(await _composeService.listComposeProjects(session));
+      } catch (error) {
+        return Result.fail(500, error.toString());
+      }
+    });
+  }
+
+  Future<Response> createComposeProjectStream(Request request) async {
+    return _withComposeSession(request, (session) async {
+      try {
+        final payload = jsonDecode(await request.readAsString());
+        if (payload is! Map<String, dynamic>) {
+          return Result.fail(400, 'Invalid compose project payload');
+        }
+        return Response.ok(
+          _encodeComposeEvents(
+            _composeService.createComposeProjectStream(session, payload),
+          ),
+          headers: const {
+            'content-type': 'text/event-stream; charset=utf-8',
+            'cache-control': 'no-cache, no-transform',
+            'x-accel-buffering': 'no',
+          },
+        );
+      } catch (error) {
+        return Result.fail(500, error.toString());
+      }
+    });
+  }
+
+  Stream<List<int>> _encodeComposeEvents(
+    Stream<DockerComposeCreateEvent> events,
+  ) async* {
+    try {
+      await for (final event in events) {
+        yield encodeServerSentEvent(event.event, event.data);
+      }
+    } catch (error) {
+      yield encodeServerSentEvent('error', {'message': error.toString()});
+    }
+  }
+
+  Future<Response> listComposeServices(Request request) {
+    return _withComposePayload(request, (session, payload) async {
+      try {
+        return Result.ok(
+          await _composeService.listComposeServices(
+            session,
+            projectName: payload.projectName,
+            configFiles: payload.configFiles,
+            workingDir: payload.workingDir,
+          ),
+        );
+      } catch (error) {
+        return Result.fail(500, error.toString());
+      }
+    });
+  }
+
+  Future<Response> upComposeProject(Request request) =>
+      _composeAction(request, _composeService.upComposeProject);
+  Future<Response> stopComposeProject(Request request) =>
+      _composeAction(request, _composeService.stopComposeProject);
+  Future<Response> restartComposeProject(Request request) =>
+      _composeAction(request, _composeService.restartComposeProject);
+  Future<Response> downComposeProject(Request request) =>
+      _composeAction(request, _composeService.downComposeProject);
+
+  Future<Response> getComposeLogs(Request request) {
+    final tail = _parseTail(request.url.queryParameters['tail']);
+    return _withComposePayload(request, (session, payload) async {
+      try {
+        final logs = await _composeService.getComposeLogs(
+          session,
+          projectName: payload.projectName,
+          configFiles: payload.configFiles,
+          workingDir: payload.workingDir,
+          tail: tail,
+        );
+        return Result.ok({'logs': logs});
+      } catch (error) {
+        return Result.fail(500, error.toString());
+      }
+    });
+  }
+
+  Future<Response> _composeAction(
+    Request request,
+    Future<String> Function(
+      SshSession, {
+      required String projectName,
+      required List<String> configFiles,
+      String? workingDir,
+    })
+    action,
+  ) {
+    return _withComposePayload(request, (session, payload) async {
+      try {
+        final output = await action(
+          session,
+          projectName: payload.projectName,
+          configFiles: payload.configFiles,
+          workingDir: payload.workingDir,
+        );
+        return Result.ok({'success': true, 'output': output});
+      } catch (error) {
+        return Result.fail(500, error.toString());
+      }
+    });
+  }
+
+  Future<Response> _withComposePayload(
+    Request request,
+    Future<Response> Function(SshSession, _ComposeProjectPayload) action,
+  ) async {
+    try {
+      final data =
+          jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+      final projectName = data['projectName']?.toString().trim() ?? '';
+      final configFiles =
+          (data['configFiles'] as List?)
+              ?.map((item) => item.toString().trim())
+              .where((item) => item.isNotEmpty)
+              .toList() ??
+          [];
+      if (projectName.isEmpty || configFiles.isEmpty) {
+        return Result.fail(400, 'Missing or invalid compose project payload');
+      }
+      final workingDir = data['workingDir']?.toString().trim();
+      return _withComposeSession(
+        request,
+        (session) => action(
+          session,
+          _ComposeProjectPayload(projectName, configFiles, workingDir),
+        ),
+      );
+    } catch (_) {
+      return Result.fail(400, 'Missing or invalid compose project payload');
+    }
   }
 
   /// 获取容器列表
@@ -1110,6 +1281,17 @@ class _PaginationParams {
   final int pageSize;
 
   const _PaginationParams({required this.page, required this.pageSize});
+}
+
+class _ComposeProjectPayload {
+  final String projectName;
+  final List<String> configFiles;
+  final String? workingDir;
+  const _ComposeProjectPayload(
+    this.projectName,
+    this.configFiles,
+    this.workingDir,
+  );
 }
 
 class _NetworkContainerPayload {

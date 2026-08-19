@@ -154,6 +154,52 @@ export interface DockerVolume {
   refCount: number
 }
 
+export interface DockerComposeProject {
+  name: string
+  status: string
+  configFiles: string
+  workingDir: string
+}
+
+export interface DockerComposeService {
+  id: string
+  name: string
+  service: string
+  project: string
+  image: string
+  state: string
+  status: string
+  ports: string
+}
+
+export interface DockerComposeProjectPayload {
+  projectName: string
+  configFiles: string[]
+  workingDir?: string
+}
+
+export interface DockerComposeCreatePayload {
+  projectName: string
+  workingDir: string
+  fileName: string
+  content: string
+  startAfterCreate?: boolean
+}
+
+export interface DockerComposeCreateResult {
+  projectName: string
+  workingDir: string
+  configFiles: string[]
+  started: boolean
+  startError?: string
+}
+
+export type DockerComposeCreateStreamEvent =
+  | { event: 'phase'; data: { phase: string; message: string } }
+  | { event: 'stdout' | 'stderr'; data: { text: string } }
+  | { event: 'done'; data: DockerComposeCreateResult }
+  | { event: 'error'; data: { message: string } }
+
 export interface DockerCreateNetworkPayload {
   name: string
   driver?: string
@@ -270,6 +316,104 @@ export const dockerApi = {
     const response = await http.get<{ available: boolean }>('/api/docker/check', {
       params: { connectionId },
     })
+    return response.data
+  },
+
+  async checkCompose(connectionId: string) {
+    const response = await http.get<{ available: boolean }>('/api/docker/compose/check', {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async listComposeProjects(connectionId: string) {
+    const response = await http.get<DockerComposeProject[]>('/api/docker/compose/projects', {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async createComposeProjectStream(
+    connectionId: string,
+    payload: DockerComposeCreatePayload,
+    onEvent: (event: DockerComposeCreateStreamEvent) => void,
+    signal?: AbortSignal,
+  ) {
+    const response = await fetch(
+      `/api/docker/compose/project/stream?${new URLSearchParams({ connectionId })}`,
+      {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal,
+      },
+    )
+    if (!response.ok)
+      throw new Error((await response.text()) || `创建编排项目失败 (${response.status})`)
+    if (!response.body) throw new Error('浏览器未提供流式响应。')
+    let result: DockerComposeCreateResult | undefined
+    let streamError: string | undefined
+    await consumeServerSentEvents(response.body, (message) => {
+      const event = {
+        event: message.event,
+        data: JSON.parse(message.data) as Record<string, unknown>,
+      } as DockerComposeCreateStreamEvent
+      onEvent(event)
+      if (event.event === 'done') result = event.data
+      if (event.event === 'error') streamError = event.data.message
+    })
+    if (streamError) throw new Error(streamError)
+    if (!result) throw new Error('创建编排项目的输出流意外结束。')
+    return result
+  },
+
+  async listComposeServices(connectionId: string, payload: DockerComposeProjectPayload) {
+    const response = await http.post<DockerComposeService[]>(
+      '/api/docker/compose/project/services',
+      payload,
+      { params: { connectionId } },
+    )
+    return response.data
+  },
+
+  async composeProjectAction(
+    connectionId: string,
+    action: 'up' | 'stop' | 'restart' | 'down',
+    payload: DockerComposeProjectPayload,
+  ) {
+    const response = await http.post<{ success: boolean; output: string }>(
+      `/api/docker/compose/project/${action}`,
+      payload,
+      { params: { connectionId } },
+    )
+    return response.data
+  },
+
+  async upComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
+    return this.composeProjectAction(connectionId, 'up', payload)
+  },
+
+  async stopComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
+    return this.composeProjectAction(connectionId, 'stop', payload)
+  },
+
+  async restartComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
+    return this.composeProjectAction(connectionId, 'restart', payload)
+  },
+
+  async downComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {
+    return this.composeProjectAction(connectionId, 'down', payload)
+  },
+
+  async getComposeLogs(connectionId: string, payload: DockerComposeProjectPayload, tail = 200) {
+    const response = await http.post<{ logs: string }>(
+      '/api/docker/compose/project/logs',
+      payload,
+      {
+        params: { connectionId, tail },
+      },
+    )
     return response.data
   },
 

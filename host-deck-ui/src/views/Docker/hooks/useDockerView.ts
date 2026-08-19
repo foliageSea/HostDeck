@@ -5,6 +5,7 @@ import {
   type DockerContainerStatusFilter,
   type DockerContainerSummary,
   type DockerContainerStatsSample,
+  type DockerComposeProject,
   type DockerCreateNetworkPayload,
   type DockerCreateVolumePayload,
   type DockerImageContainerRef,
@@ -24,6 +25,10 @@ import {
   createLoadedTabs,
   formatDateTime,
   formatTime,
+  getComposeConfigFiles,
+  getComposeProjectPayload,
+  getComposeServiceStatusType,
+  getComposeStatusType,
   parseContainerHostPort,
 } from './dockerViewHelpers'
 import type { DangerActionConfirmOptions, DockerTabName, DockerViewProps } from './dockerViewTypes'
@@ -56,6 +61,10 @@ export function useDockerView(props: DockerViewProps) {
   const networkSearchKeyword = ref('')
   const volumes = ref<DockerVolume[]>([])
   const volumeSearchKeyword = ref('')
+  const composeAvailable = ref<boolean | null>(null)
+  const composeProjects = ref<DockerComposeProject[]>([])
+  const composeSearchKeyword = ref('')
+  const composeActionLoadingMap = ref<Record<string, boolean>>({})
   const statsVisible = ref(false)
   const statsTitle = ref('')
   const statsContainerId = ref('')
@@ -77,6 +86,7 @@ export function useDockerView(props: DockerViewProps) {
   const logsStreamError = ref('')
   const logsContainerId = ref('')
   const logsContainerName = ref('')
+  const logsComposeProject = ref<DockerComposeProject | null>(null)
   const inspectVisible = ref(false)
   const inspectLoading = ref(false)
   const inspectTitle = ref('')
@@ -177,6 +187,15 @@ export function useDockerView(props: DockerViewProps) {
     return volumes.value.filter((volume) =>
       [volume.name, volume.driver, volume.scope, volume.mountpoint, String(volume.refCount)].some(
         (value) => value.toLowerCase().includes(keyword),
+      ),
+    )
+  })
+  const filteredComposeProjects = computed(() => {
+    const keyword = composeSearchKeyword.value.trim().toLowerCase()
+    if (!keyword) return composeProjects.value
+    return composeProjects.value.filter((project) =>
+      [project.name, project.status, project.configFiles, project.workingDir].some((value) =>
+        value.toLowerCase().includes(keyword),
       ),
     )
   })
@@ -433,7 +452,30 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   async function refreshLogs() {
-    if (!logsContainerId.value) {
+    if (!logsContainerId.value && !logsComposeProject.value) {
+      return
+    }
+
+    if (logsComposeProject.value) {
+      logsLoading.value = true
+      logsRefreshing.value = true
+      try {
+        const payload = getComposeProjectPayload(logsComposeProject.value)
+        if (!payload) throw new Error('该编排项目缺少 compose 配置文件路径。')
+        logsContent.value = (
+          await queueDockerRequest(() =>
+            dockerApi.getComposeLogs(requireConnectionId(), payload, logsTail.value),
+          )
+        ).logs
+        logsLastUpdatedAt.value = new Date()
+        logsStreamStatus.value = 'ended'
+      } catch (error) {
+        logsStreamStatus.value = 'error'
+        logsStreamError.value = error instanceof Error ? error.message : '日志加载失败。'
+      } finally {
+        logsLoading.value = false
+        logsRefreshing.value = false
+      }
       return
     }
 
@@ -498,6 +540,8 @@ export function useDockerView(props: DockerViewProps) {
     images.value = []
     networks.value = []
     volumes.value = []
+    composeProjects.value = []
+    composeActionLoadingMap.value = {}
     containerTotal.value = 0
     imageTotal.value = 0
     containerSummary.value = { total: 0, running: 0, stopped: 0 }
@@ -594,6 +638,9 @@ export function useDockerView(props: DockerViewProps) {
     if (tab === 'volumes') {
       return '加载 Docker 存储卷失败。'
     }
+    if (tab === 'compose') {
+      return '加载 Docker 编排失败。'
+    }
     return '加载 Docker 数据失败。'
   }
 
@@ -655,11 +702,14 @@ export function useDockerView(props: DockerViewProps) {
           await loadNetworks()
         } else if (tab === 'volumes') {
           await loadVolumes()
+        } else if (tab === 'compose') {
+          await loadComposeProjects()
         } else {
           await loadContainersPage()
           await loadImagesPage()
           await loadNetworks()
           await loadVolumes()
+          await loadComposeProjects()
         }
 
         loadedTabs.value = {
@@ -695,6 +745,10 @@ export function useDockerView(props: DockerViewProps) {
 
   async function refreshImages() {
     await loadTabData('images', true)
+  }
+
+  async function refreshCompose() {
+    await loadTabData('compose', true)
   }
 
   async function refreshActiveTab() {
@@ -811,6 +865,43 @@ export function useDockerView(props: DockerViewProps) {
     })
   }
 
+  async function handleComposeProjectAction(
+    project: DockerComposeProject,
+    action: 'up' | 'stop' | 'restart' | 'down',
+  ) {
+    const payload = getComposeProjectPayload(project)
+    if (!payload) {
+      getUiApi().message.warning('该编排项目缺少 compose 配置文件路径，无法执行操作。')
+      return
+    }
+    composeActionLoadingMap.value = { ...composeActionLoadingMap.value, [project.name]: true }
+    try {
+      const connectionId = requireConnectionId()
+      await queueDockerRequest(() => dockerApi.composeProjectAction(connectionId, action, payload))
+      const labels = { up: '启动', stop: '停止', restart: '重启', down: '下线' } as const
+      getUiApi().message.success(`已${labels[action]}编排项目 ${project.name}。`)
+      await refreshTabsAfterChange('containers', 'compose')
+    } catch (error) {
+      console.error(`Failed to ${action} compose project`, error)
+      getUiApi().message.error(error instanceof Error ? error.message : '编排操作失败。')
+    } finally {
+      composeActionLoadingMap.value = { ...composeActionLoadingMap.value, [project.name]: false }
+    }
+  }
+
+  function confirmComposeProjectAction(
+    project: DockerComposeProject,
+    action: 'up' | 'stop' | 'restart' | 'down',
+  ) {
+    const labels = { up: '启动', stop: '停止', restart: '重启', down: '下线' } as const
+    confirmDangerAction({
+      title: `${labels[action]}编排项目`,
+      content: `确认${labels[action]}编排项目 ${project.name}？`,
+      positiveText: labels[action],
+      action: () => handleComposeProjectAction(project, action),
+    })
+  }
+
   function confirmContainerAction(
     container: DockerContainer,
     action: 'start' | 'stop' | 'restart' | 'remove',
@@ -836,8 +927,24 @@ export function useDockerView(props: DockerViewProps) {
     logsTitle.value = `容器日志 · ${container.name}`
     logsContainerId.value = container.id
     logsContainerName.value = container.name
+    logsComposeProject.value = null
     logsKeyword.value = ''
     logsLastUpdatedAt.value = null
+    logsContent.value = ''
+    await refreshLogs()
+  }
+
+  async function viewComposeLogs(project: DockerComposeProject) {
+    const payload = getComposeProjectPayload(project)
+    if (!payload) {
+      getUiApi().message.warning('该编排项目缺少 compose 配置文件路径，无法查看日志。')
+      return
+    }
+    logsVisible.value = true
+    logsTitle.value = `编排日志 · ${project.name}`
+    logsComposeProject.value = project
+    logsContainerId.value = ''
+    logsContainerName.value = project.name
     logsContent.value = ''
     await refreshLogs()
   }
@@ -1303,6 +1410,47 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
+  function openCreateComposeProject() {
+    try {
+      desktopStore.openWindow('docker-create-compose', {
+        connectionId: requireConnectionId(),
+        host: props.host ?? sshStore.host,
+        title: '新建编排',
+        username: props.username ?? sshStore.username,
+      })
+    } catch (error) {
+      getUiApi().message.error(error instanceof Error ? error.message : '打开新建编排窗口失败。')
+    }
+  }
+
+  function openComposeServices(project: DockerComposeProject) {
+    if (!getComposeProjectPayload(project)) {
+      getUiApi().message.warning('该编排项目缺少 compose 配置文件路径，无法加载服务。')
+      return
+    }
+    try {
+      desktopStore.openWindow('docker-compose-services', {
+        connectionId: requireConnectionId(),
+        host: props.host ?? sshStore.host,
+        project,
+        title: `编排服务 · ${project.name}`,
+        username: props.username ?? sshStore.username,
+      })
+    } catch (error) {
+      getUiApi().message.error(error instanceof Error ? error.message : '打开编排服务窗口失败。')
+    }
+  }
+
+  async function loadComposeProjects() {
+    const connectionId = requireConnectionId()
+    composeAvailable.value = (
+      await queueDockerRequest(() => dockerApi.checkCompose(connectionId))
+    ).available
+    composeProjects.value = composeAvailable.value
+      ? await queueDockerRequest(() => dockerApi.listComposeProjects(connectionId))
+      : []
+  }
+
   function openEditContainer(container: DockerContainer) {
     if (container.state === 'running') {
       getUiApi().message.warning('请先停止容器再编辑。')
@@ -1637,9 +1785,17 @@ export function useDockerView(props: DockerViewProps) {
     void refreshTabsAfterChange('containers')
   }
 
+  function handleComposeCreated(event: Event) {
+    const detail = (event as CustomEvent<{ connectionId?: string }>).detail
+    if (!detail?.connectionId || detail.connectionId === activeConnectionId.value) {
+      void refreshTabsAfterChange('compose')
+    }
+  }
+
   onMounted(() => {
     void loadTabData(activeTab.value)
     window.addEventListener('docker:container-created', handleContainerCreated)
+    window.addEventListener('docker:compose-created', handleComposeCreated)
   })
 
   onBeforeUnmount(() => {
@@ -1647,6 +1803,7 @@ export function useDockerView(props: DockerViewProps) {
     stopStatsStream()
     cancelPullImage()
     window.removeEventListener('docker:container-created', handleContainerCreated)
+    window.removeEventListener('docker:compose-created', handleComposeCreated)
   })
 
   watch(logsVisible, (visible) => {
@@ -1701,6 +1858,11 @@ export function useDockerView(props: DockerViewProps) {
     batchProcessing,
     batchStartSelected,
     batchStopSelected,
+    composeActionLoadingMap,
+    composeAvailable,
+    composeProjects,
+    composeSearchKeyword,
+    confirmComposeProjectAction,
     confirmPruneBuildCache,
     confirmPruneImages,
     confirmPruneNetworks,
@@ -1729,9 +1891,13 @@ export function useDockerView(props: DockerViewProps) {
     formatDateTime,
     formatTime,
     filteredNetworks,
+    filteredComposeProjects,
     filteredVolumes,
     exportImage,
     getContainerPortUrl,
+    getComposeConfigFiles,
+    getComposeServiceStatusType,
+    getComposeStatusType,
     handleContainerAdvancedAction,
     handleContainerPageChange,
     handleContainerPageSizeChange,
@@ -1780,7 +1946,9 @@ export function useDockerView(props: DockerViewProps) {
     networks,
     openImageTagDialog,
     openContainerPort,
+    openComposeServices,
     openCreateContainer,
+    openCreateComposeProject,
     openEditContainer,
     openRenameDialog,
     pullImage,
@@ -1796,6 +1964,7 @@ export function useDockerView(props: DockerViewProps) {
     refresh,
     refreshActiveTab,
     refreshContainers,
+    refreshCompose,
     refreshImages,
     refreshLogs,
     refreshNetworks,
@@ -1827,6 +1996,7 @@ export function useDockerView(props: DockerViewProps) {
     viewImageRefs,
     viewInspect,
     viewLogs,
+    viewComposeLogs,
     viewStats,
     viewNetworkInspect,
     viewVolumeInspect,

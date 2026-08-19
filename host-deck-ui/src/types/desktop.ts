@@ -26,6 +26,8 @@ export type DesktopAppId =
   | 'iframe-app'
   | 'docker'
   | 'docker-create-container'
+  | 'docker-create-compose'
+  | 'docker-compose-services'
   | 'docker-output'
   | 'settings'
   | 'logout'

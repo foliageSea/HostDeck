@@ -4,6 +4,7 @@ import { useMediaQuery } from '@vueuse/core'
 import { LogoDocker } from '@vicons/ionicons5'
 import { useSettingsStore } from '@/stores/settings'
 import DockerContainersTab from './components/DockerContainersTab.vue'
+import DockerComposeTab from './components/DockerComposeTab.vue'
 import DockerImageHistoryModal from './components/DockerImageHistoryModal.vue'
 import DockerImageRefsModal from './components/DockerImageRefsModal.vue'
 import DockerImageTagModal from './components/DockerImageTagModal.vue'
@@ -88,6 +89,10 @@ const controller: DockerViewController = reactive(useDockerView(props))
 
         <NTabPane name="volumes" tab="存储" class="docker-internal-scroll-pane">
           <DockerVolumesTab :controller="controller" />
+        </NTabPane>
+
+        <NTabPane name="compose" tab="编排" class="docker-internal-scroll-pane">
+          <DockerComposeTab :controller="controller" />
         </NTabPane>
       </NTabs>
     </NSpin>
