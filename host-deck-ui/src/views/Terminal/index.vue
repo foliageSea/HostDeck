@@ -159,7 +159,7 @@ function insertSnippet(command: string) {
     </div>
 
     <div
-      class="app-radius-card terminal-surface min-h-0 flex-1 overflow-hidden rounded-[18px] border mx-[12px] mb-[12px] mt-[10px]"
+      class="app-radius-card terminal-surface min-h-0 flex-1 overflow-hidden border mx-[12px] mb-[12px] mt-[0px]"
     >
       <div
         ref="terminalContainer"
