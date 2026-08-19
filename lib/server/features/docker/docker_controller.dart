@@ -261,6 +261,52 @@ class DockerController {
     });
   }
 
+  Future<Response> streamComposeLogs(Request request) {
+    final tail = _parseTail(request.url.queryParameters['tail']);
+    return _withComposePayload(request, (session, payload) async {
+      return Response.ok(
+        _encodeComposeLogEvents(
+          _composeService.streamComposeLogs(
+            session,
+            projectName: payload.projectName,
+            configFiles: payload.configFiles,
+            workingDir: payload.workingDir,
+            tail: tail,
+          ),
+        ),
+        headers: const {
+          'content-type': 'text/event-stream; charset=utf-8',
+          'cache-control': 'no-cache, no-transform',
+          'connection': 'keep-alive',
+          'x-accel-buffering': 'no',
+        },
+      );
+    });
+  }
+
+  Stream<List<int>> _encodeComposeLogEvents(
+    Stream<DockerComposeLogEvent> events,
+  ) async* {
+    try {
+      yield utf8.encode(': ${' '.padRight(16 * 1024)}\n\n');
+      yield encodeServerSentEvent('connected', const <String, dynamic>{});
+      await for (final event in events.timeout(
+        const Duration(seconds: 15),
+        onTimeout: (sink) =>
+            sink.add(const DockerComposeLogEvent('heartbeat', '')),
+      )) {
+        if (event.event == 'heartbeat') {
+          yield utf8.encode(': heartbeat\n\n');
+        } else {
+          yield encodeServerSentEvent(event.event, {'text': event.text});
+        }
+      }
+      yield encodeServerSentEvent('done', const <String, dynamic>{});
+    } catch (error) {
+      yield encodeServerSentEvent('error', {'message': error.toString()});
+    }
+  }
+
   Future<Response> _composeAction(
     Request request,
     Future<String> Function(

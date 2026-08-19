@@ -29,6 +29,10 @@ void registerDockerRoutes(Router router, DockerController controller) {
     '/api/docker/compose/project/down',
     controller.downComposeProject,
   );
+  router.post(
+    '/api/docker/compose/project/logs/stream',
+    controller.streamComposeLogs,
+  );
   router.post('/api/docker/compose/project/logs', controller.getComposeLogs);
   router.get('/api/docker/containers', controller.listContainers);
   router.get(

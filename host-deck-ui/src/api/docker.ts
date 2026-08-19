@@ -417,6 +417,50 @@ export const dockerApi = {
     return response.data
   },
 
+  async streamComposeLogs(
+    connectionId: string,
+    payload: DockerComposeProjectPayload,
+    tail: number,
+    onEvent: (event: DockerContainerLogStreamEvent) => void,
+    signal?: AbortSignal,
+  ) {
+    const query = new URLSearchParams({ connectionId, tail: String(tail) })
+    const response = await fetch(`/api/docker/compose/project/logs/stream?${query}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal,
+    })
+    if (!response.ok) {
+      throw new Error((await response.text()) || `获取编排日志失败 (${response.status})`)
+    }
+    if (!response.body) throw new Error('浏览器未提供流式响应。')
+
+    let streamError: string | undefined
+    let connected = false
+    const reportConnected = () => {
+      if (!connected) {
+        connected = true
+        onEvent({ event: 'connected', data: {} })
+      }
+    }
+    reportConnected()
+    await consumeServerSentEvents(response.body, (message) => {
+      const event = {
+        event: message.event,
+        data: JSON.parse(message.data) as Record<string, unknown>,
+      } as DockerContainerLogStreamEvent
+      if (event.event === 'connected') {
+        reportConnected()
+      } else {
+        onEvent(event)
+      }
+      if (event.event === 'error') streamError = event.data.message
+    })
+    if (streamError) throw new Error(streamError)
+  },
+
   async listContainers(connectionId: string, params: DockerContainerListParams = {}) {
     const response = await http.get<PagedResponse<DockerContainer, DockerContainerSummary>>(
       '/api/docker/containers',

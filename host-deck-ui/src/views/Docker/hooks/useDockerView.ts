@@ -457,24 +457,49 @@ export function useDockerView(props: DockerViewProps) {
     }
 
     if (logsComposeProject.value) {
+      stopLogsStream()
+      const generation = logsStreamGeneration
+      const abortController = new AbortController()
+      logsAbortController = abortController
+      logsContent.value = ''
+      logsStreamError.value = ''
+      logsStreamStatus.value = 'connecting'
       logsLoading.value = true
       logsRefreshing.value = true
       try {
         const payload = getComposeProjectPayload(logsComposeProject.value)
         if (!payload) throw new Error('该编排项目缺少 compose 配置文件路径。')
-        logsContent.value = (
-          await queueDockerRequest(() =>
-            dockerApi.getComposeLogs(requireConnectionId(), payload, logsTail.value),
-          )
-        ).logs
-        logsLastUpdatedAt.value = new Date()
-        logsStreamStatus.value = 'ended'
+        await dockerApi.streamComposeLogs(
+          requireConnectionId(),
+          payload,
+          logsTail.value,
+          (event) => {
+            if (generation !== logsStreamGeneration) return
+            if (event.event === 'connected') {
+              logsStreamStatus.value = 'live'
+              logsLoading.value = false
+              logsRefreshing.value = false
+            } else if (event.event === 'stdout' || event.event === 'stderr') {
+              logsStreamStatus.value = 'live'
+              logsLoading.value = false
+              logsRefreshing.value = false
+              appendLogs(event.data.text)
+            } else if (event.event === 'done') {
+              logsStreamStatus.value = 'ended'
+            }
+          },
+          abortController.signal,
+        )
       } catch (error) {
+        if (abortController.signal.aborted || generation !== logsStreamGeneration) return
         logsStreamStatus.value = 'error'
         logsStreamError.value = error instanceof Error ? error.message : '日志加载失败。'
       } finally {
-        logsLoading.value = false
-        logsRefreshing.value = false
+        if (generation === logsStreamGeneration) {
+          logsLoading.value = false
+          logsRefreshing.value = false
+          if (logsAbortController === abortController) logsAbortController = null
+        }
       }
       return
     }
