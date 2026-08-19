@@ -86,7 +86,6 @@ export function useDockerView(props: DockerViewProps) {
   const logsStreamError = ref('')
   const logsContainerId = ref('')
   const logsContainerName = ref('')
-  const logsComposeProject = ref<DockerComposeProject | null>(null)
   const inspectVisible = ref(false)
   const inspectLoading = ref(false)
   const inspectTitle = ref('')
@@ -452,55 +451,7 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   async function refreshLogs() {
-    if (!logsContainerId.value && !logsComposeProject.value) {
-      return
-    }
-
-    if (logsComposeProject.value) {
-      stopLogsStream()
-      const generation = logsStreamGeneration
-      const abortController = new AbortController()
-      logsAbortController = abortController
-      logsContent.value = ''
-      logsStreamError.value = ''
-      logsStreamStatus.value = 'connecting'
-      logsLoading.value = true
-      logsRefreshing.value = true
-      try {
-        const payload = getComposeProjectPayload(logsComposeProject.value)
-        if (!payload) throw new Error('该编排项目缺少 compose 配置文件路径。')
-        await dockerApi.streamComposeLogs(
-          requireConnectionId(),
-          payload,
-          logsTail.value,
-          (event) => {
-            if (generation !== logsStreamGeneration) return
-            if (event.event === 'connected') {
-              logsStreamStatus.value = 'live'
-              logsLoading.value = false
-              logsRefreshing.value = false
-            } else if (event.event === 'stdout' || event.event === 'stderr') {
-              logsStreamStatus.value = 'live'
-              logsLoading.value = false
-              logsRefreshing.value = false
-              appendLogs(event.data.text)
-            } else if (event.event === 'done') {
-              logsStreamStatus.value = 'ended'
-            }
-          },
-          abortController.signal,
-        )
-      } catch (error) {
-        if (abortController.signal.aborted || generation !== logsStreamGeneration) return
-        logsStreamStatus.value = 'error'
-        logsStreamError.value = error instanceof Error ? error.message : '日志加载失败。'
-      } finally {
-        if (generation === logsStreamGeneration) {
-          logsLoading.value = false
-          logsRefreshing.value = false
-          if (logsAbortController === abortController) logsAbortController = null
-        }
-      }
+    if (!logsContainerId.value) {
       return
     }
 
@@ -952,24 +903,8 @@ export function useDockerView(props: DockerViewProps) {
     logsTitle.value = `容器日志 · ${container.name}`
     logsContainerId.value = container.id
     logsContainerName.value = container.name
-    logsComposeProject.value = null
     logsKeyword.value = ''
     logsLastUpdatedAt.value = null
-    logsContent.value = ''
-    await refreshLogs()
-  }
-
-  async function viewComposeLogs(project: DockerComposeProject) {
-    const payload = getComposeProjectPayload(project)
-    if (!payload) {
-      getUiApi().message.warning('该编排项目缺少 compose 配置文件路径，无法查看日志。')
-      return
-    }
-    logsVisible.value = true
-    logsTitle.value = `编排日志 · ${project.name}`
-    logsComposeProject.value = project
-    logsContainerId.value = ''
-    logsContainerName.value = project.name
     logsContent.value = ''
     await refreshLogs()
   }
@@ -2021,7 +1956,6 @@ export function useDockerView(props: DockerViewProps) {
     viewImageRefs,
     viewInspect,
     viewLogs,
-    viewComposeLogs,
     viewStats,
     viewNetworkInspect,
     viewVolumeInspect,

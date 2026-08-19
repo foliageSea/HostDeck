@@ -84,8 +84,6 @@ const running = (project: DockerComposeProject) => project.status.toLowerCase().
               :loading="controller.composeActionLoadingMap[project.name]"
               @click="controller.confirmComposeProjectAction(project, 'restart')"
               >重启</NButton
-            ><NButton size="tiny" quaternary @click="controller.viewComposeLogs(project)"
-              >日志</NButton
             ><NButton
               size="tiny"
               quaternary

@@ -11,13 +11,6 @@ class DockerComposeCreateEvent {
   const DockerComposeCreateEvent(this.event, this.data);
 }
 
-class DockerComposeLogEvent {
-  final String event;
-  final String text;
-
-  const DockerComposeLogEvent(this.event, this.text);
-}
-
 class DockerComposeService {
   final SshRepository _sshRepository;
 
@@ -210,81 +203,6 @@ class DockerComposeService {
     workingDir: workingDir,
     args: const ['down'],
   );
-  Future<String> getComposeLogs(
-    SshSession session, {
-    required String projectName,
-    required List<String> configFiles,
-    String? workingDir,
-    int tail = 200,
-  }) => _runProject(
-    session,
-    projectName: projectName,
-    configFiles: configFiles,
-    workingDir: workingDir,
-    args: ['logs', '--no-color', '--tail', '$tail'],
-  );
-
-  Stream<DockerComposeLogEvent> streamComposeLogs(
-    SshSession session, {
-    required String projectName,
-    required List<String> configFiles,
-    String? workingDir,
-    int tail = 200,
-  }) async* {
-    final history = await getComposeLogs(
-      session,
-      projectName: projectName,
-      configFiles: configFiles,
-      workingDir: workingDir,
-      tail: tail,
-    );
-    if (history.isNotEmpty) {
-      yield DockerComposeLogEvent('stdout', '$history\n');
-    }
-
-    final files = configFiles
-        .map((file) => file.trim())
-        .where((file) => file.isNotEmpty)
-        .toSet()
-        .toList();
-    if (files.isEmpty) throw ArgumentError('configFiles is required');
-
-    final options = [
-      '-p',
-      projectName,
-      for (final file in files) ...['-f', file],
-      'logs',
-      '--no-color',
-      '--tail',
-      '0',
-      '--follow',
-    ].map(_quote).join(' ');
-    final command = [
-      if (workingDir?.trim().isNotEmpty == true)
-        'cd ${_quote(workingDir!.trim())}',
-      'if docker compose version >/dev/null 2>&1; then docker compose $options; else docker-compose $options; fi',
-    ].join(' && ');
-
-    var exitCode = 0;
-    await for (final output in _sshRepository.execStream(
-      session,
-      'sh -lc ${_quote(command)}',
-      timeout: const Duration(days: 1),
-    )) {
-      if (output.completed) {
-        exitCode = output.exitCode ?? 0;
-      } else if (output.text.isNotEmpty) {
-        yield DockerComposeLogEvent(
-          output.source == SshExecStreamSource.stderr ? 'stderr' : 'stdout',
-          output.text,
-        );
-      }
-    }
-    if (exitCode != 0) {
-      throw Exception('Compose logs command failed with exit code $exitCode');
-    }
-  }
-
   Future<String> _runProject(
     SshSession session, {
     required String projectName,
