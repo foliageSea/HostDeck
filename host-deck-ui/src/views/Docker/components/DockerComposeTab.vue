@@ -11,6 +11,10 @@ const key = (project: DockerComposeProject) => `${project.name}:${project.config
 const configTitle = (project: DockerComposeProject) =>
   props.controller.getComposeConfigFiles(project).join('\n') || '未返回配置文件'
 const running = (project: DockerComposeProject) => project.status.toLowerCase().includes('running')
+const stopped = (project: DockerComposeProject) => {
+  const status = project.status.toLowerCase()
+  return status.includes('exited') || status.includes('stopped')
+}
 </script>
 
 <template>
@@ -101,6 +105,13 @@ const running = (project: DockerComposeProject) => project.status.toLowerCase().
           </div>
         </div>
         <div class="mt-[12px] flex justify-end">
+          <NButton
+            v-if="stopped(project)"
+            size="small"
+            quaternary
+            @click="controller.openEditComposeProject(project)"
+            >编辑</NButton
+          >
           <NButton size="small" quaternary @click="controller.openComposeServices(project)"
             >详情</NButton
           >

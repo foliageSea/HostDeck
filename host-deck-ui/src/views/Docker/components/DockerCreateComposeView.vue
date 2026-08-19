@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { LogoDocker } from '@vicons/ionicons5'
 import CodeEditor from '@/components/editor/CodeEditor.vue'
-import { dockerApi, type DockerComposeCreatePayload } from '@/api/docker'
+import {
+  dockerApi,
+  type DockerComposeCreatePayload,
+  type DockerComposeProject,
+} from '@/api/docker'
 import { filesApi } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
@@ -11,8 +15,14 @@ import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import { FilePickerDialog, type FilePickerConfirmPayload } from '@/views/Files/components'
 import { resolve } from '@/utils/path'
+import { getComposeConfigFiles } from '../hooks/dockerViewHelpers'
 
-const props = defineProps<{ windowId?: string; connectionId?: string; host?: string }>()
+const props = defineProps<{
+  windowId?: string
+  connectionId?: string
+  host?: string
+  project?: DockerComposeProject
+}>()
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
@@ -28,6 +38,7 @@ const form = ref<DockerComposeCreatePayload>({
   startAfterCreate: true,
 })
 const connectionId = computed(() => props.connectionId ?? sshStore.connectionId)
+const editing = computed(() => Boolean(props.project))
 function close() {
   if (props.windowId) desktopStore.closeWindow(props.windowId)
 }
@@ -47,6 +58,20 @@ async function loadExistingComposeFile(connectionId: string, directory: string, 
     console.error('Failed to read existing compose file', error)
     getUiApi().message.error('配置文件读取失败，已保留当前内容。')
   }
+}
+
+async function loadProjectForEditing() {
+  const project = props.project
+  const selectedConnectionId = connectionId.value
+  const configFile = project ? getComposeConfigFiles(project)[0] : undefined
+  if (!project || !selectedConnectionId || !configFile) return
+
+  const separatorIndex = Math.max(configFile.lastIndexOf('/'), configFile.lastIndexOf('\\'))
+  form.value.projectName = project.name
+  form.value.workingDir = project.workingDir || configFile.slice(0, separatorIndex) || '/'
+  form.value.fileName = configFile.slice(separatorIndex + 1)
+  form.value.startAfterCreate = false
+  await loadExistingComposeFile(selectedConnectionId, form.value.workingDir, form.value.fileName)
 }
 
 async function picked(value: FilePickerConfirmPayload) {
@@ -93,7 +118,7 @@ async function submit() {
     return getUiApi().message.error('项目名、工作目录和 Compose 内容不能为空。')
   creating.value = true
   try {
-    const title = `创建编排 · ${payload.projectName}`
+    const title = `${editing.value ? '编辑' : '创建'}编排 · ${payload.projectName}`
     const taskId = outputStore.createTask(connectionId.value, title)
     desktopStore.openWindow('docker-output', { taskId, title })
     const result = await outputStore.runTask(taskId, ({ append, signal }) =>
@@ -121,7 +146,11 @@ async function submit() {
         },
       }),
     )
-    getUiApi().message.success(result.started ? '编排项目已创建并启动。' : '编排项目已创建。')
+    getUiApi().message.success(
+      result.started
+        ? `编排项目已${editing.value ? '保存并启动' : '创建并启动'}。`
+        : `编排项目已${editing.value ? '保存' : '创建'}。`,
+    )
     close()
   } catch (error) {
     getUiApi().message.error(error instanceof Error ? error.message : '创建编排项目失败。')
@@ -129,6 +158,7 @@ async function submit() {
     creating.value = false
   }
 }
+onMounted(() => void loadProjectForEditing())
 </script>
 <template>
   <div
@@ -141,7 +171,7 @@ async function submit() {
   >
     <div class="flex shrink-0 items-center gap-[8px] border-b px-[18px] py-[14px]">
       <NIcon :size="20"><LogoDocker /></NIcon>
-      <h2 class="m-0 text-[18px]">新建编排</h2>
+      <h2 class="m-0 text-[18px]">{{ editing ? '编辑编排' : '新建编排' }}</h2>
     </div>
     <NForm label-placement="top" class="min-h-0 flex-1 overflow-auto p-[18px] app-scrollbar"
       ><NGrid :cols="2" :x-gap="12" responsive="screen"
@@ -166,7 +196,7 @@ async function submit() {
     <div class="flex shrink-0 justify-end border-t px-[18px] py-[12px]">
       <NSpace
         ><NButton @click="close">取消</NButton
-        ><NButton type="primary" :loading="creating" @click="submit">创建</NButton></NSpace
+        ><NButton type="primary" :loading="creating" @click="submit">{{ editing ? '保存' : '创建' }}</NButton></NSpace
       >
     </div>
     <FilePickerDialog

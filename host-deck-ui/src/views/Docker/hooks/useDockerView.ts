@@ -1383,6 +1383,29 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
+  function openEditComposeProject(project: DockerComposeProject) {
+    const status = project.status.toLowerCase()
+    if (!status.includes('exited') && !status.includes('stopped')) {
+      getUiApi().message.warning('请先停止编排再编辑。')
+      return
+    }
+    if (!getComposeProjectPayload(project)) {
+      getUiApi().message.warning('该编排项目缺少 compose 配置文件路径，无法编辑。')
+      return
+    }
+    try {
+      desktopStore.openWindow('docker-create-compose', {
+        connectionId: requireConnectionId(),
+        host: props.host ?? sshStore.host,
+        project,
+        title: `编辑编排 · ${project.name}`,
+        username: props.username ?? sshStore.username,
+      })
+    } catch (error) {
+      getUiApi().message.error(error instanceof Error ? error.message : '打开编辑编排窗口失败。')
+    }
+  }
+
   function openComposeServices(project: DockerComposeProject) {
     if (!getComposeProjectPayload(project)) {
       getUiApi().message.warning('该编排项目缺少 compose 配置文件路径，无法加载服务。')
@@ -1909,6 +1932,7 @@ export function useDockerView(props: DockerViewProps) {
     openComposeServices,
     openCreateContainer,
     openCreateComposeProject,
+    openEditComposeProject,
     openEditContainer,
     openRenameDialog,
     pullImage,
