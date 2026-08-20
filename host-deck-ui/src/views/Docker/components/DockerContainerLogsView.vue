@@ -141,7 +141,7 @@ onBeforeUnmount(stopStream)
       <NButton quaternary @click="copyLogs">复制</NButton>
       <NButton quaternary @click="downloadLogs">下载</NButton>
     </div>
-    <NSpin :show="loading" class="min-h-0 flex-1">
+    <NSpin :show="loading" class="docker-log-spinner min-h-0 flex-1 overflow-hidden">
       <pre
         ref="logsElement"
         class="docker-console app-scrollbar m-0 h-full overflow-auto whitespace-pre-wrap break-words rounded-[14px] p-[14px] text-[12px] leading-[1.6] select-text"
@@ -168,3 +168,15 @@ onBeforeUnmount(stopStream)
     </div>
   </div>
 </template>
+
+<style scoped>
+.docker-log-spinner {
+  display: flex;
+  flex-direction: column;
+}
+
+.docker-log-spinner :deep(.n-spin-content) {
+  min-height: 0;
+  height: 100%;
+}
+</style>
