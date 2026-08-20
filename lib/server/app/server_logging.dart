@@ -88,10 +88,9 @@ String formatLogRecord(LogRecord record) {
 }
 
 String formatServerLogEntry(ServerLogEntry entry) {
-  const loggerNameWidth = 24;
   final timestamp = _formatLogTimestamp(entry.timestamp);
   final level = entry.level.padRight(7);
-  final loggerName = entry.logger.padRight(loggerNameWidth);
+  final loggerName = _formatLoggerName(entry.logger);
   return '$timestamp $level $loggerName | ${entry.message}';
 }
 
@@ -100,13 +99,19 @@ String formatConsoleLogRecord(LogRecord record) {
 }
 
 String formatConsoleServerLogEntry(ServerLogEntry entry) {
-  const loggerNameWidth = 24;
   const reset = '\x1B[0m';
   final timestamp = _formatLogTimestamp(entry.timestamp);
   final level = entry.level.padRight(7);
-  final loggerName = entry.logger.padRight(loggerNameWidth);
+  final loggerName = _formatLoggerName(entry.logger);
   return '$timestamp ${_ansiColorForLevel(Level(entry.level, entry.levelValue))}$level$reset '
       '$loggerName | ${entry.message}';
+}
+
+String _formatLoggerName(String loggerName) {
+  const width = 24;
+  const truncation = '...';
+  if (loggerName.length <= width) return loggerName.padRight(width);
+  return '${loggerName.substring(0, width - truncation.length)}$truncation';
 }
 
 String _formatLogTimestamp(DateTime value) {
