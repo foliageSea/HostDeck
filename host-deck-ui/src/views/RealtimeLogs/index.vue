@@ -4,7 +4,6 @@ import {
   Activity,
   ArrowDownToLine,
   Clock3,
-  Cpu,
   Gauge,
   MemoryStick,
   Pause,
@@ -143,10 +142,6 @@ function formatUptime(value?: number) {
   return `${minutes}分 ${totalSeconds % 60}秒`
 }
 
-function formatCpu(value?: number | null) {
-  return value === undefined || value === null ? '--' : `${value.toFixed(1)}%`
-}
-
 function formatLag(value?: number) {
   return value === undefined ? '--' : `${value.toFixed(value >= 10 ? 0 : 1)} ms`
 }
@@ -226,11 +221,6 @@ watch(autoScroll, (enabled) => {
         <Activity :size="14" />
         <span>服务进程</span>
         <span class="metrics-dot" :class="`metrics-${metrics.connectionStatus.value}`" />
-      </div>
-      <div class="metric-item">
-        <Cpu :size="14" />
-        <span class="metric-label">CPU</span>
-        <strong>{{ formatCpu(metrics.snapshot.value?.cpuPercent) }}</strong>
       </div>
       <div class="metric-item">
         <MemoryStick :size="14" />
