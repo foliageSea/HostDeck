@@ -1,5 +1,6 @@
 import type { AxiosProgressEvent } from 'axios'
 import { http } from '@/lib/http'
+import { consumeServerSentEvents } from '@/lib/sse'
 
 export interface FileItem {
   filename: string
@@ -11,6 +12,27 @@ export interface FileItem {
 
 export interface DirectorySizeResult {
   size: number
+}
+
+export type FileTaskType = 'copy' | 'move' | 'delete' | 'extract'
+export type FileTaskStatus = 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
+
+export interface FileTask {
+  id: string
+  connectionId: string
+  type: FileTaskType
+  status: FileTaskStatus
+  errorMessage?: string | null
+  createdAt: number
+  startedAt?: number | null
+  finishedAt?: number | null
+  items: Array<{
+    id: number
+    sourcePath: string
+    targetPath?: string | null
+    status: FileTaskStatus
+    errorMessage?: string | null
+  }>
 }
 
 export const filesApi = {
@@ -93,6 +115,45 @@ export const filesApi = {
       },
     )
     return response.data
+  },
+
+  createTask: async (
+    connectionId: string,
+    type: FileTaskType,
+    items: Array<{ sourcePath: string; targetPath?: string }>,
+  ) => {
+    const response = await http.post<FileTask>('/api/files/tasks', { items, type }, { params: { connectionId } })
+    return response.data
+  },
+
+  listTasks: async (connectionId: string) => {
+    const response = await http.get<FileTask[]>('/api/files/tasks', { params: { connectionId } })
+    return response.data
+  },
+
+  cancelTask: async (taskId: string) => {
+    const response = await http.post<FileTask>(`/api/files/tasks/${encodeURIComponent(taskId)}/cancel`)
+    return response.data
+  },
+
+  watchTask: async (
+    taskId: string,
+    onTask: (task: FileTask) => void,
+    signal?: AbortSignal,
+  ) => {
+    const response = await fetch(`/api/files/tasks/${encodeURIComponent(taskId)}/events`, {
+      credentials: 'same-origin',
+      headers: { Accept: 'text/event-stream' },
+      signal,
+    })
+    if (!response.ok || !response.body) {
+      throw new Error(`订阅文件任务失败 (${response.status})`)
+    }
+    await consumeServerSentEvents(response.body, (message) => {
+      if (message.event === 'task' || message.event === 'done') {
+        onTask(JSON.parse(message.data) as FileTask)
+      }
+    })
   },
 
   delete: async (connectionId: string, path: string) => {

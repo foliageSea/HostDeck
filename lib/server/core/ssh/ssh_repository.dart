@@ -441,6 +441,40 @@ class SshRepository {
 }
 
 extension SshRepositoryStreaming on SshRepository {
+  Stream<SshExecStreamEvent> copyStream(
+    SshSession session,
+    String source,
+    String target,
+  ) => execStream(
+    session,
+    'cp -r ${_shellQuote(source)} ${_shellQuote(target)}',
+  );
+
+  Stream<SshExecStreamEvent> deleteStream(SshSession session, String path) =>
+      execStream(session, 'rm -rf ${_shellQuote(path)}');
+
+  Stream<SshExecStreamEvent> extractStream(
+    SshSession session,
+    String archivePath,
+    String targetPath,
+  ) {
+    final archive = _shellQuote(archivePath);
+    final target = _shellQuote(targetPath);
+    final lowerPath = archivePath.toLowerCase();
+    final command = lowerPath.endsWith('.zip')
+        ? 'mkdir -p $target && unzip -oq $archive -d $target'
+        : lowerPath.endsWith('.tar.gz') || lowerPath.endsWith('.tgz')
+        ? 'mkdir -p $target && tar -xzf $archive -C $target'
+        : lowerPath.endsWith('.tar.bz2') || lowerPath.endsWith('.tbz2')
+        ? 'mkdir -p $target && tar -xjf $archive -C $target'
+        : lowerPath.endsWith('.tar.xz') || lowerPath.endsWith('.txz')
+        ? 'mkdir -p $target && tar -xJf $archive -C $target'
+        : lowerPath.endsWith('.tar')
+        ? 'mkdir -p $target && tar -xf $archive -C $target'
+        : throw UnsupportedError('暂不支持该压缩格式。');
+    return execStream(session, command);
+  }
+
   Stream<SshExecStreamEvent> execStream(
     SshSession session,
     String command, {

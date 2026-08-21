@@ -168,6 +168,45 @@ class DatabaseService {
       ''');
       _setVersion(5);
     }
+
+    // v5 -> v6: Persist background file operation tasks and their items.
+    if (currentVersion < 6) {
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS file_tasks (
+          id TEXT PRIMARY KEY,
+          connectionId TEXT NOT NULL,
+          type TEXT NOT NULL,
+          status TEXT NOT NULL,
+          errorMessage TEXT,
+          createdAt INTEGER NOT NULL,
+          startedAt INTEGER,
+          finishedAt INTEGER
+        )
+      ''');
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS file_task_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          taskId TEXT NOT NULL,
+          itemOrder INTEGER NOT NULL,
+          sourcePath TEXT NOT NULL,
+          targetPath TEXT,
+          status TEXT NOT NULL,
+          errorMessage TEXT,
+          startedAt INTEGER,
+          finishedAt INTEGER,
+          FOREIGN KEY(taskId) REFERENCES file_tasks(id) ON DELETE CASCADE
+        )
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_file_tasks_connection_created
+        ON file_tasks(connectionId, createdAt DESC)
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_file_task_items_task_order
+        ON file_task_items(taskId, itemOrder)
+      ''');
+      _setVersion(6);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

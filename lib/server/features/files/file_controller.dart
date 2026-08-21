@@ -4,16 +4,20 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
 
 import 'package:host_deck/server/core/http/result.dart';
+import 'package:host_deck/server/core/http/server_sent_event.dart';
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/files/file_service.dart';
+import 'package:host_deck/server/features/files/file_task.dart';
+import 'package:host_deck/server/features/files/file_task_manager.dart';
 
 class FileController {
   final FileService _fileService;
+  final FileTaskManager _taskManager;
   final SharedSshSessionResolver _sessionResolver;
 
-  FileController(SshService sshService, this._fileService)
+  FileController(SshService sshService, this._fileService, this._taskManager)
     : _sessionResolver = SharedSshSessionResolver(
         sshService,
         type: SharedSshSessionType.sftp,
@@ -25,6 +29,87 @@ class FileController {
 
   Response _sessionErrorResponse(Object error) {
     return _sessionResolver.errorResponse(error);
+  }
+
+  Future<Response> createTask(Request request) async {
+    try {
+      final connectionId = request.url.queryParameters['connectionId'];
+      if (connectionId == null || connectionId.isEmpty) {
+        return Result.fail(400, 'Missing connectionId');
+      }
+      final data =
+          jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+      final type = FileTaskType.values.byName(data['type'] as String);
+      final rawItems = data['items'];
+      if (rawItems is! List) {
+        return Result.fail(400, 'items is required');
+      }
+      final items = rawItems.map((item) {
+        if (item is! Map) throw ArgumentError('Invalid task item');
+        final sourcePath = item['sourcePath']?.toString().trim() ?? '';
+        final targetPath = item['targetPath']?.toString().trim();
+        if (sourcePath.isEmpty ||
+            ((type != FileTaskType.delete) &&
+                (targetPath == null || targetPath.isEmpty))) {
+          throw ArgumentError('Invalid task path');
+        }
+        return {'sourcePath': sourcePath, 'targetPath': targetPath};
+      }).toList();
+      return Result.ok(_taskManager.create(connectionId, type, items).toJson());
+    } on ArgumentError catch (error) {
+      return Result.fail(400, error.message?.toString() ?? error.toString());
+    } catch (error) {
+      return Result.fail(500, error.toString());
+    }
+  }
+
+  Response listTasks(Request request) {
+    final connectionId = request.url.queryParameters['connectionId'];
+    final limit =
+        int.tryParse(request.url.queryParameters['limit'] ?? '') ?? 100;
+    return Result.ok(
+      _taskManager
+          .list(connectionId: connectionId, limit: limit)
+          .map((task) => task.toJson())
+          .toList(),
+    );
+  }
+
+  Response getTask(Request request, String id) {
+    final task = _taskManager.find(id);
+    return task == null
+        ? Result.fail(404, 'Task not found')
+        : Result.ok(task.toJson());
+  }
+
+  Future<Response> cancelTask(Request request, String id) async {
+    final task = await _taskManager.cancel(id);
+    return task == null
+        ? Result.fail(404, 'Task not found')
+        : Result.ok(task.toJson());
+  }
+
+  Response streamTask(Request request, String id) {
+    if (_taskManager.find(id) == null) {
+      return Result.fail(404, 'Task not found');
+    }
+    final stream = _taskManager.watch(id).map((task) {
+      final event =
+          task.status == FileTaskStatus.success ||
+              task.status == FileTaskStatus.failed ||
+              task.status == FileTaskStatus.cancelled
+          ? 'done'
+          : 'task';
+      return encodeServerSentEvent(event, task.toJson());
+    });
+    return Response.ok(
+      stream,
+      headers: {
+        'content-type': 'text/event-stream; charset=utf-8',
+        'cache-control': 'no-cache, no-transform',
+        'x-accel-buffering': 'no',
+      },
+    );
   }
 
   Future<Response> createSession(Request request) async {

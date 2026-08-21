@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 import {
   ArrowLeft,
@@ -22,7 +22,7 @@ import {
   Terminal,
   Upload,
 } from '@vicons/carbon'
-import { filesApi, type FileItem } from '@/api/files'
+import { filesApi, type FileItem, type FileTask, type FileTaskType } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useFileClipboardStore } from '@/stores/file-clipboard'
@@ -96,6 +96,7 @@ const contextMenu = ref<{
   y: number
 } | null>(null)
 const isFavoriteSidebarVisible = useLocalStorage(FAVORITE_SIDEBAR_VISIBLE_STORAGE_KEY, false)
+const remoteTaskControllers = new Map<string, AbortController>()
 
 const selectedFile = computed(() => fileStore.selectedFile)
 const selectedFiles = computed(() =>
@@ -638,30 +639,57 @@ async function pasteClipboardItems() {
     return
   }
 
+  const type: FileTaskType = payload.operation
+  const task = await startRemoteTask(
+    type,
+    payload.entries.map((entry) => ({
+      sourcePath: entry.path,
+      targetPath: resolve(targetPath, entry.filename),
+    })),
+  )
+  if (!task) return
+  fileStore.setSelectedNames(payload.entries.map((entry) => entry.filename))
+  if (payload.operation === 'move') fileClipboardStore.clearPayload()
+}
+
+async function startRemoteTask(
+  type: FileTaskType,
+  items: Array<{ sourcePath: string; targetPath?: string }>,
+) {
+  if (!fileStore.connectionId) return null
   try {
-    await Promise.all(
-      payload.entries.map((entry) => {
-        const nextPath = resolve(targetPath, entry.filename)
-        return payload.operation === 'move'
-          ? filesApi.rename(fileStore.connectionId as string, entry.path, nextPath)
-          : filesApi.copy(fileStore.connectionId as string, entry.path, nextPath)
-      }),
-    )
-
-    await fileStore.fetchFiles()
-    fileStore.setSelectedNames(payload.entries.map((entry) => entry.filename))
-    fileClipboardStore.emitRefresh(targetPath, props.windowId)
-
-    if (payload.operation === 'move') {
-      fileClipboardStore.emitRefresh(payload.sourcePath, props.windowId)
-      fileClipboardStore.clearPayload()
-    }
-
-    getUiApi().message.success(payload.operation === 'move' ? '移动成功。' : '复制成功。')
+    const task = await filesApi.createTask(fileStore.connectionId, type, items)
+    uploadCenterStore.upsertRemoteTask(task)
+    watchRemoteTask(task)
+    getUiApi().message.success('已加入任务中心。')
+    return task
   } catch (error) {
-    console.error('Failed to paste files', error)
-    getUiApi().message.error(payload.operation === 'move' ? '移动失败。' : '复制失败。')
+    console.error('Failed to create file task', error)
+    getUiApi().message.error('创建文件任务失败。')
+    return null
   }
+}
+
+function watchRemoteTask(task: FileTask) {
+  if (remoteTaskControllers.has(task.id)) return
+  const controller = new AbortController()
+  remoteTaskControllers.set(task.id, controller)
+  void filesApi
+    .watchTask(
+      task.id,
+      (nextTask: FileTask) => {
+        uploadCenterStore.upsertRemoteTask(nextTask)
+        if (nextTask.status === 'success' || nextTask.status === 'failed' || nextTask.status === 'cancelled') {
+          remoteTaskControllers.delete(nextTask.id)
+          void fileStore.fetchFiles()
+          fileClipboardStore.emitRefresh(fileStore.currentPath, props.windowId)
+        }
+      },
+      controller.signal,
+    )
+    .catch((error: unknown) => {
+      if (!isUploadCancelled(error)) console.error('Failed to watch file task', error)
+    })
 }
 
 async function copyPathToClipboard(path: string, successMessage: string) {
@@ -1144,22 +1172,13 @@ async function confirmExtract() {
     return
   }
 
-  extractingArchive.value = true
-  try {
-    await filesApi.extract(
-      fileStore.connectionId,
-      resolve(fileStore.currentPath, selectedFile.value.filename),
-      resolve(fileStore.currentPath, targetName),
-    )
+  const task = await startRemoteTask('extract', [{
+    sourcePath: resolve(fileStore.currentPath, selectedFile.value.filename),
+    targetPath: resolve(fileStore.currentPath, targetName),
+  }])
+  if (task) {
     showExtractDialog.value = false
-    await fileStore.fetchFiles()
     fileStore.setSelectedNames([targetName])
-    getUiApi().message.success('解压成功。')
-  } catch (error) {
-    console.error('Failed to extract archive', error)
-    getUiApi().message.error(error instanceof Error ? error.message : '解压失败。')
-  } finally {
-    extractingArchive.value = false
   }
 }
 
@@ -1188,26 +1207,13 @@ async function confirmDelete() {
     return
   }
 
-  deletingFiles.value = true
-  try {
-    await Promise.all(
-      selectedFiles.value.map((file) =>
-        filesApi.delete(
-          fileStore.connectionId as string,
-          resolve(fileStore.currentPath, file.filename),
-        ),
-      ),
-    )
-
+  const task = await startRemoteTask(
+    'delete',
+    selectedFiles.value.map((file) => ({ sourcePath: resolve(fileStore.currentPath, file.filename) })),
+  )
+  if (task) {
     showDeleteDialog.value = false
     fileStore.clearSelection()
-    await fileStore.fetchFiles()
-    getUiApi().message.success('删除成功。')
-  } catch (error) {
-    console.error('Failed to delete files', error)
-    getUiApi().message.error('删除失败。')
-  } finally {
-    deletingFiles.value = false
   }
 }
 
@@ -1748,6 +1754,24 @@ function handleKeydown(event: KeyboardEvent) {
 onMounted(async () => {
   await fileStore.fetchFiles(props.path || '/')
   syncPathInput()
+  if (fileStore.connectionId) {
+    try {
+      const tasks = await filesApi.listTasks(fileStore.connectionId)
+      tasks.forEach((task) => {
+        uploadCenterStore.upsertRemoteTask(task)
+        if (task.status === 'queued' || task.status === 'running') watchRemoteTask(task)
+      })
+    } catch (error) {
+      console.error('Failed to restore file tasks', error)
+    }
+  }
+})
+
+onBeforeUnmount(() => {
+  for (const controller of remoteTaskControllers.values()) {
+    controller.abort()
+  }
+  remoteTaskControllers.clear()
 })
 
 watch(

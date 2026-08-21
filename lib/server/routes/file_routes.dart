@@ -17,4 +17,9 @@ void registerFileRoutes(Router router, FileController controller) {
   router.post('/api/files/chmod', controller.chmod);
   router.post('/api/files/copy', controller.copy);
   router.post('/api/files/extract', controller.extract);
+  router.post('/api/files/tasks', controller.createTask);
+  router.get('/api/files/tasks', controller.listTasks);
+  router.get('/api/files/tasks/<id>', controller.getTask);
+  router.post('/api/files/tasks/<id>/cancel', controller.cancelTask);
+  router.get('/api/files/tasks/<id>/events', controller.streamTask);
 }

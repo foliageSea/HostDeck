@@ -24,6 +24,8 @@ import 'package:host_deck/server/features/docker/docker_resource_service.dart';
 import 'package:host_deck/server/features/docker/docker_socket_tunnel_service.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
 import 'package:host_deck/server/features/files/file_service.dart';
+import 'package:host_deck/server/features/files/file_task_manager.dart';
+import 'package:host_deck/server/features/files/file_task_repository.dart';
 import 'package:host_deck/server/features/logs/server_log_controller.dart';
 import 'package:host_deck/server/features/logs/server_log_service.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_controller.dart';
@@ -143,6 +145,17 @@ class ServerContainer {
     getIt.registerLazySingleton<FileService>(
       () => FileService(getIt<SshRepository>()),
     );
+    getIt.registerLazySingleton<FileTaskRepository>(
+      () => FileTaskRepository(getIt<DatabaseService>()),
+    );
+    getIt.registerLazySingleton<FileTaskManager>(
+      () => FileTaskManager(
+        getIt<SshService>(),
+        getIt<SshRepository>(),
+        getIt<FileTaskRepository>(),
+      ),
+      dispose: (manager) => manager.dispose(),
+    );
     getIt.registerLazySingleton<DockerSocketTunnelService>(
       DockerSocketTunnelService.new,
     );
@@ -210,6 +223,7 @@ class ServerContainer {
         fileController: FileController(
           getIt<SshService>(),
           getIt<FileService>(),
+          getIt<FileTaskManager>(),
         ),
         operationLogController: OperationLogController(
           getIt<OperationLogRepository>(),

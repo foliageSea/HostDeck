@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Close, CloudUpload, Download, StopFilledAlt } from '@vicons/carbon'
 import { useSettingsStore } from '@/stores/settings'
+import { filesApi, type FileTask } from '@/api/files'
 import {
   useUploadCenterStore,
   type UploadBatch,
@@ -26,7 +27,8 @@ const uploadBatches = computed(() =>
     const cancelledCount = batch.tasks.filter((task) => task.status === 'cancelled').length
     const failedCount = batch.tasks.filter((task) => task.status === 'error').length
     const activeTask = batch.tasks.find(
-      (task) => task.status === 'uploading' || task.status === 'downloading',
+      (task) =>
+        task.status === 'processing' || task.status === 'uploading' || task.status === 'downloading',
     )
 
     return {
@@ -76,6 +78,10 @@ function formatUploadStatus(status: UploadTaskStatus, source: UploadTaskSource) 
     return '下载中'
   }
 
+  if (status === 'processing') {
+    return '处理中'
+  }
+
   if (status === 'success') {
     return '已完成'
   }
@@ -104,6 +110,11 @@ function getTaskSourceTitle(source: UploadTaskSource) {
     return '镜像导出'
   }
 
+  if (source === 'files-copy') return '文件复制'
+  if (source === 'files-move') return '文件移动'
+  if (source === 'files-delete') return '文件删除'
+  if (source === 'files-extract') return '文件解压'
+
   return '文件上传'
 }
 
@@ -119,6 +130,11 @@ function getTaskActiveText(source: UploadTaskSource, name: string) {
   if (source === 'docker-image-export') {
     return `正在导出 ${name}`
   }
+
+  if (source === 'files-copy') return `正在复制 ${name}`
+  if (source === 'files-move') return `正在移动 ${name}`
+  if (source === 'files-delete') return `正在删除 ${name}`
+  if (source === 'files-extract') return `正在解压 ${name}`
 
   return `正在上传 ${name}`
 }
@@ -136,6 +152,8 @@ function getCancelTaskText(source: UploadTaskSource) {
     return '中断导出'
   }
 
+  if (source.startsWith('files-')) return '取消任务'
+
   return '中断上传'
 }
 
@@ -151,12 +169,19 @@ function formatBatchTime(timestamp: number) {
 function isBatchActive(batch: UploadBatch) {
   return batch.tasks.some(
     (task) =>
-      task.status === 'pending' || task.status === 'uploading' || task.status === 'downloading',
+      task.status === 'pending' ||
+      task.status === 'processing' ||
+      task.status === 'uploading' ||
+      task.status === 'downloading',
   )
 }
 
-function cancelUploadBatch(batchId: string) {
-  uploadCenterStore.cancelBatch(batchId)
+function cancelUploadBatch(batch: UploadBatch) {
+  if (batch.source.startsWith('files-') && batch.source !== 'files-download') {
+    void filesApi.cancelTask(batch.id).then((task: FileTask) => uploadCenterStore.upsertRemoteTask(task))
+    return
+  }
+  uploadCenterStore.cancelBatch(batch.id)
 }
 
 function handleTaskCenterVisibilityChange(value: boolean) {
@@ -301,7 +326,7 @@ function handleTaskCenterVisibilityChange(value: boolean) {
                 v-if="isBatchActive(batch)"
                 quaternary
                 size="tiny"
-                @click="cancelUploadBatch(batch.id)"
+                @click="cancelUploadBatch(batch)"
               >
                 <template #icon>
                   <NIcon :size="14">
@@ -339,7 +364,7 @@ function handleTaskCenterVisibilityChange(value: boolean) {
                 settingsStore.isDark
                   ? 'border border-[rgba(148,163,184,0.12)] bg-[rgba(15,23,42,0.52)]'
                   : 'border border-[rgba(148,163,184,0.18)] bg-[rgba(255,255,255,0.98)]',
-                task.status === 'uploading' || task.status === 'downloading'
+                task.status === 'processing' || task.status === 'uploading' || task.status === 'downloading'
                   ? settingsStore.isDark
                     ? 'border-[rgba(96,165,250,0.28)]'
                     : 'border-[rgba(59,130,246,0.28)]'
@@ -404,7 +429,7 @@ function handleTaskCenterVisibilityChange(value: boolean) {
                         : 'default'
                 "
                 :show-indicator="false"
-                :processing="task.status === 'uploading' || task.status === 'downloading'"
+                :processing="task.status === 'processing' || task.status === 'uploading' || task.status === 'downloading'"
               />
             </div>
           </div>

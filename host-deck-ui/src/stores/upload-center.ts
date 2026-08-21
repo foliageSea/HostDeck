@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 
 export type UploadTaskStatus =
   | 'pending'
+  | 'processing'
   | 'uploading'
   | 'downloading'
   | 'success'
@@ -13,6 +14,10 @@ export type UploadTaskSource =
   | 'files-download'
   | 'docker-image-import'
   | 'docker-image-export'
+  | 'files-copy'
+  | 'files-move'
+  | 'files-delete'
+  | 'files-extract'
 
 export interface UploadTaskItem {
   connectionId: string
@@ -50,7 +55,12 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
   const cancelledBatchIds = new Set<string>()
 
   function isTaskActive(status: UploadTaskStatus) {
-    return status === 'pending' || status === 'uploading' || status === 'downloading'
+    return (
+      status === 'pending' ||
+      status === 'processing' ||
+      status === 'uploading' ||
+      status === 'downloading'
+    )
   }
 
   const activeTaskCount = computed(() =>
@@ -130,6 +140,54 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     }
 
     Object.assign(task, patch)
+  }
+
+  function upsertRemoteTask(task: {
+    id: string
+    connectionId: string
+    type: 'copy' | 'move' | 'delete' | 'extract'
+    status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
+    errorMessage?: string | null
+    createdAt: number
+    items: Array<{
+      id: number
+      sourcePath: string
+      targetPath?: string | null
+      status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
+    }>
+  }) {
+    const source = `files-${task.type}` as UploadTaskSource
+    const mapStatus = (status: typeof task.status): UploadTaskStatus => {
+      if (status === 'queued') return 'pending'
+      if (status === 'running') return 'processing'
+      if (status === 'failed') return 'error'
+      return status
+    }
+    const batch: UploadBatch = {
+      connectionId: task.connectionId,
+      createdAt: task.createdAt,
+      errorMessage: task.errorMessage ?? '',
+      id: task.id,
+      path: task.items[0]?.targetPath ?? task.items[0]?.sourcePath ?? '/',
+      source,
+      tasks: task.items.map((item) => ({
+        connectionId: task.connectionId,
+        id: `${task.id}-${item.id}`,
+        loaded: item.status === 'success' ? 1 : 0,
+        name: item.sourcePath,
+        path: item.targetPath ?? item.sourcePath,
+        progress: item.status === 'success' ? 100 : 0,
+        source,
+        status: mapStatus(item.status),
+        total: 1,
+      })),
+    }
+    const index = batches.value.findIndex((item) => item.id === task.id)
+    if (index >= 0) {
+      batches.value.splice(index, 1, batch)
+    } else {
+      batches.value.unshift(batch)
+    }
   }
 
   function markBatchError(batchId: string, message: string) {
@@ -255,5 +313,6 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     togglePanel,
     totalTaskCount,
     updateTask,
+    upsertRemoteTask,
   }
 })
