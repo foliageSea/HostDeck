@@ -120,7 +120,11 @@ async function submit() {
   try {
     const title = `${editing.value ? '编辑' : '创建'}编排 · ${payload.projectName}`
     const taskId = outputStore.createTask(connectionId.value, title)
-    desktopStore.openWindow('docker-output', { taskId, title })
+    desktopStore.openWindow(
+      'docker-output',
+      { taskId, title },
+      { maximizable: false, parentId: props.windowId, resizable: false },
+    )
     const result = await outputStore.runTask(taskId, ({ append, signal }) =>
       dockerApi.createComposeProjectStream(
         connectionId.value!,

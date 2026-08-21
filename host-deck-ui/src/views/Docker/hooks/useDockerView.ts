@@ -38,6 +38,11 @@ export function useDockerView(props: DockerViewProps) {
   const desktopStore = useDesktopStore()
   const sshStore = useSshStore()
   const uploadCenterStore = useUploadCenterStore()
+  const childWindowOptions = {
+    maximizable: false,
+    parentId: props.windowId,
+    resizable: false,
+  } as const
 
   const activeTab = ref<DockerTabName>('overview')
   const loading = ref(false)
@@ -305,12 +310,16 @@ export function useDockerView(props: DockerViewProps) {
       return
     }
 
-    desktopStore.openWindow('docker-container-stats', {
-      connectionId: requireConnectionId(),
-      containerId: container.id,
-      containerName: container.name,
-      title: `资源监控 · ${container.name}`,
-    })
+    desktopStore.openWindow(
+      'docker-container-stats',
+      {
+        connectionId: requireConnectionId(),
+        containerId: container.id,
+        containerName: container.name,
+        title: `资源监控 · ${container.name}`,
+      },
+      childWindowOptions,
+    )
   }
 
   function resetDockerLists() {
@@ -700,12 +709,16 @@ export function useDockerView(props: DockerViewProps) {
   }
 
   function viewLogs(container: DockerContainer) {
-    desktopStore.openWindow('docker-container-logs', {
-      connectionId: requireConnectionId(),
-      containerId: container.id,
-      containerName: container.name,
-      title: `容器日志 · ${container.name}`,
-    })
+    desktopStore.openWindow(
+      'docker-container-logs',
+      {
+        connectionId: requireConnectionId(),
+        containerId: container.id,
+        containerName: container.name,
+        title: `容器日志 · ${container.name}`,
+      },
+      childWindowOptions,
+    )
   }
 
   async function viewInspect(container: DockerContainer) {
@@ -736,13 +749,17 @@ export function useDockerView(props: DockerViewProps) {
     try {
       const connectionId = requireConnectionId()
 
-      desktopStore.openWindow('terminal', {
-        connectionId,
-        host: props.host ?? sshStore.host,
-        startupCommand: `docker exec -it ${container.id} bash || docker exec -it ${container.id} sh`,
-        title: `Shell · ${container.name}`,
-        username: props.username ?? sshStore.username,
-      })
+      desktopStore.openWindow(
+        'terminal',
+        {
+          connectionId,
+          host: props.host ?? sshStore.host,
+          startupCommand: `docker exec -it ${container.id} bash || docker exec -it ${container.id} sh`,
+          title: `Shell · ${container.name}`,
+          username: props.username ?? sshStore.username,
+        },
+        childWindowOptions,
+      )
     } catch (error) {
       console.error('Failed to enter container shell', error)
       getUiApi().message.error(error instanceof Error ? error.message : '进入容器 Shell 失败。')
@@ -999,10 +1016,14 @@ export function useDockerView(props: DockerViewProps) {
   function openPullImageDialog() {
     try {
       const connectionId = requireConnectionId()
-      desktopStore.openWindow('docker-image-pull', {
-        connectionId,
-        title: '拉取镜像',
-      })
+      desktopStore.openWindow(
+        'docker-image-pull',
+        {
+          connectionId,
+          title: '拉取镜像',
+        },
+        childWindowOptions,
+      )
     } catch (error) {
       getUiApi().message.error(error instanceof Error ? error.message : '打开拉取镜像窗口失败。')
     }
@@ -1089,12 +1110,16 @@ export function useDockerView(props: DockerViewProps) {
   function openCreateContainer() {
     try {
       const connectionId = requireConnectionId()
-      desktopStore.openWindow('docker-create-container', {
-        connectionId,
-        host: props.host ?? sshStore.host,
-        title: '新建容器',
-        username: props.username ?? sshStore.username,
-      })
+      desktopStore.openWindow(
+        'docker-create-container',
+        {
+          connectionId,
+          host: props.host ?? sshStore.host,
+          title: '新建容器',
+          username: props.username ?? sshStore.username,
+        },
+        childWindowOptions,
+      )
     } catch (error) {
       console.error('Failed to open create container window', error)
       getUiApi().message.error(error instanceof Error ? error.message : '打开新建容器窗口失败。')
@@ -1103,12 +1128,16 @@ export function useDockerView(props: DockerViewProps) {
 
   function openCreateComposeProject() {
     try {
-      desktopStore.openWindow('docker-create-compose', {
-        connectionId: requireConnectionId(),
-        host: props.host ?? sshStore.host,
-        title: '新建编排',
-        username: props.username ?? sshStore.username,
-      })
+      desktopStore.openWindow(
+        'docker-create-compose',
+        {
+          connectionId: requireConnectionId(),
+          host: props.host ?? sshStore.host,
+          title: '新建编排',
+          username: props.username ?? sshStore.username,
+        },
+        childWindowOptions,
+      )
     } catch (error) {
       getUiApi().message.error(error instanceof Error ? error.message : '打开新建编排窗口失败。')
     }
@@ -1125,13 +1154,17 @@ export function useDockerView(props: DockerViewProps) {
       return
     }
     try {
-      desktopStore.openWindow('docker-create-compose', {
-        connectionId: requireConnectionId(),
-        host: props.host ?? sshStore.host,
-        project,
-        title: `编辑编排 · ${project.name}`,
-        username: props.username ?? sshStore.username,
-      })
+      desktopStore.openWindow(
+        'docker-create-compose',
+        {
+          connectionId: requireConnectionId(),
+          host: props.host ?? sshStore.host,
+          project,
+          title: `编辑编排 · ${project.name}`,
+          username: props.username ?? sshStore.username,
+        },
+        childWindowOptions,
+      )
     } catch (error) {
       getUiApi().message.error(error instanceof Error ? error.message : '打开编辑编排窗口失败。')
     }
@@ -1143,13 +1176,17 @@ export function useDockerView(props: DockerViewProps) {
       return
     }
     try {
-      desktopStore.openWindow('docker-compose-services', {
-        connectionId: requireConnectionId(),
-        host: props.host ?? sshStore.host,
-        project,
-        title: `编排服务 · ${project.name}`,
-        username: props.username ?? sshStore.username,
-      })
+      desktopStore.openWindow(
+        'docker-compose-services',
+        {
+          connectionId: requireConnectionId(),
+          host: props.host ?? sshStore.host,
+          project,
+          title: `编排服务 · ${project.name}`,
+          username: props.username ?? sshStore.username,
+        },
+        childWindowOptions,
+      )
     } catch (error) {
       getUiApi().message.error(error instanceof Error ? error.message : '打开编排服务窗口失败。')
     }
@@ -1173,13 +1210,17 @@ export function useDockerView(props: DockerViewProps) {
 
     try {
       const connectionId = requireConnectionId()
-      desktopStore.openWindow('docker-create-container', {
-        connectionId,
-        containerId: container.id,
-        host: props.host ?? sshStore.host,
-        title: `编辑容器 · ${container.name}`,
-        username: props.username ?? sshStore.username,
-      })
+      desktopStore.openWindow(
+        'docker-create-container',
+        {
+          connectionId,
+          containerId: container.id,
+          host: props.host ?? sshStore.host,
+          title: `编辑容器 · ${container.name}`,
+          username: props.username ?? sshStore.username,
+        },
+        childWindowOptions,
+      )
     } catch (error) {
       console.error('Failed to open edit container window', error)
       getUiApi().message.error(error instanceof Error ? error.message : '打开编辑容器窗口失败。')

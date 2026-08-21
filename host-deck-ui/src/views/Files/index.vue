@@ -805,11 +805,15 @@ function openFileInEditor(file: FileItem) {
     return
   }
 
-  desktopStore.openWindow('editor', {
-    connectionId: fileStore.connectionId,
-    path: resolve(fileStore.currentPath, file.filename),
-    title: file.filename,
-  })
+  desktopStore.openWindow(
+    'editor',
+    {
+      connectionId: fileStore.connectionId,
+      path: resolve(fileStore.currentPath, file.filename),
+      title: file.filename,
+    },
+    { parentId: props.windowId },
+  )
 }
 
 async function openFile(file: FileItem) {
@@ -839,12 +843,16 @@ async function openFile(file: FileItem) {
           }
         })
 
-      desktopStore.openWindow('media-viewer', {
-        connectionId: fileStore.connectionId,
-        path: resolve(fileStore.currentPath, file.filename),
-        playlist,
-        title: file.filename,
-      })
+      desktopStore.openWindow(
+        'media-viewer',
+        {
+          connectionId: fileStore.connectionId,
+          path: resolve(fileStore.currentPath, file.filename),
+          playlist,
+          title: file.filename,
+        },
+        { parentId: props.windowId },
+      )
     }
 
     return
@@ -1647,13 +1655,17 @@ async function handleDirectoryUploadChange(event: Event) {
 
 function openTerminalHere() {
   const currentConnectionId = props.connectionId ?? sshStore.connectionId
-  desktopStore.openWindow('terminal', {
-    connectionId: currentConnectionId ?? undefined,
-    cwd: fileStore.currentPath,
-    host: props.host ?? sshStore.host,
-    title: `终端 · ${fileStore.currentPath}`,
-    username: props.username ?? sshStore.username,
-  })
+  desktopStore.openWindow(
+    'terminal',
+    {
+      connectionId: currentConnectionId ?? undefined,
+      cwd: fileStore.currentPath,
+      host: props.host ?? sshStore.host,
+      title: `终端 · ${fileStore.currentPath}`,
+      username: props.username ?? sshStore.username,
+    },
+    { parentId: props.windowId },
+  )
 }
 
 function handleKeydown(event: KeyboardEvent) {

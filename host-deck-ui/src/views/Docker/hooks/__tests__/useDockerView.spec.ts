@@ -57,6 +57,7 @@ describe('useDockerView dangerous actions', () => {
       connectionId: 'conn-1',
       host: 'host.example',
       username: 'deploy',
+      windowId: 'docker-window',
     })
 
     await controller.enterShell({
@@ -70,13 +71,21 @@ describe('useDockerView dangerous actions', () => {
       status: 'Up',
     })
 
-    expect(openWindow).toHaveBeenCalledWith('terminal', {
-      connectionId: 'conn-1',
-      host: 'host.example',
-      startupCommand: 'docker exec -it container-1 bash || docker exec -it container-1 sh',
-      title: 'Shell · web',
-      username: 'deploy',
-    })
+    expect(openWindow).toHaveBeenCalledWith(
+      'terminal',
+      {
+        connectionId: 'conn-1',
+        host: 'host.example',
+        startupCommand: 'docker exec -it container-1 bash || docker exec -it container-1 sh',
+        title: 'Shell · web',
+        username: 'deploy',
+      },
+      {
+        maximizable: false,
+        parentId: 'docker-window',
+        resizable: false,
+      },
+    )
   })
 
   it('opens the container form in edit mode for a stopped container', () => {
@@ -85,6 +94,7 @@ describe('useDockerView dangerous actions', () => {
       connectionId: 'conn-1',
       host: 'host.example',
       username: 'deploy',
+      windowId: 'docker-window',
     })
 
     controller.openEditContainer({
@@ -98,13 +108,21 @@ describe('useDockerView dangerous actions', () => {
       status: 'Exited',
     })
 
-    expect(openWindow).toHaveBeenCalledWith('docker-create-container', {
-      connectionId: 'conn-1',
-      containerId: 'container-1',
-      host: 'host.example',
-      title: '编辑容器 · web',
-      username: 'deploy',
-    })
+    expect(openWindow).toHaveBeenCalledWith(
+      'docker-create-container',
+      {
+        connectionId: 'conn-1',
+        containerId: 'container-1',
+        host: 'host.example',
+        title: '编辑容器 · web',
+        username: 'deploy',
+      },
+      {
+        maximizable: false,
+        parentId: 'docker-window',
+        resizable: false,
+      },
+    )
   })
 })
 
@@ -120,42 +138,66 @@ describe('useDockerView container windows', () => {
     status: 'Up',
   }
 
-  it('opens a standalone log window', () => {
+  it('opens a child log window', () => {
     openWindow.mockReset()
-    const controller = useDockerView({ connectionId: 'conn-1' })
+    const controller = useDockerView({ connectionId: 'conn-1', windowId: 'docker-window' })
 
     controller.viewLogs(container)
 
-    expect(openWindow).toHaveBeenCalledWith('docker-container-logs', {
-      connectionId: 'conn-1',
-      containerId: 'container-1',
-      containerName: 'web',
-      title: '容器日志 · web',
-    })
+    expect(openWindow).toHaveBeenCalledWith(
+      'docker-container-logs',
+      {
+        connectionId: 'conn-1',
+        containerId: 'container-1',
+        containerName: 'web',
+        title: '容器日志 · web',
+      },
+      {
+        maximizable: false,
+        parentId: 'docker-window',
+        resizable: false,
+      },
+    )
   })
 
-  it('opens a standalone resource monitoring window', () => {
+  it('opens a child resource monitoring window', () => {
     openWindow.mockReset()
-    const controller = useDockerView({ connectionId: 'conn-1' })
+    const controller = useDockerView({ connectionId: 'conn-1', windowId: 'docker-window' })
     controller.viewStats(container)
 
-    expect(openWindow).toHaveBeenCalledWith('docker-container-stats', {
-      connectionId: 'conn-1',
-      containerId: 'container-1',
-      containerName: 'web',
-      title: '资源监控 · web',
-    })
+    expect(openWindow).toHaveBeenCalledWith(
+      'docker-container-stats',
+      {
+        connectionId: 'conn-1',
+        containerId: 'container-1',
+        containerName: 'web',
+        title: '资源监控 · web',
+      },
+      {
+        maximizable: false,
+        parentId: 'docker-window',
+        resizable: false,
+      },
+    )
   })
 
-  it('opens a standalone image pull window', () => {
+  it('opens a child image pull window', () => {
     openWindow.mockReset()
-    const controller = useDockerView({ connectionId: 'conn-1' })
+    const controller = useDockerView({ connectionId: 'conn-1', windowId: 'docker-window' })
 
     controller.openPullImageDialog()
 
-    expect(openWindow).toHaveBeenCalledWith('docker-image-pull', {
-      connectionId: 'conn-1',
-      title: '拉取镜像',
-    })
+    expect(openWindow).toHaveBeenCalledWith(
+      'docker-image-pull',
+      {
+        connectionId: 'conn-1',
+        title: '拉取镜像',
+      },
+      {
+        maximizable: false,
+        parentId: 'docker-window',
+        resizable: false,
+      },
+    )
   })
 })

@@ -124,20 +124,6 @@ export function useTerminalSession(props: TerminalProps) {
     }
   }
 
-  function closeLinkedIframeWindow() {
-    if (!props.openIframeUrl) {
-      return
-    }
-
-    desktopStore.windows
-      .filter(
-        (window) => window.appId === 'iframe-app' && window.props?.url === props.openIframeUrl,
-      )
-      .forEach((window) => {
-        desktopStore.closeWindow(window.id)
-      })
-  }
-
   async function shutdownTerminalProcess() {
     if (socket?.readyState !== WebSocket.OPEN) {
       return
@@ -241,10 +227,14 @@ export function useTerminalSession(props: TerminalProps) {
           if (props.openIframeUrl) {
             openIframeTimer = window.setTimeout(() => {
               openIframeTimer = null
-              desktopStore.openWindow('iframe-app', {
-                title: props.openIframeTitle ?? props.openIframeUrl,
-                url: props.openIframeUrl,
-              })
+              desktopStore.openWindow(
+                'iframe-app',
+                {
+                  title: props.openIframeTitle ?? props.openIframeUrl,
+                  url: props.openIframeUrl,
+                },
+                { parentId: props.windowId },
+              )
             }, props.openIframeAfterMs ?? 2000)
           }
         }, 1000)
@@ -410,7 +400,6 @@ export function useTerminalSession(props: TerminalProps) {
 
     resizeObserver?.disconnect()
     clearStartupTimers()
-    closeLinkedIframeWindow()
     await shutdownTerminalProcess()
     socket?.close()
     terminalRef.value?.dispose()

@@ -356,9 +356,18 @@ export interface AppConfig {
   height?: number
   minWidth?: number
   minHeight?: number
+  maximizable?: boolean
   minimizable?: boolean
+  resizable?: boolean
   hide?: boolean
   showInLaunchpad?: boolean
+}
+
+export interface OpenWindowOptions {
+  maximizable?: boolean
+  minimizable?: boolean
+  parentId?: string
+  resizable?: boolean
 }
 
 export interface WindowState {
@@ -373,11 +382,15 @@ export interface WindowState {
   height: number
   minWidth: number
   minHeight: number
+  maximizable: boolean
   minimizable: boolean
+  resizable: boolean
+  parentId?: string
   isMinimized: boolean
   isMaximized: boolean
   zIndex: number
   isClosing: boolean
+  isClosePending: boolean
   beforeClose?: WindowBeforeCloseHandler
   props?: Record<string, unknown>
 }
@@ -386,6 +399,28 @@ function getTopVisibleWindow(windows: WindowState[]) {
   return [...windows]
     .filter((window) => !window.isMinimized && !window.isClosing)
     .sort((left, right) => right.zIndex - left.zIndex)[0]
+}
+
+function getWindowTree(windows: WindowState[], rootId: string) {
+  const result: WindowState[] = []
+  const visited = new Set<string>()
+
+  function visit(windowId: string) {
+    if (visited.has(windowId)) {
+      return
+    }
+
+    visited.add(windowId)
+    windows.filter((window) => window.parentId === windowId).forEach((window) => visit(window.id))
+
+    const targetWindow = windows.find((window) => window.id === windowId)
+    if (targetWindow) {
+      result.push(targetWindow)
+    }
+  }
+
+  visit(rootId)
+  return result
 }
 
 export const useDesktopStore = defineStore('desktop', {
@@ -951,48 +986,64 @@ export const useDesktopStore = defineStore('desktop', {
 
     async requestCloseWindow(id: string) {
       const targetWindow = this.windows.find((window) => window.id === id)
+      if (!targetWindow || targetWindow.isClosing || targetWindow.isClosePending) {
+        return
+      }
+
+      const windowTree = getWindowTree(this.windows, id)
+      if (windowTree.some((window) => window.isClosePending)) {
+        return
+      }
+
+      windowTree.forEach((window) => {
+        window.isClosePending = true
+      })
+
+      try {
+        for (const window of windowTree) {
+          if (window.beforeClose) {
+            const canClose = await window.beforeClose()
+            if (!canClose) {
+              return
+            }
+          }
+        }
+
+        this.closeWindow(id)
+      } finally {
+        windowTree.forEach((window) => {
+          window.isClosePending = false
+        })
+      }
+    },
+
+    closeWindow(id: string) {
+      const targetWindow = this.windows.find((window) => window.id === id)
       if (!targetWindow || targetWindow.isClosing) {
         return
       }
 
-      if (targetWindow.beforeClose) {
-        const canClose = await targetWindow.beforeClose()
-        if (!canClose) {
-          return
+      const windowIds = new Set(getWindowTree(this.windows, id).map((window) => window.id))
+      this.windows.forEach((window) => {
+        if (windowIds.has(window.id)) {
+          window.isClosing = true
+          window.isClosePending = false
         }
-      }
+      })
 
-      this.closeWindow(id)
-    },
-
-    closeWindow(id: string) {
-      const targetIndex = this.windows.findIndex((window) => window.id === id)
-      if (targetIndex === -1) {
-        return
-      }
-
-      const targetWindow = this.windows[targetIndex]
-      if (targetWindow.isClosing) {
-        return
-      }
-
-      targetWindow.isClosing = true
-
-      if (this.activeWindowId === id) {
+      if (this.activeWindowId && windowIds.has(this.activeWindowId)) {
         const nextActiveWindow = getTopVisibleWindow(this.windows)
         this.activeWindowId = nextActiveWindow?.id ?? null
       }
 
       globalThis.setTimeout(() => {
-        const removingIndex = this.windows.findIndex((window) => window.id === id)
-        if (removingIndex === -1) {
-          return
-        }
+        this.windows = this.windows.filter((window) => !windowIds.has(window.id))
+        const windowSessionStore = useWindowSessionStore()
+        windowIds.forEach((windowId) => {
+          void windowSessionStore.disconnectWindow(windowId)
+        })
 
-        this.windows.splice(removingIndex, 1)
-        void useWindowSessionStore().disconnectWindow(id)
-
-        if (this.activeWindowId === id) {
+        if (this.activeWindowId && windowIds.has(this.activeWindowId)) {
           const nextActiveWindow = getTopVisibleWindow(this.windows)
           this.activeWindowId = nextActiveWindow?.id ?? null
         }
@@ -1015,7 +1066,7 @@ export const useDesktopStore = defineStore('desktop', {
 
     maximizeWindow(id: string) {
       const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow || targetWindow.isClosing) {
+      if (!targetWindow || targetWindow.isClosing || !targetWindow.maximizable) {
         return
       }
 
@@ -1036,7 +1087,11 @@ export const useDesktopStore = defineStore('desktop', {
       }
     },
 
-    openWindow(appId: DesktopAppId, props?: Record<string, unknown>) {
+    openWindow(
+      appId: DesktopAppId,
+      props?: Record<string, unknown>,
+      options: OpenWindowOptions = {},
+    ) {
       if (appId === 'logout') {
         void useSshStore().clearSession()
         this.windows = []
@@ -1054,7 +1109,17 @@ export const useDesktopStore = defineStore('desktop', {
         return
       }
 
-      const windowId = `${appId}-${Date.now()}`
+      const parentWindow = options.parentId
+        ? this.windows.find((window) => window.id === options.parentId)
+        : undefined
+      if (
+        options.parentId &&
+        (!parentWindow || parentWindow.isClosing || parentWindow.isClosePending)
+      ) {
+        return
+      }
+
+      const windowId = `${appId}-${Date.now()}-${this.nextZIndex}`
       const minWidth = app.minWidth ?? 320
       const minHeight = app.minHeight ?? 240
       const width = Math.max(app.width ?? 800, minWidth)
@@ -1071,15 +1136,19 @@ export const useDesktopStore = defineStore('desktop', {
         height,
         icon: app.icon,
         isClosing: false,
+        isClosePending: false,
         id: windowId,
         isMaximized:
+          (options.maximizable ?? app.maximizable ?? true) &&
           maximizeUiWindowWhenElectronWindowed &&
           Boolean(window.hostDeck?.window) &&
           !this.electronWindowState.isMaximized,
         isMinimized: false,
-        minimizable: app.minimizable ?? true,
+        maximizable: options.maximizable ?? app.maximizable ?? true,
+        minimizable: options.minimizable ?? app.minimizable ?? true,
         minHeight,
         minWidth,
+        parentId: options.parentId,
         props:
           appId === 'opencode'
             ? {
@@ -1091,6 +1160,7 @@ export const useDesktopStore = defineStore('desktop', {
                 ...props,
               }
             : props,
+        resizable: options.resizable ?? app.resizable ?? true,
         title: typeof props?.title === 'string' ? props.title : app.title,
         width,
         x: Math.max(edgeGap, centeredX),
@@ -1100,6 +1170,7 @@ export const useDesktopStore = defineStore('desktop', {
 
       this.windows.push(windowState)
       this.activeWindowId = windowId
+      return windowId
     },
 
     reset() {
@@ -1155,7 +1226,7 @@ export const useDesktopStore = defineStore('desktop', {
 
     updateWindowSize(id: string, width: number, height: number) {
       const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow) {
+      if (!targetWindow || !targetWindow.resizable) {
         return
       }
 

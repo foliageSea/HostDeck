@@ -49,6 +49,10 @@ function focusWindow() {
 }
 
 function maximizeWindow() {
+  if (!props.window.maximizable) {
+    return
+  }
+
   desktopStore.maximizeWindow(props.window.id)
 }
 
@@ -106,7 +110,7 @@ function startDrag(event: MouseEvent) {
 }
 
 function handleResize(event: MouseEvent) {
-  if (!isResizing.value || props.window.isMaximized) {
+  if (!isResizing.value || props.window.isMaximized || !props.window.resizable) {
     return
   }
 
@@ -128,7 +132,7 @@ function stopResize() {
 }
 
 function startResize(event: MouseEvent) {
-  if (props.window.isMaximized) {
+  if (props.window.isMaximized || !props.window.resizable) {
     return
   }
 
@@ -166,12 +170,12 @@ onUnmounted(() => {
           'invisible pointer-events-none opacity-0 scale-[0.92] translate-y-[14px]':
             window.isMinimized,
           'transition-none': (isDragging || isResizing) && !window.isClosing,
-      },
-    ]"
-    :style="windowStyle"
-    :aria-hidden="window.isMinimized"
-    @mousedown="focusWindow"
-  >
+        },
+      ]"
+      :style="windowStyle"
+      :aria-hidden="window.isMinimized"
+      @mousedown="focusWindow"
+    >
     <header
       class="relative flex h-[48px] items-center justify-between gap-[12px] border-b px-[14px] backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(140%)]"
       :class="[
@@ -200,8 +204,13 @@ onUnmounted(() => {
         />
         <button
           data-window-control-action
-          class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#28c840] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer"
+          class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#28c840] p-0 transition-[filter,transform] duration-[180ms] ease-in-out enabled:hover:scale-[1.06] enabled:hover:brightness-[0.96] enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
           type="button"
+          :disabled="!window.maximizable"
+          :title="window.maximizable ? (window.isMaximized ? '还原' : '最大化') : '最大化不可用'"
+          :aria-label="
+            window.maximizable ? (window.isMaximized ? '还原' : '最大化') : '最大化不可用'
+          "
           @click="maximizeWindow"
         />
       </div>
@@ -272,12 +281,15 @@ onUnmounted(() => {
             class="desktop-window-win-control"
             :class="
               settingsStore.isDark
-                ? 'text-[rgba(226,232,240,0.9)] hover:bg-[rgba(148,163,184,0.14)]'
-                : 'text-[rgba(15,23,42,0.78)] hover:bg-[rgba(15,23,42,0.08)]'
+                ? 'text-[rgba(226,232,240,0.9)] enabled:hover:bg-[rgba(148,163,184,0.14)] disabled:text-[rgba(148,163,184,0.42)]'
+                : 'text-[rgba(15,23,42,0.78)] enabled:hover:bg-[rgba(15,23,42,0.08)] disabled:text-[rgba(100,116,139,0.42)]'
             "
             type="button"
-            :title="window.isMaximized ? '还原' : '最大化'"
-            :aria-label="window.isMaximized ? '还原' : '最大化'"
+            :disabled="!window.maximizable"
+            :title="window.maximizable ? (window.isMaximized ? '还原' : '最大化') : '最大化不可用'"
+            :aria-label="
+              window.maximizable ? (window.isMaximized ? '还原' : '最大化') : '最大化不可用'
+            "
             @click="maximizeWindow"
           >
             <NIcon :size="14">
@@ -313,7 +325,7 @@ onUnmounted(() => {
     </div>
 
     <div
-      v-if="!window.isMaximized"
+      v-if="!window.isMaximized && window.resizable"
       class="absolute bottom-0 right-0 h-[18px] w-[18px] cursor-nwse-resize"
       @mousedown.prevent="startResize"
     />
