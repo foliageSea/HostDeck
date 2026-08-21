@@ -25,6 +25,7 @@ export type DesktopAppId =
   | 'opencode'
   | 'iframe-app'
   | 'docker'
+  | 'docker-image-pull'
   | 'docker-create-container'
   | 'docker-create-compose'
   | 'docker-compose-services'

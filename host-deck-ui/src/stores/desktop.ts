@@ -10,6 +10,7 @@ import DashboardView from '@/views/Dashboard/index.vue'
 import DockerCreateContainerView from '@/views/Docker/components/DockerCreateContainerView.vue'
 import DockerCreateComposeView from '@/views/Docker/components/DockerCreateComposeView.vue'
 import DockerComposeServicesView from '@/views/Docker/components/DockerComposeServicesView.vue'
+import DockerImagePullView from '@/views/Docker/components/DockerImagePullView.vue'
 import DockerOutputView from '@/views/Docker/components/DockerOutputView.vue'
 import DockerContainerLogsView from '@/views/Docker/components/DockerContainerLogsView.vue'
 import DockerContainerStatsView from '@/views/Docker/components/DockerContainerStatsView.vue'
@@ -461,6 +462,17 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 720,
         title: '新建容器',
         width: 820,
+      },
+      'docker-image-pull': {
+        component: markRaw(DockerImagePullView),
+        height: 520,
+        hide: true,
+        icon: 'docker',
+        id: 'docker-image-pull',
+        minHeight: 360,
+        minWidth: 620,
+        title: '拉取镜像',
+        width: 780,
       },
       'docker-create-compose': {
         component: markRaw(DockerCreateComposeView),

@@ -8,7 +8,6 @@ import DockerComposeTab from './components/DockerComposeTab.vue'
 import DockerImageHistoryModal from './components/DockerImageHistoryModal.vue'
 import DockerImageRefsModal from './components/DockerImageRefsModal.vue'
 import DockerImageTagModal from './components/DockerImageTagModal.vue'
-import DockerImagePullModal from './components/DockerImagePullModal.vue'
 import DockerInspectModal from './components/DockerInspectModal.vue'
 import DockerImagesTab from './components/DockerImagesTab.vue'
 import DockerNetworksTab from './components/DockerNetworksTab.vue'
@@ -100,7 +99,6 @@ const controller: DockerViewController = reactive(useDockerView(props))
     <DockerImageTagModal :controller="controller" />
     <DockerImageHistoryModal :controller="controller" />
     <DockerImageRefsModal :controller="controller" />
-    <DockerImagePullModal :controller="controller" />
   </div>
 </template>
 

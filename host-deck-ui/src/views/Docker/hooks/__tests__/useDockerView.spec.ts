@@ -146,4 +146,16 @@ describe('useDockerView container windows', () => {
       title: '资源监控 · web',
     })
   })
+
+  it('opens a standalone image pull window', () => {
+    openWindow.mockReset()
+    const controller = useDockerView({ connectionId: 'conn-1' })
+
+    controller.openPullImageDialog()
+
+    expect(openWindow).toHaveBeenCalledWith('docker-image-pull', {
+      connectionId: 'conn-1',
+      title: '拉取镜像',
+    })
+  })
 })
