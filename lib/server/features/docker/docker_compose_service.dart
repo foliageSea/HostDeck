@@ -18,7 +18,7 @@ class DockerComposeService {
 
   Future<bool> isComposeAvailable(SshSession session) async {
     try {
-      await _runCompose(session, const ['version']);
+      await _resolveComposeCommand(session);
       return true;
     } catch (_) {
       return false;
@@ -87,16 +87,37 @@ class DockerComposeService {
         'message': '正在启动 Compose 项目',
       });
       try {
-        final output = await upComposeProject(
+        final stderr = StringBuffer();
+        int? exitCode;
+        await for (final event in _streamUpComposeProject(
           session,
           projectName: projectName,
           configFiles: [composePath],
           workingDir: workingDir,
-        );
-        if (output.isNotEmpty) {
-          yield DockerComposeCreateEvent('stdout', {'text': '$output\n'});
+        )) {
+          if (event.completed) {
+            exitCode = event.exitCode;
+            continue;
+          }
+          if (event.text.isEmpty) {
+            continue;
+          }
+          if (event.source == SshExecStreamSource.stderr) {
+            stderr.write(event.text);
+            yield DockerComposeCreateEvent('stderr', {'text': event.text});
+          } else {
+            yield DockerComposeCreateEvent('stdout', {'text': event.text});
+          }
         }
-        started = true;
+        started = exitCode == 0;
+        if (!started) {
+          startError = stderr.toString().trim().isEmpty
+              ? 'Compose command failed with exit code ${exitCode ?? 'unknown'}.'
+              : stderr.toString().trim();
+          if (stderr.isEmpty) {
+            yield DockerComposeCreateEvent('stderr', {'text': '$startError\n'});
+          }
+        }
       } catch (error) {
         startError = error.toString();
         yield DockerComposeCreateEvent('stderr', {'text': '$startError\n'});
@@ -229,21 +250,47 @@ class DockerComposeService {
     List<String> args, {
     String? workingDir,
   }) async {
+    final command = await _resolveComposeCommand(session);
+    return _runShell(session, [...command.args, ...args], workingDir: workingDir);
+  }
+
+  Stream<SshExecStreamEvent> _streamUpComposeProject(
+    SshSession session, {
+    required String projectName,
+    required List<String> configFiles,
+    String? workingDir,
+  }) async* {
+    final files = configFiles
+        .map((file) => file.trim())
+        .where((file) => file.isNotEmpty)
+        .toSet()
+        .toList();
+    if (files.isEmpty) throw ArgumentError('configFiles is required');
+
+    final command = await _resolveComposeCommand(session);
+    final args = [
+      ...command.args,
+      if (command.supportsPlainProgress) ...['--ansi', 'never', '--progress', 'plain'],
+      '-p',
+      projectName,
+      for (final file in files) ...['-f', file],
+      'up',
+      '-d',
+    ];
+    final commandText = _buildShellCommand(args, workingDir: workingDir);
+    yield* _sshRepository.execStream(
+      session,
+      'sh -lc ${_quote(commandText)}',
+    );
+  }
+
+  Future<_ComposeCommand> _resolveComposeCommand(SshSession session) async {
     try {
-      return await _runShell(session, [
-        'docker',
-        'compose',
-        ...args,
-      ], workingDir: workingDir);
-    } catch (error) {
-      try {
-        return await _runShell(session, [
-          'docker-compose',
-          ...args,
-        ], workingDir: workingDir);
-      } catch (_) {
-        throw error;
-      }
+      await _runShell(session, const ['docker', 'compose', 'version']);
+      return const _ComposeCommand(['docker', 'compose'], true);
+    } catch (_) {
+      await _runShell(session, const ['docker-compose', 'version']);
+      return const _ComposeCommand(['docker-compose'], false);
     }
   }
 
@@ -253,11 +300,7 @@ class DockerComposeService {
     String? workingDir,
   }) async {
     const marker = '__HOST_DECK_COMPOSE_STATUS__';
-    final command = [
-      if (workingDir?.trim().isNotEmpty == true)
-        'cd ${_quote(workingDir!.trim())}',
-      args.map(_quote).join(' '),
-    ].join(' && ');
+    final command = _buildShellCommand(args, workingDir: workingDir);
     final output = await _sshRepository.exec(
       session,
       'sh -lc ${_quote('$command; code=\$?; printf "\\n$marker:%s" "\$code"; exit 0')}',
@@ -276,6 +319,12 @@ class DockerComposeService {
     }
     return body.trim();
   }
+
+  String _buildShellCommand(List<String> args, {String? workingDir}) => [
+    if (workingDir?.trim().isNotEmpty == true)
+      'cd ${_quote(workingDir!.trim())}',
+    args.map(_quote).join(' '),
+  ].join(' && ');
 
   List<Map<String, dynamic>> _decodeItems(String output) {
     final text = output.trim();
@@ -336,4 +385,11 @@ class DockerComposeService {
       (value.toLowerCase().endsWith('.yml') ||
           value.toLowerCase().endsWith('.yaml'));
   String _quote(String value) => "'${value.replaceAll("'", "'\\''")}'";
+}
+
+class _ComposeCommand {
+  final List<String> args;
+  final bool supportsPlainProgress;
+
+  const _ComposeCommand(this.args, this.supportsPlainProgress);
 }

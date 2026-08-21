@@ -146,11 +146,13 @@ async function submit() {
         },
       }),
     )
-    getUiApi().message.success(
-      result.started
-        ? `编排项目已${editing.value ? '保存并启动' : '创建并启动'}。`
-        : `编排项目已${editing.value ? '保存' : '创建'}。`,
-    )
+    if (result.started) {
+      getUiApi().message.success(`编排项目已${editing.value ? '保存并启动' : '创建并启动'}。`)
+    } else if (payload.startAfterCreate) {
+      getUiApi().message.warning(`编排项目已${editing.value ? '保存' : '创建'}，但启动失败。`)
+    } else {
+      getUiApi().message.success(`编排项目已${editing.value ? '保存' : '创建'}。`)
+    }
     close()
   } catch (error) {
     getUiApi().message.error(error instanceof Error ? error.message : '创建编排项目失败。')
