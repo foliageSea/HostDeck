@@ -475,6 +475,32 @@ extension SshRepositoryStreaming on SshRepository {
     return execStream(session, command);
   }
 
+  Stream<SshExecStreamEvent> compressStream(
+    SshSession session,
+    String sourcePath,
+    String targetPath,
+  ) {
+    final separatorIndex = sourcePath.lastIndexOf('/');
+    final sourceDirectory = separatorIndex <= 0
+        ? '/'
+        : sourcePath.substring(0, separatorIndex);
+    final sourceName = sourcePath.substring(separatorIndex + 1);
+    if (sourceName.isEmpty) {
+      throw ArgumentError('不能压缩根目录。');
+    }
+    final directory = _shellQuote(sourceDirectory);
+    final source = _shellQuote(sourceName);
+    final target = _shellQuote(targetPath);
+    final lowerTargetPath = targetPath.toLowerCase();
+    final command = lowerTargetPath.endsWith('.zip')
+        ? 'cd $directory && zip -rq $target $source'
+        : lowerTargetPath.endsWith('.tar.gz') ||
+              lowerTargetPath.endsWith('.tgz')
+        ? 'tar -czf $target -C $directory $source'
+        : throw UnsupportedError('暂不支持该压缩格式。');
+    return execStream(session, command);
+  }
+
   Stream<SshExecStreamEvent> execStream(
     SshSession session,
     String command, {

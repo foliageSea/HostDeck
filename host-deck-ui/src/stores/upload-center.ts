@@ -18,6 +18,7 @@ export type UploadTaskSource =
   | 'files-move'
   | 'files-delete'
   | 'files-extract'
+  | 'files-compress'
 
 export interface UploadTaskItem {
   connectionId: string
@@ -145,7 +146,7 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
   function upsertRemoteTask(task: {
     id: string
     connectionId: string
-    type: 'copy' | 'move' | 'delete' | 'extract'
+    type: 'copy' | 'move' | 'delete' | 'extract' | 'compress'
     status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
     errorMessage?: string | null
     createdAt: number

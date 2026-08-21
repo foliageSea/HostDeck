@@ -71,10 +71,13 @@ const createDialogMode = ref<'directory' | 'file'>('directory')
 const newItemName = ref('')
 const renameValue = ref('')
 const extractTargetName = ref('')
+const compressTargetName = ref('')
+const compressFormat = ref<'tar.gz' | 'zip'>('tar.gz')
 const editingPath = ref(false)
 const showCreateDialog = ref(false)
 const showRenameDialog = ref(false)
 const showExtractDialog = ref(false)
+const showCompressDialog = ref(false)
 const showDeleteDialog = ref(false)
 const showPropertiesDialog = ref(false)
 const showPermissionDialog = ref(false)
@@ -212,6 +215,9 @@ const canExtractSelectedArchive = computed(() => {
     getArchiveExtension(file.filename) !== null
   )
 })
+const canCompressSelectedItem = computed(() =>
+  selectedFiles.value.length === 1 && selectedFile.value !== null,
+)
 const contextMenuOptions = computed(() => {
   if (contextMenu.value?.type === 'file') {
     const options = [
@@ -229,6 +235,11 @@ const contextMenuOptions = computed(() => {
         label: '解压缩',
         key: 'extract',
         disabled: !canExtractSelectedArchive.value,
+      },
+      {
+        label: '压缩',
+        key: 'compress',
+        disabled: !canCompressSelectedItem.value,
       },
       {
         label: '下载',
@@ -725,6 +736,11 @@ function handleContextMenuSelect(key: string | number) {
     return
   }
 
+  if (key === 'compress') {
+    openCompressDialog()
+    return
+  }
+
   if (key === 'copy') {
     saveClipboard('copy')
     return
@@ -1036,6 +1052,30 @@ function openExtractDialog() {
   showExtractDialog.value = true
 }
 
+function openCompressDialog() {
+  if (!canCompressSelectedItem.value || !selectedFile.value) return
+  compressFormat.value = 'tar.gz'
+  compressTargetName.value = `${selectedFile.value.filename}.tar.gz`
+  showCompressDialog.value = true
+}
+
+function updateCompressFormat(format: string) {
+  if (format !== 'tar.gz' && format !== 'zip') return
+  compressFormat.value = format
+  if (!selectedFile.value) return
+
+  const extension = format === 'zip' ? '.zip' : '.tar.gz'
+  const currentExtension = compressTargetName.value.endsWith('.zip')
+    ? '.zip'
+    : compressTargetName.value.endsWith('.tar.gz')
+      ? '.tar.gz'
+      : ''
+  const baseName = currentExtension
+    ? compressTargetName.value.slice(0, -currentExtension.length)
+    : selectedFile.value.filename
+  compressTargetName.value = `${baseName}${extension}`
+}
+
 function openPropertiesDialog() {
   if (selectedFiles.value.length !== 1 || !selectedFile.value) {
     return
@@ -1178,6 +1218,35 @@ async function confirmExtract() {
   }])
   if (task) {
     showExtractDialog.value = false
+    fileStore.setSelectedNames([targetName])
+  }
+}
+
+async function confirmCompress() {
+  if (!fileStore.connectionId || !selectedFile.value || !canCompressSelectedItem.value) {
+    return
+  }
+
+  const targetName = compressTargetName.value.trim()
+  if (!targetName) {
+    getUiApi().message.error('请输入压缩文件名称。')
+    return
+  }
+
+  const extension = compressFormat.value === 'zip' ? '.zip' : '.tar.gz'
+  if (!targetName.toLowerCase().endsWith(extension)) {
+    getUiApi().message.error(`压缩文件名称必须以 ${extension} 结尾。`)
+    return
+  }
+
+  const task = await startRemoteTask('compress', [
+    {
+      sourcePath: resolve(fileStore.currentPath, selectedFile.value.filename),
+      targetPath: resolve(fileStore.currentPath, targetName),
+    },
+  ])
+  if (task) {
+    showCompressDialog.value = false
     fileStore.setSelectedNames([targetName])
   }
 }
@@ -2162,6 +2231,9 @@ watch(
             @click="openExtractDialog"
             >解压缩</NButton
           >
+          <NButton quaternary :disabled="!canCompressSelectedItem" @click="openCompressDialog"
+            >压缩</NButton
+          >
           <NButton quaternary :disabled="selectedFiles.length !== 1" @click="openRenameDialog"
             >重命名</NButton
           >
@@ -2323,6 +2395,40 @@ watch(
             @click="confirmExtract"
             >解压</NButton
           >
+        </NSpace>
+      </NSpace>
+    </NModal>
+
+    <NModal
+      v-model:show="showCompressDialog"
+      preset="card"
+      title="压缩"
+      style="width: min(480px, calc(100vw - 24px))"
+    >
+      <NSpace vertical>
+        <div
+          :class="
+            settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.92)]'
+          "
+        >
+          将 {{ selectedFile?.filename ?? '' }} 压缩到当前目录。
+        </div>
+        <NSelect
+          :value="compressFormat"
+          :options="[
+            { label: 'tar.gz', value: 'tar.gz' },
+            { label: 'zip', value: 'zip' },
+          ]"
+          @update:value="updateCompressFormat"
+        />
+        <NInput
+          v-model:value="compressTargetName"
+          placeholder="输入压缩文件名称"
+          @keyup.enter="confirmCompress"
+        />
+        <NSpace justify="end">
+          <NButton quaternary @click="showCompressDialog = false">取消</NButton>
+          <NButton quaternary type="primary" @click="confirmCompress">压缩</NButton>
         </NSpace>
       </NSpace>
     </NModal>

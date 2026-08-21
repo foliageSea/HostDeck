@@ -14,7 +14,7 @@ export interface DirectorySizeResult {
   size: number
 }
 
-export type FileTaskType = 'copy' | 'move' | 'delete' | 'extract'
+export type FileTaskType = 'copy' | 'move' | 'delete' | 'extract' | 'compress'
 export type FileTaskStatus = 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
 
 export interface FileTask {

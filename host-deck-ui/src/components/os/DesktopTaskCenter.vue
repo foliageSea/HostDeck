@@ -114,6 +114,7 @@ function getTaskSourceTitle(source: UploadTaskSource) {
   if (source === 'files-move') return '文件移动'
   if (source === 'files-delete') return '文件删除'
   if (source === 'files-extract') return '文件解压'
+  if (source === 'files-compress') return '文件压缩'
 
   return '文件上传'
 }
@@ -135,6 +136,7 @@ function getTaskActiveText(source: UploadTaskSource, name: string) {
   if (source === 'files-move') return `正在移动 ${name}`
   if (source === 'files-delete') return `正在删除 ${name}`
   if (source === 'files-extract') return `正在解压 ${name}`
+  if (source === 'files-compress') return `正在压缩 ${name}`
 
   return `正在上传 ${name}`
 }

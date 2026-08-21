@@ -1,4 +1,4 @@
-enum FileTaskType { copy, move, delete, extract }
+enum FileTaskType { copy, move, delete, extract, compress }
 
 enum FileTaskStatus { queued, running, success, failed, cancelled }
 

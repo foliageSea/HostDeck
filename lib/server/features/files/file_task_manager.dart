@@ -215,6 +215,11 @@ class FileTaskManager {
         item.sourcePath,
         item.targetPath!,
       ),
+      FileTaskType.compress => _repository.compressStream(
+        session,
+        item.sourcePath,
+        item.targetPath!,
+      ),
       FileTaskType.move => throw StateError('Unreachable'),
     };
     final completer = Completer<void>();
