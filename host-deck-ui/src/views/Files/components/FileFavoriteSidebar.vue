@@ -107,7 +107,7 @@ onBeforeUnmount(stopResize)
         >
           <button
             v-for="view in [
-              { key: 'tree', label: '目录树' },
+              { key: 'tree', label: '目录' },
               { key: 'favorites', label: `收藏 ${favoritePaths.length}` },
             ] as const"
             :key="view.key"

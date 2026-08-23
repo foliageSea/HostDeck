@@ -190,6 +190,7 @@ watch(
     <NScrollbar class="min-h-0 flex-1 app-scrollbar app-scrollbar-compact">
       <NTree
         block-line
+        ellipsis
         :data="treeData"
         :expanded-keys="expandedKeys"
         :selected-keys="selectedKeys"
