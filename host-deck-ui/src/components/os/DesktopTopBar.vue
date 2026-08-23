@@ -137,15 +137,15 @@ function disconnect() {
       <NDropdown :options="appMenuOptions" trigger="click" @select="handleAppMenuSelect">
         <button
           type="button"
-          class="app-radius-item flex min-w-0 items-center gap-[8px] rounded-[12px] border-0 px-[8px] py-[3px] cursor-pointer transition-colors"
+          class="app-radius-item flex min-w-0 items-center gap-[8px] rounded-[12px] border-0 bg-transparent px-[8px] py-[3px] cursor-pointer transition-colors"
           :class="
             settingsStore.isDark
-              ? 'bg-[rgba(15,23,42,0.26)] text-[rgba(226,232,240,0.9)] hover:bg-[rgba(30,41,59,0.54)]'
-              : 'bg-[rgba(255,255,255,0.46)] text-[rgba(30,41,59,0.9)] hover:bg-[rgba(255,255,255,0.76)]'
+              ? 'text-[rgba(226,232,240,0.9)]'
+              : 'text-[rgba(30,41,59,0.9)]'
           "
           aria-label="打开 HostDeck 菜单"
         >
-          <img class="h-[22px] w-[22px] flex-none object-contain" src="/favicon.png" alt="HostDeck" />
+          <img class="h-[18px] w-[18px] flex-none object-contain" src="/favicon.png" alt="HostDeck" />
           <span class="truncate text-[12px] font-700 tracking-[0.02em] lt-sm:hidden">HostDeck</span>
         </button>
       </NDropdown>
@@ -171,8 +171,8 @@ function disconnect() {
             class="app-radius-control flex min-w-[120px] max-w-[320px] items-center justify-between gap-[8px] rounded-[10px] px-[10px] py-[3px] text-[12px]"
             :class="
               settingsStore.isDark
-                ? 'bg-[rgba(15,23,42,0.46)] text-[rgba(226,232,240,0.88)]'
-                : 'bg-[rgba(255,255,255,0.58)] text-[rgba(30,41,59,0.88)]'
+                ? 'text-[rgba(226,232,240,0.88)]'
+                : 'text-[rgba(30,41,59,0.88)]'
             "
           >
             <span class="shrink-0 text-[rgba(148,163,184,0.94)]">IP</span>
