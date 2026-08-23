@@ -92,8 +92,8 @@ function latencyClass(latency: ServerLatency | undefined) {
     return latency?.status === 'offline' ? 'server-latency-offline' : 'server-latency-checking'
   }
 
-  if ((latency.value ?? 0) < 100) return 'server-latency-good'
-  if ((latency.value ?? 0) < 300) return 'server-latency-medium'
+  if ((latency.value ?? 0) < 200) return 'server-latency-good'
+  if ((latency.value ?? 0) < 500) return 'server-latency-medium'
   return 'server-latency-slow'
 }
 
