@@ -50,6 +50,7 @@ const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const uploadCenterStore = useUploadCenterStore()
 const FAVORITE_SIDEBAR_VISIBLE_STORAGE_KEY = 'host-deck:files:favorite-sidebar-visible'
+const FAVORITE_SIDEBAR_WIDTH_STORAGE_KEY = 'host-deck:files:favorite-sidebar-width'
 
 const fileStore = createFileStore({
   get connectionId() {
@@ -99,6 +100,7 @@ const contextMenu = ref<{
   y: number
 } | null>(null)
 const isFavoriteSidebarVisible = useLocalStorage(FAVORITE_SIDEBAR_VISIBLE_STORAGE_KEY, false)
+const favoriteSidebarWidth = useLocalStorage(FAVORITE_SIDEBAR_WIDTH_STORAGE_KEY, 252)
 const remoteTaskControllers = new Map<string, AbortController>()
 
 const selectedFile = computed(() => fileStore.selectedFile)
@@ -2033,6 +2035,7 @@ watch(
 
     <div class="flex min-h-0 flex-1 gap-[14px]">
       <FileFavoriteSidebar
+        v-model:width="favoriteSidebarWidth"
         :connection-id="fileStore.connectionId"
         :current-path="fileStore.currentPath"
         :favorite-paths="fileStore.favoritePaths"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { ChevronLeft, ChevronRight, Close } from '@vicons/carbon'
 import { useSettingsStore } from '@/stores/settings'
 import { basename } from '@/utils/path'
@@ -10,37 +10,95 @@ const props = defineProps<{
   currentPath: string
   favoritePaths: string[]
   visible: boolean
+  width: number
 }>()
 
 const emit = defineEmits<{
   navigate: [path: string]
   remove: [path: string]
   toggleVisibility: []
+  'update:width': [width: number]
 }>()
 
+const MIN_WIDTH = 220
+const MAX_WIDTH = 480
 const settingsStore = useSettingsStore()
 const activeView = ref<'tree' | 'favorites'>('tree')
+const isResizing = ref(false)
+let resizeStartClientX = 0
+let resizeStartWidth = 0
+let previousBodyCursor = ''
+let previousBodyUserSelect = ''
 
 const handleTooltip = computed(() => (props.visible ? '收起目录侧栏' : '展开目录侧栏'))
+const normalizedWidth = computed(() => {
+  const width = Number.isFinite(props.width) ? props.width : 252
+  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width))
+})
 
 function formatFavoritePath(path: string) {
   return basename(path) || '根目录'
 }
+
+function handleResize(event: PointerEvent) {
+  if (!isResizing.value) {
+    return
+  }
+
+  const width = resizeStartWidth + event.clientX - resizeStartClientX
+  emit('update:width', Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(width))))
+}
+
+function stopResize() {
+  if (!isResizing.value) {
+    return
+  }
+
+  isResizing.value = false
+  window.removeEventListener('pointermove', handleResize)
+  window.removeEventListener('pointerup', stopResize)
+  window.removeEventListener('pointercancel', stopResize)
+  document.body.style.cursor = previousBodyCursor
+  document.body.style.userSelect = previousBodyUserSelect
+}
+
+function startResize(event: PointerEvent) {
+  if (!props.visible || event.button !== 0) {
+    return
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+  isResizing.value = true
+  resizeStartClientX = event.clientX
+  resizeStartWidth = normalizedWidth.value
+  previousBodyCursor = document.body.style.cursor
+  previousBodyUserSelect = document.body.style.userSelect
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+  window.addEventListener('pointermove', handleResize)
+  window.addEventListener('pointerup', stopResize)
+  window.addEventListener('pointercancel', stopResize)
+}
+
+onBeforeUnmount(stopResize)
 </script>
 
 <template>
   <div
-    class="favorite-sidebar-shell relative hidden min-h-0 shrink-0 transition-[width] duration-[220ms] ease-in-out md:flex"
-    :class="visible ? 'w-[252px]' : 'w-[30px]'"
+    class="favorite-sidebar-shell relative hidden min-h-0 shrink-0 md:flex"
+    :class="isResizing ? '' : 'transition-[width] duration-[220ms] ease-in-out'"
+    :style="{ width: visible ? `${normalizedWidth}px` : '30px' }"
   >
     <aside
-      class="app-radius-card absolute inset-y-0 left-0 flex w-[252px] min-w-[220px] flex-col overflow-hidden rounded-[18px] border transition-[opacity,transform] duration-[220ms] ease-in-out"
+      class="app-radius-card absolute inset-y-0 left-0 flex min-w-[220px] flex-col overflow-hidden rounded-[18px] border transition-[opacity,transform] duration-[220ms] ease-in-out"
       :class="[
         settingsStore.isDark
           ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.72)]'
           : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.84)]',
         visible ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-[18px] opacity-0',
       ]"
+      :style="{ width: `${normalizedWidth}px` }"
     >
       <div class="px-[10px] pb-[10px] pt-[12px]">
         <div
@@ -130,6 +188,26 @@ function formatFavoritePath(path: string) {
         </NScrollbar>
       </div>
     </aside>
+
+    <div
+      v-if="visible"
+      role="separator"
+      aria-label="调整目录侧栏宽度"
+      aria-orientation="vertical"
+      :aria-valuemin="MIN_WIDTH"
+      :aria-valuemax="MAX_WIDTH"
+      :aria-valuenow="normalizedWidth"
+      class="group absolute inset-y-[10px] right-[-5px] z-3 w-[10px] cursor-col-resize touch-none"
+      @pointerdown="startResize"
+    >
+      <div
+        class="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 rounded-full opacity-0 transition-opacity"
+        :class="[
+          settingsStore.isDark ? 'bg-[rgba(96,165,250,0.72)]' : 'bg-[rgba(37,99,235,0.58)]',
+          isResizing ? 'opacity-100' : 'group-hover:opacity-100',
+        ]"
+      />
+    </div>
 
     <div class="pointer-events-none absolute right-[16px] top-1/2 z-2 -translate-y-1/2">
       <NTooltip placement="right">
