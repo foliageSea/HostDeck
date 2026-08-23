@@ -94,6 +94,8 @@ const permissionItemPath = ref('')
 const permissionRecursive = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const directoryInputRef = ref<HTMLInputElement | null>(null)
+const dragDepth = ref(0)
+const isDraggingUpload = ref(false)
 const contextMenu = ref<{
   type: 'file' | 'blank'
   x: number
@@ -190,6 +192,35 @@ const uploadOptions = computed(() => [
 type PermissionSubject = 'owner' | 'group' | 'others'
 type PermissionAction = 'read' | 'write' | 'execute'
 type PermissionMatrix = Record<PermissionSubject, Record<PermissionAction, boolean>>
+interface UploadSelection {
+  file: File
+  name: string
+  path: string
+  relativePath: string
+}
+
+interface DroppedFileEntry {
+  isDirectory: false
+  isFile: true
+  name: string
+  file: (success: (file: File) => void, error?: (error: DOMException) => void) => void
+}
+
+interface DroppedDirectoryReader {
+  readEntries: (
+    success: (entries: DroppedEntry[]) => void,
+    error?: (error: DOMException) => void,
+  ) => void
+}
+
+interface DroppedDirectoryEntry {
+  isDirectory: true
+  isFile: false
+  name: string
+  createReader: () => DroppedDirectoryReader
+}
+
+type DroppedEntry = DroppedFileEntry | DroppedDirectoryEntry
 
 const permissionSubjects: { key: PermissionSubject; label: string }[] = [
   { key: 'owner', label: '所有者' },
@@ -217,8 +248,8 @@ const canExtractSelectedArchive = computed(() => {
     getArchiveExtension(file.filename) !== null
   )
 })
-const canCompressSelectedItem = computed(() =>
-  selectedFiles.value.length === 1 && selectedFile.value !== null,
+const canCompressSelectedItem = computed(
+  () => selectedFiles.value.length === 1 && selectedFile.value !== null,
 )
 const contextMenuOptions = computed(() => {
   if (contextMenu.value?.type === 'file') {
@@ -692,7 +723,11 @@ function watchRemoteTask(task: FileTask) {
       task.id,
       (nextTask: FileTask) => {
         uploadCenterStore.upsertRemoteTask(nextTask)
-        if (nextTask.status === 'success' || nextTask.status === 'failed' || nextTask.status === 'cancelled') {
+        if (
+          nextTask.status === 'success' ||
+          nextTask.status === 'failed' ||
+          nextTask.status === 'cancelled'
+        ) {
           remoteTaskControllers.delete(nextTask.id)
           void fileStore.fetchFiles()
           fileClipboardStore.emitRefresh(fileStore.currentPath, props.windowId)
@@ -1214,10 +1249,12 @@ async function confirmExtract() {
     return
   }
 
-  const task = await startRemoteTask('extract', [{
-    sourcePath: resolve(fileStore.currentPath, selectedFile.value.filename),
-    targetPath: resolve(fileStore.currentPath, targetName),
-  }])
+  const task = await startRemoteTask('extract', [
+    {
+      sourcePath: resolve(fileStore.currentPath, selectedFile.value.filename),
+      targetPath: resolve(fileStore.currentPath, targetName),
+    },
+  ])
   if (task) {
     showExtractDialog.value = false
     fileStore.setSelectedNames([targetName])
@@ -1280,7 +1317,9 @@ async function confirmDelete() {
 
   const task = await startRemoteTask(
     'delete',
-    selectedFiles.value.map((file) => ({ sourcePath: resolve(fileStore.currentPath, file.filename) })),
+    selectedFiles.value.map((file) => ({
+      sourcePath: resolve(fileStore.currentPath, file.filename),
+    })),
   )
   if (task) {
     showDeleteDialog.value = false
@@ -1475,6 +1514,98 @@ async function ensureUploadDirectories(connectionId: string, relativePaths: stri
   }
 }
 
+function isFileDrag(event: DragEvent) {
+  return Array.from(event.dataTransfer?.types ?? []).includes('Files')
+}
+
+function handleUploadDragEnter(event: DragEvent) {
+  if (!isFileDrag(event)) {
+    return
+  }
+
+  dragDepth.value += 1
+  isDraggingUpload.value = true
+}
+
+function handleUploadDragLeave() {
+  if (!isDraggingUpload.value) {
+    return
+  }
+
+  dragDepth.value = Math.max(0, dragDepth.value - 1)
+  if (dragDepth.value === 0) {
+    isDraggingUpload.value = false
+  }
+}
+
+function readDroppedFile(entry: DroppedFileEntry) {
+  return new Promise<File>((resolveFile, reject) => entry.file(resolveFile, reject))
+}
+
+async function readDroppedDirectoryEntries(entry: DroppedDirectoryEntry) {
+  const reader = entry.createReader()
+  const entries: DroppedEntry[] = []
+
+  while (true) {
+    const chunk = await new Promise<DroppedEntry[]>((resolveEntries, reject) =>
+      reader.readEntries(resolveEntries, reject),
+    )
+    if (chunk.length === 0) {
+      return entries
+    }
+    entries.push(...chunk)
+  }
+}
+
+async function collectDroppedEntry(
+  entry: DroppedEntry,
+  parentPath: string,
+  selections: UploadSelection[],
+) {
+  const relativePath = [parentPath, entry.name].filter(Boolean).join('/')
+  if (entry.isFile) {
+    const file = await readDroppedFile(entry)
+    const directory = getUploadDirectory(relativePath)
+    selections.push({
+      file,
+      name: relativePath,
+      path: directory ? resolve(fileStore.currentPath, directory) : fileStore.currentPath,
+      relativePath,
+    })
+    return
+  }
+
+  const entries = await readDroppedDirectoryEntries(entry)
+  for (const childEntry of entries) {
+    await collectDroppedEntry(childEntry, relativePath, selections)
+  }
+}
+
+async function collectDroppedUploads(dataTransfer: DataTransfer) {
+  const selections: UploadSelection[] = []
+  const items = Array.from(dataTransfer.items)
+  const supportsEntries = items.some((item) => 'webkitGetAsEntry' in item)
+
+  if (supportsEntries) {
+    for (const item of items) {
+      const entry = (
+        item as unknown as { webkitGetAsEntry?: () => DroppedEntry | null }
+      ).webkitGetAsEntry?.()
+      if (entry) {
+        await collectDroppedEntry(entry, '', selections)
+      }
+    }
+    return selections
+  }
+
+  return Array.from(dataTransfer.files).map((file) => ({
+    file,
+    name: file.name,
+    path: fileStore.currentPath,
+    relativePath: file.name,
+  }))
+}
+
 function isUploadCancelled(error: unknown) {
   return (
     typeof error === 'object' && error !== null && 'code' in error && error.code === 'ERR_CANCELED'
@@ -1489,141 +1620,10 @@ function getDownloadProgress(loaded: number, total: number) {
   return Math.min(100, Math.round((Math.min(loaded, total) / total) * 100))
 }
 
-async function handleUploadChange(event: Event) {
-  if (!fileStore.connectionId) {
+async function uploadSelections(selectedUploads: UploadSelection[], successMessage: string) {
+  if (!fileStore.connectionId || selectedUploads.length === 0) {
     return
   }
-
-  const input = event.target as HTMLInputElement
-  const files = input.files
-  if (!files || files.length === 0) {
-    return
-  }
-
-  const selectedUploads = Array.from(files).map((file) => ({
-    file,
-    name: file.name,
-    path: fileStore.currentPath,
-    relativePath: file.name,
-  }))
-  const batchId = uploadCenterStore.createBatch(
-    fileStore.connectionId,
-    fileStore.currentPath,
-    selectedUploads,
-  )
-  const controller = new AbortController()
-  uploadCenterStore.clearBatchError(batchId)
-  uploadCenterStore.registerBatchController(batchId, controller)
-
-  let hasUploadedFiles = false
-
-  try {
-    for (const [index, upload] of selectedUploads.entries()) {
-      if (uploadCenterStore.isBatchCancelled(batchId)) {
-        break
-      }
-
-      const batch = uploadCenterStore.batches.find((item) => item.id === batchId)
-      const task = batch?.tasks[index]
-      if (!task) {
-        continue
-      }
-
-      uploadCenterStore.updateTask(task.id, {
-        loaded: 0,
-        progress: 0,
-        status: 'uploading',
-        total: upload.file.size,
-      })
-
-      const formData = new FormData()
-      formData.append('file', upload.file, upload.file.name)
-      await filesApi.upload(
-        fileStore.connectionId,
-        fileStore.currentPath,
-        formData,
-        (progressEvent) => {
-          const total = progressEvent.total ?? upload.file.size
-          const loaded = Math.min(progressEvent.loaded, total)
-
-          uploadCenterStore.updateTask(task.id, {
-            loaded,
-            progress: total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0,
-            total,
-          })
-        },
-        controller.signal,
-      )
-
-      uploadCenterStore.updateTask(task.id, {
-        loaded: upload.file.size,
-        progress: 100,
-        status: 'success',
-        total: upload.file.size,
-      })
-      hasUploadedFiles = true
-    }
-
-    if (uploadCenterStore.isBatchCancelled(batchId)) {
-      if (hasUploadedFiles) {
-        await fileStore.fetchFiles()
-      }
-      return
-    }
-
-    await fileStore.fetchFiles()
-    getUiApi().message.success(`已上传 ${files.length} 个文件。`)
-  } catch (error) {
-    if (isUploadCancelled(error) || uploadCenterStore.isBatchCancelled(batchId)) {
-      if (!uploadCenterStore.isBatchCancelled(batchId)) {
-        uploadCenterStore.cancelBatch(batchId)
-      }
-
-      if (hasUploadedFiles) {
-        await fileStore.fetchFiles()
-      }
-      return
-    }
-
-    const batch = uploadCenterStore.batches.find((item) => item.id === batchId)
-    const uploadingTask = batch?.tasks.find((task) => task.status === 'uploading')
-    if (uploadingTask) {
-      uploadCenterStore.updateTask(uploadingTask.id, {
-        status: 'error',
-      })
-    }
-
-    uploadCenterStore.markBatchError(batchId, error instanceof Error ? error.message : '上传失败。')
-    console.error('Failed to upload files', error)
-    getUiApi().message.error('上传失败。')
-  } finally {
-    uploadCenterStore.clearBatchController(batchId)
-    input.value = ''
-  }
-}
-
-async function handleDirectoryUploadChange(event: Event) {
-  if (!fileStore.connectionId) {
-    return
-  }
-
-  const input = event.target as HTMLInputElement
-  const files = input.files
-  if (!files || files.length === 0) {
-    return
-  }
-
-  const selectedUploads = Array.from(files).map((file) => {
-    const relativePath = getUploadRelativePath(file)
-    const directory = getUploadDirectory(relativePath)
-
-    return {
-      file,
-      name: relativePath,
-      path: directory ? resolve(fileStore.currentPath, directory) : fileStore.currentPath,
-      relativePath,
-    }
-  })
   const batchId = uploadCenterStore.createBatch(
     fileStore.connectionId,
     fileStore.currentPath,
@@ -1695,7 +1695,7 @@ async function handleDirectoryUploadChange(event: Event) {
     }
 
     await fileStore.fetchFiles()
-    getUiApi().message.success(`已上传目录中的 ${files.length} 个文件。`)
+    getUiApi().message.success(successMessage)
   } catch (error) {
     if (isUploadCancelled(error) || uploadCenterStore.isBatchCancelled(batchId)) {
       if (!uploadCenterStore.isBatchCancelled(batchId)) {
@@ -1709,24 +1709,91 @@ async function handleDirectoryUploadChange(event: Event) {
     }
 
     const batch = uploadCenterStore.batches.find((item) => item.id === batchId)
-    const uploadingTask = batch?.tasks.find(
-      (task) => task.status === 'uploading' || task.status === 'pending',
-    )
+    const uploadingTask = batch?.tasks.find((task) => task.status === 'uploading')
     if (uploadingTask) {
       uploadCenterStore.updateTask(uploadingTask.id, {
         status: 'error',
       })
     }
 
-    uploadCenterStore.markBatchError(
-      batchId,
-      error instanceof Error ? error.message : '上传目录失败。',
-    )
-    console.error('Failed to upload directory', error)
-    getUiApi().message.error('上传目录失败。')
+    uploadCenterStore.markBatchError(batchId, error instanceof Error ? error.message : '上传失败。')
+    console.error('Failed to upload files', error)
+    getUiApi().message.error('上传失败。')
   } finally {
     uploadCenterStore.clearBatchController(batchId)
+  }
+}
+
+async function handleUploadChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = input.files
+  if (!files || files.length === 0) {
+    return
+  }
+
+  try {
+    const selectedUploads = Array.from(files).map((file) => ({
+      file,
+      name: file.name,
+      path: fileStore.currentPath,
+      relativePath: file.name,
+    }))
+    await uploadSelections(selectedUploads, `已上传 ${files.length} 个文件。`)
+  } finally {
     input.value = ''
+  }
+}
+
+async function handleDirectoryUploadChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = input.files
+  if (!files || files.length === 0) {
+    return
+  }
+
+  try {
+    const selectedUploads = Array.from(files).map((file) => {
+      const relativePath = getUploadRelativePath(file)
+      const directory = getUploadDirectory(relativePath)
+      return {
+        file,
+        name: relativePath,
+        path: directory ? resolve(fileStore.currentPath, directory) : fileStore.currentPath,
+        relativePath,
+      }
+    })
+    await uploadSelections(selectedUploads, `已上传目录中的 ${files.length} 个文件。`)
+  } finally {
+    input.value = ''
+  }
+}
+
+async function handleUploadDrop(event: DragEvent) {
+  dragDepth.value = 0
+  isDraggingUpload.value = false
+
+  if (!isFileDrag(event) || !event.dataTransfer) {
+    return
+  }
+  if (isUploading.value) {
+    getUiApi().message.warning('请等待当前传输任务完成后再上传。')
+    return
+  }
+  if (!fileStore.connectionId) {
+    getUiApi().message.error('当前连接不可用，无法上传。')
+    return
+  }
+
+  try {
+    const selectedUploads = await collectDroppedUploads(event.dataTransfer)
+    if (selectedUploads.length === 0) {
+      getUiApi().message.warning('未找到可上传的文件，空目录不会被上传。')
+      return
+    }
+    await uploadSelections(selectedUploads, `已拖放上传 ${selectedUploads.length} 个文件。`)
+  } catch (error) {
+    console.error('Failed to read dropped files', error)
+    getUiApi().message.error('无法读取拖放的文件。')
   }
 }
 
@@ -1868,6 +1935,10 @@ watch(
     tabindex="0"
     @keydown="handleKeydown"
     @click.self="fileStore.clearSelection()"
+    @dragenter.prevent="handleUploadDragEnter"
+    @dragover.prevent
+    @dragleave.prevent="handleUploadDragLeave"
+    @drop.prevent="handleUploadDrop"
   >
     <input ref="fileInputRef" type="file" multiple hidden @change="handleUploadChange" />
     <input
@@ -2227,10 +2298,7 @@ watch(
               上传
             </NButton>
           </NDropdown>
-          <NButton
-            quaternary
-            :disabled="!canExtractSelectedArchive"
-            @click="openExtractDialog"
+          <NButton quaternary :disabled="!canExtractSelectedArchive" @click="openExtractDialog"
             >解压缩</NButton
           >
           <NButton quaternary :disabled="!canCompressSelectedItem" @click="openCompressDialog"
@@ -2239,10 +2307,7 @@ watch(
           <NButton quaternary :disabled="selectedFiles.length !== 1" @click="openRenameDialog"
             >重命名</NButton
           >
-          <NButton
-            quaternary
-            :disabled="selectedFiles.length !== 1"
-            @click="openPermissionDialog()"
+          <NButton quaternary :disabled="selectedFiles.length !== 1" @click="openPermissionDialog()"
             >权限</NButton
           >
           <NButton
@@ -2252,11 +2317,7 @@ watch(
             @click="showDeleteDialog = true"
             >删除</NButton
           >
-          <NButton
-            quaternary
-            :disabled="selectedFiles.length === 0"
-            @click="downloadSelectedFiles"
-          >
+          <NButton quaternary :disabled="selectedFiles.length === 0" @click="downloadSelectedFiles">
             <template #icon>
               <NIcon>
                 <Download />
@@ -2282,20 +2343,45 @@ watch(
           <NButton quaternary size="small" @click="clearSearch"> 清除搜索 </NButton>
         </div>
 
-        <FileBrowserContent
-          :files="fileStore.displayFiles"
-          :empty-description="hasSearch ? '没有找到匹配的文件或目录' : undefined"
-          :loading="fileStore.loading"
-          :selected-names="fileStore.selectedNames"
-          :view-mode="fileStore.viewMode"
-          :format-file-size="formatFileSize"
-          :format-modify-time="formatModifyTime"
-          @click-file="handleFileClick"
-          @context-blank="openBlankContextMenu"
-          @context-file="openFileContextMenu"
-          @open-file="openFile"
-          @select-names="handleSelectNames"
-        />
+        <div class="relative min-h-0 flex flex-1">
+          <FileBrowserContent
+            :files="fileStore.displayFiles"
+            :empty-description="hasSearch ? '没有找到匹配的文件或目录' : undefined"
+            :loading="fileStore.loading"
+            :selected-names="fileStore.selectedNames"
+            :view-mode="fileStore.viewMode"
+            :format-file-size="formatFileSize"
+            :format-modify-time="formatModifyTime"
+            @click-file="handleFileClick"
+            @context-blank="openBlankContextMenu"
+            @context-file="openFileContextMenu"
+            @open-file="openFile"
+            @select-names="handleSelectNames"
+          />
+
+          <div
+            v-if="isDraggingUpload"
+            class="app-radius-surface pointer-events-none absolute inset-[4px] z-20 flex items-center justify-center rounded-[18px] border-2 border-dashed border-[var(--app-primary-border-strong)] bg-[var(--app-primary-soft)] p-[24px] backdrop-blur-[6px]"
+          >
+            <div
+              class="flex max-w-[420px] flex-col items-center gap-[10px] text-center text-[var(--app-primary-color)]"
+            >
+              <NIcon size="42">
+                <Upload />
+              </NIcon>
+              <div class="text-[18px] font-700">
+                {{ isUploading ? '当前有传输任务进行中' : '释放以上传到当前目录' }}
+              </div>
+              <div class="text-[13px] opacity-80">
+                {{
+                  isUploading
+                    ? '请等待当前任务完成后再试'
+                    : `支持多个文件或文件夹，目标位置：${fileStore.currentPath}`
+                }}
+              </div>
+            </div>
+          </div>
+        </div>
 
         <NCard
           v-if="selectedFile"
@@ -2390,11 +2476,7 @@ watch(
           <NButton quaternary :disabled="extractingArchive" @click="showExtractDialog = false"
             >取消</NButton
           >
-          <NButton
-            quaternary
-            type="primary"
-            :loading="extractingArchive"
-            @click="confirmExtract"
+          <NButton quaternary type="primary" :loading="extractingArchive" @click="confirmExtract"
             >解压</NButton
           >
         </NSpace>
@@ -2585,10 +2667,7 @@ watch(
         </div>
 
         <NSpace justify="end">
-          <NButton
-            quaternary
-            :disabled="changingPermission"
-            @click="showPermissionDialog = false"
+          <NButton quaternary :disabled="changingPermission" @click="showPermissionDialog = false"
             >取消</NButton
           >
           <NButton
@@ -2631,5 +2710,4 @@ watch(
 .details-panel :deep(.n-card__content) {
   padding: 8px 12px;
 }
-
 </style>
