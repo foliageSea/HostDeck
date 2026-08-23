@@ -30,11 +30,11 @@ const controller: DockerViewController = reactive(useDockerView(props))
 
 <template>
   <div
-    class="flex h-full min-h-0 flex-col gap-[16px] overflow-hidden p-[18px]"
+    class="docker-page flex h-full min-h-0 flex-col gap-[16px] overflow-hidden p-[18px]"
     :class="
       settingsStore.isDark
-        ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))]'
-        : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(226,232,240,0.38))]'
+        ? 'docker-theme-dark bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))]'
+        : 'docker-theme-light bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(226,232,240,0.38))]'
     "
   >
     <div class="flex flex-none flex-col gap-[16px]">
@@ -103,6 +103,14 @@ const controller: DockerViewController = reactive(useDockerView(props))
 </template>
 
 <style scoped>
+.docker-theme-dark {
+  --docker-tab-card-border: rgba(148, 163, 184, 0.16);
+}
+
+.docker-theme-light {
+  --docker-tab-card-border: rgba(148, 163, 184, 0.22);
+}
+
 .docker-body {
   flex: 1;
   min-height: 0;
@@ -123,6 +131,18 @@ const controller: DockerViewController = reactive(useDockerView(props))
   height: 100%;
   width: 100%;
   min-width: 0;
+}
+
+.docker-tabs :deep(.n-card) {
+  border: 1px solid var(--docker-tab-card-border);
+  background: transparent;
+}
+
+.docker-tabs :deep(.docker-card-field),
+.docker-tabs :deep(.compose-project-field),
+.docker-tabs :deep(.compose-service-field) {
+  border: 1px solid var(--docker-tab-card-border);
+  background: transparent;
 }
 
 .docker-tabs :deep(.n-tabs-wrapper),

@@ -113,14 +113,12 @@ onMounted(() => void load())
 <style scoped>
 .docker-theme-dark {
   --compose-card-border: rgba(148, 163, 184, 0.16);
-  --compose-field-bg: rgba(15, 23, 42, 0.5);
   --compose-label-color: rgba(226, 232, 240, 0.52);
   --compose-value-color: rgba(248, 250, 252, 0.92);
 }
 
 .docker-theme-light {
   --compose-card-border: rgba(148, 163, 184, 0.22);
-  --compose-field-bg: rgba(241, 245, 249, 0.94);
   --compose-label-color: rgba(100, 116, 139, 0.9);
   --compose-value-color: rgba(30, 41, 59, 0.94);
 }
@@ -153,8 +151,9 @@ onMounted(() => void load())
 
 .compose-service-field {
   min-width: 0;
+  border: 1px solid var(--compose-card-border);
   border-radius: var(--app-radius-item);
-  background: var(--compose-field-bg);
+  background: transparent;
   padding: 7px 9px;
 }
 
