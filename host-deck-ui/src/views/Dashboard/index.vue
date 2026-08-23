@@ -428,12 +428,7 @@ function createChartOption(config: {
       <NTooltip placement="bottom-end" trigger="hover" :show-arrow="true">
         <template #trigger>
           <div
-            class="flex cursor-default items-center justify-center rounded-full p-[10px] backdrop-blur-[16px] transition-colors"
-            :class="
-              settingsStore.isDark
-                ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.52)] hover:bg-[rgba(15,23,42,0.72)]'
-                : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)] hover:bg-[rgba(255,255,255,0.92)]'
-            "
+            class="flex cursor-default items-center justify-center p-[10px]"
           >
             <NIcon
               size="20"
@@ -488,12 +483,7 @@ function createChartOption(config: {
       </div>
 
       <div
-        class="app-radius-surface flex items-center gap-[12px] rounded-[16px] px-[14px] py-[10px] backdrop-blur-[16px]"
-        :class="
-          settingsStore.isDark
-            ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
-            : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'
-        "
+        class="flex items-center gap-[12px] px-[14px] py-[10px]"
       >
         <div>
           <div
@@ -551,12 +541,7 @@ function createChartOption(config: {
         <div
           v-for="item in systemInfoItems"
           :key="item.label"
-          class="app-radius-item rounded-[16px] px-[14px] py-[12px]"
-          :class="
-            settingsStore.isDark
-              ? 'border border-[rgba(148,163,184,0.12)] bg-[rgba(15,23,42,0.42)]'
-              : 'border border-[rgba(148,163,184,0.16)] bg-[rgba(255,255,255,0.62)]'
-          "
+          class="px-[2px] py-[4px]"
         >
           <div
             class="text-[12px]"
