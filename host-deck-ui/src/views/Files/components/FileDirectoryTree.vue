@@ -191,6 +191,7 @@ watch(
       <NTree
         block-line
         ellipsis
+        class="pr-[10px]"
         :data="treeData"
         :expanded-keys="expandedKeys"
         :selected-keys="selectedKeys"
