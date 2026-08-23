@@ -150,11 +150,13 @@ const stopped = (project: DockerComposeProject) => {
   padding: 10px;
 }
 .compose-project-meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 7px;
 }
 .compose-project-field {
+  width: fit-content;
+  max-width: 100%;
   min-width: 0;
   border-radius: var(--app-radius-item);
   background: var(--compose-field-bg);
