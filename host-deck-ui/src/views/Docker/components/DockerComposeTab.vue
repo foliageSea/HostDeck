@@ -59,44 +59,13 @@ const stopped = (project: DockerComposeProject) => {
         :key="key(project)"
         class="compose-project-card"
       >
-        <div class="mb-[12px] flex flex-wrap items-center justify-between gap-[10px]">
+        <div class="mb-[12px] flex flex-wrap items-center gap-[10px]">
           <div class="min-w-0 flex items-center gap-[10px]">
             <strong class="truncate text-[15px]" :title="project.name">{{ project.name }}</strong
             ><NTag round size="small" :type="controller.getComposeStatusType(project)">{{
               project.status || 'unknown'
             }}</NTag>
           </div>
-          <NSpace size="small"
-            ><NButton
-              v-if="running(project)"
-              size="tiny"
-              quaternary
-              :loading="controller.composeActionLoadingMap[project.name]"
-              @click="controller.confirmComposeProjectAction(project, 'stop')"
-              >停止</NButton
-            ><NButton
-              v-else
-              size="tiny"
-              quaternary
-              :loading="controller.composeActionLoadingMap[project.name]"
-              @click="controller.confirmComposeProjectAction(project, 'up')"
-              >启动</NButton
-            ><NButton
-              size="tiny"
-              quaternary
-              :disabled="!running(project)"
-              :loading="controller.composeActionLoadingMap[project.name]"
-              @click="controller.confirmComposeProjectAction(project, 'restart')"
-              >重启</NButton
-            ><NButton
-              size="tiny"
-              quaternary
-              type="error"
-              :loading="controller.composeActionLoadingMap[project.name]"
-              @click="controller.confirmComposeProjectAction(project, 'down')"
-              >Down</NButton
-            ></NSpace
-          >
         </div>
         <div class="compose-project-meta">
           <div class="compose-project-field">
@@ -104,15 +73,47 @@ const stopped = (project: DockerComposeProject) => {
             ><strong :title="configTitle(project)">{{ project.configFiles || '-' }}</strong>
           </div>
         </div>
-        <div class="mt-[12px] flex justify-end">
+        <div class="mt-[12px] flex flex-wrap justify-end gap-[6px]">
+          <NButton
+            v-if="running(project)"
+            size="tiny"
+            quaternary
+            :loading="controller.composeActionLoadingMap[project.name]"
+            @click="controller.confirmComposeProjectAction(project, 'stop')"
+            >停止</NButton
+          >
+          <NButton
+            v-else
+            size="tiny"
+            quaternary
+            :loading="controller.composeActionLoadingMap[project.name]"
+            @click="controller.confirmComposeProjectAction(project, 'up')"
+            >启动</NButton
+          >
+          <NButton
+            size="tiny"
+            quaternary
+            :disabled="!running(project)"
+            :loading="controller.composeActionLoadingMap[project.name]"
+            @click="controller.confirmComposeProjectAction(project, 'restart')"
+            >重启</NButton
+          >
+          <NButton
+            size="tiny"
+            quaternary
+            type="error"
+            :loading="controller.composeActionLoadingMap[project.name]"
+            @click="controller.confirmComposeProjectAction(project, 'down')"
+            >Down</NButton
+          >
           <NButton
             v-if="stopped(project)"
-            size="small"
+            size="tiny"
             quaternary
             @click="controller.openEditComposeProject(project)"
             >编辑</NButton
           >
-          <NButton size="small" quaternary @click="controller.openComposeServices(project)"
+          <NButton size="tiny" quaternary @click="controller.openComposeServices(project)"
             >详情</NButton
           >
         </div>
