@@ -2033,13 +2033,12 @@ watch(
 
     <div class="flex min-h-0 flex-1 gap-[14px]">
       <FileFavoriteSidebar
+        :connection-id="fileStore.connectionId"
         :current-path="fileStore.currentPath"
         :favorite-paths="fileStore.favoritePaths"
-        :is-current-path-favorite="isCurrentPathFavorite"
         :visible="isFavoriteSidebarVisible"
         @navigate="navigateToPath"
         @remove="removeFavoritePath"
-        @toggle-current-favorite="toggleCurrentFavorite"
         @toggle-visibility="toggleFavoriteSidebar"
       />
 

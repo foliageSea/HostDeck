@@ -1,26 +1,27 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { ChevronLeft, ChevronRight, Close } from '@vicons/carbon'
 import { useSettingsStore } from '@/stores/settings'
 import { basename } from '@/utils/path'
+import FileDirectoryTree from './FileDirectoryTree.vue'
 
 const props = defineProps<{
+  connectionId?: string | null
   currentPath: string
   favoritePaths: string[]
-  isCurrentPathFavorite: boolean
   visible: boolean
 }>()
 
 const emit = defineEmits<{
   navigate: [path: string]
   remove: [path: string]
-  toggleCurrentFavorite: []
   toggleVisibility: []
 }>()
 
 const settingsStore = useSettingsStore()
+const activeView = ref<'tree' | 'favorites'>('tree')
 
-const handleTooltip = computed(() => (props.visible ? '收起收藏侧栏' : '展开收藏侧栏'))
+const handleTooltip = computed(() => (props.visible ? '收起目录侧栏' : '展开目录侧栏'))
 
 function formatFavoritePath(path: string) {
   return basename(path) || '根目录'
@@ -41,32 +42,44 @@ function formatFavoritePath(path: string) {
         visible ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-[18px] opacity-0',
       ]"
     >
-      <div class="flex items-center justify-between gap-[10px] px-[14px] pb-[10px] pt-[14px]">
-        <div class="min-w-0">
-          <div
-            class="text-[13px] font-600"
-            :class="
-              settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'
-            "
+      <div class="px-[10px] pb-[10px] pt-[12px]">
+        <div
+          class="grid grid-cols-2 gap-[4px] rounded-[12px] p-[3px]"
+          :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.7)]' : 'bg-[rgba(226,232,240,0.72)]'"
+        >
+          <button
+            v-for="view in [
+              { key: 'tree', label: '目录树' },
+              { key: 'favorites', label: `收藏 ${favoritePaths.length}` },
+            ] as const"
+            :key="view.key"
+            type="button"
+            class="btn-reset rounded-[9px] px-[8px] py-[6px] text-[12px] font-600 transition-colors"
+            :class="[
+              activeView === view.key
+                ? settingsStore.isDark
+                  ? 'bg-[rgba(51,65,85,0.92)] text-[rgba(239,246,255,0.98)]'
+                  : 'bg-white text-[#1d4ed8] shadow-sm'
+                : settingsStore.isDark
+                  ? 'text-[rgba(148,163,184,0.92)]'
+                  : 'text-[rgba(100,116,139,0.94)]',
+            ]"
+            @click="activeView = view.key"
           >
-            收藏目录
-          </div>
-          <div
-            class="mt-[2px] text-[12px]"
-            :class="
-              settingsStore.isDark
-                ? 'text-[rgba(148,163,184,0.9)]'
-                : 'text-[rgba(100,116,139,0.92)]'
-            "
-          >
-            {{ favoritePaths.length }} 项
-          </div>
+            {{ view.label }}
+          </button>
         </div>
       </div>
 
       <div class="min-h-0 flex-1 px-[10px] pb-[12px]">
+        <FileDirectoryTree
+          v-if="activeView === 'tree'"
+          :connection-id="connectionId"
+          :current-path="currentPath"
+          @navigate="emit('navigate', $event)"
+        />
         <NEmpty
-          v-if="favoritePaths.length === 0"
+          v-else-if="favoritePaths.length === 0"
           size="small"
           description="暂无收藏"
           class="flex h-full items-center justify-center"
@@ -140,4 +153,3 @@ function formatFavoritePath(path: string) {
     </div>
   </div>
 </template>
-
