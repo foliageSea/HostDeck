@@ -20,6 +20,7 @@ type ServerFormState = {
 
 type ConnectionFormState = Omit<ServerFormState, 'name'>
 type CredentialMode = 'password' | 'privateKey'
+type ServerLatency = { status: 'checking' | 'online' | 'offline'; value?: number }
 
 const sshStore = useSshStore()
 const settingsStore = useSettingsStore()
@@ -31,6 +32,8 @@ const editingServerId = ref<number | null>(null)
 const serverEditorMode = ref<'create' | 'edit'>('create')
 const credentialMode = ref<CredentialMode>('password')
 const initialCredentialMode = ref<CredentialMode>('password')
+const serverLatencies = reactive<Record<number, ServerLatency>>({})
+let latencyCheckVersion = 0
 
 const connectionForm = reactive<ConnectionFormState>({
   host: '',
@@ -83,6 +86,62 @@ const loginVideoWallpaperUrl = computed(() => {
 const serverEditorTitle = computed(() =>
   serverEditorMode.value === 'create' ? '新建服务器' : '编辑服务器',
 )
+
+function latencyClass(latency: ServerLatency | undefined) {
+  if (latency?.status !== 'online') {
+    return latency?.status === 'offline' ? 'server-latency-offline' : 'server-latency-checking'
+  }
+
+  if ((latency.value ?? 0) < 100) return 'server-latency-good'
+  if ((latency.value ?? 0) < 300) return 'server-latency-medium'
+  return 'server-latency-slow'
+}
+
+function latencyText(latency: ServerLatency | undefined) {
+  if (!latency || latency.status === 'checking') return '检测中'
+  if (latency.status === 'offline') return '不可达'
+  return `${latency.value} ms`
+}
+
+async function checkServerLatencies() {
+  const version = ++latencyCheckVersion
+  const servers = sshStore.savedServers.filter(
+    (server): server is SavedServer & { id: number } => server.id !== undefined,
+  )
+
+  for (const server of servers) {
+    serverLatencies[server.id] = { status: 'checking' }
+  }
+
+  await Promise.allSettled(
+    servers.map(async (server) => {
+      const startedAt = performance.now()
+      try {
+        await authApi.testConnect({
+          serverId: server.id,
+          host: server.host,
+          port: server.port,
+          username: server.username,
+        })
+        if (version === latencyCheckVersion) {
+          serverLatencies[server.id] = {
+            status: 'online',
+            value: Math.max(1, Math.round(performance.now() - startedAt)),
+          }
+        }
+      } catch {
+        if (version === latencyCheckVersion) {
+          serverLatencies[server.id] = { status: 'offline' }
+        }
+      }
+    }),
+  )
+}
+
+async function refreshServers() {
+  await sshStore.fetchServers()
+  void checkServerLatencies()
+}
 
 function selectFirstAvailableServer() {
   const firstServer = sshStore.savedServers[0]
@@ -245,6 +304,7 @@ const saveServerMutation = useMutation<SavedServer | void, Error, void>({
     serverEditorVisible.value = false
     editingServerId.value = null
     resetServerForm()
+    void checkServerLatencies()
   },
   onError: (error) => {
     getUiApi().message.error(error.message || '保存服务器失败')
@@ -368,6 +428,7 @@ onMounted(async () => {
   if (!selectedServer.value) {
     selectFirstAvailableServer()
   }
+  void checkServerLatencies()
 })
 </script>
 
@@ -411,7 +472,7 @@ onMounted(async () => {
           </div>
           <NSpace :wrap="false" :size="10">
             <NButton text @click="openCreateServerModal">新建</NButton>
-            <NButton text @click="sshStore.fetchServers">刷新</NButton>
+            <NButton text @click="refreshServers">刷新</NButton>
           </NSpace>
         </div>
 
@@ -454,6 +515,13 @@ onMounted(async () => {
                       :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
                     >
                       {{ server.name || server.host }}
+                    </div>
+                    <div
+                      v-if="server.id !== undefined"
+                      class="server-latency flex-none text-[0.74rem] font-600 tabular-nums"
+                      :class="latencyClass(serverLatencies[server.id])"
+                    >
+                      {{ latencyText(serverLatencies[server.id]) }}
                     </div>
                   </div>
                   <div
@@ -609,6 +677,23 @@ onMounted(async () => {
 
 .selected-server-badge {
   background: color-mix(in srgb, var(--app-primary-color) 14%, transparent);
+}
+
+.server-latency-good {
+  color: #22c55e;
+}
+
+.server-latency-medium {
+  color: #eab308;
+}
+
+.server-latency-slow,
+.server-latency-offline {
+  color: #ef4444;
+}
+
+.server-latency-checking {
+  color: #94a3b8;
 }
 
 .server-username-avatar {
