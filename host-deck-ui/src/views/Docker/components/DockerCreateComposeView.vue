@@ -219,6 +219,6 @@ onMounted(() => void loadProjectForEditing())
 
 <style scoped>
 .compose-editor {
-  border-radius: 0;
+  border-radius: 0 !important;
 }
 </style>
