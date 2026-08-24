@@ -130,7 +130,8 @@ describe('dockerApi.streamContainerStats', () => {
       .mockResolvedValue(
         sseResponse(
           'event: connected\ndata: {}\n\n' +
-            'event: stats\ndata: {"id":"container-1","name":"web","timestamp":1,"cpuPercent":2.5,"memoryPercent":10,"memoryUsage":100,"memoryLimit":1000,"networkRxBytes":20,"networkTxBytes":30,"networkRxBytesPerSecond":4,"networkTxBytesPerSecond":5,"blockReadBytes":0,"blockWriteBytes":0,"pids":2}\n\n',
+            'event: stats\ndata: {"id":"container-1","name":"web","timestamp":1,"cpuPercent":2.5,"memoryPercent":10,"memoryUsage":100,"memoryLimit":1000,"networkRxBytes":20,"networkTxBytes":30,"networkRxBytesPerSecond":4,"networkTxBytesPerSecond":5,"blockReadBytes":0,"blockWriteBytes":0,"pids":2}\n\n' +
+            'event: done\ndata: {}\n\n',
         ),
       )
     vi.stubGlobal('fetch', fetchMock)
@@ -142,7 +143,15 @@ describe('dockerApi.streamContainerStats', () => {
       '/api/docker/containers/container%2F1/stats/stream?connectionId=conn-1',
       expect.objectContaining({ credentials: 'same-origin' }),
     )
-    expect(events.map((event) => event.event)).toEqual(['connected', 'stats'])
+    expect(events.map((event) => event.event)).toEqual(['connected', 'stats', 'done'])
     expect(events[1]?.data).toEqual(expect.objectContaining({ cpuPercent: 2.5 }))
+  })
+
+  it('reports a stats stream that ends unexpectedly', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sseResponse('event: connected\ndata: {}\n\n')))
+
+    await expect(
+      dockerApi.streamContainerStats('conn-1', 'container-1', () => undefined),
+    ).rejects.toThrow('容器资源监控流意外结束。')
   })
 })

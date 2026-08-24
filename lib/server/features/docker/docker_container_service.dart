@@ -17,8 +17,13 @@ class DockerContainerLogEvent {
 
 class DockerContainerStatsEvent {
   final Map<String, dynamic> data;
+  final bool isHeartbeat;
 
-  const DockerContainerStatsEvent(this.data);
+  const DockerContainerStatsEvent(this.data) : isHeartbeat = false;
+
+  const DockerContainerStatsEvent.heartbeat()
+    : data = const <String, dynamic>{},
+      isHeartbeat = true;
 }
 
 class DockerContainerService {
@@ -289,6 +294,7 @@ class DockerContainerService {
       method: 'GET',
       path: '/containers/$containerId/stats',
       queryParameters: {'stream': 'true'},
+      responseTimeout: const Duration(seconds: 15),
     );
     Map<String, dynamic>? previous;
 

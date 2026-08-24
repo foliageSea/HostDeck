@@ -597,6 +597,7 @@ class DockerController {
             'connection': 'keep-alive',
             'x-accel-buffering': 'no',
           },
+          context: const {'shelf.io.buffer_output': false},
         );
       } catch (e) {
         return Result.fail(500, e.toString());
@@ -608,12 +609,21 @@ class DockerController {
     Stream<DockerContainerStatsEvent> events,
   ) async* {
     try {
-      // Flush headers and the connected event through buffering proxies before
-      // Docker Engine finishes its first stats sampling interval.
-      yield utf8.encode(': ${' '.padRight(2048)}\n\n');
-      yield encodeServerSentEvent('connected', const <String, dynamic>{});
-      await for (final event in events) {
-        yield encodeServerSentEvent('stats', event.data);
+      yield <int>[
+        ...utf8.encode(': ${' '.padRight(2048)}\n\n'),
+        ...encodeServerSentEvent('connected', const <String, dynamic>{}),
+      ];
+      await for (final event in events.timeout(
+        const Duration(seconds: 15),
+        onTimeout: (sink) {
+          sink.add(const DockerContainerStatsEvent.heartbeat());
+        },
+      )) {
+        if (event.isHeartbeat) {
+          yield utf8.encode(': heartbeat\n\n');
+        } else {
+          yield encodeServerSentEvent('stats', event.data);
+        }
       }
       yield encodeServerSentEvent('done', const <String, dynamic>{});
     } catch (error) {

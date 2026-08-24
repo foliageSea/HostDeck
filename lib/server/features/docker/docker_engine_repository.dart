@@ -211,6 +211,7 @@ class DockerEngineRepository {
     Map<String, String>? queryParameters,
     Object? body,
     Map<String, String>? headers,
+    Duration? responseTimeout,
   }) async {
     final response = await _send(
       session,
@@ -219,6 +220,7 @@ class DockerEngineRepository {
       queryParameters: queryParameters,
       body: body,
       headers: headers,
+      responseTimeout: responseTimeout,
     );
     if (response.statusCode >= 400) {
       final bytes = await _readBytes(response);
@@ -266,6 +268,7 @@ class DockerEngineRepository {
     Map<String, String>? queryParameters,
     Object? body,
     Map<String, String>? headers,
+    Duration? responseTimeout,
   }) async {
     final endpoint = await _endpointProvider(session);
     final uri = endpoint
@@ -294,7 +297,22 @@ class DockerEngineRepository {
         request.add(utf8.encode(jsonEncode(body)));
       }
     }
-    return request.close();
+    final response = request.close();
+    if (responseTimeout == null) {
+      return response;
+    }
+    return response.timeout(
+      responseTimeout,
+      onTimeout: () {
+        final error = TimeoutException(
+          'Docker Engine did not respond within '
+          '${responseTimeout.inSeconds} seconds',
+          responseTimeout,
+        );
+        request.abort(error);
+        throw error;
+      },
+    );
   }
 
   bool _hasHeader(Map<String, String>? headers, String name) {

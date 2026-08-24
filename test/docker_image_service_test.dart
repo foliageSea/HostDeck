@@ -70,6 +70,7 @@ class _FakeDockerEngineRepository extends DockerEngineRepository {
     Map<String, String>? queryParameters,
     Object? body,
     Map<String, String>? headers,
+    Duration? responseTimeout,
   }) async {
     this.method = method;
     this.path = path;

@@ -103,6 +103,23 @@ void main() {
     expect(await stream.expand((chunk) => chunk).toList(), [1, 2, 3, 4]);
   });
 
+  test('times out while waiting for streaming response headers', () async {
+    final received = Completer<void>();
+    server.listen((_) {
+      received.complete();
+    });
+
+    final response = repository.requestByteStream(
+      session,
+      method: 'GET',
+      path: '/containers/container-1/stats',
+      responseTimeout: const Duration(milliseconds: 50),
+    );
+
+    await received.future;
+    await expectLater(response, throwsA(isA<TimeoutException>()));
+  });
+
   test('maps Engine API errors to DockerEngineHttpException', () async {
     server.listen((request) async {
       request.response

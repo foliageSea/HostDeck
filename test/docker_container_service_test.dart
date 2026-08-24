@@ -327,6 +327,7 @@ class _StatsDockerEngineRepository extends DockerEngineRepository {
     Map<String, String>? queryParameters,
     Object? body,
     Map<String, String>? headers,
+    Duration? responseTimeout,
   }) async {
     this.queryParameters = queryParameters;
     final first = _statsPayload(
@@ -398,6 +399,7 @@ class _LogsDockerEngineRepository extends DockerEngineRepository {
     Map<String, String>? queryParameters,
     Object? body,
     Map<String, String>? headers,
+    Duration? responseTimeout,
   }) async {
     this.queryParameters = queryParameters;
     return Stream.value(Uint8List.fromList(utf8.encode('hello\n')));

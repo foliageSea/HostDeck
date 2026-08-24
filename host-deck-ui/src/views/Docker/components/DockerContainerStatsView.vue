@@ -13,10 +13,15 @@ use([CanvasRenderer, GridComponent, LegendComponent, LineChart, TooltipComponent
 const props = defineProps<{ connectionId: string; containerId: string; containerName: string }>()
 const settingsStore = useSettingsStore()
 const samples = ref<DockerContainerStatsSample[]>([])
-const status = ref<'connecting' | 'live' | 'ended' | 'error'>('connecting')
+const status = ref<'connecting' | 'reconnecting' | 'live' | 'ended' | 'error'>('connecting')
 const error = ref('')
 let abortController: AbortController | null = null
+let firstEventTimer: ReturnType<typeof setTimeout> | undefined
+let reconnectTimer: ReturnType<typeof setTimeout> | undefined
 let generation = 0
+let reconnectAttempt = 0
+const firstEventTimeoutMs = 15_000
+const reconnectDelaysMs = [1000, 2000, 4000, 8000]
 const currentSample = computed(() => samples.value.at(-1))
 
 function formatPercent(value: number | string) {
@@ -100,44 +105,92 @@ const networkOption = computed(() =>
     (value) => `${formatBytes(value)}/s`,
   ),
 )
+function clearTimers() {
+  if (firstEventTimer) clearTimeout(firstEventTimer)
+  if (reconnectTimer) clearTimeout(reconnectTimer)
+  firstEventTimer = undefined
+  reconnectTimer = undefined
+}
 function stopStream() {
   generation += 1
   abortController?.abort()
   abortController = null
+  clearTimers()
 }
-async function refreshStats() {
-  stopStream()
-  const currentGeneration = generation
+function scheduleReconnect(currentGeneration: number, message: string) {
+  if (currentGeneration !== generation) return
+  if (reconnectAttempt >= reconnectDelaysMs.length) {
+    status.value = 'error'
+    error.value = message
+    return
+  }
+  status.value = 'reconnecting'
+  error.value = ''
+  const delay = reconnectDelaysMs[reconnectAttempt] ?? 8000
+  reconnectAttempt += 1
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = undefined
+    if (currentGeneration === generation) void openStream(currentGeneration)
+  }, delay)
+}
+async function openStream(currentGeneration: number) {
+  if (currentGeneration !== generation) return
   const controller = new AbortController()
   abortController = controller
-  samples.value = []
-  error.value = ''
-  status.value = 'connecting'
+  status.value = reconnectAttempt === 0 ? 'connecting' : 'reconnecting'
+  let receivedEvent = false
+  const currentFirstEventTimer = setTimeout(() => {
+    if (currentGeneration !== generation || receivedEvent) return
+    controller.abort()
+    scheduleReconnect(currentGeneration, '连接容器资源监控超时。')
+  }, firstEventTimeoutMs)
+  firstEventTimer = currentFirstEventTimer
   try {
     await dockerApi.streamContainerStats(
       props.connectionId,
       props.containerId,
       (event) => {
         if (currentGeneration !== generation) return
+        if (!receivedEvent) {
+          receivedEvent = true
+          clearTimeout(currentFirstEventTimer)
+          if (firstEventTimer === currentFirstEventTimer) firstEventTimer = undefined
+        }
         if (event.event === 'stats') {
           status.value = 'live'
+          reconnectAttempt = 0
           const cutoff = event.data.timestamp - 5 * 60 * 1000
           samples.value = [...samples.value, event.data]
             .filter((sample) => sample.timestamp >= cutoff)
             .slice(-300)
-        } else if (event.event === 'connected') status.value = 'live'
-        else if (event.event === 'done') status.value = 'ended'
+        } else if (event.event === 'connected') {
+          status.value = 'live'
+          reconnectAttempt = 0
+        } else if (event.event === 'done') status.value = 'ended'
       },
       controller.signal,
     )
   } catch (caughtError) {
-    if (!controller.signal.aborted && currentGeneration === generation) {
-      status.value = 'error'
-      error.value = caughtError instanceof Error ? caughtError.message : '容器资源监控失败。'
-    }
+    if (controller.signal.aborted || currentGeneration !== generation) return
+    scheduleReconnect(
+      currentGeneration,
+      caughtError instanceof Error ? caughtError.message : '容器资源监控失败。',
+    )
+  } finally {
+    clearTimeout(currentFirstEventTimer)
+    if (firstEventTimer === currentFirstEventTimer) firstEventTimer = undefined
+    if (abortController === controller) abortController = null
   }
 }
-onMounted(() => void refreshStats())
+function refreshStats() {
+  stopStream()
+  samples.value = []
+  error.value = ''
+  status.value = 'connecting'
+  reconnectAttempt = 0
+  void openStream(generation)
+}
+onMounted(refreshStats)
 onBeforeUnmount(stopStream)
 </script>
 
@@ -147,11 +200,13 @@ onBeforeUnmount(stopStream)
       <NTag size="small" round :type="status === 'error' ? 'error' : 'success'">{{
         status === 'connecting'
           ? '连接中'
-          : status === 'live'
-            ? '实时'
-            : status === 'ended'
-              ? '已结束'
-              : '已断开'
+          : status === 'reconnecting'
+            ? '重连中'
+            : status === 'live'
+              ? '实时'
+              : status === 'ended'
+                ? '已结束'
+                : '已断开'
       }}</NTag
       ><NButton size="small" quaternary @click="refreshStats">重新连接</NButton>
     </div>

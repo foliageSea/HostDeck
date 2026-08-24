@@ -795,18 +795,24 @@ export const dockerApi = {
       throw new Error('浏览器未提供流式响应。')
     }
 
+    let completed = false
     let streamError: string | undefined
     await consumeServerSentEvents(response.body, (message) => {
       const data = JSON.parse(message.data) as Record<string, unknown>
       const event = { event: message.event, data } as DockerContainerStatsStreamEvent
       onEvent(event)
-      if (event.event === 'error') {
+      if (event.event === 'done') {
+        completed = true
+      } else if (event.event === 'error') {
         streamError = event.data.message
       }
     })
 
     if (streamError) {
       throw new Error(streamError)
+    }
+    if (!completed) {
+      throw new Error('容器资源监控流意外结束。')
     }
   },
 
