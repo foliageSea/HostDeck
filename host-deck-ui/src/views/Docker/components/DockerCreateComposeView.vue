@@ -197,7 +197,7 @@ onMounted(() => void loadProjectForEditing())
         ><NSwitch v-model:value="form.startAfterCreate" /></NFormItem
       ><NFormItem label="Compose YAML" required
         ><div class="h-[420px] min-h-[320px] w-full overflow-hidden">
-          <CodeEditor v-model="form.content" language="yaml" class="h-full" /></div></NFormItem
+          <CodeEditor v-model="form.content" language="yaml" class="compose-editor h-full" /></div></NFormItem
     ></NForm>
     <div class="flex shrink-0 justify-end border-t px-[18px] py-[12px]">
       <NSpace
@@ -216,3 +216,9 @@ onMounted(() => void loadProjectForEditing())
     />
   </div>
 </template>
+
+<style scoped>
+.compose-editor {
+  border-radius: 0;
+}
+</style>

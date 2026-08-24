@@ -455,6 +455,10 @@ watch(showSettings, (value) => {
   margin: auto;
 }
 
+.text-editor-view :deep(.code-editor) {
+  border-radius: 0;
+}
+
 .font-size-input :deep(.n-input__input-el) {
   text-align: center;
 }
