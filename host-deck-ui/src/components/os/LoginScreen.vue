@@ -509,9 +509,9 @@ onMounted(async () => {
                   <Server :size="19" :stroke-width="2" />
                 </div>
                 <div class="min-w-0 flex-1">
-                  <div class="flex items-center justify-between gap-[12px]">
+                  <div class="flex min-w-0 items-center gap-[8px]">
                     <div
-                      class="truncate text-[0.98rem] font-600"
+                      class="min-w-0 truncate text-[0.98rem] font-600"
                       :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
                     >
                       {{ server.name || server.host }}
