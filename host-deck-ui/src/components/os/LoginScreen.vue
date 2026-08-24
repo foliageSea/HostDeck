@@ -33,7 +33,7 @@ const serverEditorMode = ref<'create' | 'edit'>('create')
 const credentialMode = ref<CredentialMode>('password')
 const initialCredentialMode = ref<CredentialMode>('password')
 const serverLatencies = reactive<Record<number, ServerLatency>>({})
-let latencyCheckVersion = 0
+const latencyCheckVersions: Record<number, number> = {}
 
 const connectionForm = reactive<ConnectionFormState>({
   host: '',
@@ -103,39 +103,40 @@ function latencyText(latency: ServerLatency | undefined) {
   return `${latency.value} ms`
 }
 
+async function checkServerLatency(server: SavedServer) {
+  if (server.id === undefined) return
+
+  const serverId = server.id
+  const version = (latencyCheckVersions[serverId] ?? 0) + 1
+  latencyCheckVersions[serverId] = version
+  serverLatencies[serverId] = { status: 'checking' }
+
+  const startedAt = performance.now()
+  try {
+    await authApi.testConnect({
+      serverId,
+      host: server.host,
+      port: server.port,
+      username: server.username,
+    })
+    if (version === latencyCheckVersions[serverId]) {
+      serverLatencies[serverId] = {
+        status: 'online',
+        value: Math.max(1, Math.round(performance.now() - startedAt)),
+      }
+    }
+  } catch {
+    if (version === latencyCheckVersions[serverId]) {
+      serverLatencies[serverId] = { status: 'offline' }
+    }
+  }
+}
+
 async function checkServerLatencies() {
-  const version = ++latencyCheckVersion
   const servers = sshStore.savedServers.filter(
     (server): server is SavedServer & { id: number } => server.id !== undefined,
   )
-
-  for (const server of servers) {
-    serverLatencies[server.id] = { status: 'checking' }
-  }
-
-  await Promise.allSettled(
-    servers.map(async (server) => {
-      const startedAt = performance.now()
-      try {
-        await authApi.testConnect({
-          serverId: server.id,
-          host: server.host,
-          port: server.port,
-          username: server.username,
-        })
-        if (version === latencyCheckVersion) {
-          serverLatencies[server.id] = {
-            status: 'online',
-            value: Math.max(1, Math.round(performance.now() - startedAt)),
-          }
-        }
-      } catch {
-        if (version === latencyCheckVersion) {
-          serverLatencies[server.id] = { status: 'offline' }
-        }
-      }
-    }),
-  )
+  await Promise.allSettled(servers.map(checkServerLatency))
 }
 
 async function refreshServers() {
@@ -518,8 +519,14 @@ onMounted(async () => {
                     </div>
                     <div
                       v-if="server.id !== undefined"
-                      class="server-latency flex-none text-[0.74rem] font-600 tabular-nums"
+                      class="server-latency flex-none cursor-pointer text-[0.74rem] font-600 tabular-nums"
                       :class="latencyClass(serverLatencies[server.id])"
+                      role="button"
+                      tabindex="0"
+                      title="刷新延迟"
+                      @click.stop="checkServerLatency(server)"
+                      @keydown.enter.stop="checkServerLatency(server)"
+                      @keydown.space.prevent.stop="checkServerLatency(server)"
                     >
                       {{ latencyText(serverLatencies[server.id]) }}
                     </div>
