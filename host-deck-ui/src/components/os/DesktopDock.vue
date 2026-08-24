@@ -115,9 +115,9 @@ function getDockIconColor(appId: DesktopAppId) {
   return dockIconColors[appId] ?? 'currentColor'
 }
 
-function getDockItemStyle(index: number, appId: DesktopAppId) {
+function getDockItemStyle(index: number, appId?: DesktopAppId) {
   const hoveredIndex = hoveredDockIndex.value
-  const isOpen = isAppOpen(appId)
+  const isOpen = appId ? isAppOpen(appId) : false
 
   if (draggedAppId.value) {
     return {
@@ -344,14 +344,17 @@ function openLaunchpad() {
         <template #trigger>
           <button
             type="button"
-            class="app-radius-surface launchpad-trigger flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 backdrop-blur-[14px] [backdrop-filter:blur(14px)_saturate(145%)] transition-[transform,background-color] duration-[180ms] cursor-pointer"
+            class="app-radius-surface launchpad-trigger dock-item flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 backdrop-blur-[14px] [backdrop-filter:blur(14px)_saturate(145%)] transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
             :class="
               settingsStore.isDark
                 ? 'bg-[rgba(2,6,23,0.46)] text-[#e2e8f0] hover:bg-[rgba(2,6,23,0.58)]'
                 : 'bg-[rgba(255,255,255,0.48)] text-[#334155] hover:bg-[rgba(255,255,255,0.62)]'
             "
+            :style="getDockItemStyle(-1)"
             aria-label="打开启动台"
             @click="openLaunchpad"
+            @mouseenter="hoveredDockIndex = -1"
+            @mouseleave="hoveredDockIndex = null"
           >
             <LayoutGrid :size="25" />
           </button>
