@@ -76,6 +76,10 @@ const controller: DockerViewController = reactive(useDockerView(props))
           <DockerContainersTab :controller="controller" />
         </NTabPane>
 
+        <NTabPane name="compose" tab="编排" class="docker-internal-scroll-pane">
+          <DockerComposeTab :controller="controller" />
+        </NTabPane>
+
         <NTabPane name="images" tab="镜像">
           <DockerImagesTab :controller="controller" />
         </NTabPane>
@@ -88,9 +92,6 @@ const controller: DockerViewController = reactive(useDockerView(props))
           <DockerVolumesTab :controller="controller" />
         </NTabPane>
 
-        <NTabPane name="compose" tab="编排" class="docker-internal-scroll-pane">
-          <DockerComposeTab :controller="controller" />
-        </NTabPane>
       </NTabs>
     </NSpin>
 
