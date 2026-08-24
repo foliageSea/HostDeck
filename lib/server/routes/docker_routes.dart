@@ -82,6 +82,10 @@ void registerDockerRoutes(Router router, DockerController controller) {
   );
   router.delete('/api/docker/containers/<id>', controller.removeContainer);
   router.post('/api/docker/containers', controller.createContainer);
+  router.get(
+    '/api/docker/containers/logs/snapshot',
+    controller.getContainerLogSnapshot,
+  );
   router.get('/api/docker/containers/logs', controller.getContainerLogs);
   router.post(
     '/api/docker/containers/diagnostics',

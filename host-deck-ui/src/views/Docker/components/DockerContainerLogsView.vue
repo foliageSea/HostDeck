@@ -55,10 +55,18 @@ async function refreshLogs() {
   followLogs.value = true
 
   try {
+    const snapshot = await dockerApi.getContainerLogs(props.connectionId, props.containerId, {
+      tail: tail.value,
+      timestamps: true,
+    })
+    if (currentGeneration !== generation) return
+    content.value = snapshot.events.map((event) => event.text).join('')
+    if (content.value) lastUpdatedAt.value = new Date()
+
     await dockerApi.streamContainerLogs(
       props.connectionId,
       props.containerId,
-      { tail: tail.value, timestamps: true },
+      { timestamps: true },
       (event) => {
         if (currentGeneration !== generation) return
         if (event.event === 'connected') {

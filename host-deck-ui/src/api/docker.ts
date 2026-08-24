@@ -245,6 +245,11 @@ export type DockerContainerLogStreamEvent =
   | { event: 'done'; data: Record<string, never> }
   | { event: 'error'; data: { message: string } }
 
+export interface DockerContainerLogSnapshotEvent {
+  stream: 'stdout' | 'stderr'
+  text: string
+}
+
 export type DockerContainerStatsStreamEvent =
   | { event: 'connected'; data: Record<string, never> }
   | { event: 'stats'; data: DockerContainerStatsSample }
@@ -657,14 +662,13 @@ export const dockerApi = {
   async streamContainerLogs(
     connectionId: string,
     containerId: string,
-    options: { tail?: number; timestamps?: boolean } = {},
+    options: { timestamps?: boolean } = {},
     onEvent: (event: DockerContainerLogStreamEvent) => void,
     signal?: AbortSignal,
   ) {
     const query = new URLSearchParams({
       connectionId,
       containerId,
-      tail: String(options.tail ?? 200),
       timestamps: String(options.timestamps ?? false),
     })
     const response = await fetch(`/api/docker/containers/logs?${query}`, {
@@ -719,6 +723,25 @@ export const dockerApi = {
     if (!completed) {
       throw new Error('容器日志流意外结束。')
     }
+  },
+
+  async getContainerLogs(
+    connectionId: string,
+    containerId: string,
+    options: { tail?: number; timestamps?: boolean } = {},
+  ) {
+    const response = await http.get<{ events: DockerContainerLogSnapshotEvent[] }>(
+      '/api/docker/containers/logs/snapshot',
+      {
+        params: {
+          connectionId,
+          containerId,
+          tail: options.tail ?? 200,
+          timestamps: options.timestamps ?? false,
+        },
+      },
+    )
+    return response.data
   },
 
   async inspectContainer(connectionId: string, containerId: string) {

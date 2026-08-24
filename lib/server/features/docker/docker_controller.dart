@@ -475,7 +475,6 @@ class DockerController {
   /// 通过 SSE 持续获取容器日志
   Future<Response> getContainerLogs(Request request) async {
     final containerId = request.url.queryParameters['containerId'];
-    final tail = _parseTail(request.url.queryParameters['tail']);
     final timestamps = request.url.queryParameters['timestamps'] == 'true';
 
     if (containerId == null) {
@@ -489,7 +488,7 @@ class DockerController {
             _containerService.getContainerLogs(
               session,
               containerId,
-              tail: tail,
+              tail: 0,
               timestamps: timestamps,
             ),
           ),
@@ -500,6 +499,35 @@ class DockerController {
             'x-accel-buffering': 'no',
           },
         );
+      } catch (e) {
+        return Result.fail(500, e.toString());
+      }
+    });
+  }
+
+  /// 主动获取容器的最近日志
+  Future<Response> getContainerLogSnapshot(Request request) async {
+    final containerId = request.url.queryParameters['containerId'];
+    final tail = _parseTail(request.url.queryParameters['tail']);
+    final timestamps = request.url.queryParameters['timestamps'] == 'true';
+
+    if (containerId == null) {
+      return Result.fail(400, 'Missing containerId');
+    }
+
+    return _withSession(request, (session) async {
+      try {
+        final events = await _containerService
+            .getContainerLogs(
+              session,
+              containerId,
+              tail: tail,
+              timestamps: timestamps,
+              follow: false,
+            )
+            .map((event) => {'stream': event.event, 'text': event.text})
+            .toList();
+        return Result.ok({'events': events});
       } catch (e) {
         return Result.fail(500, e.toString());
       }

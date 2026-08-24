@@ -129,6 +129,7 @@ class DockerContainerService {
     String containerId, {
     int tail = 100,
     bool timestamps = false,
+    bool follow = true,
   }) async* {
     final inspect = await inspectContainer(session, containerId);
     final config =
@@ -143,7 +144,7 @@ class DockerContainerService {
         'stderr': '1',
         'tail': tail.toString(),
         'timestamps': timestamps ? '1' : '0',
-        'follow': '1',
+        'follow': follow ? '1' : '0',
       },
     );
     yield* decodeDockerLogStream(logs, multiplexed: multiplexed);

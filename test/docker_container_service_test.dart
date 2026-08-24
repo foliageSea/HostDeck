@@ -128,6 +128,27 @@ void main() {
       expect(repository.queryParameters?['follow'], '1');
       expect(events.single.text, 'hello\n');
     });
+
+    test('fetches a finite Docker Engine log snapshot', () async {
+      final repository = _LogsDockerEngineRepository();
+      final logService = DockerContainerService(
+        repository,
+        DockerEngineMapper(),
+      );
+
+      final events = await logService
+          .getContainerLogs(
+            _FakeSshSession(),
+            'container-1',
+            tail: 200,
+            follow: false,
+          )
+          .toList();
+
+      expect(repository.queryParameters?['tail'], '200');
+      expect(repository.queryParameters?['follow'], '0');
+      expect(events.single.text, 'hello\n');
+    });
   });
 
   group('DockerContainerService stats streaming', () {
