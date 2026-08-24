@@ -28,6 +28,9 @@ const desktopWallpaperStyle = computed(() =>
 )
 const desktopWallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
 const isDefaultWallpaper = computed(() => settingsStore.desktopWallpaper.mode === 'default')
+const isMacOS = computed(
+  () => navigator.platform.startsWith('Mac') || navigator.userAgent.includes('Macintosh'),
+)
 const isVideoWallpaper = computed(
   () =>
     settingsStore.desktopWallpaper.mode === 'custom' &&
@@ -82,8 +85,10 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 
   const isSwitchKey =
-    (event.ctrlKey && event.key === 'Tab') ||
-    (event.altKey && (event.key === '`' || event.key === 'q'))
+    event.code === 'Backquote' &&
+    (isMacOS.value
+      ? event.metaKey && !event.altKey && !event.ctrlKey
+      : event.altKey && !event.metaKey && !event.ctrlKey)
   if (!isSwitchKey) {
     return
   }
@@ -113,7 +118,8 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 function handleKeyUp(event: KeyboardEvent) {
-  if ((event.key === 'Control' || event.key === 'Alt') && switcherVisible.value) {
+  const isSwitchModifierReleased = isMacOS.value ? event.key === 'Meta' : event.key === 'Alt'
+  if (isSwitchModifierReleased && switcherVisible.value) {
     selectWindow(switcherIndex.value)
   }
 }
