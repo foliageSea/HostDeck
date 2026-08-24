@@ -175,7 +175,7 @@ function disconnect() {
                 : 'text-[rgba(30,41,59,0.88)]'
             "
           >
-            <span class="shrink-0 text-[rgba(148,163,184,0.94)]">IP</span>
+            <span class="shrink-0">IP</span>
             <strong class="min-w-0 truncate font-600">
               <CopyableText
                 v-if="sshStore.host"
