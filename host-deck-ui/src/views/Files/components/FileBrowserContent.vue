@@ -2,12 +2,14 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import type { FileItem } from '@/api/files'
 import { useSettingsStore } from '@/stores/settings'
-import { getFileIcon, getFileIconClass } from './fileIcons'
+import FileMediaPreview from './FileMediaPreview.vue'
 
 const settingsStore = useSettingsStore()
 
 const props = defineProps<{
   files: FileItem[]
+  connectionId?: string | null
+  currentPath?: string
   emptyDescription?: string
   loading: boolean
   selectedNames: string[]
@@ -239,9 +241,12 @@ onBeforeUnmount(() => {
           @contextmenu="handleFileContextMenu(file, $event)"
           @dblclick="emit('openFile', file)"
         >
-          <NIcon size="28" class="flex-none" :class="getFileIconClass(file)">
-            <component :is="getFileIcon(file).icon" />
-          </NIcon>
+          <FileMediaPreview
+            :connection-id="connectionId"
+            :current-path="currentPath"
+            :file="file"
+            variant="grid"
+          />
           <div class="max-w-full truncate-line">{{ file.filename }}</div>
           <div
             class="text-[12px]"
@@ -275,9 +280,12 @@ onBeforeUnmount(() => {
           @dblclick="emit('openFile', file)"
         >
           <div class="flex min-w-0 items-center gap-[10px]">
-            <NIcon size="20" class="flex-none" :class="getFileIconClass(file)">
-              <component :is="getFileIcon(file).icon" />
-            </NIcon>
+            <FileMediaPreview
+              :connection-id="connectionId"
+              :current-path="currentPath"
+              :file="file"
+              variant="list"
+            />
             <span class="truncate-line">{{ file.filename }}</span>
           </div>
           <span

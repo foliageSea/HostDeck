@@ -1200,6 +1200,8 @@ onMounted(async () => {
 
         <div class="relative min-h-0 flex flex-1">
           <FileBrowserContent
+            :connection-id="fileStore.connectionId"
+            :current-path="fileStore.currentPath"
             :files="fileStore.displayFiles"
             :empty-description="hasSearch ? '没有找到匹配的文件或目录' : undefined"
             :loading="fileStore.loading"

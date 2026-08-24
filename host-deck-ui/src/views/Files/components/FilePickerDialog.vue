@@ -481,6 +481,8 @@ function confirmSelection() {
       </NAlert>
 
       <FileBrowserContent
+        :connection-id="connectionId"
+        :current-path="currentPath"
         :files="displayFiles"
         :empty-description="emptyDescription"
         :loading="loading"

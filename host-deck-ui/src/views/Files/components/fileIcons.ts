@@ -37,6 +37,8 @@ export interface FileIconMeta {
   tone: FileIconTone
 }
 
+export type FilePreviewType = 'image' | 'video' | null
+
 interface FileIconTarget {
   filename: string
   isDirectory: boolean
@@ -204,4 +206,9 @@ export function getFileIcon(file: FileIconTarget) {
 
 export function getFileIconClass(file: FileIconTarget) {
   return `file-icon-${getFileIcon(file).tone}`
+}
+
+export function getFilePreviewType(file: FileIconTarget): FilePreviewType {
+  const tone = getFileIcon(file).tone
+  return tone === 'image' || tone === 'video' ? tone : null
 }
