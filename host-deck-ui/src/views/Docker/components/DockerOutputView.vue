@@ -74,7 +74,7 @@ function closeWindow() {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col overflow-hidden">
+  <div class="flex h-full min-h-0 flex-col overflow-hidden px-[16px]">
     <div
       class="flex shrink-0 items-center justify-between gap-[12px] border-b px-[14px] py-[10px]"
       :class="
