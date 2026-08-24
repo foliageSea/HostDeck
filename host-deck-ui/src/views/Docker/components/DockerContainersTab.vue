@@ -143,7 +143,7 @@ function isPaused(container: DockerContainer) {
           <NInput
             :value="controller.containerSearchKeyword"
             clearable
-            class="w-[min(220px,60vw)] lt-sm:w-full"
+            class="container-search-input"
             placeholder="搜索容器"
             @update:value="controller.setContainerSearchKeyword"
           />
@@ -408,6 +408,13 @@ function isPaused(container: DockerContainer) {
 </template>
 
 <style scoped>
+.container-search-input {
+  width: 220px !important;
+  min-width: 220px;
+  max-width: 220px;
+  flex: none;
+}
+
 .docker-theme-dark {
   --docker-card-border: rgba(148, 163, 184, 0.16);
   --docker-card-bg: transparent;
