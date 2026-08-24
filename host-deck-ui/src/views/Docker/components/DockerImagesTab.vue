@@ -207,7 +207,7 @@ function getImageName(image: DockerImage) {
           <template #footer>
             <div class="docker-card-actions">
               <NButton size="tiny" quaternary @click="controller.openImageTagDialog(image)"
-                >Tag</NButton
+                >标签</NButton
               >
               <NButton
                 size="tiny"

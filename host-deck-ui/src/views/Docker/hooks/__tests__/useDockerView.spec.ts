@@ -77,7 +77,7 @@ describe('useDockerView dangerous actions', () => {
         connectionId: 'conn-1',
         host: 'host.example',
         startupCommand: 'docker exec -it container-1 bash || docker exec -it container-1 sh',
-        title: 'Shell · web',
+        title: '容器终端 · web',
         username: 'deploy',
       },
       {

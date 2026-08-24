@@ -166,7 +166,7 @@ async function submitCreate() {
         <template #footer>
           <div class="docker-card-actions">
             <NButton size="tiny" quaternary @click="controller.viewVolumeInspect(volume)"
-              >Inspect</NButton
+              >检查</NButton
             >
             <NButton
               size="tiny"

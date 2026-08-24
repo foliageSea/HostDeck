@@ -334,7 +334,7 @@ function isBuiltInNetwork(network: DockerNetwork) {
         <template #footer>
           <div class="docker-card-actions">
             <NButton size="tiny" quaternary @click="controller.viewNetworkInspect(network)"
-              >Inspect</NButton
+              >检查</NButton
             >
             <NButton size="tiny" quaternary @click="openConnectDialog(network, false)"
               >连接容器</NButton

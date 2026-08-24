@@ -25,10 +25,10 @@ function getContainerRowMoreActionOptions(container: DockerContainer) {
 
   return [
     { key: 'logs', label: '日志' },
-    { key: 'shell', label: 'Shell', disabled: !isRunning },
+    { key: 'shell', label: '终端', disabled: !isRunning },
     { key: 'divider-1', type: 'divider' },
     { key: 'pause-toggle', label: paused ? '恢复' : '暂停', disabled: !isRunning },
-    { key: 'inspect', label: 'Inspect' },
+    { key: 'inspect', label: '检查' },
     { key: 'edit', label: '编辑', disabled: isRunning },
     { key: 'rename', label: '重命名' },
     { key: 'recreate', label: '重建' },

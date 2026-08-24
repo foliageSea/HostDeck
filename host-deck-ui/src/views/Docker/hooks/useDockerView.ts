@@ -727,7 +727,7 @@ export function useDockerView(props: DockerViewProps) {
   async function viewInspect(container: DockerContainer) {
     inspectVisible.value = true
     inspectLoading.value = true
-    inspectTitle.value = `Inspect · ${container.name}`
+    inspectTitle.value = `容器检查 · ${container.name}`
     inspectContent.value = null
 
     try {
@@ -737,7 +737,7 @@ export function useDockerView(props: DockerViewProps) {
       )
     } catch (error) {
       console.error('Failed to inspect container', error)
-      getUiApi().message.error(error instanceof Error ? error.message : 'Inspect 加载失败。')
+      getUiApi().message.error(error instanceof Error ? error.message : '容器检查信息加载失败。')
     } finally {
       inspectLoading.value = false
     }
@@ -745,7 +745,7 @@ export function useDockerView(props: DockerViewProps) {
 
   async function enterShell(container: DockerContainer) {
     if (container.state !== 'running') {
-      getUiApi().message.error('容器未运行，无法进入 Shell。')
+      getUiApi().message.error('容器未运行，无法进入终端。')
       return
     }
 
@@ -758,14 +758,14 @@ export function useDockerView(props: DockerViewProps) {
           connectionId,
           host: props.host ?? sshStore.host,
           startupCommand: `docker exec -it ${container.id} bash || docker exec -it ${container.id} sh`,
-          title: `Shell · ${container.name}`,
+          title: `容器终端 · ${container.name}`,
           username: props.username ?? sshStore.username,
         },
         childWindowOptions,
       )
     } catch (error) {
       console.error('Failed to enter container shell', error)
-      getUiApi().message.error(error instanceof Error ? error.message : '进入容器 Shell 失败。')
+      getUiApi().message.error(error instanceof Error ? error.message : '进入容器终端失败。')
     }
   }
 
@@ -1333,7 +1333,7 @@ export function useDockerView(props: DockerViewProps) {
   async function viewNetworkInspect(network: DockerNetwork) {
     inspectVisible.value = true
     inspectLoading.value = true
-    inspectTitle.value = `Network Inspect · ${network.name}`
+    inspectTitle.value = `网络检查 · ${network.name}`
     inspectContent.value = null
 
     try {
@@ -1343,7 +1343,7 @@ export function useDockerView(props: DockerViewProps) {
       )
     } catch (error) {
       console.error('Failed to inspect network', error)
-      getUiApi().message.error(error instanceof Error ? error.message : '网络 Inspect 加载失败。')
+      getUiApi().message.error(error instanceof Error ? error.message : '网络检查信息加载失败。')
     } finally {
       inspectLoading.value = false
     }
@@ -1352,7 +1352,7 @@ export function useDockerView(props: DockerViewProps) {
   async function viewVolumeInspect(volume: DockerVolume) {
     inspectVisible.value = true
     inspectLoading.value = true
-    inspectTitle.value = `Volume Inspect · ${volume.name}`
+    inspectTitle.value = `存储卷检查 · ${volume.name}`
     inspectContent.value = null
 
     try {
@@ -1362,7 +1362,7 @@ export function useDockerView(props: DockerViewProps) {
       )
     } catch (error) {
       console.error('Failed to inspect volume', error)
-      getUiApi().message.error(error instanceof Error ? error.message : '存储卷 Inspect 加载失败。')
+      getUiApi().message.error(error instanceof Error ? error.message : '存储卷检查信息加载失败。')
     } finally {
       inspectLoading.value = false
     }

@@ -104,7 +104,7 @@ const stopped = (project: DockerComposeProject) => {
             type="error"
             :loading="controller.composeActionLoadingMap[project.name]"
             @click="controller.confirmComposeProjectAction(project, 'down')"
-            >Down</NButton
+            >下线</NButton
           >
           <NButton
             v-if="stopped(project)"
