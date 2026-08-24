@@ -19,6 +19,10 @@ class DockerEngineMapper {
         <Map<String, dynamic>>[];
     final networkSettings = _asMap(json['NetworkSettings']);
     final networks = _asMap(networkSettings['Networks']);
+    final labels = _asMap(json['Labels']);
+    final composeProject = (labels['com.docker.compose.project'] ?? '')
+        .toString()
+        .trim();
 
     return DockerContainer(
       id: (json['Id'] ?? '').toString(),
@@ -28,6 +32,7 @@ class DockerEngineMapper {
       state: (json['State'] ?? '').toString(),
       ports: _formatContainerPorts(ports),
       networks: _mapContainerNetworks(networks),
+      composeProject: composeProject.isEmpty ? null : composeProject,
       createdAt: _parseUnixTimestamp(json['Created']),
     );
   }

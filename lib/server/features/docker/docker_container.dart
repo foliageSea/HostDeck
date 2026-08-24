@@ -6,6 +6,7 @@ class DockerContainer {
   final String state;
   final List<String> ports;
   final List<DockerContainerNetwork> networks;
+  final String? composeProject;
   final DateTime? createdAt;
 
   DockerContainer({
@@ -16,6 +17,7 @@ class DockerContainer {
     required this.state,
     this.ports = const [],
     this.networks = const [],
+    this.composeProject,
     this.createdAt,
   });
 
@@ -27,6 +29,7 @@ class DockerContainer {
     'state': state,
     'ports': ports,
     'networks': networks.map((item) => item.toJson()).toList(),
+    'composeProject': composeProject,
     'createdAt': createdAt?.toIso8601String(),
   };
 
@@ -48,6 +51,7 @@ class DockerContainer {
               )
               .toList() ??
           const [],
+      composeProject: json['composeProject'] as String?,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,

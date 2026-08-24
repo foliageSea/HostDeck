@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 
-const { openWindow, warning } = vi.hoisted(() => ({
+const { listContainers, openWindow, warning } = vi.hoisted(() => ({
+  listContainers: vi.fn(),
   openWindow: vi.fn(),
   warning: vi.fn(),
 }))
 
-vi.mock('@/api/docker', () => ({ dockerApi: {} }))
+vi.mock('@/api/docker', () => ({ dockerApi: { listContainers } }))
 vi.mock('@/lib/ui', () => ({
   getUiApi: () => ({
     dialog: { warning },
@@ -123,6 +124,43 @@ describe('useDockerView dangerous actions', () => {
         resizable: false,
       },
     )
+  })
+})
+
+describe('useDockerView container filters', () => {
+  it('loads containers by compose project and exposes all project options', async () => {
+    listContainers.mockReset()
+    listContainers.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 8,
+      total: 0,
+      totalPages: 0,
+      summary: {
+        total: 3,
+        running: 2,
+        stopped: 1,
+        composeProjects: ['infra', 'website'],
+      },
+    })
+    const controller = useDockerView({ connectionId: 'conn-1', host: 'host.example' })
+
+    controller.setContainerComposeProjectFilter('website')
+
+    await vi.waitFor(() => {
+      expect(listContainers).toHaveBeenCalledWith('conn-1', {
+        composeProject: 'website',
+        keyword: undefined,
+        page: 1,
+        pageSize: 8,
+        status: 'all',
+      })
+    })
+    expect(controller.containerComposeProjectOptions.value).toEqual([
+      { label: '全部编排', value: '' },
+      { label: 'infra', value: 'infra' },
+      { label: 'website', value: 'website' },
+    ])
   })
 })
 

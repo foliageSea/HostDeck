@@ -15,6 +15,7 @@ export interface DockerContainer {
   state: string
   ports: string[]
   networks: DockerContainerNetwork[]
+  composeProject?: string
   createdAt?: string
 }
 
@@ -49,6 +50,7 @@ export interface DockerContainerListParams {
   page?: number
   pageSize?: number
   status?: DockerContainerStatusFilter
+  composeProject?: string
   keyword?: string
 }
 
@@ -62,6 +64,7 @@ export interface DockerContainerSummary {
   total: number
   running: number
   stopped: number
+  composeProjects: string[]
 }
 
 export interface DockerImageSummary {

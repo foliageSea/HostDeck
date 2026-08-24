@@ -302,6 +302,7 @@ class DockerController {
   Future<Response> listContainers(Request request) async {
     final pagination = _parsePagination(request);
     final statusFilter = request.url.queryParameters['status'] ?? 'all';
+    final composeProject = request.url.queryParameters['composeProject'] ?? '';
     final keyword = request.url.queryParameters['keyword'] ?? '';
     return _withSession(request, (session) async {
       try {
@@ -310,8 +311,19 @@ class DockerController {
             .where(
               (container) => _matchesContainerStatus(container, statusFilter),
             )
+            .where(
+              (container) =>
+                  _matchesContainerComposeProject(container, composeProject),
+            )
             .where((container) => _matchesContainerKeyword(container, keyword))
             .toList();
+        final composeProjects =
+            containers
+                .map((container) => container.composeProject)
+                .whereType<String>()
+                .toSet()
+                .toList()
+              ..sort();
         return Result.ok(
           _pageResponse(
             filteredContainers,
@@ -325,6 +337,7 @@ class DockerController {
               'stopped': containers
                   .where((container) => container.state != 'running')
                   .length,
+              'composeProjects': composeProjects,
             },
           ),
         );
@@ -1234,11 +1247,20 @@ class DockerController {
       container.image,
       container.status,
       container.state,
+      container.composeProject ?? '',
       ...container.ports,
       ...container.networks.expand(
         (network) => [network.name, network.ipAddress],
       ),
     ].any((value) => value.toLowerCase().contains(query));
+  }
+
+  bool _matchesContainerComposeProject(
+    DockerContainer container,
+    String composeProject,
+  ) {
+    final project = composeProject.trim();
+    return project.isEmpty || container.composeProject == project;
   }
 
   bool _matchesImageKeyword(DockerImage image, String keyword) {

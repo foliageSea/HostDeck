@@ -5,6 +5,29 @@ void main() {
   group('DockerEngineMapper', () {
     final mapper = DockerEngineMapper();
 
+    test('maps compose project label from container summary', () {
+      final container = mapper.mapContainerSummary({
+        'Id': 'container-1',
+        'Names': ['/web'],
+        'Image': 'nginx:latest',
+        'Status': 'Up 1 minute',
+        'State': 'running',
+        'Labels': {'com.docker.compose.project': 'website'},
+      });
+
+      expect(container.composeProject, 'website');
+      expect(container.toJson()['composeProject'], 'website');
+    });
+
+    test('leaves compose project empty for standalone containers', () {
+      final container = mapper.mapContainerSummary({
+        'Id': 'container-1',
+        'Names': ['/web'],
+      });
+
+      expect(container.composeProject, isNull);
+    });
+
     test('maps image summaries into repo-tag rows', () {
       final images = mapper.mapImageSummaries(
         [

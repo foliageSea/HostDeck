@@ -51,10 +51,16 @@ export function useDockerView(props: DockerViewProps) {
   const containers = ref<DockerContainer[]>([])
   const containerSearchKeyword = ref('')
   const containerStatusFilter = ref<DockerContainerStatusFilter>('all')
+  const containerComposeProjectFilter = ref('')
   const containerPage = ref(1)
   const containerPageSize = ref(8)
   const containerTotal = ref(0)
-  const containerSummary = ref<DockerContainerSummary>({ total: 0, running: 0, stopped: 0 })
+  const containerSummary = ref<DockerContainerSummary>({
+    total: 0,
+    running: 0,
+    stopped: 0,
+    composeProjects: [],
+  })
   const images = ref<DockerImage[]>([])
   const imageSearchKeyword = ref('')
   const imagePage = ref(1)
@@ -125,6 +131,10 @@ export function useDockerView(props: DockerViewProps) {
     { label: '重启中', value: 'restarting' },
     { label: '已退出', value: 'exited' },
   ]
+  const containerComposeProjectOptions = computed(() => [
+    { label: '全部编排', value: '' },
+    ...containerSummary.value.composeProjects.map((project) => ({ label: project, value: project })),
+  ])
   const selectedStoppedIds = computed(() =>
     containers.value
       .filter((item) => selectedContainerIds.value.includes(item.id) && item.state !== 'running')
@@ -198,6 +208,10 @@ export function useDockerView(props: DockerViewProps) {
 
   function setContainerStatusFilter(value: DockerContainerStatusFilter) {
     containerStatusFilter.value = value
+  }
+
+  function setContainerComposeProjectFilter(value: string) {
+    containerComposeProjectFilter.value = value
   }
 
   function setContainerSearchKeyword(value: string) {
@@ -331,7 +345,7 @@ export function useDockerView(props: DockerViewProps) {
     composeActionLoadingMap.value = {}
     containerTotal.value = 0
     imageTotal.value = 0
-    containerSummary.value = { total: 0, running: 0, stopped: 0 }
+    containerSummary.value = { total: 0, running: 0, stopped: 0, composeProjects: [] }
     imageSummary.value = { total: 0, dangling: 0 }
     selectedContainerIds.value = []
     imageExportingMap.value = {}
@@ -348,6 +362,7 @@ export function useDockerView(props: DockerViewProps) {
         page,
         pageSize,
         status: containerStatusFilter.value,
+        composeProject: containerComposeProjectFilter.value || undefined,
         keyword: containerSearchKeyword.value.trim() || undefined,
       }),
     )
@@ -363,6 +378,7 @@ export function useDockerView(props: DockerViewProps) {
       total: result.total,
       running: 0,
       stopped: 0,
+      composeProjects: [],
     }
     selectedContainerIds.value = selectedContainerIds.value.filter((id) =>
       result.items.some((container) => container.id === id),
@@ -1578,6 +1594,14 @@ export function useDockerView(props: DockerViewProps) {
     )
   })
 
+  watch(containerComposeProjectFilter, async () => {
+    selectedContainerIds.value = []
+    await loadDockerSection(
+      () => loadContainersPage(1, containerPageSize.value),
+      '加载容器列表失败。',
+    )
+  })
+
   watch(containerSearchKeyword, async () => {
     selectedContainerIds.value = []
     await loadDockerSection(
@@ -1611,6 +1635,8 @@ export function useDockerView(props: DockerViewProps) {
     confirmRemoveVolume,
     containerPage,
     containerPagination,
+    containerComposeProjectFilter,
+    containerComposeProjectOptions,
     containers,
     containerSearchKeyword,
     containerStatusFilter,
@@ -1693,6 +1719,7 @@ export function useDockerView(props: DockerViewProps) {
     selectedContainerIds,
     setActiveTab,
     setContainerSearchKeyword,
+    setContainerComposeProjectFilter,
     setContainerStatusFilter,
     setImageSearchKeyword,
     stoppedContainers,

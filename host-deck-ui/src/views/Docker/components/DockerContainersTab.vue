@@ -139,7 +139,7 @@ function isPaused(container: DockerContainer) {
   >
     <DockerTabToolbar>
       <template #left>
-        <div class="flex gap-1 items-center">
+        <div class="flex flex-wrap gap-1 items-center">
           <NInput
             :value="controller.containerSearchKeyword"
             clearable
@@ -152,6 +152,12 @@ function isPaused(container: DockerContainer) {
             class="w-[128px]"
             :options="controller.containerStatusOptions"
             @update:value="controller.setContainerStatusFilter"
+          />
+          <NSelect
+            :value="controller.containerComposeProjectFilter"
+            class="w-[148px]"
+            :options="controller.containerComposeProjectOptions"
+            @update:value="controller.setContainerComposeProjectFilter"
           />
           <NDropdown
             trigger="click"
@@ -242,6 +248,10 @@ function isPaused(container: DockerContainer) {
             <div class="docker-card-field">
               <span>创建时间</span>
               <strong>{{ controller.formatTime(container.createdAt) }}</strong>
+            </div>
+            <div v-if="container.composeProject" class="docker-card-field wide">
+              <span>编排</span>
+              <strong :title="container.composeProject">{{ container.composeProject }}</strong>
             </div>
             <div class="docker-card-field wide">
               <span>网络</span>
