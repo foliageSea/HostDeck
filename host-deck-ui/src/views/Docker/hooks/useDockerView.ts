@@ -352,7 +352,10 @@ export function useDockerView(props: DockerViewProps) {
       }),
     )
 
-    containers.value = result.items
+    containers.value = result.items.map((container) => ({
+      ...container,
+      ports: container.ports.filter((port) => !port.trimStart().startsWith(':::')),
+    }))
     containerPage.value = result.page
     containerPageSize.value = result.pageSize
     containerTotal.value = result.total
