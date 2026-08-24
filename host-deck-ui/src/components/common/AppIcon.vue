@@ -16,6 +16,7 @@ import {
   Time,
 } from '@vicons/carbon'
 import { LogoDocker } from '@vicons/ionicons5'
+import { ScrollText } from '@lucide/vue'
 import type { Component } from 'vue'
 import type { AppIconKey } from '@/types/desktop'
 
@@ -42,7 +43,7 @@ const iconMap: Record<AppIconKey, Component> = {
   media: Image,
   opencode: ApplicationWeb,
   'operation-log': ListBoxes,
-  'realtime-log': Terminal,
+  'realtime-log': ScrollText,
   process: Activity,
   'port-forward': Connect,
   runtime: ApplicationWeb,
