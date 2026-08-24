@@ -131,8 +131,12 @@ function toggleDockPin(appId: DesktopAppId) {
                 @click="openApp(app.id)"
               >
                 <span
-                  class="app-radius-card flex h-[76px] w-[76px] items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.3)] transition-transform duration-150 group-hover:scale-[1.06] group-active:scale-[0.96]"
-                  :class="settingsStore.isDark ? 'bg-[#000]' : 'bg-[#fff]'"
+                  class="app-radius-card flex h-[76px] w-[76px] items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.3)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(145%)] transition-transform duration-150 group-hover:scale-[1.06] group-active:scale-[0.96]"
+                  :class="
+                    settingsStore.isDark
+                      ? 'bg-[rgba(2,6,23,0.44)]'
+                      : 'bg-[rgba(255,255,255,0.46)]'
+                  "
                 >
                   <AppIcon :color="iconColors[app.id]" :name="app.icon" :size="38" />
                 </span>
