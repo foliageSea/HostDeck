@@ -661,7 +661,7 @@ onMounted(async () => {
                 :loading="isSavingServer"
                 :disabled="!canSaveServer"
               >
-                {{ serverEditorMode === 'create' ? '保存服务器配置' : '更新服务器配置' }}
+                {{ serverEditorMode === 'create' ? '保存' : '更新' }}
               </NButton>
             </div>
           </div>
