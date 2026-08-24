@@ -54,7 +54,7 @@ describe('DesktopShell', () => {
     wrapper.unmount()
   })
 
-  it('uses Command+` to switch windows on macOS', () => {
+  it('uses Command+` or Control+` to switch windows on macOS', () => {
     setPlatform('MacIntel')
     const desktopStore = useDesktopStore()
     const firstWindowId = desktopStore.openWindow('settings')!
@@ -63,6 +63,12 @@ describe('DesktopShell', () => {
 
     dispatchKeyboardEvent('keydown', { code: 'Backquote', key: '`', metaKey: true })
     dispatchKeyboardEvent('keyup', { key: 'Meta' })
+
+    expect(desktopStore.activeWindowId).toBe(firstWindowId)
+
+    desktopStore.focusWindow(secondWindowId)
+    dispatchKeyboardEvent('keydown', { code: 'Backquote', key: '`', ctrlKey: true })
+    dispatchKeyboardEvent('keyup', { key: 'Control' })
 
     expect(desktopStore.activeWindowId).toBe(firstWindowId)
 

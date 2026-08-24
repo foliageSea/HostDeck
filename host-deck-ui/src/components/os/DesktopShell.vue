@@ -87,7 +87,7 @@ function handleKeyDown(event: KeyboardEvent) {
   const isSwitchKey =
     event.code === 'Backquote' &&
     (isMacOS.value
-      ? event.metaKey && !event.altKey && !event.ctrlKey
+      ? (event.metaKey || event.ctrlKey) && !event.altKey
       : event.altKey && !event.metaKey && !event.ctrlKey)
   if (!isSwitchKey) {
     return
@@ -118,7 +118,9 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 function handleKeyUp(event: KeyboardEvent) {
-  const isSwitchModifierReleased = isMacOS.value ? event.key === 'Meta' : event.key === 'Alt'
+  const isSwitchModifierReleased = isMacOS.value
+    ? event.key === 'Meta' || event.key === 'Control'
+    : event.key === 'Alt'
   if (isSwitchModifierReleased && switcherVisible.value) {
     selectWindow(switcherIndex.value)
   }
