@@ -11,7 +11,16 @@ export interface UploadedWallpaper {
   url: string
 }
 
+export interface ServiceVersion {
+  version: string
+}
+
 export const settingsApi = {
+  getServiceVersion: async () => {
+    const response = await http.get<ServiceVersion>('/api/settings/version')
+    return response.data
+  },
+
   getUiSettings: async () => {
     const response = await http.get<UiSettingsPayload>('/api/settings/ui')
     return response.data

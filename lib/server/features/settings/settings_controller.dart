@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
 
+import 'package:host_deck/server/app/server_runtime.dart';
 import 'package:host_deck/server/core/http/result.dart';
 import 'package:host_deck/server/features/settings/log_export_service.dart';
 import 'package:host_deck/utils/app_settings.dart';
@@ -14,6 +15,14 @@ class SettingsController {
   final LogExportService _logExportService;
 
   SettingsController(this._logExportService);
+
+  Future<Response> getServiceVersion(Request request) async {
+    try {
+      return Result.ok({'version': await resolveAppVersion()});
+    } catch (_) {
+      return Result.fail(500, '获取后端服务版本失败。');
+    }
+  }
 
   Future<Response> getUiSettings(Request request) async {
     try {

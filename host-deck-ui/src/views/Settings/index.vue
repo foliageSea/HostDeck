@@ -8,10 +8,12 @@ import { getUiApi } from '@/lib/ui'
 import WallpaperSection from './components/WallpaperSection.vue'
 import { useWallpaperSettings } from './hooks/useWallpaperSettings'
 
-const appVersion = __APP_VERSION__
+const uiVersion = __APP_VERSION__
 
 const controller = useWallpaperSettings()
 const { settingsStore } = controller
+const serviceVersion = ref<string>()
+const serviceVersionLoading = ref(true)
 const clearingBrowserCache = ref(false)
 const externalAccess = ref(false)
 const externalAccessLoading = ref(false)
@@ -22,6 +24,14 @@ const canManageExternalAccess = computed(() =>
 )
 
 onMounted(async () => {
+  try {
+    serviceVersion.value = (await settingsApi.getServiceVersion()).version
+  } catch {
+    serviceVersion.value = undefined
+  } finally {
+    serviceVersionLoading.value = false
+  }
+
   if (canManageExternalAccess.value) {
     externalAccess.value = (await window.hostDeck?.app?.getExternalAccess()) ?? false
   }
@@ -224,7 +234,21 @@ async function exportLogs() {
                   当前 UI 版本
                 </div>
               </div>
-              <NTag type="info" size="small" :bordered="false">v{{ appVersion }}</NTag>
+              <NTag type="info" size="small" :bordered="false">v{{ uiVersion }}</NTag>
+            </div>
+
+            <div
+              class="app-radius-item flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
+            >
+              <div>
+                <div class="text-[14px] font-600">后端服务版本</div>
+                <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
+                  当前连接的 HostDeck 服务版本
+                </div>
+              </div>
+              <NTag type="success" size="small" :bordered="false">
+                {{ serviceVersionLoading ? '获取中' : serviceVersion ? `v${serviceVersion}` : '获取失败' }}
+              </NTag>
             </div>
 
             <div

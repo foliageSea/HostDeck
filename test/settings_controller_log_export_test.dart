@@ -23,6 +23,21 @@ void main() {
     }
   });
 
+  test('returns the backend service version', () async {
+    final controller = SettingsController(
+      LogExportService(logDirectory: logDirectory),
+    );
+
+    final response = await controller.getServiceVersion(
+      Request('GET', Uri.parse('http://localhost/api/settings/version')),
+    );
+    final payload = jsonDecode(await response.readAsString());
+
+    expect(response.statusCode, HttpStatus.ok);
+    expect(payload['code'], HttpStatus.ok);
+    expect(payload['data']['version'], isNotEmpty);
+  });
+
   test('returns the log archive as a non-cacheable attachment', () async {
     await File(
       p.join(logDirectory.path, 'hostdeck-server-2026-08-06.log'),
