@@ -390,15 +390,15 @@ function openLaunchpad() {
                 @keydown="handleTriggerKeydown($event, app.id)"
               >
                 <AppIcon :name="app.icon" :size="42" themed />
-                <span
-                  v-if="isAppOpen(app.id)"
-                  class="absolute bottom-[4px] left-1/2 h-[6px] w-[6px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]"
-                  aria-hidden="true"
-                />
               </div>
             </template>
             {{ app.title }}
           </NTooltip>
+          <span
+            v-if="isAppOpen(app.id)"
+            class="dock-running-indicator absolute bottom-[-7px] left-1/2 h-[5px] w-[5px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]"
+            aria-hidden="true"
+          />
         </div>
       </TransitionGroup>
 
