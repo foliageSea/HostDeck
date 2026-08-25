@@ -18,7 +18,7 @@ const settingsStore = useSettingsStore()
     class="app-radius-surface details-panel rounded-[16px]"
     :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.56)]' : 'bg-[rgba(255,255,255,0.84)]'"
   >
-    <div class="flex min-w-0 items-center gap-[12px] whitespace-nowrap">
+    <div class="flex min-w-0 items-baseline gap-[12px] whitespace-nowrap">
       <span
         class="flex-none text-[12px]"
         :class="
