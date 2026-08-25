@@ -44,7 +44,7 @@ class PortForwardRepository {
         updatedAt: now,
       );
     } finally {
-      stmt.dispose();
+      stmt.close();
     }
   }
 
@@ -66,7 +66,7 @@ class PortForwardRepository {
       ]);
       return _dbService.db.updatedRows > 0;
     } finally {
-      stmt.dispose();
+      stmt.close();
     }
   }
 

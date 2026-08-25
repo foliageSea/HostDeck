@@ -39,7 +39,7 @@ dependencies:
   shelf_plus: ^1.11.0
   shelf_web_socket: ^3.0.0
   dartssh2: ^2.22.0
-  sqlite3: ^2.9.4
+  sqlite3: ^3.5.2
   shelf: ^1.4.2
   shelf_router: ^1.1.4
   web_socket_channel: ^3.0.3

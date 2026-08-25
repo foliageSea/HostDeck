@@ -63,7 +63,7 @@ class ServerRepository {
         createdAt: now,
       );
     } finally {
-      stmt.dispose();
+      stmt.close();
     }
   }
 
@@ -83,7 +83,7 @@ class ServerRepository {
       ]);
       return _dbService.db.updatedRows > 0;
     } finally {
-      stmt.dispose();
+      stmt.close();
     }
   }
 
