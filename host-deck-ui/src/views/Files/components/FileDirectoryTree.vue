@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from 'vue'
+import { CollapseAll } from '@vicons/carbon'
 import { type TreeOption } from 'naive-ui'
 import { filesApi } from '@/api/files'
 import { resolve } from '@/utils/path'
@@ -29,6 +30,7 @@ const loadPromises = new Map<string, Promise<boolean>>()
 let loadGeneration = 0
 
 const selectedKeys = computed(() => [props.currentPath])
+const canCollapseToFirstLevel = computed(() => expandedKeys.value.some((path) => path !== '/'))
 
 function createRootNode(): DirectoryTreeOption {
   return {
@@ -166,6 +168,10 @@ function handleExpandedKeys(keys: Array<string | number>) {
   expandedKeys.value = keys.map(String)
 }
 
+function collapseToFirstLevel() {
+  expandedKeys.value = ['/']
+}
+
 function handleSelectedKeys(keys: Array<string | number>) {
   const path = keys[0]
   if (path !== undefined && path !== props.currentPath) {
@@ -194,6 +200,26 @@ watch(
     <NAlert v-if="loadingError" type="error" :show-icon="false" class="mb-[8px]">
       {{ loadingError }}
     </NAlert>
+    <div class="flex justify-end pb-[6px] pr-[4px]">
+      <NTooltip>
+        <template #trigger>
+          <NButton
+            quaternary
+            size="tiny"
+            aria-label="收起一级目录以下的目录"
+            :disabled="!canCollapseToFirstLevel"
+            @click="collapseToFirstLevel"
+          >
+            <template #icon>
+              <NIcon>
+                <CollapseAll />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        收起一级目录以下的目录
+      </NTooltip>
+    </div>
     <NScrollbar class="min-h-0 flex-1 app-scrollbar app-scrollbar-compact">
       <NTree
         block-line

@@ -41,7 +41,15 @@ function createWrapper(currentPath = '/') {
     global: {
       stubs: {
         NAlert: defineComponent({ template: '<div><slot /></div>' }),
+        NButton: defineComponent({
+          props: ['disabled'],
+          emits: ['click'],
+          template:
+            '<button :disabled="disabled" @click="$emit(\'click\')"><slot name="icon" /><slot /></button>',
+        }),
+        NIcon: defineComponent({ template: '<span><slot /></span>' }),
         NScrollbar: defineComponent({ template: '<div><slot /></div>' }),
+        NTooltip: defineComponent({ template: '<div><slot name="trigger" /><slot /></div>' }),
         NTree: TreeStub,
       },
     },
@@ -119,6 +127,22 @@ describe('FileDirectoryTree', () => {
     expect(getTree(wrapper).props('data')[0].children[0].children[0].children).toMatchObject([
       { key: '/var/log/nginx' },
     ])
+  })
+
+  it('collapses directories below the first level with one click', async () => {
+    vi.mocked(filesApi.list)
+      .mockResolvedValueOnce([directory('var')])
+      .mockResolvedValueOnce([directory('log')])
+      .mockResolvedValueOnce([])
+
+    const wrapper = createWrapper('/var/log')
+    await flushPromises()
+
+    expect(getTree(wrapper).props('expandedKeys')).toEqual(['/', '/var', '/var/log'])
+
+    await wrapper.get('[aria-label="收起一级目录以下的目录"]').trigger('click')
+
+    expect(getTree(wrapper).props('expandedKeys')).toEqual(['/'])
   })
 
   it('emits an absolute path when a directory is selected', async () => {
