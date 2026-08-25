@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Examples:
+#   ./dev.sh
+#   ./dev.sh --backend-port 9000 --frontend-port 5179
+#   HOSTDECK_ACCESS_PASSWORD='change-me' ./dev.sh --backend-host 0.0.0.0 --backend-port 9000 --frontend-port 5179
+
 set -euo pipefail
 
 backend_host="127.0.0.1"
@@ -71,15 +76,33 @@ if ! is_integer_in_range "$frontend_port" 1 65535; then
   exit 1
 fi
 
-if [[ "$backend_host" == "localhost" ]]; then
+if [[ "$backend_host" == "0.0.0.0" || "$backend_host" == "::" || "$backend_host" == "[::]" ]]; then
+  backend_connect_host="127.0.0.1"
+  backend_url_host="127.0.0.1"
+elif [[ "$backend_host" == "localhost" ]]; then
+  backend_connect_host="localhost"
   backend_url_host="localhost"
+elif [[ "$backend_host" == "[::1]" ]]; then
+  backend_connect_host="::1"
+  backend_url_host="[::1]"
 elif [[ "$backend_host" == *:* ]]; then
+  backend_connect_host="$backend_host"
   backend_url_host="[$backend_host]"
 else
+  backend_connect_host="$backend_host"
   backend_url_host="$backend_host"
 fi
 
 backend_url="http://${backend_url_host}:${backend_port}"
+
+if [[ "$backend_host" != "127.0.0.1" && "$backend_host" != "localhost" && \
+  "$backend_host" != "::1" && "$backend_host" != "[::1]" ]] && \
+  [[ -z "${HOSTDECK_ACCESS_PASSWORD:-}" && -z "${HOSTDECK_API_TOKEN:-}" ]]; then
+  printf '%s\n' \
+    'Non-loopback binding requires HOSTDECK_ACCESS_PASSWORD or HOSTDECK_API_TOKEN.' \
+    "Example: HOSTDECK_ACCESS_PASSWORD='change-me' $0 --backend-host $backend_host --backend-port $backend_port --frontend-port $frontend_port" >&2
+  exit 1
+fi
 
 if ! is_integer_in_range "$startup_timeout_seconds" 1 300; then
   printf '%s\n' '--startup-timeout-seconds must be between 1 and 300.' >&2
@@ -87,7 +110,7 @@ if ! is_integer_in_range "$startup_timeout_seconds" 1 300; then
 fi
 
 test_tcp_port() {
-  nc -z -w 1 "$backend_host" "$backend_port" >/dev/null 2>&1
+  nc -z -w 1 "$backend_connect_host" "$backend_port" >/dev/null 2>&1
 }
 
 stop_process_tree() {
@@ -133,7 +156,8 @@ start_backend() {
     return 1
   fi
 
-  printf 'Starting backend at %s ...\n' "$backend_url"
+  printf 'Starting backend on %s:%s (local proxy: %s) ...\n' \
+    "$backend_host" "$backend_port" "$backend_url"
   (
     cd "$project_root"
     exec fvm dart run --enable-experiment=native-assets bin/server.dart \
