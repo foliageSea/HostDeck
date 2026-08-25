@@ -147,7 +147,7 @@ onBeforeUnmount(stopResize)
           class="h-full app-scrollbar app-scrollbar-compact"
           :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'"
         >
-          <div class="flex flex-col gap-[8px] pr-[10px]">
+          <div class="flex flex-col gap-[8px]">
             <div
               v-for="path in favoritePaths"
               :key="path"
