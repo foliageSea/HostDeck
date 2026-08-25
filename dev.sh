@@ -187,13 +187,14 @@ start_frontend() {
   (
     cd "$project_root"
     export VITE_DEV_PROXY_TARGET="$backend_url"
-    exec pnpm --dir host-deck-ui dev -- --port "$frontend_port" --strictPort
+    exec pnpm --dir host-deck-ui dev --port "$frontend_port" --strictPort
   ) >/dev/null 2>&1 &
   frontend_pid=$!
   printf 'Frontend started (PID %s).\n' "$frontend_pid"
 }
 
 cleanup() {
+  [[ -n "$frontend_pid" || -n "$backend_pid" ]] || return
   printf 'Stopping development services ...\n'
   stop_process_tree "$frontend_pid"
   stop_process_tree "$backend_pid"

@@ -132,7 +132,7 @@ function Start-Frontend {
     try {
         $process = Start-Process `
             -FilePath "pnpm.cmd" `
-            -ArgumentList @("--dir", "host-deck-ui", "dev", "--", "--port", $FrontendPort, "--strictPort") `
+            -ArgumentList @("--dir", "host-deck-ui", "dev", "--port", $FrontendPort, "--strictPort") `
             -WorkingDirectory $projectRoot `
             -WindowStyle Hidden `
             -PassThru
