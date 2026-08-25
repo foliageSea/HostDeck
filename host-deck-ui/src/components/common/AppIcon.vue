@@ -107,6 +107,7 @@ const iconImageSrc = computed(() => {
     alt=""
     aria-hidden="true"
     class="block flex-none object-contain"
+    :class="{ 'rounded-[22%]': name === 'opencode' }"
     draggable="false"
   />
   <NIcon v-else :color="color" :size="size">
