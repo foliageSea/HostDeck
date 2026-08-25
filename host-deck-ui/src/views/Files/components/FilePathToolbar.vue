@@ -45,7 +45,7 @@ const settingsStore = useSettingsStore()
   <div class="flex flex-wrap items-center justify-between gap-[12px]">
     <div
       v-if="!editingPath"
-      class="min-w-[240px] flex-1 overflow-x-auto pb-[2px] app-scrollbar app-scrollbar-compact"
+      class="h-[34px] min-w-[240px] flex flex-1 items-center overflow-x-auto app-scrollbar app-scrollbar-compact"
       :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'"
     >
       <NBreadcrumb>
@@ -60,7 +60,7 @@ const settingsStore = useSettingsStore()
         </NBreadcrumbItem>
       </NBreadcrumb>
     </div>
-    <div v-else class="path-editor min-w-[240px] flex-1">
+    <div v-else class="path-editor h-[34px] min-w-[240px] flex-1">
       <NInput
         :value="currentPathInput"
         placeholder="输入远程路径快速跳转"
