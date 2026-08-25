@@ -370,18 +370,8 @@ function openLaunchpad() {
           <NTooltip>
             <template #trigger>
               <div
-                class="app-radius-surface dock-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 backdrop-blur-[14px] [backdrop-filter:blur(14px)_saturate(145%)] transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
-                :class="[
-                  settingsStore.isDark
-                    ? 'bg-[rgba(2,6,23,0.46)] text-[#e2e8f0]'
-                    : 'bg-[rgba(255,255,255,0.48)] text-[#1e293b]',
-                  isAppOpen(app.id)
-                    ? settingsStore.isDark
-                      ? 'bg-[rgba(2,6,23,0.58)]'
-                      : 'bg-[rgba(255,255,255,0.62)]'
-                    : '',
-                  { 'dock-item-bounce': bouncingAppId === app.id },
-                ]"
+                class="dock-item relative flex h-[52px] w-[52px] items-center justify-center border-0 bg-transparent p-0 transition-[transform,margin] duration-[180ms] ease-out cursor-pointer"
+                :class="{ 'dock-item-bounce': bouncingAppId === app.id }"
                 :style="getDockItemStyle(index, app.id)"
                 type="button"
                 :aria-label="app.title"
@@ -389,7 +379,7 @@ function openLaunchpad() {
                 @contextmenu="handleContextMenu($event, app.id)"
                 @keydown="handleTriggerKeydown($event, app.id)"
               >
-                <AppIcon :name="app.icon" :size="42" themed />
+                <AppIcon :name="app.icon" :size="52" themed />
               </div>
             </template>
             {{ app.title }}
