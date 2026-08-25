@@ -17,6 +17,7 @@ Usage: ./dev.sh [options]
 Options:
   --backend-host HOST                Backend host (default: 127.0.0.1)
   --backend-port PORT                Backend port, 1-65535 (default: 8080)
+  --frontend-port PORT               Frontend port, 1-65535 (default: 5178)
   --startup-timeout-seconds SECONDS  Startup timeout, 1-300 (default: 30)
   -h, --help                         Show this help message
 EOF
@@ -40,6 +41,10 @@ while (($#)); do
       backend_port="${2:?Missing value for --backend-port}"
       shift 2
       ;;
+    --frontend-port)
+      frontend_port="${2:?Missing value for --frontend-port}"
+      shift 2
+      ;;
     --startup-timeout-seconds)
       startup_timeout_seconds="${2:?Missing value for --startup-timeout-seconds}"
       shift 2
@@ -60,6 +65,21 @@ if ! is_integer_in_range "$backend_port" 1 65535; then
   printf '%s\n' '--backend-port must be between 1 and 65535.' >&2
   exit 1
 fi
+
+if ! is_integer_in_range "$frontend_port" 1 65535; then
+  printf '%s\n' '--frontend-port must be between 1 and 65535.' >&2
+  exit 1
+fi
+
+if [[ "$backend_host" == "localhost" ]]; then
+  backend_url_host="localhost"
+elif [[ "$backend_host" == *:* ]]; then
+  backend_url_host="[$backend_host]"
+else
+  backend_url_host="$backend_host"
+fi
+
+backend_url="http://${backend_url_host}:${backend_port}"
 
 if ! is_integer_in_range "$startup_timeout_seconds" 1 300; then
   printf '%s\n' '--startup-timeout-seconds must be between 1 and 300.' >&2
@@ -113,7 +133,7 @@ start_backend() {
     return 1
   fi
 
-  printf 'Starting backend at http://%s:%s ...\n' "$backend_host" "$backend_port"
+  printf 'Starting backend at %s ...\n' "$backend_url"
   (
     cd "$project_root"
     exec fvm dart run --enable-experiment=native-assets bin/server.dart \
@@ -142,7 +162,8 @@ start_frontend() {
   printf 'Starting frontend at http://localhost:%s ...\n' "$frontend_port"
   (
     cd "$project_root"
-    exec pnpm --dir host-deck-ui dev
+    export VITE_DEV_PROXY_TARGET="$backend_url"
+    exec pnpm --dir host-deck-ui dev -- --port "$frontend_port" --strictPort
   ) >/dev/null 2>&1 &
   frontend_pid=$!
   printf 'Frontend started (PID %s).\n' "$frontend_pid"
