@@ -498,6 +498,7 @@ class DockerController {
             'connection': 'keep-alive',
             'x-accel-buffering': 'no',
           },
+          context: const {'shelf.io.buffer_output': false},
         );
       } catch (e) {
         return Result.fail(500, e.toString());
