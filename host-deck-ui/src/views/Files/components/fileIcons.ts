@@ -23,7 +23,6 @@ import shellIconUrl from '@/assets/file-icons/mac-tahoe/application-x-shellscrip
 import spreadsheetIconUrl from '@/assets/file-icons/mac-tahoe/x-office-spreadsheet.svg'
 import tomlIconUrl from '@/assets/file-icons/mac-tahoe/application-toml.svg'
 import typescriptIconUrl from '@/assets/file-icons/mac-tahoe/text-x-typescript.svg'
-import unknownIconUrl from '@/assets/file-icons/mac-tahoe/unknown.svg'
 import videoIconUrl from '@/assets/file-icons/mac-tahoe/video-x-generic.svg'
 import xmlIconUrl from '@/assets/file-icons/mac-tahoe/text-xml.svg'
 import yamlIconUrl from '@/assets/file-icons/mac-tahoe/text-yaml.svg'
@@ -47,7 +46,7 @@ function fileIcon(src: string, previewType: FilePreviewType = null): FileIconMet
 export const directoryTreeIconUrl = folderIconUrl
 
 const folderIcon = fileIcon(folderIconUrl)
-const defaultFileIcon = fileIcon(unknownIconUrl)
+const defaultFileIcon = fileIcon(blankIconUrl)
 const archiveIcon = fileIcon(archiveIconUrl)
 const audioIcon = fileIcon(audioIconUrl)
 const blankIcon = fileIcon(blankIconUrl)
