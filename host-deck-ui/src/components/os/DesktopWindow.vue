@@ -2,7 +2,6 @@
 import { computed, onUnmounted, ref } from 'vue'
 import { Minus, RefreshCw, Square, X } from '@lucide/vue'
 import { Renew } from '@vicons/carbon'
-import AppIcon from '@/components/common/AppIcon.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useDesktopStore, type WindowState } from '@/stores/desktop'
 
@@ -217,10 +216,9 @@ onUnmounted(() => {
       <div v-else class="min-w-[36px]" />
 
       <div
-        class="pointer-events-none absolute left-1/2 flex max-w-[min(65%,calc(100%_-_140px))] min-w-0 translate-x-[-50%] items-center gap-[8px] overflow-hidden text-ellipsis whitespace-nowrap font-600"
+        class="pointer-events-none absolute left-1/2 flex max-w-[min(65%,calc(100%_-_140px))] min-w-0 translate-x-[-50%] items-center overflow-hidden text-ellipsis whitespace-nowrap font-600"
         :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
       >
-        <AppIcon :name="window.icon" :size="16" />
         <span class="overflow-hidden text-ellipsis">{{ window.title }}</span>
       </div>
 
