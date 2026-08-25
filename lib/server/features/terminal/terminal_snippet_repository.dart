@@ -28,7 +28,7 @@ class TerminalSnippetRepository {
         updatedAt: now,
       );
     } finally {
-      stmt.dispose();
+      stmt.close();
     }
   }
 
@@ -43,7 +43,7 @@ class TerminalSnippetRepository {
         return null;
       }
     } finally {
-      stmt.dispose();
+      stmt.close();
     }
 
     final result = _dbService.db.select(

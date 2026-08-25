@@ -239,7 +239,7 @@ class DatabaseService {
       }
       _log.info('Migration v2 complete: ${rows.length} server(s) updated');
     } finally {
-      stmt.dispose();
+      stmt.close();
     }
   }
 
@@ -249,6 +249,6 @@ class DatabaseService {
   }
 
   void close() {
-    _db.dispose();
+    _db.close();
   }
 }

@@ -32,7 +32,7 @@ class FileTaskRepository {
         ]);
       }
     } finally {
-      statement.dispose();
+      statement.close();
     }
   }
 
