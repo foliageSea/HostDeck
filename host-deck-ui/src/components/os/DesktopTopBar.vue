@@ -15,6 +15,7 @@ const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const desktopStore = useDesktopStore()
 const aboutVisible = ref(false)
+const appVersion = __APP_VERSION__
 
 const currentTime = computed(() =>
   new Intl.DateTimeFormat('zh-CN', {
@@ -248,10 +249,29 @@ function disconnect() {
         <div>
           <h2 class="m-0 text-[18px] font-700">HostDeck</h2>
           <p class="mb-0 mt-[4px] text-[13px] text-[rgba(100,116,139,0.9)]">远程主机工作台</p>
+          <p class="mb-0 mt-[4px] text-[12px] text-[rgba(100,116,139,0.8)]">
+            v{{ appVersion }} · GPL-3.0-only
+          </p>
         </div>
-        <NButton tag="a" href="https://github.com/foliageSea/HostDeck" target="_blank" rel="noopener noreferrer">
-          项目仓库
-        </NButton>
+        <p class="m-0 max-w-[320px] text-[12px] leading-[1.6] text-[rgba(100,116,139,0.8)]">
+          Copyright (C) 2026 FoliageSea。本程序不提供任何担保，可依 GPL-3.0-only 再分发。
+        </p>
+        <div class="flex flex-wrap justify-center gap-[8px]">
+          <NButton tag="a" href="/licenses/GPL-3.0.txt" target="_blank" rel="noopener noreferrer">
+            开源许可
+          </NButton>
+          <NButton
+            tag="a"
+            href="/licenses/THIRD_PARTY_NOTICES.txt"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            第三方许可
+          </NButton>
+          <NButton tag="a" href="https://github.com/foliageSea/HostDeck" target="_blank" rel="noopener noreferrer">
+            项目仓库
+          </NButton>
+        </div>
       </div>
     </NModal>
   </header>

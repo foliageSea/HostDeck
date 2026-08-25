@@ -18,6 +18,8 @@ APP_VERSION="$(sed -n 's/^version:[[:space:]]*//p' "$ROOT_DIR/pubspec.yaml")"
 test -n "$APP_VERSION"
 dart build cli --target bin/server.dart --output "$BUILD_DIR"
 printf '%s' "$APP_VERSION" > "$BUILD_DIR/bundle/VERSION"
+cp "$ROOT_DIR/LICENSE" "$BUILD_DIR/bundle/LICENSE"
+cp "$ROOT_DIR/THIRD_PARTY_NOTICES.md" "$BUILD_DIR/bundle/THIRD_PARTY_NOTICES.md"
 
 echo "Copying web assets..."
 rm -rf "$BUILD_DIR/bundle/web"

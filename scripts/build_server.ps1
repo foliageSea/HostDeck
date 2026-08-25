@@ -39,6 +39,8 @@ if ($versionLine -notmatch '^version:\s*(?<version>\S+)') {
 }
 Invoke-Native -Command dart -Args @('build', 'cli', '--target', 'bin/server.dart', '--output', $buildDir)
 Set-Content -LiteralPath (Join-Path $buildDir 'bundle\VERSION') -Value $Matches.version -NoNewline -Encoding ascii
+Copy-Item (Join-Path $RootDir 'LICENSE') (Join-Path $buildDir 'bundle\LICENSE')
+Copy-Item (Join-Path $RootDir 'THIRD_PARTY_NOTICES.md') (Join-Path $buildDir 'bundle\THIRD_PARTY_NOTICES.md')
 
 $targetWebDir = Join-Path $buildDir 'bundle\web'
 if (Test-Path $targetWebDir) {

@@ -2,6 +2,7 @@
   "name": "host-deck-electron",
   "private": true,
   "version": "0.3.1",
+  "license": "GPL-3.0-only",
   "main": "src/main/index.cjs",
   "scripts": {
     "dev": "vite --config vite.config.mjs",
@@ -54,6 +55,14 @@
       {
         "from": "../host-deck-ui/public/favicon.png",
         "to": "icon.png"
+      },
+      {
+        "from": "../LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "../THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
       }
     ],
     "win": {

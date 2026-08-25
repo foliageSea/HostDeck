@@ -287,4 +287,8 @@ host_deck/
 
 ## 开源协议
 
-本项目采用 [MIT License](LICENSE) 开源。
+HostDeck 自本次许可变更后的版本起采用 [GNU General Public License v3.0 only](LICENSE)
+开源。此前已经按 MIT License 发布的版本继续适用其原有许可。
+
+仓库包含按各自许可证分发的第三方素材，详情参见
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

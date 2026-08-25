@@ -43,6 +43,11 @@ jobs:
         run: flutter pub get
       - name: Build HostDeck CLI
         run: dart build cli --target bin/hostdeck_cli.dart --output build/hostdeck-cli
+      - name: Include License Notices
+        shell: pwsh
+        run: |
+          Copy-Item LICENSE build\hostdeck-cli\bundle\LICENSE
+          Copy-Item THIRD_PARTY_NOTICES.md build\hostdeck-cli\bundle\THIRD_PARTY_NOTICES.md
       - name: Archive HostDeck CLI
         shell: pwsh
         run: Compress-Archive -Path build\hostdeck-cli\bundle\* -DestinationPath host-deck-cli-windows-${{ github.ref_name }}.zip
@@ -149,6 +154,7 @@ jobs:
           push: false
           build-args: |
             HOSTDECK_VERSION=${{ steps.version.outputs.value }}
+            HOSTDECK_REVISION=${{ github.sha }}
           tags: |
             host-deck:${{ steps.version.outputs.value }}
             host-deck:latest
