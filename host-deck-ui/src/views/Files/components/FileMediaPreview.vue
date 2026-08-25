@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { FileItem } from '@/api/files'
 import { resolve } from '@/utils/path'
-import { getFileIcon, getFileIconClass, getFilePreviewType } from './fileIcons'
+import { getFileIcon, getFilePreviewType } from './fileIcons'
 
 const props = defineProps<{
   connectionId?: string | null
@@ -55,8 +55,11 @@ function handleVideoMetadata(event: Event) {
     <img
       v-if="canPreview && previewType === 'image'"
       :alt="file.filename"
-      class="h-full w-full object-cover transition-opacity duration-150"
-      :class="previewReady ? 'opacity-100' : 'opacity-0'"
+      class="object-cover transition-opacity duration-150"
+      :class="[
+        variant === 'grid' ? 'h-[60px] w-[60px] rounded-[8px]' : 'h-[28px] w-[28px] rounded-[5px]',
+        previewReady ? 'opacity-100' : 'opacity-0',
+      ]"
       decoding="async"
       loading="lazy"
       :src="mediaUrl"
@@ -66,8 +69,11 @@ function handleVideoMetadata(event: Event) {
     <video
       v-else-if="canPreview && previewType === 'video'"
       :aria-label="`${file.filename} 视频预览`"
-      class="pointer-events-none h-full w-full object-cover transition-opacity duration-150"
-      :class="previewReady ? 'opacity-100' : 'opacity-0'"
+      class="pointer-events-none object-cover transition-opacity duration-150"
+      :class="[
+        variant === 'grid' ? 'h-[60px] w-[60px] rounded-[8px]' : 'h-[28px] w-[28px] rounded-[5px]',
+        previewReady ? 'opacity-100' : 'opacity-0',
+      ]"
       muted
       playsinline
       preload="metadata"
@@ -77,19 +83,15 @@ function handleVideoMetadata(event: Event) {
       @loadedmetadata="handleVideoMetadata"
       @seeked="previewReady = true"
     />
-    <NIcon
+    <img
       v-if="!canPreview || !previewReady"
-      class="absolute"
-      :class="getFileIconClass(file)"
-      :size="variant === 'grid' ? 28 : 20"
-    >
-      <component :is="getFileIcon(file).icon" />
-    </NIcon>
+      alt=""
+      aria-hidden="true"
+      class="file-type-icon absolute object-contain"
+      :class="variant === 'grid' ? 'h-[60px] w-[60px]' : 'h-[28px] w-[28px]'"
+      decoding="async"
+      draggable="false"
+      :src="getFileIcon(file).src"
+    />
   </div>
 </template>
-
-<style scoped>
-.file-media-preview {
-  background: color-mix(in srgb, var(--app-primary-soft) 56%, transparent);
-}
-</style>

@@ -309,19 +309,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.file-icon-folder,
-.file-icon-image,
-.file-icon-video,
-.file-icon-audio,
-.file-icon-code,
-.file-icon-document,
-.file-icon-archive,
-.file-icon-data,
-.file-icon-secure,
-.file-icon-default {
-  color: var(--app-primary-color);
-}
-
 @media (max-width: 860px) {
   .file-row {
     grid-template-columns: minmax(0, 1fr);

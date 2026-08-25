@@ -3,6 +3,7 @@ import { defineComponent } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { filesApi, type FileItem } from '@/api/files'
 import FileDirectoryTree from '../FileDirectoryTree.vue'
+import { directoryTreeIconUrl } from '../fileIcons'
 
 vi.mock('@/api/files', () => ({
   filesApi: {
@@ -74,7 +75,14 @@ describe('FileDirectoryTree', () => {
         children: [{ key: '/home' }, { key: '/var' }],
       },
     ])
-    expect(getTree(wrapper).props('renderPrefix')()).toBeTruthy()
+    expect(getTree(wrapper).props('renderPrefix')()).toMatchObject({
+      type: 'img',
+      props: {
+        src: directoryTreeIconUrl,
+        width: 16,
+        height: 16,
+      },
+    })
   })
 
   it('loads child directories only when their node is expanded', async () => {

@@ -19,21 +19,6 @@ const settingsStore = useSettingsStore()
 const query = ref('')
 const searchInput = ref<HTMLInputElement | null>(null)
 
-const iconColors: Partial<Record<DesktopAppId, string>> = {
-  dashboard: '#0ea5e9',
-  docker: '#0284c7',
-  'cron-tasks': '#d97706',
-  files: '#f59e0b',
-  opencode: '#a855f7',
-  'operation-logs': '#64748b',
-  'realtime-logs': '#0891b2',
-  'port-forward': '#0891b2',
-  processes: '#16a34a',
-  'runtime-sessions': '#0d9488',
-  settings: '#64748b',
-  terminal: '#059669',
-}
-
 const apps = computed(() => {
   const normalizedQuery = query.value.trim().toLocaleLowerCase()
   return Object.values(desktopStore.apps).filter(
@@ -131,14 +116,9 @@ function toggleDockPin(appId: DesktopAppId) {
                 @click="openApp(app.id)"
               >
                 <span
-                  class="app-radius-card flex h-[76px] w-[76px] items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.3)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(145%)] transition-transform duration-150 group-hover:scale-[1.06] group-active:scale-[0.96]"
-                  :class="
-                    settingsStore.isDark
-                      ? 'bg-[rgba(2,6,23,0.44)]'
-                      : 'bg-[rgba(255,255,255,0.46)]'
-                  "
+                  class="flex h-[76px] w-[76px] items-center justify-center transition-transform duration-150 group-hover:scale-[1.06] group-active:scale-[0.96]"
                 >
-                  <AppIcon :color="iconColors[app.id]" :name="app.icon" :size="38" />
+                  <AppIcon :name="app.icon" :size="68" themed />
                 </span>
                 <span
                   class="mt-[10px] max-w-full break-words text-[0.86rem] font-500 leading-[1.3]"

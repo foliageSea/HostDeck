@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from 'vue'
-import { NIcon, type TreeOption } from 'naive-ui'
-import { Folder } from '@vicons/carbon'
+import { type TreeOption } from 'naive-ui'
 import { filesApi } from '@/api/files'
 import { resolve } from '@/utils/path'
+import { directoryTreeIconUrl } from './fileIcons'
 
 interface DirectoryTreeOption extends TreeOption {
   children?: DirectoryTreeOption[]
@@ -40,7 +40,14 @@ function createRootNode(): DirectoryTreeOption {
 }
 
 function renderDirectoryIcon() {
-  return h(NIcon, { size: 16 }, { default: () => h(Folder) })
+  return h('img', {
+    src: directoryTreeIconUrl,
+    alt: '',
+    'aria-hidden': 'true',
+    draggable: false,
+    width: 16,
+    height: 16,
+  })
 }
 
 function getDirectoryPaths(path: string) {
