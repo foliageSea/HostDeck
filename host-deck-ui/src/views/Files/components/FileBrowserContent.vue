@@ -248,16 +248,6 @@ onBeforeUnmount(() => {
             variant="grid"
           />
           <div class="max-w-full truncate-line">{{ file.filename }}</div>
-          <div
-            class="text-[12px]"
-            :class="
-              settingsStore.isDark
-                ? 'text-[rgba(148,163,184,0.9)]'
-                : 'text-[rgba(100,116,139,0.92)]'
-            "
-          >
-            {{ file.isDirectory ? '目录' : formatFileSize(file.size) }}
-          </div>
         </div>
       </div>
 
