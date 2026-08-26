@@ -159,6 +159,77 @@ void main() {
       expect(log.status, 'failed');
     });
 
+    test('records compose project creation after its done event', () async {
+      handler =
+          operationLogMiddleware(
+            OperationLogService(repository),
+            serverRepository,
+            portForwardRepository,
+          )((request) {
+            return Response.ok(
+              Stream<List<int>>.value(
+                utf8.encode('event: done\ndata: {"projectName":"website"}\n\n'),
+              ),
+              headers: {'content-type': 'text/event-stream'},
+            );
+          });
+
+      final response = await handler(
+        Request(
+          'POST',
+          Uri.parse(
+            'http://localhost/api/docker/compose/project/stream?connectionId=c1',
+          ),
+          body: '{"projectName":"website","workingDir":"/srv/website"}',
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      expect(repository.list(), isEmpty);
+      await response.readAsString();
+      final log = repository.list().single;
+      expect(log.action, 'composeCreate');
+      expect(log.target, 'website');
+      expect(log.connectionId, 'c1');
+      expect(log.status, 'success');
+    });
+
+    test('records compose project lifecycle operations', () async {
+      handler = operationLogMiddleware(
+        OperationLogService(repository),
+        serverRepository,
+        portForwardRepository,
+      )((request) => Result.ok({'success': true}));
+      const actions = ['up', 'stop', 'restart', 'down'];
+
+      for (final action in actions) {
+        await handler(
+          Request(
+            'POST',
+            Uri.parse(
+              'http://localhost/api/docker/compose/project/$action?connectionId=c1',
+            ),
+            body: '{"projectName":"website","configFiles":["compose.yml"]}',
+            headers: {'content-type': 'application/json'},
+          ),
+        );
+      }
+
+      final logs = repository.list();
+      expect(
+        logs.map((log) => log.action),
+        containsAll([
+          'composeUp',
+          'composeStop',
+          'composeRestart',
+          'composeDown',
+        ]),
+      );
+      expect(logs.map((log) => log.target), everyElement('website'));
+      expect(logs.map((log) => log.connectionId), everyElement('c1'));
+      expect(logs.map((log) => log.status), everyElement('success'));
+    });
+
     test('uses the saved host address for a connection target', () async {
       final server = serverRepository.addServer(
         ServerConfig(

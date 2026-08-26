@@ -562,6 +562,36 @@ List<_OperationPolicy> _policies(
   _OperationPolicy('POST', r'api/docker/images/prune', 'docker', 'imagePrune'),
   _OperationPolicy(
     'POST',
+    r'api/docker/compose/project/stream',
+    'docker',
+    'composeCreate',
+  ),
+  _OperationPolicy(
+    'POST',
+    r'api/docker/compose/project/up',
+    'docker',
+    'composeUp',
+  ),
+  _OperationPolicy(
+    'POST',
+    r'api/docker/compose/project/stop',
+    'docker',
+    'composeStop',
+  ),
+  _OperationPolicy(
+    'POST',
+    r'api/docker/compose/project/restart',
+    'docker',
+    'composeRestart',
+  ),
+  _OperationPolicy(
+    'POST',
+    r'api/docker/compose/project/down',
+    'docker',
+    'composeDown',
+  ),
+  _OperationPolicy(
+    'POST',
     r'api/docker/build-cache/prune',
     'docker',
     'buildCachePrune',
