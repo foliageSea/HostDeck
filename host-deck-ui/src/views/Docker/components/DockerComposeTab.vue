@@ -59,13 +59,11 @@ const stopped = (project: DockerComposeProject) => {
         :key="key(project)"
         class="compose-project-card"
       >
-        <div class="mb-[12px] flex flex-wrap items-center gap-[10px]">
-          <div class="min-w-0 flex items-center gap-[10px]">
-            <strong class="truncate text-[15px]" :title="project.name">{{ project.name }}</strong
-            ><NTag round size="small" :type="controller.getComposeStatusType(project)">{{
-              project.status || 'unknown'
-            }}</NTag>
-          </div>
+        <div class="mb-[12px] flex flex-wrap items-center justify-between gap-[10px]">
+          <strong class="min-w-0 truncate text-[15px]" :title="project.name">{{ project.name }}</strong>
+          <NTag round size="small" :type="controller.getComposeStatusType(project)">{{
+            project.status || 'unknown'
+          }}</NTag>
         </div>
         <div class="compose-project-meta">
           <div class="compose-project-field">
