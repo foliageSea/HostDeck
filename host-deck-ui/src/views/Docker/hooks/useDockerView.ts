@@ -18,6 +18,7 @@ import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSshStore } from '@/stores/ssh'
 import { useUploadCenterStore } from '@/stores/upload-center'
+import { dirname } from '@/utils/path'
 
 import { imageHistoryColumns, imageRefsColumns } from './dockerViewColumns'
 import {
@@ -1189,6 +1190,28 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
+  function openComposeConfigDirectory(project: DockerComposeProject) {
+    const configDirectory =
+      project.workingDir.trim() ||
+      (getComposeConfigFiles(project)[0] ? dirname(getComposeConfigFiles(project)[0]) : '')
+    if (!configDirectory) {
+      getUiApi().message.warning('该编排项目缺少配置文件目录。')
+      return
+    }
+
+    try {
+      desktopStore.openWindow('files', {
+        connectionId: requireConnectionId(),
+        host: props.host ?? sshStore.host,
+        path: configDirectory,
+        title: `配置目录 · ${project.name}`,
+        username: props.username ?? sshStore.username,
+      })
+    } catch (error) {
+      getUiApi().message.error(error instanceof Error ? error.message : '打开配置文件目录失败。')
+    }
+  }
+
   function openComposeServices(project: DockerComposeProject) {
     if (!getComposeProjectPayload(project)) {
       getUiApi().message.warning('该编排项目缺少 compose 配置文件路径，无法加载服务。')
@@ -1696,6 +1719,7 @@ export function useDockerView(props: DockerViewProps) {
     networks,
     openImageTagDialog,
     openContainerPort,
+    openComposeConfigDirectory,
     openComposeServices,
     openCreateContainer,
     openCreateComposeProject,

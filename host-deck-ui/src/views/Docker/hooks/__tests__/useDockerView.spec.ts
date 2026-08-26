@@ -239,3 +239,46 @@ describe('useDockerView container windows', () => {
     )
   })
 })
+
+describe('useDockerView compose windows', () => {
+  it('opens the compose working directory in files', () => {
+    openWindow.mockReset()
+    const controller = useDockerView({
+      connectionId: 'conn-1',
+      host: 'host.example',
+      username: 'deploy',
+    })
+
+    controller.openComposeConfigDirectory({
+      configFiles: '/opt/website/compose.yml',
+      name: 'website',
+      status: 'running',
+      workingDir: '/opt/website',
+    })
+
+    expect(openWindow).toHaveBeenCalledWith('files', {
+      connectionId: 'conn-1',
+      host: 'host.example',
+      path: '/opt/website',
+      title: '配置目录 · website',
+      username: 'deploy',
+    })
+  })
+
+  it('derives the directory from the first compose config file', () => {
+    openWindow.mockReset()
+    const controller = useDockerView({ connectionId: 'conn-1' })
+
+    controller.openComposeConfigDirectory({
+      configFiles: '/srv/app/compose.yml, /srv/app/override.yml',
+      name: 'app',
+      status: 'running',
+      workingDir: '',
+    })
+
+    expect(openWindow).toHaveBeenCalledWith(
+      'files',
+      expect.objectContaining({ path: '/srv/app' }),
+    )
+  })
+})

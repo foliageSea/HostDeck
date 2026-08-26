@@ -113,6 +113,9 @@ const stopped = (project: DockerComposeProject) => {
             @click="controller.openEditComposeProject(project)"
             >编辑</NButton
           >
+          <NButton size="tiny" quaternary @click="controller.openComposeConfigDirectory(project)"
+            >打开目录</NButton
+          >
           <NButton size="tiny" quaternary @click="controller.openComposeServices(project)"
             >详情</NButton
           >
