@@ -27,7 +27,7 @@ import linkIconUrl from '@/assets/app-icons/mac-tahoe/junction.svg'
 import logoutIconUrl from '@/assets/app-icons/mac-tahoe/log-out.svg'
 import mediaIconUrl from '@/assets/app-icons/mac-tahoe/eog.svg'
 import operationLogIconUrl from '@/assets/app-icons/mac-tahoe/gpk-log.svg'
-import portForwardIconUrl from '@/assets/app-icons/mac-tahoe/gnome-connections.svg'
+import portForwardIconUrl from '@/assets/app-icons/mac-tahoe/network-connect.svg'
 import processIconUrl from '@/assets/app-icons/mac-tahoe/stacks-task-manager.svg'
 import realtimeLogIconUrl from '@/assets/app-icons/mac-tahoe/logview.svg'
 import runtimeIconUrl from '@/assets/app-icons/mac-tahoe/multitasking-view.svg'
@@ -107,7 +107,7 @@ const iconImageSrc = computed(() => {
     alt=""
     aria-hidden="true"
     class="block flex-none object-contain"
-    :class="{ 'rounded-[22%]': name === 'opencode' }"
+    :class="{ 'rounded-[22%]': name === 'opencode', 'scale-[0.92]': name === 'port-forward' }"
     draggable="false"
   />
   <NIcon v-else :color="color" :size="size">
