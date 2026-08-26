@@ -123,29 +123,49 @@ function Restart-Backend {
     Write-Host "Frontend is available at http://localhost:$FrontendPort" -ForegroundColor Green
 }
 
+function Wait-Frontend {
+    param([System.Diagnostics.Process]$Process)
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        if (Test-TcpPort -HostName "localhost" -Port $FrontendPort) {
+            return
+        }
+        $Process.Refresh()
+        if ($Process.HasExited) {
+            $Process.WaitForExit()
+            throw "Frontend exited during startup (exit code: $($Process.ExitCode))."
+        }
+        Start-Sleep -Milliseconds 200
+    }
+
+    throw "Frontend did not listen on localhost:$FrontendPort within $StartupTimeoutSeconds seconds."
+}
+
 function Start-Frontend {
+    if (Test-TcpPort -HostName "localhost" -Port $FrontendPort) {
+        throw "Frontend port localhost:$FrontendPort is already in use. Stop the existing frontend process before running this script."
+    }
+
     Write-Host "Starting frontend at http://localhost:$FrontendPort (backend: $backendProxyTarget) ..." -ForegroundColor Cyan
 
-    $previousProxyTarget = $env:VITE_DEV_PROXY_TARGET
-    $env:VITE_DEV_PROXY_TARGET = $backendProxyTarget
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $env:ComSpec
+    $startInfo.Arguments = "/d /s /c `"call pnpm.cmd --dir host-deck-ui dev --port $FrontendPort --strictPort`""
+    $startInfo.WorkingDirectory = $projectRoot
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.EnvironmentVariables["VITE_DEV_PROXY_TARGET"] = $backendProxyTarget
 
+    $process = [System.Diagnostics.Process]::Start($startInfo)
     try {
-        $process = Start-Process `
-            -FilePath "pnpm.cmd" `
-            -ArgumentList @("--dir", "host-deck-ui", "dev", "--port", $FrontendPort, "--strictPort") `
-            -WorkingDirectory $projectRoot `
-            -WindowStyle Hidden `
-            -PassThru
-        Write-Host "Frontend started (PID $($process.Id))." -ForegroundColor Green
+        Wait-Frontend -Process $process
+        Write-Host "Frontend is ready (PID $($process.Id), backend: $backendProxyTarget)." -ForegroundColor Green
         return $process
     }
-    finally {
-        if ($null -eq $previousProxyTarget) {
-            Remove-Item Env:VITE_DEV_PROXY_TARGET -ErrorAction SilentlyContinue
-        }
-        else {
-            $env:VITE_DEV_PROXY_TARGET = $previousProxyTarget
-        }
+    catch {
+        Stop-ProcessTree -Process $process
+        throw
     }
 }
 
