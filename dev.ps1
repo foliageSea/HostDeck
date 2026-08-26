@@ -21,6 +21,7 @@ $ErrorActionPreference = "Stop"
 $projectRoot = $PSScriptRoot
 $backendProcess = $null
 $frontendProcess = $null
+$frontendHost = "127.0.0.1"
 $isWildcardBackendHost = $BackendHost -in @("0.0.0.0", "::", "[::]")
 $isLoopbackBackendHost = $BackendHost -in @("127.0.0.1", "localhost", "::1", "[::1]")
 $backendConnectHost = if ($isWildcardBackendHost) { "127.0.0.1" } elseif ($BackendHost -eq "[::1]") { "::1" } else { $BackendHost }
@@ -128,7 +129,7 @@ function Wait-Frontend {
 
     $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
     while ([DateTime]::UtcNow -lt $deadline) {
-        if (Test-TcpPort -HostName "localhost" -Port $FrontendPort) {
+        if (Test-TcpPort -HostName $frontendHost -Port $FrontendPort) {
             return
         }
         $Process.Refresh()
@@ -143,7 +144,7 @@ function Wait-Frontend {
 }
 
 function Start-Frontend {
-    if (Test-TcpPort -HostName "localhost" -Port $FrontendPort) {
+    if (Test-TcpPort -HostName $frontendHost -Port $FrontendPort) {
         throw "Frontend port localhost:$FrontendPort is already in use. Stop the existing frontend process before running this script."
     }
 
@@ -151,7 +152,7 @@ function Start-Frontend {
 
     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
     $startInfo.FileName = $env:ComSpec
-    $startInfo.Arguments = "/d /s /c `"call pnpm.cmd --dir host-deck-ui dev --port $FrontendPort --strictPort`""
+    $startInfo.Arguments = "/d /s /c `"call pnpm.cmd --dir host-deck-ui dev --host $frontendHost --port $FrontendPort --strictPort`""
     $startInfo.WorkingDirectory = $projectRoot
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
