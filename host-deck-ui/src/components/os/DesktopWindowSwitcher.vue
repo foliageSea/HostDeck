@@ -55,7 +55,7 @@ defineEmits<{
           @click="$emit('select', index)"
         >
           <div class="mb-[10px] flex justify-center">
-            <AppIcon :name="window.icon" :size="22" />
+            <AppIcon :name="window.icon" :size="52" themed />
           </div>
           <div class="break-words text-center text-[0.88rem]">{{ window.title }}</div>
         </button>
