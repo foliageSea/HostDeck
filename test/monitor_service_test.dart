@@ -58,6 +58,7 @@ architecture=x86_64
 hostAddress=192.168.0.221
 bootTime=2026-05-26 16:26:13
 uptime=2 weeks, 1 day, 3 hours, 12 minutes
+uptimeSeconds=1307520
 """;
     }
     return "";
@@ -175,6 +176,7 @@ void main() {
       status.systemInfo?.uptime,
       equals('2 weeks, 1 day, 3 hours, 12 minutes'),
     );
+    expect(status.systemInfo?.uptimeSeconds, equals(1307520));
   });
 
   test('MonitorService calculates network speed', () async {

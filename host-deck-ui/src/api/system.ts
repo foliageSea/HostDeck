@@ -24,6 +24,7 @@ export interface MonitorResponse {
     hostAddress: string
     bootTime: string
     uptime: string
+    uptimeSeconds?: number
   }
 }
 

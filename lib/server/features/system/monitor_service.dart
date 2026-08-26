@@ -192,6 +192,7 @@ printf 'architecture=%s\n' "$(uname -m 2>/dev/null)"
 printf 'hostAddress=%s\n' "$(hostname -I 2>/dev/null | awk '{print $1}')"
 printf 'bootTime=%s\n' "$(uptime -s 2>/dev/null)"
 printf 'uptime=%s\n' "$(uptime -p 2>/dev/null | sed 's/^up //')"
+printf 'uptimeSeconds=%s\n' "$(awk '{print int($1)}' /proc/uptime 2>/dev/null)"
 ''';
 
   SystemInfo _parseSystemInfo(String value) {
@@ -216,6 +217,7 @@ printf 'uptime=%s\n' "$(uptime -p 2>/dev/null | sed 's/^up //')"
       hostAddress: fields['hostAddress'] ?? '--',
       bootTime: fields['bootTime'] ?? '--',
       uptime: fields['uptime'] ?? '--',
+      uptimeSeconds: int.tryParse(fields['uptimeSeconds'] ?? ''),
     );
   }
 }

@@ -43,7 +43,7 @@ const systemInfoItems = computed(() => [
   { label: '系统类型', value: systemInfo.value?.architecture ?? '--' },
   { label: '主机地址', value: systemInfo.value?.hostAddress ?? '--' },
   { label: '启动时间', value: systemInfo.value?.bootTime ?? '--' },
-  { label: '运行时间', value: systemInfo.value?.uptime ?? '--' },
+  { label: '运行时间', value: formatSystemUptime(systemInfo.value) },
 ])
 
 const cpuLoad = computed(() => currentSample.value?.cpu || '0.0')
@@ -242,6 +242,25 @@ function formatMemory(value: number) {
   }
 
   return `${value.toFixed(0)} MB`
+}
+
+function formatSystemUptime(info: MonitorResponse['systemInfo'] | null) {
+  if (info?.uptimeSeconds === undefined) {
+    return info?.uptime ?? '--'
+  }
+
+  const totalMinutes = Math.floor(info.uptimeSeconds / 60)
+  const days = Math.floor(totalMinutes / 1440)
+  const hours = Math.floor((totalMinutes % 1440) / 60)
+  const minutes = totalMinutes % 60
+  const parts: string[] = []
+
+  if (days > 0) parts.push(`${days}天`)
+  if (hours > 0) parts.push(`${hours}小时`)
+  if (minutes > 0) parts.push(`${minutes}分钟`)
+
+  if (parts.length > 0) return parts.join(' ')
+  return `${info.uptimeSeconds}秒`
 }
 
 function formatPercent(value: number) {

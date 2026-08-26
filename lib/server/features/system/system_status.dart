@@ -36,6 +36,7 @@ class SystemInfo {
   final String hostAddress;
   final String bootTime;
   final String uptime;
+  final int? uptimeSeconds;
 
   SystemInfo({
     required this.hostname,
@@ -45,6 +46,7 @@ class SystemInfo {
     required this.hostAddress,
     required this.bootTime,
     required this.uptime,
+    this.uptimeSeconds,
   });
 
   Map<String, dynamic> toJson() => {
@@ -55,6 +57,7 @@ class SystemInfo {
     'hostAddress': hostAddress,
     'bootTime': bootTime,
     'uptime': uptime,
+    if (uptimeSeconds != null) 'uptimeSeconds': uptimeSeconds,
   };
 }
 
