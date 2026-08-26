@@ -34,6 +34,7 @@
   "devDependencies": {
     "@types/node": "^24.12.2",
     "@vicons/carbon": "^0.13.0",
+    "@vicons/fluent": "^0.13.0",
     "@vicons/ionicons5": "^0.13.0",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/test-utils": "^2.4.10",

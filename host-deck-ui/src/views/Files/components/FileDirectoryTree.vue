@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from 'vue'
-import { CollapseAll } from '@vicons/carbon'
+import { TextCollapse24Regular } from '@vicons/fluent'
 import { type TreeOption } from 'naive-ui'
 import { filesApi } from '@/api/files'
 import { resolve } from '@/utils/path'
@@ -196,11 +196,11 @@ watch(
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col">
+  <div class="relative flex h-full min-h-0 flex-col">
     <NAlert v-if="loadingError" type="error" :show-icon="false" class="mb-[8px]">
       {{ loadingError }}
     </NAlert>
-    <div class="flex justify-end pb-[6px] pr-[4px]">
+    <div class="absolute right-[14px] top-[2px] z-10">
       <NTooltip>
         <template #trigger>
           <NButton
@@ -212,7 +212,7 @@ watch(
           >
             <template #icon>
               <NIcon>
-                <CollapseAll />
+                <TextCollapse24Regular />
               </NIcon>
             </template>
           </NButton>
