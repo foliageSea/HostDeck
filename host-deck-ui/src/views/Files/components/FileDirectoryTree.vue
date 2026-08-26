@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, h, ref, watch } from 'vue'
+import { computed, h, nextTick, ref, watch } from 'vue'
+import { LocateFixed } from '@lucide/vue'
 import { TextCollapse24Regular } from '@vicons/fluent'
-import { type TreeOption } from 'naive-ui'
+import { type TreeInst, type TreeOption } from 'naive-ui'
 import { filesApi } from '@/api/files'
 import { resolve } from '@/utils/path'
 import { directoryTreeIconUrl } from './fileIcons'
@@ -26,6 +27,8 @@ const emit = defineEmits<{
 const treeData = ref<DirectoryTreeOption[]>([createRootNode()])
 const expandedKeys = ref<string[]>(['/'])
 const loadingError = ref('')
+const treeShellRef = ref<HTMLElement | null>(null)
+const treeRef = ref<TreeInst | null>(null)
 const loadPromises = new Map<string, Promise<boolean>>()
 let loadGeneration = 0
 
@@ -142,11 +145,12 @@ async function syncCurrentPath(path: string) {
   for (const directoryPath of paths) {
     const node = findNode(directoryPath)
     if (!node || !(await loadChildren(node))) {
-      return
+      return false
     }
   }
 
   expandedKeys.value = Array.from(new Set([...expandedKeys.value, ...paths]))
+  return true
 }
 
 async function resetTree() {
@@ -170,6 +174,31 @@ function handleExpandedKeys(keys: Array<string | number>) {
 
 function collapseToFirstLevel() {
   expandedKeys.value = ['/']
+}
+
+async function locateCurrentPath() {
+  if (!(await syncCurrentPath(props.currentPath))) {
+    return
+  }
+
+  await nextTick()
+  treeRef.value?.scrollTo({ key: props.currentPath, debounce: false })
+  await nextTick()
+
+  const target = treeShellRef.value?.querySelector<HTMLElement>('.n-tree-node--selected')
+  const scrollContainer = target?.closest<HTMLElement>('.n-scrollbar-container')
+  if (!target || !scrollContainer) {
+    return
+  }
+
+  const targetRect = target.getBoundingClientRect()
+  const containerRect = scrollContainer.getBoundingClientRect()
+  const centeredTop =
+    scrollContainer.scrollTop +
+    targetRect.top -
+    containerRect.top -
+    (scrollContainer.clientHeight - targetRect.height) / 2
+  scrollContainer.scrollTo({ top: Math.max(0, centeredTop), behavior: 'smooth' })
 }
 
 function handleSelectedKeys(keys: Array<string | number>) {
@@ -196,11 +225,29 @@ watch(
 </script>
 
 <template>
-  <div class="relative flex h-full min-h-0 flex-col">
+  <div ref="treeShellRef" class="relative flex h-full min-h-0 flex-col">
     <NAlert v-if="loadingError" type="error" :show-icon="false" class="mb-[8px]">
       {{ loadingError }}
     </NAlert>
-    <div class="absolute right-[14px] top-[2px] z-10">
+    <div class="absolute right-[14px] top-[2px] z-10 flex items-center gap-[2px]">
+      <NTooltip>
+        <template #trigger>
+          <NButton
+            quaternary
+            size="tiny"
+            aria-label="定位到当前目录"
+            :disabled="!connectionId"
+            @click="locateCurrentPath"
+          >
+            <template #icon>
+              <NIcon>
+                <LocateFixed />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        定位到当前目录
+      </NTooltip>
       <NTooltip>
         <template #trigger>
           <NButton
@@ -220,19 +267,19 @@ watch(
         收起一级目录以下的目录
       </NTooltip>
     </div>
-    <NScrollbar class="min-h-0 flex-1 app-scrollbar app-scrollbar-compact">
-      <NTree
-        block-line
-        ellipsis
-        class="pr-[10px]"
-        :data="treeData"
-        :expanded-keys="expandedKeys"
-        :selected-keys="selectedKeys"
-        :on-load="loadChildren"
-        :render-prefix="renderDirectoryIcon"
-        @update:expanded-keys="handleExpandedKeys"
-        @update:selected-keys="handleSelectedKeys"
-      />
-    </NScrollbar>
+    <NTree
+      ref="treeRef"
+      block-line
+      ellipsis
+      virtual-scroll
+      class="min-h-0 flex-1 pr-[10px] app-scrollbar app-scrollbar-compact"
+      :data="treeData"
+      :expanded-keys="expandedKeys"
+      :selected-keys="selectedKeys"
+      :on-load="loadChildren"
+      :render-prefix="renderDirectoryIcon"
+      @update:expanded-keys="handleExpandedKeys"
+      @update:selected-keys="handleSelectedKeys"
+    />
   </div>
 </template>

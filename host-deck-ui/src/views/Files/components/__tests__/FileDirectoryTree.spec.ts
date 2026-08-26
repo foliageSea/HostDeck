@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { defineComponent } from 'vue'
+import { defineComponent, type PropType } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { filesApi, type FileItem } from '@/api/files'
 import FileDirectoryTree from '../FileDirectoryTree.vue'
@@ -25,11 +25,31 @@ const file = (filename: string): FileItem => ({
   size: 1,
 })
 
+const scrollTo = vi.fn()
+const scrollContainerTo = vi.fn()
+interface TestTreeNode {
+  children: TestTreeNode[]
+}
+
 const TreeStub = defineComponent({
   name: 'NTree',
-  props: ['data', 'expandedKeys', 'selectedKeys', 'onLoad', 'renderPrefix'],
+  props: {
+    data: { type: Array as PropType<TestTreeNode[]>, required: true },
+    expandedKeys: Array,
+    selectedKeys: Array,
+    onLoad: {
+      type: Function as PropType<(node: TestTreeNode) => Promise<boolean>>,
+      required: true,
+    },
+    renderPrefix: { type: Function as PropType<() => unknown>, required: true },
+    virtualScroll: Boolean,
+  },
   emits: ['update:expandedKeys', 'update:selectedKeys'],
-  template: '<div data-testid="tree" />',
+  setup(_, { expose }) {
+    expose({ scrollTo })
+  },
+  template:
+    '<div data-testid="tree" class="n-scrollbar-container"><div class="n-tree-node--selected" /></div>',
 })
 
 function createWrapper(currentPath = '/') {
@@ -48,7 +68,6 @@ function createWrapper(currentPath = '/') {
             '<button :disabled="disabled" @click="$emit(\'click\')"><slot name="icon" /><slot /></button>',
         }),
         NIcon: defineComponent({ template: '<span><slot /></span>' }),
-        NScrollbar: defineComponent({ template: '<div><slot /></div>' }),
         NTooltip: defineComponent({ template: '<div><slot name="trigger" /><slot /></div>' }),
         NTree: TreeStub,
       },
@@ -63,6 +82,8 @@ function getTree(wrapper: ReturnType<typeof createWrapper>) {
 describe('FileDirectoryTree', () => {
   beforeEach(() => {
     vi.mocked(filesApi.list).mockReset()
+    scrollTo.mockReset()
+    scrollContainerTo.mockReset()
   })
 
   it('loads one directory level by default and filters out files', async () => {
@@ -83,6 +104,7 @@ describe('FileDirectoryTree', () => {
         children: [{ key: '/home' }, { key: '/var' }],
       },
     ])
+    expect(getTree(wrapper).props('virtualScroll')).toBe(true)
     expect(getTree(wrapper).props('renderPrefix')()).toMatchObject({
       type: 'img',
       props: {
@@ -143,6 +165,39 @@ describe('FileDirectoryTree', () => {
     await wrapper.get('[aria-label="收起一级目录以下的目录"]').trigger('click')
 
     expect(getTree(wrapper).props('expandedKeys')).toEqual(['/'])
+  })
+
+  it('expands and scrolls back to the current directory with one click', async () => {
+    vi.mocked(filesApi.list)
+      .mockResolvedValueOnce([directory('var')])
+      .mockResolvedValueOnce([directory('log')])
+      .mockResolvedValueOnce([])
+
+    const wrapper = createWrapper('/var/log')
+    await flushPromises()
+
+    const scrollContainer = wrapper.get('.n-scrollbar-container').element as HTMLElement
+    const target = wrapper.get('.n-tree-node--selected').element as HTMLElement
+    scrollContainer.scrollTo = scrollContainerTo
+    Object.defineProperties(scrollContainer, {
+      clientHeight: { configurable: true, value: 200 },
+      scrollTop: { configurable: true, value: 40 },
+    })
+    vi.spyOn(scrollContainer, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 100, 200, 200),
+    )
+    vi.spyOn(target, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 220, 100, 32))
+
+    await wrapper.get('[aria-label="收起一级目录以下的目录"]').trigger('click')
+    expect(getTree(wrapper).props('expandedKeys')).toEqual(['/'])
+
+    await wrapper.get('[aria-label="定位到当前目录"]').trigger('click')
+    await flushPromises()
+
+    expect(getTree(wrapper).props('expandedKeys')).toEqual(['/', '/var', '/var/log'])
+    expect(scrollTo).toHaveBeenCalledWith({ key: '/var/log', debounce: false })
+    expect(scrollContainerTo).toHaveBeenCalledWith({ top: 76, behavior: 'smooth' })
+    expect(filesApi.list).toHaveBeenCalledTimes(3)
   })
 
   it('emits an absolute path when a directory is selected', async () => {
