@@ -159,13 +159,6 @@ function isPaused(container: DockerContainer) {
             :options="controller.containerComposeProjectOptions"
             @update:value="controller.setContainerComposeProjectFilter"
           />
-          <NDropdown
-            trigger="click"
-            :options="containerMoreActionOptions"
-            @select="handleContainerMoreAction"
-          >
-            <NButton quaternary :loading="controller.batchProcessing">操作</NButton>
-          </NDropdown>
         </div>
       </template>
 
@@ -178,6 +171,13 @@ function isPaused(container: DockerContainer) {
           </template>
           新建容器
         </NButton>
+        <NDropdown
+          trigger="click"
+          :options="containerMoreActionOptions"
+          @select="handleContainerMoreAction"
+        >
+          <NButton quaternary :loading="controller.batchProcessing">操作</NButton>
+        </NDropdown>
         <NButton quaternary :loading="controller.loading" @click="controller.refreshContainers"
           >刷新</NButton
         >
