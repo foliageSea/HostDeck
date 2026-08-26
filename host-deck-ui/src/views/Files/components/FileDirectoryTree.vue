@@ -229,7 +229,7 @@ watch(
     <NAlert v-if="loadingError" type="error" :show-icon="false" class="mb-[8px]">
       {{ loadingError }}
     </NAlert>
-    <div class="absolute right-[14px] top-[2px] z-10 flex items-center gap-[2px]">
+    <div class="flex h-[28px] shrink-0 items-center justify-end gap-[2px] pr-[14px]">
       <NTooltip>
         <template #trigger>
           <NButton
