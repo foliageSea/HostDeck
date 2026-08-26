@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, ref } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref } from 'vue'
 import { ApplicationWeb, Information, Logout, Moon, Settings, Sun } from '@vicons/carbon'
 import { NIcon } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
@@ -16,13 +16,36 @@ const sshStore = useSshStore()
 const desktopStore = useDesktopStore()
 const aboutVisible = ref(false)
 const appVersion = __APP_VERSION__
+const now = ref(new Date())
+const timeFormatter = new Intl.DateTimeFormat('zh-CN', {
+  hour: '2-digit',
+  minute: '2-digit',
+})
+let clockTimer: number | null = null
 
-const currentTime = computed(() =>
-  new Intl.DateTimeFormat('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date()),
-)
+const currentTime = computed(() => timeFormatter.format(now.value))
+function updateClock() {
+  now.value = new Date()
+  clockTimer = window.setTimeout(updateClock, 60_000 - (Date.now() % 60_000))
+}
+
+function syncClockWhenVisible() {
+  if (document.hidden) return
+
+  if (clockTimer !== null) window.clearTimeout(clockTimer)
+  updateClock()
+}
+
+onMounted(() => {
+  updateClock()
+  document.addEventListener('visibilitychange', syncClockWhenVisible)
+})
+
+onUnmounted(() => {
+  if (clockTimer !== null) window.clearTimeout(clockTimer)
+  document.removeEventListener('visibilitychange', syncClockWhenVisible)
+})
+
 const sessionStatusMeta = computed(() => {
   if (sshStore.sessionStatus === 'connected') {
     return {
@@ -240,7 +263,7 @@ function disconnect() {
           </NIcon>
         </template>
       </NButton>
-      <span>{{ currentTime }}</span>
+      <time :datetime="now.toISOString()">{{ currentTime }}</time>
     </div>
 
     <NModal v-model:show="aboutVisible" preset="card" title="关于 HostDeck" class="w-[min(400px,calc(100vw-32px))]">
