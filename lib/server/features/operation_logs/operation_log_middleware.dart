@@ -475,6 +475,18 @@ List<_OperationPolicy> _policies(
     targetResolver: (request, data, policy) =>
         _portForwardTarget(request, data, policy, portForwardRepository),
   ),
+  _OperationPolicy(
+    'POST',
+    r'api/secure-browser-tunnels',
+    'secureBrowser',
+    'createTunnel',
+  ),
+  _OperationPolicy(
+    'DELETE',
+    r'api/secure-browser-tunnels/([^/]+)',
+    'secureBrowser',
+    'stopTunnel',
+  ),
   _OperationPolicy('POST', r'api/files/write', 'file', 'write'),
   _OperationPolicy('POST', r'api/files/delete', 'file', 'delete'),
   _OperationPolicy('POST', r'api/files/upload', 'file', 'upload'),

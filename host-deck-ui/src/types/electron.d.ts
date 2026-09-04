@@ -5,6 +5,18 @@ declare global {
     hostDeck?: {
       app?: {
         openInBrowser: () => Promise<void>
+        openInSecureChrome: (request: {
+          profileId: string
+          proxyPort: number
+          url?: string
+        }) => Promise<
+          | { success: true }
+          | {
+              success: false
+              reason: 'invalid-request' | 'not-installed' | 'launch-failed'
+              message: string
+            }
+        >
         openDevTools: () => Promise<void>
         forceReload: () => Promise<void>
         clearBrowserCache: () => Promise<void>

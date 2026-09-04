@@ -8,6 +8,7 @@ import {
   type PortForwardStatus,
 } from '@/api/port-forward'
 import { getUiApi } from '@/lib/ui'
+import { secureBrowserApi, type SecureBrowserTunnel } from '@/api/secure-browser'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 
@@ -20,6 +21,9 @@ const saving = ref(false)
 const operatingId = ref<number | null>(null)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
+const secureBrowserLoading = ref(false)
+const secureBrowserOperatingId = ref<string | null>(null)
+const secureBrowserTunnels = ref<SecureBrowserTunnel[]>([])
 
 const form = reactive({
   bindHost: '127.0.0.1',
@@ -127,6 +131,9 @@ const connectionText = computed(() => {
 })
 const runningCount = computed(() => rules.value.filter((rule) => rule.status === 'running').length)
 const totalCount = computed(() => rules.value.length)
+const canLaunchSecureBrowser = computed(
+  () => hasConnection.value && Boolean(window.hostDeck?.app?.openInSecureChrome),
+)
 
 function statusType(status: PortForwardStatus) {
   if (status === 'running') {
@@ -198,6 +205,84 @@ async function fetchRules() {
     getUiApi().message.error(error instanceof Error ? error.message : '加载端口转发配置失败。')
   } finally {
     loading.value = false
+  }
+}
+
+async function fetchSecureBrowserTunnels() {
+  try {
+    const tunnels = await secureBrowserApi.list()
+    secureBrowserTunnels.value = tunnels.filter(
+      (tunnel) => tunnel.connectionId === sshStore.connectionId,
+    )
+  } catch (error) {
+    getUiApi().message.error(error instanceof Error ? error.message : '加载安全浏览器会话失败。')
+  }
+}
+
+async function startSecureBrowser() {
+  if (!window.hostDeck?.app?.openInSecureChrome) {
+    getUiApi().message.warning('安全浏览器当前仅支持 Electron 桌面端。')
+    return
+  }
+  if (!hasConnection.value) {
+    getUiApi().message.warning('启动安全浏览器前请先连接 SSH。')
+    return
+  }
+
+  secureBrowserLoading.value = true
+  try {
+    const tunnel = await secureBrowserApi.create({
+      connectionId: sshStore.connectionId as string,
+    })
+    const index = secureBrowserTunnels.value.findIndex((item) => item.id === tunnel.id)
+    if (index === -1) secureBrowserTunnels.value.unshift(tunnel)
+    try {
+      await launchTunnelInChrome(tunnel)
+      getUiApi().message.success('安全浏览器已启动。')
+    } catch (error) {
+      getUiApi().message.error(
+        `${error instanceof Error ? error.message : 'Chrome 启动失败。'} 代理会话已保留，可稍后重试或手动停止。`,
+      )
+    }
+  } catch (error) {
+    getUiApi().message.error(error instanceof Error ? error.message : '创建安全浏览器会话失败。')
+  } finally {
+    secureBrowserLoading.value = false
+  }
+}
+
+async function launchTunnelInChrome(tunnel: SecureBrowserTunnel) {
+  const launcher = window.hostDeck?.app?.openInSecureChrome
+  if (!launcher) throw new Error('安全浏览器当前仅支持 Electron 桌面端。')
+  const result = await launcher({
+    profileId: tunnel.id,
+    proxyPort: tunnel.bindPort,
+  })
+  if (!result.success) throw new Error(result.message)
+}
+
+async function reopenSecureBrowserTunnel(tunnel: SecureBrowserTunnel) {
+  secureBrowserOperatingId.value = tunnel.id
+  try {
+    await launchTunnelInChrome(tunnel)
+    getUiApi().message.success('已打开新的 Chrome 窗口。')
+  } catch (error) {
+    getUiApi().message.error(error instanceof Error ? error.message : 'Chrome 启动失败。')
+  } finally {
+    secureBrowserOperatingId.value = null
+  }
+}
+
+async function stopSecureBrowserTunnel(tunnel: SecureBrowserTunnel) {
+  secureBrowserOperatingId.value = tunnel.id
+  try {
+    await secureBrowserApi.stop(tunnel.id)
+    secureBrowserTunnels.value = secureBrowserTunnels.value.filter((item) => item.id !== tunnel.id)
+    getUiApi().message.success('安全浏览器代理已停止。')
+  } catch (error) {
+    getUiApi().message.error(error instanceof Error ? error.message : '停止安全浏览器代理失败。')
+  } finally {
+    secureBrowserOperatingId.value = null
   }
 }
 
@@ -291,6 +376,7 @@ async function copyLocalUrl(rule: PortForwardRule) {
 
 onMounted(() => {
   void fetchRules()
+  void fetchSecureBrowserTunnels()
 })
 </script>
 
@@ -309,9 +395,54 @@ onMounted(() => {
       </div>
       <NSpace>
         <NButton secondary :loading="loading" @click="fetchRules">刷新</NButton>
+        <NButton
+          secondary
+          :disabled="!canLaunchSecureBrowser"
+          :loading="secureBrowserLoading"
+          @click="startSecureBrowser"
+          >安全浏览器</NButton
+        >
         <NButton type="primary" @click="openCreateDialog">新增转发</NButton>
       </NSpace>
     </div>
+
+    <NCard title="安全浏览器代理" :bordered="false">
+      <template #header-extra>
+        <NTag size="small" type="info">SSH 网络通用代理</NTag>
+      </template>
+      <NEmpty v-if="secureBrowserTunnels.length === 0" description="暂无运行中的安全浏览器代理" />
+      <div v-else class="divide-y divide-[rgba(148,163,184,0.16)]">
+        <div
+          v-for="tunnel in secureBrowserTunnels"
+          :key="tunnel.id"
+          class="flex flex-wrap items-center justify-between gap-[12px] py-[12px]"
+        >
+          <div class="min-w-0">
+            <div class="truncate text-[14px] font-700">安全浏览器会话</div>
+            <div class="mt-[4px] text-[12px] text-[rgba(100,116,139,0.82)]">
+              可在 Chrome 地址栏直接输入任意 SSH 网络可达的 HTTP 或 HTTPS 地址
+            </div>
+          </div>
+          <NSpace>
+            <NButton
+              size="small"
+              type="primary"
+              :loading="secureBrowserOperatingId === tunnel.id"
+              @click="reopenSecureBrowserTunnel(tunnel)"
+              >打开新窗口</NButton
+            >
+            <NButton
+              size="small"
+              secondary
+              type="error"
+              :loading="secureBrowserOperatingId === tunnel.id"
+              @click="stopSecureBrowserTunnel(tunnel)"
+              >停止</NButton
+            >
+          </NSpace>
+        </div>
+      </div>
+    </NCard>
 
     <div class="grid grid-cols-3 gap-[12px] lt-md:grid-cols-1">
       <NCard size="small">

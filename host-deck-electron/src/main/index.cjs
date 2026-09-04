@@ -14,6 +14,7 @@ const {
 } = require('electron')
 
 const { createServerRuntime } = require('./server-runtime.cjs')
+const { createChromeLauncher } = require('./chrome-launcher.cjs')
 const { createSettingsStore } = require('./settings-store.cjs')
 const { createShellPageLoader } = require('./shell-pages.cjs')
 const { createTabManager } = require('./tab-manager.cjs')
@@ -42,6 +43,7 @@ if (!hasSingleInstanceLock) {
 }
 
 const settingsStore = createSettingsStore(app)
+const chromeLauncher = createChromeLauncher({ app })
 const serverRuntime = createServerRuntime({
   app,
   frontendRoot,
@@ -233,6 +235,7 @@ async function loadApplication() {
 }
 
 registerIpcHandlers({
+  chromeLauncher,
   getWindowFromSender,
   ipcMain,
   restartApplicationServer,

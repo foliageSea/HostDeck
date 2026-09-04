@@ -34,6 +34,8 @@ import 'package:host_deck/server/features/operation_logs/operation_log_service.d
 import 'package:host_deck/server/features/port_forwards/port_forward_controller.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_repository.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_service.dart';
+import 'package:host_deck/server/features/port_forwards/secure_browser_tunnel_controller.dart';
+import 'package:host_deck/server/features/port_forwards/secure_browser_tunnel_service.dart';
 import 'package:host_deck/server/features/processes/process_controller.dart';
 import 'package:host_deck/server/features/processes/process_service.dart';
 import 'package:host_deck/server/features/runtime/runtime_controller.dart';
@@ -55,6 +57,7 @@ class ServerContainer {
   final GetIt _getIt;
   final DatabaseService databaseService;
   final PortForwardService portForwardService;
+  final SecureBrowserTunnelService secureBrowserTunnelService;
   final DockerSocketTunnelService dockerSocketTunnelService;
   final ApiRoutes apiRoutes;
   final AccessAuthService accessService;
@@ -66,6 +69,7 @@ class ServerContainer {
     required GetIt getIt,
     required this.databaseService,
     required this.portForwardService,
+    required this.secureBrowserTunnelService,
     required this.dockerSocketTunnelService,
     required this.apiRoutes,
     required this.accessService,
@@ -196,6 +200,9 @@ class ServerContainer {
         onRunningChanged: getIt<PortForwardRepository>().setEnabled,
       ),
     );
+    getIt.registerLazySingleton<SecureBrowserTunnelService>(
+      () => SecureBrowserTunnelService(getIt<SshService>()),
+    );
     getIt.registerLazySingleton<LogExportService>(
       () => LogExportService(
         logDirectory: logDir == null ? null : Directory(logDir),
@@ -259,6 +266,9 @@ class ServerContainer {
           getIt<PortForwardRepository>(),
           getIt<PortForwardService>(),
         ),
+        secureBrowserTunnelController: SecureBrowserTunnelController(
+          getIt<SecureBrowserTunnelService>(),
+        ),
       ),
     );
 
@@ -269,6 +279,7 @@ class ServerContainer {
       getIt: getIt,
       databaseService: getIt<DatabaseService>(),
       portForwardService: getIt<PortForwardService>(),
+      secureBrowserTunnelService: getIt<SecureBrowserTunnelService>(),
       dockerSocketTunnelService: getIt<DockerSocketTunnelService>(),
       accessService: getIt<AccessAuthService>(),
       operationLogService: getIt<OperationLogService>(),
@@ -280,6 +291,7 @@ class ServerContainer {
 
   Future<void> dispose() async {
     await dockerSocketTunnelService.stopAll();
+    await secureBrowserTunnelService.stopAll();
     await portForwardService.stopAll();
     databaseService.close();
     await _getIt.reset(dispose: true);

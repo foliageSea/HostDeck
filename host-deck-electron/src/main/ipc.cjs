@@ -1,4 +1,5 @@
 function registerIpcHandlers({
+  chromeLauncher,
   getWindowFromSender,
   ipcMain,
   restartApplicationServer,
@@ -7,6 +8,11 @@ function registerIpcHandlers({
   shell,
   tabManager
 }) {
+  function requireApplicationSender(event) {
+    if (!tabManager.isApplicationSender(event.sender)) {
+      throw new Error('Unauthorized IPC sender.')
+    }
+  }
   ipcMain.handle('window:get-state', (event) => {
     const window = getWindowFromSender(event.sender)
     return {
@@ -40,6 +46,11 @@ function registerIpcHandlers({
     const url = activeTab?.view.webContents.getURL()
     if (!url) return
     await shell.openExternal(url)
+  })
+
+  ipcMain.handle('app:open-in-secure-chrome', async (event, request) => {
+    requireApplicationSender(event)
+    return chromeLauncher.launch(request)
   })
 
   ipcMain.handle('app:open-devtools', (event) => {

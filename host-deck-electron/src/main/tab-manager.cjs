@@ -318,6 +318,10 @@ function createTabManager({
     return activeTabId ? tabs.get(activeTabId) : null
   }
 
+  function isApplicationSender(sender) {
+    return [...tabs.values()].some((tab) => tab.view.webContents === sender)
+  }
+
   function requireActiveTab() {
     const tab = getActiveTab()
     if (!tab) throw new Error('No active tab.')
@@ -336,6 +340,7 @@ function createTabManager({
     closeTab,
     createTab,
     getActiveTab,
+    isApplicationSender,
     layoutActiveTab,
     reloadAll,
     renameTab,

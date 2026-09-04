@@ -28,6 +28,7 @@ const categoryOptions: SelectOption[] = [
   { label: '文件', value: 'file' },
   { label: 'Docker', value: 'docker' },
   { label: '端口转发', value: 'portForward' },
+  { label: '安全浏览器', value: 'secureBrowser' },
   { label: '进程', value: 'process' },
 ]
 const statusOptions: SelectOption[] = [
@@ -41,6 +42,7 @@ const categoryLabels: Record<string, string> = {
   docker: 'Docker',
   file: '文件',
   portForward: '端口转发',
+  secureBrowser: '安全浏览器',
   process: '进程',
   server: '保存主机',
 }
@@ -67,7 +69,9 @@ const actionLabels: Record<string, string> = {
   containerUnpause: '恢复容器',
   copy: '复制',
   create: '创建',
+  createTunnel: '创建代理',
   delete: '删除',
+  stopTunnel: '停止代理',
   disconnect: '断开连接',
   exec: '执行命令',
   extract: '解压',

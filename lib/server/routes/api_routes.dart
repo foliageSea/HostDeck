@@ -9,6 +9,7 @@ import 'package:host_deck/server/features/files/file_controller.dart';
 import 'package:host_deck/server/features/logs/server_log_controller.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_controller.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_controller.dart';
+import 'package:host_deck/server/features/port_forwards/secure_browser_tunnel_controller.dart';
 import 'package:host_deck/server/features/processes/process_controller.dart';
 import 'package:host_deck/server/features/runtime/runtime_controller.dart';
 import 'package:host_deck/server/features/servers/server_controller.dart';
@@ -25,6 +26,7 @@ import 'package:host_deck/server/routes/file_routes.dart';
 import 'package:host_deck/server/routes/log_routes.dart';
 import 'package:host_deck/server/routes/operation_log_routes.dart';
 import 'package:host_deck/server/routes/port_forward_routes.dart';
+import 'package:host_deck/server/routes/secure_browser_tunnel_routes.dart';
 import 'package:host_deck/server/routes/process_routes.dart';
 import 'package:host_deck/server/routes/runtime_routes.dart';
 import 'package:host_deck/server/routes/server_routes.dart';
@@ -50,6 +52,7 @@ class ApiRoutes {
   final ServerMetricsController serverMetricsController;
   final SettingsController settingsController;
   final PortForwardController portForwardController;
+  final SecureBrowserTunnelController secureBrowserTunnelController;
 
   ApiRoutes({
     required this.accessController,
@@ -68,6 +71,7 @@ class ApiRoutes {
     required this.serverMetricsController,
     required this.settingsController,
     required this.portForwardController,
+    required this.secureBrowserTunnelController,
   });
 
   Router get router {
@@ -80,6 +84,7 @@ class ApiRoutes {
     registerServerMetricsRoutes(router, serverMetricsController);
     registerSettingsRoutes(router, settingsController);
     registerPortForwardRoutes(router, portForwardController);
+    registerSecureBrowserTunnelRoutes(router, secureBrowserTunnelController);
     registerSystemRoutes(router, systemController);
     registerProcessRoutes(router, processController);
     registerFileRoutes(router, fileController);
