@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Add } from '@vicons/carbon'
 import type { DockerComposeProject } from '@/api/docker'
-import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
+import { getComposeStatusPresentation } from '../hooks/dockerViewHelpers'
+import DockerResourceTable from './DockerResourceTable.vue'
 import DockerTabToolbar from './DockerTabToolbar.vue'
 
 const props = defineProps<{ controller: DockerViewController }>()
-const settingsStore = useSettingsStore()
 const key = (project: DockerComposeProject) => `${project.name}:${project.configFiles}`
 const configTitle = (project: DockerComposeProject) =>
   props.controller.getComposeConfigFiles(project).join('\n') || '未返回配置文件'
@@ -15,13 +15,34 @@ const stopped = (project: DockerComposeProject) => {
   const status = project.status.toLowerCase()
   return status.includes('exited') || status.includes('stopped')
 }
+
+const getComposeMoreActionOptions = (project: DockerComposeProject) => [
+  { key: 'down', label: '下线' },
+  { key: 'edit', label: '编辑', disabled: !stopped(project) },
+  { key: 'directory', label: '打开目录' },
+  { key: 'details', label: '详情' },
+]
+
+function handleComposeMoreAction(project: DockerComposeProject, action: string) {
+  switch (action) {
+    case 'down':
+      props.controller.confirmComposeProjectAction(project, 'down')
+      break
+    case 'edit':
+      props.controller.openEditComposeProject(project)
+      break
+    case 'directory':
+      props.controller.openComposeConfigDirectory(project)
+      break
+    case 'details':
+      props.controller.openComposeServices(project)
+      break
+  }
+}
 </script>
 
 <template>
-  <div
-    class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden"
-    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'"
-  >
+  <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden">
     <DockerTabToolbar>
       <template #left
         ><NInput
@@ -53,129 +74,79 @@ const stopped = (project: DockerComposeProject) => {
       title="Docker Compose 不可用"
     />
     <NEmpty v-else-if="controller.filteredComposeProjects.length === 0" />
-    <div v-else class="compose-project-list app-scrollbar app-scrollbar-compact">
-      <div
-        v-for="project in controller.filteredComposeProjects"
-        :key="key(project)"
-        class="compose-project-card"
-      >
-        <div class="mb-[12px] flex flex-wrap items-center justify-between gap-[10px]">
-          <strong class="min-w-0 truncate text-[15px]" :title="project.name">{{ project.name }}</strong>
-          <NTag round size="small" :type="controller.getComposeStatusType(project)">{{
-            project.status || 'unknown'
-          }}</NTag>
-        </div>
-        <div class="compose-project-meta">
-          <div class="compose-project-field">
-            <span>配置文件</span
-            ><strong :title="configTitle(project)">{{ project.configFiles || '-' }}</strong>
-          </div>
-        </div>
-        <div class="mt-[12px] flex flex-wrap justify-end gap-[6px]">
-          <NButton
-            v-if="running(project)"
-            size="tiny"
-            quaternary
-            :loading="controller.composeActionLoadingMap[project.name]"
-            @click="controller.confirmComposeProjectAction(project, 'stop')"
-            >停止</NButton
-          >
-          <NButton
-            v-else
-            size="tiny"
-            quaternary
-            :loading="controller.composeActionLoadingMap[project.name]"
-            @click="controller.confirmComposeProjectAction(project, 'up')"
-            >启动</NButton
-          >
-          <NButton
-            size="tiny"
-            quaternary
-            :disabled="!running(project)"
-            :loading="controller.composeActionLoadingMap[project.name]"
-            @click="controller.confirmComposeProjectAction(project, 'restart')"
-            >重启</NButton
-          >
-          <NButton
-            size="tiny"
-            quaternary
-            type="error"
-            :loading="controller.composeActionLoadingMap[project.name]"
-            @click="controller.confirmComposeProjectAction(project, 'down')"
-            >下线</NButton
-          >
-          <NButton
-            v-if="stopped(project)"
-            size="tiny"
-            quaternary
-            @click="controller.openEditComposeProject(project)"
-            >编辑</NButton
-          >
-          <NButton size="tiny" quaternary @click="controller.openComposeConfigDirectory(project)"
-            >打开目录</NButton
-          >
-          <NButton size="tiny" quaternary @click="controller.openComposeServices(project)"
-            >详情</NButton
-          >
-        </div>
-      </div>
-    </div>
+    <DockerResourceTable v-else min-width="860px">
+      <thead>
+        <tr>
+          <th style="width: 18%">项目</th>
+          <th style="width: 14%">状态</th>
+          <th>配置文件</th>
+          <th class="docker-table-actions-column" style="width: 190px; text-align: right">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="project in controller.filteredComposeProjects" :key="key(project)">
+          <td>
+            <span class="docker-table-primary" :title="project.name">{{ project.name }}</span>
+          </td>
+          <td>
+            <NTooltip trigger="hover" placement="top-start">
+              <template #trigger>
+                <div class="docker-table-status">
+                  <NTag round size="small" :type="getComposeStatusPresentation(project).type">
+                    {{ getComposeStatusPresentation(project).label }}
+                  </NTag>
+                </div>
+              </template>
+              <div class="grid max-w-[360px] gap-[5px]">
+                <strong>{{ getComposeStatusPresentation(project).description }}</strong>
+                <span class="break-anywhere opacity-72">详细状态：{{ project.status || '-' }}</span>
+              </div>
+            </NTooltip>
+          </td>
+          <td>
+            <span class="docker-table-primary" :title="configTitle(project)">{{
+              project.configFiles || '-'
+            }}</span>
+          </td>
+          <td class="docker-table-actions-column">
+            <div class="docker-table-actions">
+              <NButton
+                v-if="running(project)"
+                size="tiny"
+                quaternary
+                :loading="controller.composeActionLoadingMap[project.name]"
+                @click="controller.confirmComposeProjectAction(project, 'stop')"
+                >停止</NButton
+              >
+              <NButton
+                v-else
+                size="tiny"
+                quaternary
+                :loading="controller.composeActionLoadingMap[project.name]"
+                @click="controller.confirmComposeProjectAction(project, 'up')"
+                >启动</NButton
+              >
+              <NButton
+                size="tiny"
+                quaternary
+                :disabled="!running(project)"
+                :loading="controller.composeActionLoadingMap[project.name]"
+                @click="controller.confirmComposeProjectAction(project, 'restart')"
+                >重启</NButton
+              >
+              <NDropdown
+                trigger="click"
+                :options="getComposeMoreActionOptions(project)"
+                @select="
+                  (action: string | number) => handleComposeMoreAction(project, String(action))
+                "
+              >
+                <NButton size="tiny" quaternary>更多</NButton>
+              </NDropdown>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </DockerResourceTable>
   </div>
 </template>
-
-<style scoped>
-.docker-theme-dark {
-  --compose-card-border: rgba(148, 163, 184, 0.16);
-  --compose-field-bg: rgba(15, 23, 42, 0.38);
-  --compose-label-color: rgba(226, 232, 240, 0.52);
-  --compose-value-color: rgba(248, 250, 252, 0.9);
-}
-.docker-theme-light {
-  --compose-card-border: rgba(148, 163, 184, 0.22);
-  --compose-field-bg: rgba(241, 245, 249, 0.92);
-  --compose-label-color: rgba(100, 116, 139, 0.9);
-  --compose-value-color: rgba(30, 41, 59, 0.92);
-}
-.compose-project-list {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding-right: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.compose-project-card {
-  border: 1px solid var(--compose-card-border);
-  border-radius: var(--app-radius-card);
-  padding: 10px;
-}
-.compose-project-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-.compose-project-field {
-  width: fit-content;
-  max-width: 100%;
-  min-width: 0;
-  border-radius: var(--app-radius-item);
-  background: var(--compose-field-bg);
-  padding: 6px 8px;
-}
-.compose-project-field span {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--compose-label-color);
-  font-size: 11px;
-}
-.compose-project-field strong {
-  display: block;
-  overflow: hidden;
-  color: var(--compose-value-color);
-  font-size: 12px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-</style>

@@ -2,15 +2,14 @@
 import { computed, ref } from 'vue'
 import { Download, Upload } from '@vicons/carbon'
 import type { DockerImage } from '@/api/docker'
-import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
+import DockerResourceTable from './DockerResourceTable.vue'
 import DockerTabToolbar from './DockerTabToolbar.vue'
 
 const props = defineProps<{
   controller: DockerViewController
 }>()
 
-const settingsStore = useSettingsStore()
 const imageImportInputRef = ref<HTMLInputElement | null>(null)
 
 const imagePruneOptions = computed(() => [
@@ -87,13 +86,32 @@ function getImageStatusType(image: DockerImage) {
 function getImageName(image: DockerImage) {
   return `${image.repository}:${image.tag}`
 }
+
+function getImageMoreActionOptions(image: DockerImage) {
+  return [
+    { key: 'history', label: '历史' },
+    { key: 'refs', label: '引用' },
+    { key: 'remove', label: '删除', disabled: image.inUse },
+  ]
+}
+
+function handleImageMoreAction(image: DockerImage, action: string) {
+  switch (action) {
+    case 'history':
+      props.controller.viewImageHistory(image)
+      break
+    case 'refs':
+      props.controller.viewImageRefs(image)
+      break
+    case 'remove':
+      props.controller.confirmRemoveImage(image)
+      break
+  }
+}
 </script>
 
 <template>
-  <div
-    class="flex h-full min-h-0 flex-col overflow-hidden"
-    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'"
-  >
+  <div class="flex h-full min-h-0 flex-col overflow-hidden">
     <input
       ref="imageImportInputRef"
       type="file"
@@ -148,64 +166,46 @@ function getImageName(image: DockerImage) {
       </template>
     </DockerTabToolbar>
 
-    <div class="docker-card-shell">
-      <NEmpty v-if="controller.images.length === 0" />
-
-      <div v-else class="docker-card-list app-scrollbar app-scrollbar-compact">
-        <NCard
-          v-for="image in controller.images"
-          :key="image.id"
-          class="docker-card"
-          content-class="docker-card-content"
-          size="small"
-          :bordered="false"
-        >
-          <template #header>
-            <div class="min-w-0">
-              <div class="truncate text-[15px] font-600" :title="getImageName(image)">
-                {{ getImageName(image) }}
-              </div>
-              <div
-                class="mt-[4px] truncate text-[12px]"
-                :class="
-                  settingsStore.isDark
-                    ? 'text-[rgba(226,232,240,0.58)]'
-                    : 'text-[rgba(100,116,139,0.88)]'
-                "
-                :title="image.id"
-              >
-                {{ image.id.slice(0, 18) }}
-              </div>
-            </div>
-          </template>
-
-          <template #header-extra>
+    <NEmpty v-if="controller.images.length === 0" />
+    <DockerResourceTable v-else min-width="1240px">
+      <thead>
+        <tr>
+          <th style="width: 260px">镜像</th>
+          <th style="width: 110px">状态</th>
+          <th style="width: 320px">仓库</th>
+          <th style="width: 130px">标签</th>
+          <th style="width: 100px">大小</th>
+          <th style="width: 170px">创建时间</th>
+          <th class="docker-table-actions-column" style="width: 190px; text-align: right">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="image in controller.images" :key="image.id">
+          <td>
+            <span class="docker-table-primary" :title="getImageName(image)">{{
+              getImageName(image)
+            }}</span
+            ><span class="docker-table-secondary" :title="image.id">{{
+              image.id.slice(0, 18)
+            }}</span>
+          </td>
+          <td>
             <NTag round size="small" :type="getImageStatusType(image)">{{
               getImageStatus(image)
             }}</NTag>
-          </template>
-
-          <div class="docker-card-fields">
-            <div class="docker-card-field wide">
-              <span>仓库</span>
-              <strong :title="image.repository">{{ image.repository }}</strong>
-            </div>
-            <div class="docker-card-field">
-              <span>标签</span>
-              <strong :title="image.tag">{{ image.tag }}</strong>
-            </div>
-            <div class="docker-card-field">
-              <span>大小</span>
-              <strong>{{ image.size }}</strong>
-            </div>
-            <div class="docker-card-field wide">
-              <span>创建时间</span>
-              <strong>{{ controller.formatTime(image.createdAt) }}</strong>
-            </div>
-          </div>
-
-          <template #footer>
-            <div class="docker-card-actions">
+          </td>
+          <td>
+            <span class="docker-table-primary" :title="image.repository">{{
+              image.repository
+            }}</span>
+          </td>
+          <td>
+            <span class="docker-table-primary" :title="image.tag">{{ image.tag }}</span>
+          </td>
+          <td>{{ image.size }}</td>
+          <td>{{ controller.formatTime(image.createdAt) }}</td>
+          <td class="docker-table-actions-column">
+            <div class="docker-table-actions">
               <NButton size="tiny" quaternary @click="controller.openImageTagDialog(image)"
                 >标签</NButton
               >
@@ -216,26 +216,18 @@ function getImageName(image: DockerImage) {
                 @click="controller.exportImage(image)"
                 >导出</NButton
               >
-              <NButton size="tiny" quaternary @click="controller.viewImageHistory(image)"
-                >历史</NButton
+              <NDropdown
+                trigger="click"
+                :options="getImageMoreActionOptions(image)"
+                @select="(action: string | number) => handleImageMoreAction(image, String(action))"
               >
-              <NButton size="tiny" quaternary @click="controller.viewImageRefs(image)"
-                >引用</NButton
-              >
-              <NButton
-                size="tiny"
-                quaternary
-                type="error"
-                :disabled="image.inUse"
-                @click="controller.confirmRemoveImage(image)"
-                >删除</NButton
-              >
+                <NButton size="tiny" quaternary>更多</NButton>
+              </NDropdown>
             </div>
-          </template>
-        </NCard>
-      </div>
-
-      <div v-if="controller.imageTotal > 0" class="docker-card-pagination">
+          </td>
+        </tr>
+      </tbody>
+      <template v-if="controller.imageTotal > 0" #footer>
         <NPagination
           :page="controller.imagePagination.page"
           :page-size="controller.imagePagination.pageSize"
@@ -245,150 +237,7 @@ function getImageName(image: DockerImage) {
           @update:page="controller.handleImagePageChange"
           @update:page-size="controller.handleImagePageSizeChange"
         />
-      </div>
-    </div>
+      </template>
+    </DockerResourceTable>
   </div>
 </template>
-
-<style scoped>
-.docker-theme-dark {
-  --docker-card-border: rgba(148, 163, 184, 0.16);
-  --docker-card-bg: transparent;
-  --docker-card-shadow: none;
-  --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.42);
-  --docker-card-bg-hover: transparent;
-  --docker-card-field-bg: rgba(15, 23, 42, 0.38);
-  --docker-card-label-color: rgba(226, 232, 240, 0.52);
-  --docker-card-value-color: rgba(248, 250, 252, 0.9);
-  --docker-pager-bg: rgba(15, 23, 42, 0.9);
-  --docker-pager-border: rgba(148, 163, 184, 0.14);
-}
-
-.docker-theme-light {
-  --docker-card-border: rgba(148, 163, 184, 0.22);
-  --docker-card-bg: transparent;
-  --docker-card-shadow: none;
-  --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.34);
-  --docker-card-bg-hover: transparent;
-  --docker-card-field-bg: rgba(241, 245, 249, 0.92);
-  --docker-card-label-color: rgba(100, 116, 139, 0.9);
-  --docker-card-value-color: rgba(30, 41, 59, 0.92);
-  --docker-pager-bg: rgba(255, 255, 255, 0.94);
-  --docker-pager-border: rgba(148, 163, 184, 0.18);
-}
-
-.docker-card-shell {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 14px;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.docker-card-list {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-  overflow: auto;
-  padding-right: 4px;
-}
-
-.docker-card {
-  flex: none;
-  width: 100%;
-  border: 1px solid var(--docker-card-border);
-  border-radius: var(--app-radius-card);
-  background: var(--docker-card-bg);
-  box-shadow: var(--docker-card-shadow);
-  overflow: hidden;
-}
-
-.docker-card:hover {
-  border-color: var(--docker-card-border-hover);
-  background: var(--docker-card-bg-hover);
-}
-
-.docker-card :deep(.docker-card-content) {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.docker-card :deep(.n-card-header) {
-  padding: 10px 12px 8px;
-}
-
-.docker-card :deep(.n-card__content) {
-  padding: 0 12px 8px;
-}
-
-.docker-card :deep(.n-card__footer) {
-  padding: 6px 12px 10px;
-  background: transparent;
-}
-
-.docker-card-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 7px;
-}
-
-.docker-card-field {
-  min-width: 0;
-  border-radius: var(--app-radius-item);
-  background: var(--docker-card-field-bg);
-  padding: 6px 8px;
-}
-
-.docker-card-field.wide {
-  grid-column: auto;
-}
-
-.docker-card-field span {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--docker-card-label-color);
-  font-size: 11px;
-}
-
-.docker-card-field strong {
-  display: block;
-  overflow: hidden;
-  color: var(--docker-card-value-color);
-  font-size: 12px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.docker-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
-}
-
-.docker-card-pagination {
-  display: flex;
-  justify-content: flex-end;
-  flex: none;
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  margin-top: auto;
-  border-top: 1px solid var(--docker-pager-border);
-  background: transparent;
-  padding-top: 10px;
-  backdrop-filter: none;
-  padding: 8px;
-}
-
-@media (max-width: 640px) {
-  .docker-card-fields {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

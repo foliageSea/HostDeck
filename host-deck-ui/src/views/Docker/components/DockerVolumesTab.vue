@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { Add } from '@vicons/carbon'
-import { useSettingsStore } from '@/stores/settings'
 import type { DockerViewController } from '../hooks/useDockerView'
+import DockerResourceTable from './DockerResourceTable.vue'
 import DockerTabToolbar from './DockerTabToolbar.vue'
 
 const props = defineProps<{
   controller: DockerViewController
 }>()
 
-const settingsStore = useSettingsStore()
 const createVisible = ref(false)
 const createSubmitting = ref(false)
 const createOptionsText = ref('')
@@ -71,10 +70,7 @@ async function submitCreate() {
 </script>
 
 <template>
-  <div
-    class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden"
-    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'"
-  >
+  <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden">
     <DockerTabToolbar>
       <template #left>
         <NInput
@@ -109,77 +105,54 @@ async function submitCreate() {
 
     <NEmpty v-if="controller.filteredVolumes.length === 0" />
 
-    <div v-else class="docker-card-list app-scrollbar app-scrollbar-compact">
-      <NCard
-        v-for="volume in controller.filteredVolumes"
-        :key="volume.name"
-        class="docker-card"
-        content-class="docker-card-content"
-        size="small"
-        :bordered="false"
-      >
-        <template #header>
-          <div class="min-w-0">
-            <div class="truncate text-[15px] font-600" :title="volume.name">{{ volume.name }}</div>
-            <div
-              class="mt-[4px] truncate text-[12px]"
-              :class="
-                settingsStore.isDark
-                  ? 'text-[rgba(226,232,240,0.58)]'
-                  : 'text-[rgba(100,116,139,0.88)]'
-              "
-            >
-              {{ volume.driver }} / {{ volume.scope }}
+    <DockerResourceTable v-else min-width="900px">
+      <thead>
+        <tr>
+          <th style="width: 220px">存储卷</th>
+          <th style="width: 110px">驱动</th>
+          <th style="width: 100px">作用域</th>
+          <th style="width: 100px">引用</th>
+          <th>挂载点</th>
+          <th style="width: 170px">创建时间</th>
+          <th class="docker-table-actions-column" style="width: 130px; text-align: right">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="volume in controller.filteredVolumes" :key="volume.name">
+          <td>
+            <span class="docker-table-primary" :title="volume.name">{{ volume.name }}</span>
+          </td>
+          <td>{{ volume.driver }}</td>
+          <td>{{ volume.scope }}</td>
+          <td>
+            <NTag round size="small" :type="volume.refCount > 0 ? 'success' : 'default'">{{
+              volume.refCount
+            }}</NTag>
+          </td>
+          <td>
+            <span class="docker-table-primary" :title="volume.mountpoint">{{
+              volume.mountpoint
+            }}</span>
+          </td>
+          <td>{{ controller.formatTime(volume.createdAt) }}</td>
+          <td class="docker-table-actions-column">
+            <div class="docker-table-actions">
+              <NButton size="tiny" quaternary @click="controller.viewVolumeInspect(volume)"
+                >检查</NButton
+              >
+              <NButton
+                size="tiny"
+                quaternary
+                type="error"
+                :disabled="volume.refCount > 0"
+                @click="controller.confirmRemoveVolume(volume)"
+                >删除</NButton
+              >
             </div>
-          </div>
-        </template>
-
-        <template #header-extra>
-          <NTag round size="small" :type="volume.refCount > 0 ? 'success' : 'default'">
-            引用 {{ volume.refCount }}
-          </NTag>
-        </template>
-
-        <div class="docker-card-fields">
-          <div class="docker-card-field">
-            <span>驱动</span>
-            <strong>{{ volume.driver }}</strong>
-          </div>
-          <div class="docker-card-field">
-            <span>作用域</span>
-            <strong>{{ volume.scope }}</strong>
-          </div>
-          <div class="docker-card-field">
-            <span>引用</span>
-            <strong>{{ volume.refCount }}</strong>
-          </div>
-          <div class="docker-card-field wide">
-            <span>挂载点</span>
-            <strong :title="volume.mountpoint">{{ volume.mountpoint }}</strong>
-          </div>
-          <div class="docker-card-field wide">
-            <span>创建时间</span>
-            <strong>{{ controller.formatTime(volume.createdAt) }}</strong>
-          </div>
-        </div>
-
-        <template #footer>
-          <div class="docker-card-actions">
-            <NButton size="tiny" quaternary @click="controller.viewVolumeInspect(volume)"
-              >检查</NButton
-            >
-            <NButton
-              size="tiny"
-              quaternary
-              type="error"
-              :disabled="volume.refCount > 0"
-              @click="controller.confirmRemoveVolume(volume)"
-              >删除</NButton
-            >
-          </div>
-        </template>
-      </NCard>
-    </div>
+          </td>
+        </tr>
+      </tbody>
+    </DockerResourceTable>
 
     <NModal
       v-model:show="createVisible"
@@ -220,118 +193,3 @@ async function submitCreate() {
     </NModal>
   </div>
 </template>
-
-<style scoped>
-.docker-theme-dark {
-  --docker-card-border: rgba(148, 163, 184, 0.16);
-  --docker-card-bg: transparent;
-  --docker-card-shadow: none;
-  --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.42);
-  --docker-card-bg-hover: transparent;
-  --docker-card-field-bg: rgba(15, 23, 42, 0.38);
-  --docker-card-label-color: rgba(226, 232, 240, 0.52);
-  --docker-card-value-color: rgba(248, 250, 252, 0.9);
-}
-
-.docker-theme-light {
-  --docker-card-border: rgba(148, 163, 184, 0.22);
-  --docker-card-bg: transparent;
-  --docker-card-shadow: none;
-  --docker-card-border-hover: rgba(var(--app-primary-rgb), 0.34);
-  --docker-card-bg-hover: transparent;
-  --docker-card-field-bg: rgba(241, 245, 249, 0.92);
-  --docker-card-label-color: rgba(100, 116, 139, 0.9);
-  --docker-card-value-color: rgba(30, 41, 59, 0.92);
-}
-
-.docker-card-list {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-  overflow: auto;
-  padding-right: 4px;
-}
-
-.docker-card {
-  flex: none;
-  width: 100%;
-  border: 1px solid var(--docker-card-border);
-  border-radius: var(--app-radius-card);
-  background: var(--docker-card-bg);
-  box-shadow: var(--docker-card-shadow);
-  overflow: hidden;
-}
-
-.docker-card:hover {
-  border-color: var(--docker-card-border-hover);
-  background: var(--docker-card-bg-hover);
-}
-
-.docker-card :deep(.docker-card-content) {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.docker-card :deep(.n-card-header) {
-  padding: 10px 12px 8px;
-}
-
-.docker-card :deep(.n-card__content) {
-  padding: 0 12px 8px;
-}
-
-.docker-card :deep(.n-card__footer) {
-  padding: 6px 12px 10px;
-  background: transparent;
-}
-
-.docker-card-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 7px;
-}
-
-.docker-card-field {
-  min-width: 0;
-  border-radius: var(--app-radius-item);
-  background: var(--docker-card-field-bg);
-  padding: 6px 8px;
-}
-
-.docker-card-field.wide {
-  grid-column: auto;
-}
-
-.docker-card-field span {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--docker-card-label-color);
-  font-size: 11px;
-}
-
-.docker-card-field strong {
-  display: block;
-  overflow: hidden;
-  color: var(--docker-card-value-color);
-  font-size: 12px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.docker-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
-}
-
-@media (max-width: 640px) {
-  .docker-card-fields {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

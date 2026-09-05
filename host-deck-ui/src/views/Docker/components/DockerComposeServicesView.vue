@@ -3,19 +3,18 @@ import { onMounted, ref } from 'vue'
 import { LogoDocker } from '@vicons/ionicons5'
 import { dockerApi, type DockerComposeProject, type DockerComposeService } from '@/api/docker'
 import { getUiApi } from '@/lib/ui'
-import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import {
   getComposeConfigFiles,
   getComposeProjectPayload,
-  getComposeServiceStatusType,
+  getComposeServiceStatusPresentation,
 } from '../hooks/dockerViewHelpers'
+import DockerResourceTable from './DockerResourceTable.vue'
 const props = defineProps<{
   windowId?: string
   connectionId?: string
   project: DockerComposeProject
 }>()
-const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const loading = ref(false)
 const services = ref<DockerComposeService[]>([])
@@ -57,10 +56,7 @@ async function load() {
 onMounted(() => void load())
 </script>
 <template>
-  <div
-    class="flex h-full min-h-0 flex-col overflow-hidden"
-    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'"
-  >
+  <div class="flex h-full min-h-0 flex-col overflow-hidden">
     <div
       class="flex shrink-0 flex-wrap items-center justify-between gap-[12px] border-b px-[18px] py-[14px]"
     >
@@ -75,110 +71,85 @@ onMounted(() => void load())
       </div>
       <NSpace><NButton quaternary :loading="loading" @click="load">刷新</NButton></NSpace>
     </div>
-    <NSpin :show="loading" class="min-h-0 flex-1 overflow-auto p-[18px] app-scrollbar"
-      ><NEmpty v-if="services.length === 0 && !loading" description="未加载到编排服务" />
-      <div v-else class="compose-service-grid">
-        <NCard
-          v-for="service in services"
-          :key="service.id || service.name"
-          size="small"
-          :bordered="false"
-          class="compose-service-card"
-          ><template #header>{{ service.service || service.name }}</template
-          ><template #header-extra
-            ><NTag round size="small" :type="getComposeServiceStatusType(service)">{{
-              service.state || service.status || 'unknown'
-            }}</NTag></template
-          >
-          <div class="compose-service-fields">
-            <div class="compose-service-field">
-              <span>镜像</span
-              ><strong :title="service.image || '-'">{{ service.image || '-' }}</strong>
-            </div>
-            <div class="compose-service-field">
-              <span>端口</span
-              ><strong :title="formatPorts(service.ports)">{{ formatPorts(service.ports) }}</strong>
-            </div>
-            <div class="compose-service-field">
-              <span>状态</span
-              ><strong :title="service.status || '-'">{{ service.status || '-' }}</strong>
-            </div>
-          </div></NCard
-        >
-      </div></NSpin
-    >
+    <NSpin :show="loading" class="compose-services-body">
+      <div class="flex h-full min-h-0 flex-col p-[18px]">
+        <NEmpty v-if="services.length === 0 && !loading" description="未加载到编排服务" />
+        <DockerResourceTable v-else min-width="980px">
+          <thead>
+            <tr>
+              <th style="width: 220px">服务</th>
+              <th style="width: 140px">状态</th>
+              <th style="width: 260px">镜像</th>
+              <th style="width: 220px">端口</th>
+              <th>详细状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="service in services" :key="service.id || service.name">
+              <td>
+                <span class="docker-table-primary" :title="service.service || service.name">
+                  {{ service.service || service.name || '-' }}
+                </span>
+                <span class="docker-table-secondary" :title="service.name || service.id">
+                  {{ service.name || service.id || '-' }}
+                </span>
+              </td>
+              <td>
+                <NTooltip trigger="hover" placement="top-start">
+                  <template #trigger>
+                    <div class="docker-table-status">
+                      <NTag
+                        round
+                        size="small"
+                        :type="getComposeServiceStatusPresentation(service).type"
+                      >
+                        {{ getComposeServiceStatusPresentation(service).label }}
+                      </NTag>
+                    </div>
+                  </template>
+                  <div class="grid max-w-[360px] gap-[5px]">
+                    <strong>{{ getComposeServiceStatusPresentation(service).description }}</strong>
+                    <span class="break-anywhere opacity-72">
+                      详细状态：{{ service.status || '-' }}
+                    </span>
+                    <span class="break-anywhere opacity-72">
+                      引擎状态：{{ service.state || '-' }}
+                    </span>
+                  </div>
+                </NTooltip>
+              </td>
+              <td>
+                <span class="docker-table-primary" :title="service.image || '-'">
+                  {{ service.image || '-' }}
+                </span>
+              </td>
+              <td>
+                <span class="docker-table-primary" :title="formatPorts(service.ports)">
+                  {{ formatPorts(service.ports) }}
+                </span>
+              </td>
+              <td>
+                <span class="docker-table-primary" :title="service.status || '-'">
+                  {{ service.status || service.state || '-' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </DockerResourceTable>
+      </div>
+    </NSpin>
   </div>
 </template>
 
 <style scoped>
-.docker-theme-dark {
-  --compose-card-border: rgba(148, 163, 184, 0.16);
-  --compose-label-color: rgba(226, 232, 240, 0.52);
-  --compose-value-color: rgba(248, 250, 252, 0.92);
+.compose-services-body {
+  flex: 1;
+  min-height: 0;
 }
 
-.docker-theme-light {
-  --compose-card-border: rgba(148, 163, 184, 0.22);
-  --compose-label-color: rgba(100, 116, 139, 0.9);
-  --compose-value-color: rgba(30, 41, 59, 0.94);
-}
-
-.compose-service-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-
-.compose-service-card {
-  width: 100%;
-  border: 1px solid var(--compose-card-border);
-  background: transparent;
-}
-
-.compose-service-card :deep(.n-card-header) {
-  padding: 11px 12px 9px;
-}
-
-.compose-service-card :deep(.n-card__content) {
-  padding: 0 12px 12px;
-}
-
-.compose-service-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
-  gap: 7px;
-}
-
-.compose-service-field {
-  min-width: 0;
-  border: 1px solid var(--compose-card-border);
-  border-radius: var(--app-radius-item);
-  background: transparent;
-  padding: 7px 9px;
-}
-
-.compose-service-field span {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--compose-label-color);
-  font-size: 11px;
-}
-
-.compose-service-field strong {
-  display: block;
-  overflow: hidden;
-  color: var(--compose-value-color);
-  font-family: var(--app-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.45;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@media (max-width: 640px) {
-  .compose-service-fields {
-    grid-template-columns: 1fr;
-  }
+.compose-services-body :deep(.n-spin-container),
+.compose-services-body :deep(.n-spin-content) {
+  height: 100%;
+  min-height: 0;
 }
 </style>
