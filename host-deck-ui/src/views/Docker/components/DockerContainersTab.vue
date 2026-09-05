@@ -225,7 +225,7 @@ function isPaused(container: DockerContainer) {
           <th style="width: 150px">编排</th>
           <th style="width: 180px">网络</th>
           <th style="width: 160px">IP</th>
-          <th style="width: 160px">创建时间</th>
+          <th style="width: 190px">创建时间</th>
           <th class="docker-table-actions-column" style="width: 190px; text-align: right">操作</th>
         </tr>
       </thead>
@@ -304,7 +304,7 @@ function isPaused(container: DockerContainer) {
               ><template v-else>-</template>
             </div>
           </td>
-          <td>{{ controller.formatTime(container.createdAt) }}</td>
+          <td class="docker-table-nowrap">{{ controller.formatTime(container.createdAt) }}</td>
           <td class="docker-table-actions-column">
             <div class="docker-table-actions">
               <NButton

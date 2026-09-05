@@ -62,6 +62,10 @@ withDefaults(
   vertical-align: middle;
 }
 
+.docker-resource-table :deep(.docker-table-nowrap) {
+  white-space: nowrap;
+}
+
 .docker-resource-table :deep(th.docker-table-actions-column),
 .docker-resource-table :deep(td.docker-table-actions-column) {
   position: sticky;

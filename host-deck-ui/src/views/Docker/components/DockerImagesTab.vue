@@ -175,7 +175,7 @@ function handleImageMoreAction(image: DockerImage, action: string) {
           <th style="width: 320px">仓库</th>
           <th style="width: 130px">标签</th>
           <th style="width: 100px">大小</th>
-          <th style="width: 170px">创建时间</th>
+          <th style="width: 190px">创建时间</th>
           <th class="docker-table-actions-column" style="width: 190px; text-align: right">操作</th>
         </tr>
       </thead>
@@ -203,7 +203,7 @@ function handleImageMoreAction(image: DockerImage, action: string) {
             <span class="docker-table-primary" :title="image.tag">{{ image.tag }}</span>
           </td>
           <td>{{ image.size }}</td>
-          <td>{{ controller.formatTime(image.createdAt) }}</td>
+          <td class="docker-table-nowrap">{{ controller.formatTime(image.createdAt) }}</td>
           <td class="docker-table-actions-column">
             <div class="docker-table-actions">
               <NButton size="tiny" quaternary @click="controller.openImageTagDialog(image)"

@@ -113,7 +113,7 @@ async function submitCreate() {
           <th style="width: 100px">作用域</th>
           <th style="width: 100px">引用</th>
           <th>挂载点</th>
-          <th style="width: 170px">创建时间</th>
+          <th style="width: 190px">创建时间</th>
           <th class="docker-table-actions-column" style="width: 130px; text-align: right">操作</th>
         </tr>
       </thead>
@@ -134,7 +134,7 @@ async function submitCreate() {
               volume.mountpoint
             }}</span>
           </td>
-          <td>{{ controller.formatTime(volume.createdAt) }}</td>
+          <td class="docker-table-nowrap">{{ controller.formatTime(volume.createdAt) }}</td>
           <td class="docker-table-actions-column">
             <div class="docker-table-actions">
               <NButton size="tiny" quaternary @click="controller.viewVolumeInspect(volume)"
