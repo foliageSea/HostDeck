@@ -129,6 +129,26 @@ function isContainerSelected(id: string) {
   return props.controller.selectedContainerIds.includes(id)
 }
 
+const allVisibleContainersSelected = computed(
+  () =>
+    props.controller.containers.length > 0 &&
+    props.controller.containers.every((container) => isContainerSelected(container.id)),
+)
+const someVisibleContainersSelected = computed(
+  () =>
+    !allVisibleContainersSelected.value &&
+    props.controller.containers.some((container) => isContainerSelected(container.id)),
+)
+
+function toggleAllVisibleContainers(checked: boolean) {
+  const visibleIds = props.controller.containers.map((container) => container.id)
+  const selectedIds = checked
+    ? Array.from(new Set([...props.controller.selectedContainerIds, ...visibleIds]))
+    : props.controller.selectedContainerIds.filter((id) => !visibleIds.includes(id))
+
+  props.controller.updateSelectedContainerIds(selectedIds)
+}
+
 function toggleContainerSelection(id: string, checked: boolean) {
   const selectedIds = checked
     ? Array.from(new Set([...props.controller.selectedContainerIds, id]))
@@ -215,7 +235,14 @@ function isPaused(container: DockerContainer) {
     <DockerResourceTable v-else min-width="1460px">
       <thead>
         <tr>
-          <th style="width: 44px"></th>
+          <th style="width: 44px">
+            <NCheckbox
+              :checked="allVisibleContainersSelected"
+              :indeterminate="someVisibleContainersSelected"
+              aria-label="全选当前页容器"
+              @update:checked="toggleAllVisibleContainers"
+            />
+          </th>
           <th style="width: 190px">容器</th>
           <th style="width: 150px">状态</th>
           <th style="width: 210px">镜像</th>
