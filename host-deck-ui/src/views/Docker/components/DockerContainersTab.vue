@@ -208,9 +208,6 @@ function isPaused(container: DockerContainer) {
 
       <template #meta>
         <NTag round size="small">已选 {{ controller.selectedContainerIds.length }}</NTag>
-        <NTag round size="small"
-          >显示 {{ controller.containerTotal }} / {{ controller.containerSummary.total }}</NTag
-        >
       </template>
     </DockerTabToolbar>
 

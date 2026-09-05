@@ -263,12 +263,6 @@ function handleNetworkMoreAction(network: DockerNetwork, action: string) {
         >
         <NButton quaternary @click="controller.confirmPruneNetworks">清理未使用</NButton>
       </template>
-
-      <template #meta>
-        <NTag round size="small"
-          >显示 {{ controller.filteredNetworks.length }} / {{ controller.networks.length }}</NTag
-        >
-      </template>
     </DockerTabToolbar>
 
     <NEmpty v-if="controller.filteredNetworks.length === 0" />

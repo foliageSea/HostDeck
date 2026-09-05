@@ -61,12 +61,6 @@ function handleComposeMoreAction(project: DockerComposeProject, action: string) 
           >刷新</NButton
         >
       </template>
-      <template #meta
-        ><NTag round size="small"
-          >显示 {{ controller.filteredComposeProjects.length }} /
-          {{ controller.composeProjects.length }}</NTag
-        ></template
-      >
     </DockerTabToolbar>
     <NResult
       v-if="controller.composeAvailable === false"

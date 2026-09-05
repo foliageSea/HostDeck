@@ -160,9 +160,6 @@ function handleImageMoreAction(image: DockerImage, action: string) {
 
       <template #meta>
         <NTag round size="small">镜像 {{ controller.imageSummary.total }}</NTag>
-        <NTag round size="small"
-          >显示 {{ controller.imageTotal }} / {{ controller.imageSummary.total }}</NTag
-        >
       </template>
     </DockerTabToolbar>
 

@@ -95,12 +95,6 @@ async function submitCreate() {
         >
         <NButton quaternary @click="controller.confirmPruneVolumes">清理未使用</NButton>
       </template>
-
-      <template #meta>
-        <NTag round size="small"
-          >显示 {{ controller.filteredVolumes.length }} / {{ controller.volumes.length }}</NTag
-        >
-      </template>
     </DockerTabToolbar>
 
     <NEmpty v-if="controller.filteredVolumes.length === 0" />
