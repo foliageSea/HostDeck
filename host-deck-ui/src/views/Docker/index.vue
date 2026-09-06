@@ -91,7 +91,6 @@ const controller: DockerViewController = reactive(useDockerView(props))
         <NTabPane name="volumes" tab="存储" class="docker-internal-scroll-pane">
           <DockerVolumesTab :controller="controller" />
         </NTabPane>
-
       </NTabs>
     </NSpin>
 
@@ -106,10 +105,18 @@ const controller: DockerViewController = reactive(useDockerView(props))
 <style scoped>
 .docker-theme-dark {
   --docker-tab-card-border: rgba(148, 163, 184, 0.16);
+  --docker-card-background: rgba(15, 23, 42, 0.28);
+  --docker-text-secondary: rgba(226, 232, 240, 0.78);
+  --docker-text-muted: rgba(203, 213, 225, 0.68);
+  --docker-text-subtle: rgba(203, 213, 225, 0.56);
 }
 
 .docker-theme-light {
   --docker-tab-card-border: rgba(148, 163, 184, 0.22);
+  --docker-card-background: rgba(255, 255, 255, 0.28);
+  --docker-text-secondary: rgba(71, 85, 105, 0.88);
+  --docker-text-muted: rgba(100, 116, 139, 0.78);
+  --docker-text-subtle: rgba(100, 116, 139, 0.64);
 }
 
 .docker-body {

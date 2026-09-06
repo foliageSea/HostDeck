@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { Add } from '@vicons/carbon'
+import { Box, ChevronDown, Ellipsis, LogIn, RefreshCw, Search } from '@lucide/vue'
 import type { DockerContainer } from '@/api/docker'
 import CopyableText from '@/components/common/CopyableText.vue'
 import type { DockerViewController } from '../hooks/useDockerView'
 import { getContainerStatusPresentation } from '../hooks/dockerViewHelpers'
-import DockerResourceTable from './DockerResourceTable.vue'
 import DockerTabToolbar from './DockerTabToolbar.vue'
 
 const props = defineProps<{
@@ -20,31 +20,16 @@ const selectedPortPinned = computed(() =>
   props.controller.isContainerPortPinned(selectedPort.value),
 )
 
-const containerMoreActionOptions = computed(() => [
-  { key: 'batch-start', label: '批量启动' },
-  { key: 'batch-stop', label: '批量停止' },
-  { key: 'divider', type: 'divider' },
-  { key: 'cleanup-stopped', label: '清理已停止' },
-])
-
 function getContainerRowMoreActionOptions(container: DockerContainer) {
   const paused = isPaused(container)
   const isRunning = container.state === 'running'
 
   return [
     { key: 'stats', label: '监控', disabled: !isRunning },
-    {
-      key: 'ports',
-      label: '端口',
-      disabled: container.ports.length === 0,
-      children: container.ports.map((port) => ({
-        key: `port:${port}`,
-        label: port,
-      })),
-    },
     { key: 'logs', label: '日志' },
     { key: 'shell', label: '终端', disabled: !isRunning },
     { key: 'divider-1', type: 'divider' },
+    { key: 'restart', label: '重启', disabled: !isRunning },
     { key: 'pause-toggle', label: paused ? '恢复' : '暂停', disabled: !isRunning },
     { key: 'inspect', label: '检查' },
     { key: 'edit', label: '编辑', disabled: isRunning },
@@ -55,18 +40,8 @@ function getContainerRowMoreActionOptions(container: DockerContainer) {
   ]
 }
 
-function handleContainerMoreAction(key: string) {
-  switch (key) {
-    case 'batch-start':
-      props.controller.batchStartSelected()
-      break
-    case 'batch-stop':
-      props.controller.batchStopSelected()
-      break
-    case 'cleanup-stopped':
-      props.controller.confirmRemoveStoppedContainers()
-      break
-  }
+function getContainerPortOptions(container: DockerContainer) {
+  return container.ports.map((port) => ({ key: `port:${port}`, label: port }))
 }
 
 function handleContainerRowMoreAction(container: DockerContainer, key: string) {
@@ -86,6 +61,9 @@ function handleContainerRowMoreAction(container: DockerContainer, key: string) {
       break
     case 'shell':
       props.controller.enterShell(container)
+      break
+    case 'restart':
+      props.controller.confirmContainerAction(container, 'restart')
       break
     case 'pause-toggle':
       props.controller.handleContainerAdvancedAction(
@@ -111,6 +89,13 @@ function handleContainerRowMoreAction(container: DockerContainer, key: string) {
   }
 }
 
+function toggleContainerState(container: DockerContainer) {
+  props.controller.confirmContainerAction(
+    container,
+    container.state === 'running' ? 'stop' : 'start',
+  )
+}
+
 function openSelectedPort() {
   props.controller.openContainerPort(selectedPort.value)
   portActionVisible.value = false
@@ -123,38 +108,6 @@ function toggleSelectedPortPin() {
 
   props.controller.toggleContainerPortDesktopPin(selectedPortContainer.value, selectedPort.value)
   portActionVisible.value = false
-}
-
-function isContainerSelected(id: string) {
-  return props.controller.selectedContainerIds.includes(id)
-}
-
-const allVisibleContainersSelected = computed(
-  () =>
-    props.controller.containers.length > 0 &&
-    props.controller.containers.every((container) => isContainerSelected(container.id)),
-)
-const someVisibleContainersSelected = computed(
-  () =>
-    !allVisibleContainersSelected.value &&
-    props.controller.containers.some((container) => isContainerSelected(container.id)),
-)
-
-function toggleAllVisibleContainers(checked: boolean) {
-  const visibleIds = props.controller.containers.map((container) => container.id)
-  const selectedIds = checked
-    ? Array.from(new Set([...props.controller.selectedContainerIds, ...visibleIds]))
-    : props.controller.selectedContainerIds.filter((id) => !visibleIds.includes(id))
-
-  props.controller.updateSelectedContainerIds(selectedIds)
-}
-
-function toggleContainerSelection(id: string, checked: boolean) {
-  const selectedIds = checked
-    ? Array.from(new Set([...props.controller.selectedContainerIds, id]))
-    : props.controller.selectedContainerIds.filter((item) => item !== id)
-
-  props.controller.updateSelectedContainerIds(selectedIds)
 }
 
 function getContainerNetworksTitle(container: DockerContainer) {
@@ -182,30 +135,6 @@ function isPaused(container: DockerContainer) {
   <div class="flex h-full min-h-0 flex-col overflow-hidden">
     <DockerTabToolbar>
       <template #left>
-        <div class="flex flex-wrap gap-1 items-center">
-          <NInput
-            :value="controller.containerSearchKeyword"
-            clearable
-            class="container-search-input"
-            placeholder="搜索容器"
-            @update:value="controller.setContainerSearchKeyword"
-          />
-          <NSelect
-            :value="controller.containerStatusFilter"
-            class="w-[128px]"
-            :options="controller.containerStatusOptions"
-            @update:value="controller.setContainerStatusFilter"
-          />
-          <NSelect
-            :value="controller.containerComposeProjectFilter"
-            class="w-[148px]"
-            :options="controller.containerComposeProjectOptions"
-            @update:value="controller.setContainerComposeProjectFilter"
-          />
-        </div>
-      </template>
-
-      <template #actions>
         <NButton type="primary" @click="controller.openCreateContainer">
           <template #icon>
             <NIcon>
@@ -214,169 +143,170 @@ function isPaused(container: DockerContainer) {
           </template>
           新建容器
         </NButton>
-        <NDropdown
-          trigger="click"
-          :options="containerMoreActionOptions"
-          @select="handleContainerMoreAction"
-        >
-          <NButton quaternary :loading="controller.batchProcessing">操作</NButton>
-        </NDropdown>
-        <NButton quaternary :loading="controller.loading" @click="controller.refreshContainers"
-          >刷新</NButton
-        >
       </template>
 
-      <template #meta>
-        <NTag round size="small">已选 {{ controller.selectedContainerIds.length }}</NTag>
+      <template #actions>
+        <div class="container-toolbar-filters">
+          <NInput
+            :value="controller.containerSearchKeyword"
+            clearable
+            class="container-search-input"
+            placeholder="搜索容器"
+            @update:value="controller.setContainerSearchKeyword"
+          >
+            <template #prefix><Search :size="16" /></template>
+          </NInput>
+          <NSelect
+            :value="controller.containerStatusFilter"
+            class="container-filter-select"
+            :options="controller.containerStatusOptions"
+            @update:value="controller.setContainerStatusFilter"
+          />
+          <NSelect
+            :value="controller.containerComposeProjectFilter"
+            class="container-compose-select"
+            :options="controller.containerComposeProjectOptions"
+            @update:value="controller.setContainerComposeProjectFilter"
+          />
+          <NTooltip>
+            <template #trigger>
+              <NButton
+                circle
+                :loading="controller.loading"
+                aria-label="刷新容器"
+                @click="controller.refreshContainers"
+              >
+                <RefreshCw :size="16" />
+              </NButton>
+            </template>
+            刷新
+          </NTooltip>
+        </div>
       </template>
     </DockerTabToolbar>
 
-    <NEmpty v-if="controller.containers.length === 0" />
-    <DockerResourceTable v-else min-width="1460px">
-      <thead>
-        <tr>
-          <th style="width: 44px">
-            <NCheckbox
-              :checked="allVisibleContainersSelected"
-              :indeterminate="someVisibleContainersSelected"
-              aria-label="全选当前页容器"
-              @update:checked="toggleAllVisibleContainers"
-            />
-          </th>
-          <th style="width: 190px">容器</th>
-          <th style="width: 150px">状态</th>
-          <th style="width: 210px">镜像</th>
-          <th style="width: 150px">编排</th>
-          <th style="width: 180px">网络</th>
-          <th style="width: 160px">IP</th>
-          <th style="width: 190px">创建时间</th>
-          <th class="docker-table-actions-column" style="width: 190px; text-align: right">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="container in controller.containers" :key="container.id">
-          <td>
-            <NCheckbox
-              :checked="isContainerSelected(container.id)"
-              @update:checked="toggleContainerSelection(container.id, $event)"
-            />
-          </td>
-          <td>
-            <span class="docker-table-primary" :title="container.name">{{ container.name }}</span>
-            <span class="docker-table-secondary" :title="container.id"
-              ><CopyableText
-                :text="container.id"
-                :display-text="container.id.slice(0, 12)"
-                success-message="已复制容器 ID。"
-                error-message="复制容器 ID 失败。"
-            /></span>
-          </td>
-          <td>
+    <NEmpty v-if="controller.containers.length === 0" class="my-auto" />
+    <div v-else class="container-list app-scrollbar app-scrollbar-compact">
+      <div class="container-list__summary">共 {{ controller.containerTotal }} 个容器</div>
+
+      <article
+        v-for="container in controller.containers"
+        :key="container.id"
+        class="container-card"
+      >
+        <div class="container-card__icon" aria-hidden="true">
+          <Box :size="28" :stroke-width="1.8" />
+        </div>
+
+        <div class="container-card__content">
+          <div class="container-card__heading">
+            <strong :title="container.name">{{ container.name }}</strong>
             <NTooltip trigger="hover" placement="top-start">
               <template #trigger>
-                <div class="docker-table-status">
-                  <NTag round size="small" :type="getContainerStatusPresentation(container).type">
-                    {{ getContainerStatusPresentation(container).label }}
-                  </NTag>
-                </div>
+                <NTag size="small" :type="getContainerStatusPresentation(container).type">
+                  {{ getContainerStatusPresentation(container).label }}
+                </NTag>
               </template>
               <div class="grid max-w-[360px] gap-[5px]">
                 <strong>{{ getContainerStatusPresentation(container).description }}</strong>
                 <span class="break-anywhere opacity-72"
                   >详细状态：{{ container.status || '-' }}</span
                 >
-                <span class="break-anywhere opacity-72"
-                  >引擎状态：{{ container.state || '-' }}</span
-                >
               </div>
             </NTooltip>
-          </td>
-          <td>
-            <span class="docker-table-primary" :title="container.image">{{ container.image }}</span>
-          </td>
-          <td>
-            <span class="docker-table-primary" :title="container.composeProject || '-'">{{
-              container.composeProject || '-'
-            }}</span>
-          </td>
-          <td>
-            <div class="docker-table-tags" :title="getContainerNetworksTitle(container)">
-              <template v-if="container.networks.length"
-                ><NTag
-                  v-for="network in container.networks.slice(0, 2)"
-                  :key="network.name"
-                  size="small"
-                  round
-                  >{{ network.name }}</NTag
-                ><span v-if="container.networks.length > 2"
-                  >+{{ container.networks.length - 2 }}</span
-                ></template
-              ><template v-else>-</template>
-            </div>
-          </td>
-          <td>
-            <div class="docker-table-tags" :title="getContainerNetworkIpsTitle(container)">
-              <template v-if="container.networks.some((item) => item.ipAddress)"
-                ><NTag
-                  v-for="network in container.networks.filter((item) => item.ipAddress).slice(0, 2)"
-                  :key="`${network.name}-${network.ipAddress}`"
-                  size="small"
-                  round
-                  type="info"
-                  >{{ network.ipAddress }}</NTag
-                ></template
-              ><template v-else>-</template>
-            </div>
-          </td>
-          <td class="docker-table-nowrap">{{ controller.formatTime(container.createdAt) }}</td>
-          <td class="docker-table-actions-column">
-            <div class="docker-table-actions">
-              <NButton
-                v-if="container.state === 'running'"
-                size="tiny"
-                quaternary
-                @click="controller.confirmContainerAction(container, 'stop')"
-              >
-                停止
-              </NButton>
-              <NButton
-                v-else
-                size="tiny"
-                quaternary
-                @click="controller.confirmContainerAction(container, 'start')"
-                >启动
-              </NButton>
-              <NButton
-                size="tiny"
-                quaternary
-                @click="controller.confirmContainerAction(container, 'restart')"
-                >重启
-              </NButton>
-              <NDropdown
-                trigger="click"
-                :options="getContainerRowMoreActionOptions(container)"
-                @select="
-                  (key: string | number) => handleContainerRowMoreAction(container, String(key))
-                "
-              >
-                <NButton size="tiny" quaternary>更多</NButton>
-              </NDropdown>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-      <template v-if="controller.containerTotal > 0" #footer>
-        <NPagination
-          :page="controller.containerPagination.page"
-          :page-size="controller.containerPagination.pageSize"
-          :item-count="controller.containerPagination.itemCount"
-          :page-sizes="controller.containerPagination.pageSizes"
-          show-size-picker
-          @update:page="controller.handleContainerPageChange"
-          @update:page-size="controller.handleContainerPageSizeChange"
-        />
-      </template>
-    </DockerResourceTable>
+          </div>
+
+          <div class="container-card__metadata">
+            <span class="container-card__meta container-card__meta--wide" :title="container.image">
+              <small>镜像</small>{{ container.image || '-' }}
+            </span>
+            <span class="container-card__meta" :title="container.composeProject || '独立容器'">
+              <small>编排</small>{{ container.composeProject || '独立容器' }}
+            </span>
+            <span class="container-card__meta" :title="getContainerNetworksTitle(container)">
+              <small>网络</small>{{ container.networks.map((item) => item.name).join(', ') || '-' }}
+            </span>
+            <span class="container-card__meta" :title="getContainerNetworkIpsTitle(container)">
+              <small>IP</small
+              >{{
+                container.networks
+                  .map((item) => item.ipAddress)
+                  .filter(Boolean)
+                  .join(', ') || '-'
+              }}
+            </span>
+          </div>
+
+          <div class="container-card__footer">
+            <span class="container-card__id" :title="container.id">
+              ID
+              <CopyableText
+                :text="container.id"
+                :display-text="container.id.slice(0, 12)"
+                success-message="已复制容器 ID。"
+                error-message="复制容器 ID 失败。"
+              />
+            </span>
+            <span>创建于 {{ controller.formatTime(container.createdAt) }}</span>
+          </div>
+        </div>
+
+        <div class="container-card__actions">
+          <NDropdown
+            trigger="click"
+            :options="getContainerPortOptions(container)"
+            :disabled="container.ports.length === 0"
+            @select="(key: string | number) => handleContainerRowMoreAction(container, String(key))"
+          >
+            <NTooltip>
+              <template #trigger>
+                <NButton
+                  quaternary
+                  class="container-port-button"
+                  :disabled="container.ports.length === 0"
+                  aria-label="访问容器端口"
+                >
+                  <LogIn :size="19" />
+                  <ChevronDown :size="14" />
+                </NButton>
+              </template>
+              {{ container.ports.length ? '访问容器端口' : '没有可访问的端口' }}
+            </NTooltip>
+          </NDropdown>
+          <NDropdown
+            trigger="click"
+            :options="getContainerRowMoreActionOptions(container)"
+            @select="(key: string | number) => handleContainerRowMoreAction(container, String(key))"
+          >
+            <NButton quaternary circle aria-label="更多容器操作">
+              <Ellipsis :size="19" />
+            </NButton>
+          </NDropdown>
+          <NTooltip>
+            <template #trigger>
+              <NSwitch
+                :value="container.state === 'running'"
+                :aria-label="container.state === 'running' ? '停止容器' : '启动容器'"
+                @update:value="toggleContainerState(container)"
+              />
+            </template>
+            {{ container.state === 'running' ? '停止容器' : '启动容器' }}
+          </NTooltip>
+        </div>
+      </article>
+    </div>
+
+    <div v-if="controller.containerTotal > 0" class="container-pagination">
+      <NPagination
+        :page="controller.containerPagination.page"
+        :page-size="controller.containerPagination.pageSize"
+        :item-count="controller.containerPagination.itemCount"
+        :page-sizes="controller.containerPagination.pageSizes"
+        show-size-picker
+        @update:page="controller.handleContainerPageChange"
+        @update:page-size="controller.handleContainerPageSizeChange"
+      />
+    </div>
 
     <NModal
       v-model:show="portActionVisible"
@@ -417,10 +347,165 @@ function isPaused(container: DockerContainer) {
 
 <style scoped>
 .container-search-input {
-  width: 220px !important;
-  min-width: 220px;
-  max-width: 220px;
+  width: min(280px, 30vw) !important;
+  min-width: 180px;
   flex: none;
+}
+
+.container-toolbar-filters {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.container-filter-select {
+  width: 124px;
+}
+
+.container-compose-select {
+  width: 140px;
+}
+
+.container-list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  padding: 1px 6px 8px 1px;
+}
+
+.container-list__summary {
+  display: flex;
+  flex: none;
+  padding: 0 4px;
+  color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+  font-size: 12px;
+}
+
+.container-card {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--docker-tab-card-border, rgba(148, 163, 184, 0.2));
+  border-radius: 12px;
+  background: var(--docker-card-background, transparent);
+  padding: 20px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.container-card:hover {
+  border-color: rgba(59, 130, 246, 0.36);
+  box-shadow: 0 8px 24px -20px rgba(37, 99, 235, 0.7);
+  transform: translateY(-1px);
+}
+
+.container-card__icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #2381f3;
+}
+
+.container-card__content {
+  min-width: 0;
+}
+
+.container-card__heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.container-card__heading > strong {
+  overflow: hidden;
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-card__metadata {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(180px, 1.6fr) repeat(3, minmax(100px, 1fr));
+  margin-top: 10px;
+}
+
+.container-card__meta {
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--docker-tab-card-border, rgba(148, 163, 184, 0.2));
+  padding: 0 14px;
+  color: var(--docker-text-secondary, rgba(71, 85, 105, 0.88));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-card__meta:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.container-card__meta small {
+  margin-right: 6px;
+  color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+}
+
+.container-card__footer {
+  display: flex;
+  min-width: 0;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+  font-size: 12px;
+}
+
+.container-card__footer > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-card__id {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.container-card__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.container-port-button {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.container-pagination {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  border-top: 1px solid var(--docker-tab-card-border, rgba(148, 163, 184, 0.2));
+  padding-top: 10px;
 }
 
 .port-action-content {
@@ -444,5 +529,74 @@ function isPaused(container: DockerContainer) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .container-card {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .container-card__icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .container-card__actions {
+    grid-column: 2;
+    justify-content: flex-end;
+  }
+
+  .container-card__metadata {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 0;
+  }
+
+  .container-card__meta:nth-child(3) {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .container-toolbar-filters,
+  .container-search-input {
+    width: 100% !important;
+  }
+
+  .container-filter-select,
+  .container-compose-select {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .container-card {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px 12px;
+  }
+
+  .container-card__icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .container-card__metadata {
+    grid-template-columns: 1fr;
+  }
+
+  .container-card__meta,
+  .container-card__meta:nth-child(3) {
+    border-left: 0;
+    padding: 3px 0;
+  }
+
+  .container-card__actions {
+    grid-column: 2;
+    gap: 8px;
+  }
+
+  .container-card__footer span:last-child {
+    display: none;
+  }
 }
 </style>
