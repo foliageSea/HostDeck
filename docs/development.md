@@ -54,12 +54,14 @@ dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
 
 常用参数：
 
-- `--host <value>`：绑定地址，默认 `0.0.0.0`。
+- `--host <value>`：绑定地址，默认 `127.0.0.1`。
 - `--port <value>`：监听端口，默认 `8080`。
 - `--web-dir <path>`：静态前端资源目录。
 - `--data-dir <path>`：sqlite 与配置文件目录。
 - `--log-dir <path>`：日志文件目录，默认是数据目录下的 `logs`。
 - `--log-max-days <days>`：日志最大保留天数，默认 `30`。
+- `--enable-secure-browser`：允许服务进程启动使用 SSH SOCKS5 代理的 Chrome。
+- `--chrome-path <path>`：覆盖自动探测的 Chrome 可执行文件路径。
 
 纯 B/S 服务按本地日期生成 `hostdeck-server-YYYY-MM-DD.log`，并在启动和日期切换时清理超过保留天数的日志。
 

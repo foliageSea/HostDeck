@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:host_deck/server/app/server_container.dart';
 import 'package:host_deck/server/app/server_handlers.dart';
 import 'package:host_deck/server/features/logs/server_log_service.dart';
+import 'package:host_deck/server/features/port_forwards/chrome_launcher.dart';
 import 'package:host_deck/utils/hostdeck_discovery.dart';
 
 class ServerService {
@@ -23,6 +24,7 @@ class ServerService {
   bool secureCookies;
   final ServerLogService logService;
   final bool _ownsLogService;
+  final ChromeLauncher? chromeLauncher;
   ServerContainer? _container;
   bool _disposed = false;
 
@@ -39,6 +41,7 @@ class ServerService {
     this.apiToken,
     this.secureCookies = false,
     ServerLogService? logService,
+    this.chromeLauncher,
   }) : logService = logService ?? ServerLogService(),
        _ownsLogService = logService == null;
 
@@ -73,6 +76,7 @@ class ServerService {
       apiToken: apiToken,
       secureCookies: secureCookies,
       logService: logService,
+      chromeLauncher: chromeLauncher,
     );
     final handler = await buildServerHandler(
       apiRoutes: _container!.apiRoutes,

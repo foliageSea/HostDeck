@@ -9,6 +9,8 @@ class ServerConfig {
   final String? dataDir;
   final String? logDir;
   final int logMaxDays;
+  final bool enableSecureBrowser;
+  final String? chromePath;
 
   const ServerConfig({
     required this.host,
@@ -17,11 +19,14 @@ class ServerConfig {
     required this.dataDir,
     required this.logDir,
     required this.logMaxDays,
+    required this.enableSecureBrowser,
+    required this.chromePath,
   });
 }
 
 ServerConfig parseServerArgs(List<String> args) {
   final values = <String, String>{};
+  var enableSecureBrowser = false;
 
   for (var i = 0; i < args.length; i++) {
     final token = args[i];
@@ -32,6 +37,10 @@ ServerConfig parseServerArgs(List<String> args) {
     final key = token.substring(2);
     if (key == 'help' || key == 'h') {
       printServerUsageAndExit();
+    }
+    if (key == 'enable-secure-browser') {
+      enableSecureBrowser = true;
+      continue;
     }
 
     if (i + 1 >= args.length || args[i + 1].startsWith('--')) {
@@ -65,6 +74,8 @@ ServerConfig parseServerArgs(List<String> args) {
     dataDir: values['data-dir'],
     logDir: values['log-dir'],
     logMaxDays: logMaxDays,
+    enableSecureBrowser: enableSecureBrowser,
+    chromePath: values['chrome-path'],
   );
 }
 
@@ -88,6 +99,9 @@ Options:
   --data-dir <path>    Data directory for sqlite and settings
   --log-dir <path>     Log directory, default: <data-dir>/logs
   --log-max-days <n>   Days to retain log files, default: 30
+  --enable-secure-browser
+                         Allow this process to launch proxied Chrome windows
+  --chrome-path <path>  Chrome executable path (auto-detected by default)
   --help               Show this help
 
 Environment:

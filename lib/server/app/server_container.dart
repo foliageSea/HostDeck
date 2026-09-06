@@ -36,6 +36,7 @@ import 'package:host_deck/server/features/port_forwards/port_forward_repository.
 import 'package:host_deck/server/features/port_forwards/port_forward_service.dart';
 import 'package:host_deck/server/features/port_forwards/secure_browser_tunnel_controller.dart';
 import 'package:host_deck/server/features/port_forwards/secure_browser_tunnel_service.dart';
+import 'package:host_deck/server/features/port_forwards/chrome_launcher.dart';
 import 'package:host_deck/server/features/processes/process_controller.dart';
 import 'package:host_deck/server/features/processes/process_service.dart';
 import 'package:host_deck/server/features/runtime/runtime_controller.dart';
@@ -87,6 +88,7 @@ class ServerContainer {
     String? apiToken,
     bool secureCookies = false,
     required ServerLogService logService,
+    ChromeLauncher? chromeLauncher,
   }) async {
     AppSettings.configure(dataDir: dataDir);
     final getIt = GetIt.asNewInstance();
@@ -268,6 +270,7 @@ class ServerContainer {
         ),
         secureBrowserTunnelController: SecureBrowserTunnelController(
           getIt<SecureBrowserTunnelService>(),
+          chromeLauncher: chromeLauncher,
         ),
       ),
     );

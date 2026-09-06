@@ -487,6 +487,12 @@ List<_OperationPolicy> _policies(
     'secureBrowser',
     'stopTunnel',
   ),
+  _OperationPolicy(
+    'POST',
+    r'api/secure-browser-tunnels/([^/]+)/launch',
+    'secureBrowser',
+    'launchChrome',
+  ),
   _OperationPolicy('POST', r'api/files/write', 'file', 'write'),
   _OperationPolicy('POST', r'api/files/delete', 'file', 'delete'),
   _OperationPolicy('POST', r'api/files/upload', 'file', 'upload'),

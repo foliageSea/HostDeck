@@ -8,7 +8,11 @@ import {
   type PortForwardStatus,
 } from '@/api/port-forward'
 import { getUiApi } from '@/lib/ui'
-import { secureBrowserApi, type SecureBrowserTunnel } from '@/api/secure-browser'
+import {
+  secureBrowserApi,
+  type SecureBrowserCapabilities,
+  type SecureBrowserTunnel,
+} from '@/api/secure-browser'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 
@@ -24,6 +28,10 @@ const editingId = ref<number | null>(null)
 const secureBrowserLoading = ref(false)
 const secureBrowserOperatingId = ref<string | null>(null)
 const secureBrowserTunnels = ref<SecureBrowserTunnel[]>([])
+const secureBrowserCapabilities = ref<SecureBrowserCapabilities>({
+  launchEnabled: false,
+  chromeDetected: false,
+})
 
 const form = reactive({
   bindHost: '127.0.0.1',
@@ -132,7 +140,10 @@ const connectionText = computed(() => {
 const runningCount = computed(() => rules.value.filter((rule) => rule.status === 'running').length)
 const totalCount = computed(() => rules.value.length)
 const canLaunchSecureBrowser = computed(
-  () => hasConnection.value && Boolean(window.hostDeck?.app?.openInSecureChrome),
+  () =>
+    hasConnection.value &&
+    (Boolean(window.hostDeck?.app?.openInSecureChrome) ||
+      secureBrowserCapabilities.value.launchEnabled),
 )
 
 function statusType(status: PortForwardStatus) {
@@ -219,9 +230,21 @@ async function fetchSecureBrowserTunnels() {
   }
 }
 
+async function fetchSecureBrowserCapabilities() {
+  if (window.hostDeck?.app?.openInSecureChrome) return
+  try {
+    secureBrowserCapabilities.value = await secureBrowserApi.capabilities()
+  } catch {
+    secureBrowserCapabilities.value = { launchEnabled: false, chromeDetected: false }
+  }
+}
+
 async function startSecureBrowser() {
-  if (!window.hostDeck?.app?.openInSecureChrome) {
-    getUiApi().message.warning('安全浏览器当前仅支持 Electron 桌面端。')
+  if (
+    !window.hostDeck?.app?.openInSecureChrome &&
+    !secureBrowserCapabilities.value.launchEnabled
+  ) {
+    getUiApi().message.warning('请使用 --enable-secure-browser 启动 Dart CLI 后再使用安全浏览器。')
     return
   }
   if (!hasConnection.value) {
@@ -253,12 +276,18 @@ async function startSecureBrowser() {
 
 async function launchTunnelInChrome(tunnel: SecureBrowserTunnel) {
   const launcher = window.hostDeck?.app?.openInSecureChrome
-  if (!launcher) throw new Error('安全浏览器当前仅支持 Electron 桌面端。')
-  const result = await launcher({
-    profileId: tunnel.id,
-    proxyPort: tunnel.bindPort,
-  })
-  if (!result.success) throw new Error(result.message)
+  if (launcher) {
+    const result = await launcher({
+      profileId: tunnel.id,
+      proxyPort: tunnel.bindPort,
+    })
+    if (!result.success) throw new Error(result.message)
+    return
+  }
+  if (!secureBrowserCapabilities.value.launchEnabled) {
+    throw new Error('Dart CLI 未启用安全浏览器启动功能。')
+  }
+  await secureBrowserApi.launch(tunnel.id)
 }
 
 async function reopenSecureBrowserTunnel(tunnel: SecureBrowserTunnel) {
@@ -377,6 +406,7 @@ async function copyLocalUrl(rule: PortForwardRule) {
 onMounted(() => {
   void fetchRules()
   void fetchSecureBrowserTunnels()
+  void fetchSecureBrowserCapabilities()
 })
 </script>
 

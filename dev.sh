@@ -161,7 +161,8 @@ start_backend() {
   (
     cd "$project_root"
     exec fvm dart run --enable-experiment=native-assets bin/server.dart \
-      --host "$backend_host" --port "$backend_port"
+      --host "$backend_host" --port "$backend_port" \
+      --enable-secure-browser
   ) &
   backend_pid=$!
 

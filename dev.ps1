@@ -101,7 +101,7 @@ function Start-Backend {
     Write-Host "Starting backend on ${BackendHost}:${BackendPort} (local proxy: $backendProxyTarget) ..." -ForegroundColor Cyan
     $process = Start-Process `
         -FilePath "fvm" `
-        -ArgumentList @("dart", "run", "--enable-experiment=native-assets", "bin/server.dart", "--host", $BackendHost, "--port", $BackendPort) `
+        -ArgumentList @("dart", "run", "--enable-experiment=native-assets", "bin/server.dart", "--host", $BackendHost, "--port", $BackendPort, "--enable-secure-browser") `
         -WorkingDirectory $projectRoot `
         -NoNewWindow `
         -PassThru

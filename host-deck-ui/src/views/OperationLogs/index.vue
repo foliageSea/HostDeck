@@ -70,6 +70,7 @@ const actionLabels: Record<string, string> = {
   copy: '复制',
   create: '创建',
   createTunnel: '创建代理',
+  launchChrome: '启动 Chrome',
   delete: '删除',
   stopTunnel: '停止代理',
   disconnect: '断开连接',
