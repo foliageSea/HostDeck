@@ -49,6 +49,7 @@ withDefaults(
 .docker-resource-table {
   width: 100%;
   table-layout: fixed;
+  overflow: visible;
 }
 
 .docker-resource-table :deep(th) {
