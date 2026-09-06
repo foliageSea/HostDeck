@@ -35,7 +35,7 @@ function getContainerRowMoreActionOptions(container: DockerContainer) {
     { key: 'stats', label: '监控', disabled: !isRunning },
     {
       key: 'ports',
-      label: `端口 (${container.ports.length})`,
+      label: '端口',
       disabled: container.ports.length === 0,
       children: container.ports.map((port) => ({
         key: `port:${port}`,
