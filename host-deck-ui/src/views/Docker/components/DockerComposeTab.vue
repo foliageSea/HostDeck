@@ -126,9 +126,6 @@ function handleComposeMoreAction(project: DockerComposeProject, action: string) 
             <span :title="configTitle(project)"
               ><small>配置</small>{{ project.configFiles || '-' }}</span
             >
-            <span :title="project.workingDir || '未返回工作目录'">
-              <small>目录</small>{{ project.workingDir || '-' }}
-            </span>
           </div>
         </div>
 
