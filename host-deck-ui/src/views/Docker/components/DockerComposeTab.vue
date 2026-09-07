@@ -220,8 +220,8 @@ function handleComposeMoreAction(project: DockerComposeProject, action: string) 
 }
 
 .compose-card:hover {
-  border-color: rgba(59, 130, 246, 0.36);
-  box-shadow: 0 8px 24px -20px rgba(37, 99, 235, 0.7);
+  border-color: var(--app-primary-border);
+  box-shadow: 0 8px 24px -20px rgba(var(--app-primary-rgb), 0.7);
   transform: translateY(-1px);
 }
 
@@ -231,8 +231,8 @@ function handleComposeMoreAction(project: DockerComposeProject, action: string) 
   height: 64px;
   place-items: center;
   border-radius: 12px;
-  background: rgba(59, 130, 246, 0.1);
-  color: #2381f3;
+  background: var(--app-primary-soft);
+  color: var(--app-primary-color);
 }
 
 .compose-card__content {
