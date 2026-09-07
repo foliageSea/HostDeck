@@ -13,6 +13,11 @@ export interface CreateSecureBrowserTunnelPayload {
   connectionId: string
 }
 
+export interface SecureBrowserCapabilities {
+  launchEnabled: boolean
+  chromeDetected: boolean
+}
+
 export const secureBrowserApi = {
   create: async (payload: CreateSecureBrowserTunnelPayload) => {
     const response = await http.post<SecureBrowserTunnel>('/api/secure-browser-tunnels', payload)
@@ -20,6 +25,19 @@ export const secureBrowserApi = {
   },
   list: async () => {
     const response = await http.get<SecureBrowserTunnel[]>('/api/secure-browser-tunnels')
+    return response.data
+  },
+  capabilities: async () => {
+    const response = await http.get<SecureBrowserCapabilities>(
+      '/api/secure-browser-tunnels/capabilities',
+    )
+    return response.data
+  },
+  launch: async (id: string, url?: string) => {
+    const response = await http.post<{ success: boolean }>(
+      `/api/secure-browser-tunnels/${id}/launch`,
+      url ? { url } : {},
+    )
     return response.data
   },
   stop: async (id: string) => {

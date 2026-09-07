@@ -34,6 +34,8 @@ class SecureBrowserTunnelService {
     return tunnels;
   }
 
+  SecureBrowserTunnel? getById(String id) => _tunnels[id]?.tunnel;
+
   Future<SecureBrowserTunnel> create({required String connectionId}) {
     if (_disconnectedConnections.contains(connectionId)) {
       return Future.error(StateError('SSH 连接不存在或已断开。'));

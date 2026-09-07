@@ -6,7 +6,9 @@ import 'package:host_deck/server/app/server_lifecycle.dart';
 import 'package:host_deck/server/app/server_logging.dart';
 import 'package:host_deck/server/app/server_runtime.dart';
 import 'package:host_deck/server/app/server_service.dart';
+import 'package:host_deck/server/features/port_forwards/chrome_launcher.dart';
 import 'package:host_deck/utils/app_settings.dart';
+import 'package:host_deck/utils/runtime_paths.dart';
 
 Future<void> main(List<String> args) async {
   final config = parseServerArgs(args);
@@ -20,6 +22,14 @@ Future<void> main(List<String> args) async {
     maxDays: config.logMaxDays,
   );
   AppSettings.configure(dataDir: config.dataDir);
+  final chromeLauncher = config.enableSecureBrowser
+      ? ChromeLauncher(
+          dataDirectory: await RuntimePaths.resolveDataDirectory(
+            overridePath: config.dataDir,
+          ),
+          executablePath: config.chromePath,
+        )
+      : null;
 
   final server = ServerService(
     host: config.host,
@@ -34,6 +44,7 @@ Future<void> main(List<String> args) async {
         Platform.environment['HOSTDECK_SECURE_COOKIES']?.toLowerCase() ==
         'true',
     logService: logging.logService,
+    chromeLauncher: chromeLauncher,
   );
 
   final log = Logger('ServerEntrypoint');
