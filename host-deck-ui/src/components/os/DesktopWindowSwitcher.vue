@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { X } from '@lucide/vue'
 import { useSettingsStore } from '@/stores/settings'
 import AppIcon from '@/components/common/AppIcon.vue'
 import type { WindowState } from '@/stores/desktop'
@@ -11,6 +12,7 @@ defineProps<{
 }>()
 
 defineEmits<{
+  close: [id: string]
   select: [index: number]
 }>()
 </script>
@@ -37,11 +39,10 @@ defineEmits<{
         切换窗口
       </div>
       <div class="flex flex-wrap gap-[14px]">
-        <button
+        <div
           v-for="(window, index) in windows"
           :key="window.id"
-          type="button"
-          class="app-radius-card w-[132px] rounded-[18px] border p-[16px_12px] transition-[transform,border-color,background-color,box-shadow] duration-[200ms] ease-in-out hover:translate-y-[-2px] hover:scale-[1.06] hover:shadow-[0_18px_40px_rgba(15,23,42,0.28)] cursor-pointer"
+          class="app-radius-card group relative w-[132px] rounded-[18px] border transition-[transform,border-color,background-color,box-shadow] duration-[200ms] ease-in-out hover:translate-y-[-2px] hover:scale-[1.06] hover:shadow-[0_18px_40px_rgba(15,23,42,0.28)]"
           :class="[
             settingsStore.isDark
               ? 'border-transparent bg-[rgba(30,41,59,0.74)] text-[#e2e8f0] hover:border-[rgba(96,165,250,0.44)] hover:bg-[rgba(51,65,85,0.92)]'
@@ -52,13 +53,32 @@ defineEmits<{
                 : 'translate-y-[-2px] scale-[1.06] border-[rgba(59,130,246,0.34)] bg-[rgba(219,234,254,0.92)] shadow-[0_18px_40px_rgba(15,23,42,0.28)]'
               : '',
           ]"
-          @click="$emit('select', index)"
         >
-          <div class="mb-[10px] flex justify-center">
-            <AppIcon :name="window.icon" :size="52" themed />
-          </div>
-          <div class="break-words text-center text-[0.88rem]">{{ window.title }}</div>
-        </button>
+          <button
+            type="button"
+            class="w-full cursor-pointer border-0 bg-transparent p-[16px_12px] text-inherit"
+            @click="$emit('select', index)"
+          >
+            <div class="mb-[10px] flex justify-center">
+              <AppIcon :name="window.icon" :size="52" themed />
+            </div>
+            <div class="break-words text-center text-[0.88rem]">{{ window.title }}</div>
+          </button>
+          <button
+            type="button"
+            class="absolute right-[7px] top-[7px] inline-flex h-[24px] w-[24px] cursor-pointer items-center justify-center rounded-full border-0 opacity-70 transition-[background-color,color,opacity] hover:bg-[#c42b1c] hover:text-white hover:opacity-100 focus-visible:opacity-100"
+            :class="
+              settingsStore.isDark
+                ? 'bg-[rgba(15,23,42,0.78)] text-[rgba(226,232,240,0.88)]'
+                : 'bg-[rgba(255,255,255,0.86)] text-[rgba(15,23,42,0.78)]'
+            "
+            :title="`关闭${window.title}`"
+            :aria-label="`关闭${window.title}`"
+            @click="$emit('close', window.id)"
+          >
+            <NIcon :size="14"><X /></NIcon>
+          </button>
+        </div>
       </div>
     </div>
   </div>

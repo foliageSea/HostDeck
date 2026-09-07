@@ -35,4 +35,20 @@ describe('DesktopWindowSwitcher', () => {
       themed: true,
     })
   })
+
+  it('emits the window id when its close button is clicked', async () => {
+    const windowState = {
+      icon: 'terminal',
+      id: 'terminal-1',
+      title: '终端',
+    } as WindowState
+    const wrapper = shallowMount(DesktopWindowSwitcher, {
+      props: { selectedIndex: 0, windows: [windowState] },
+    })
+
+    await wrapper.get('button[aria-label="关闭终端"]').trigger('click')
+
+    expect(wrapper.emitted('close')).toEqual([['terminal-1']])
+    expect(wrapper.emitted('select')).toBeUndefined()
+  })
 })

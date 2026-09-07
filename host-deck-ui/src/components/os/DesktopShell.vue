@@ -65,6 +65,23 @@ function selectWindow(index: number) {
   switcherVisible.value = false
 }
 
+async function closeSwitcherWindow(id: string) {
+  await desktopStore.requestCloseWindow(id)
+
+  const targetWindow = desktopStore.windows.find((window) => window.id === id)
+  if (targetWindow && !targetWindow.isClosing) {
+    return
+  }
+
+  switcherWindows.value = switcherWindows.value.filter((window) => !window.isClosing)
+  if (switcherWindows.value.length === 0) {
+    switcherVisible.value = false
+    return
+  }
+
+  switcherIndex.value = Math.min(switcherIndex.value, switcherWindows.value.length - 1)
+}
+
 function handleKeyDown(event: KeyboardEvent) {
   if (event.key === 'Escape' && launchpadVisible.value) {
     event.preventDefault()
@@ -177,6 +194,7 @@ onUnmounted(() => {
       v-if="switcherVisible"
       :windows="switcherWindows"
       :selected-index="switcherIndex"
+      @close="closeSwitcherWindow"
       @select="selectWindow"
     />
 
