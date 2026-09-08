@@ -437,7 +437,7 @@ function createChartOption(config: {
 
 <template>
   <div
-    class="monitor-view h-full overflow-auto p-[20px]"
+    class="monitor-view flex h-full min-h-0 flex-col overflow-hidden p-[20px]"
     :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]'"
   >
     <div v-if="monitorError || historyError" class="mb-[16px] grid gap-[12px]">
@@ -691,26 +691,42 @@ function createChartOption(config: {
     radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 30%),
     radial-gradient(circle at top right, rgba(129, 140, 248, 0.14), transparent 28%),
     linear-gradient(180deg, rgba(15, 23, 42, 0.1), rgba(15, 23, 42, 0.04));
+}
+
+.dashboard-tabs {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboard-tabs :deep(.n-tabs-pane-wrapper) {
+  min-height: 0;
+  overflow-y: auto;
   scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
   scrollbar-width: thin;
 }
 
-.monitor-view::-webkit-scrollbar {
+.dashboard-tabs :deep(.n-tabs-content) {
+  min-height: 0;
+}
+
+.dashboard-tabs :deep(.n-tabs-pane-wrapper)::-webkit-scrollbar {
   width: 10px;
 }
 
-.monitor-view::-webkit-scrollbar-track {
+.dashboard-tabs :deep(.n-tabs-pane-wrapper)::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.monitor-view::-webkit-scrollbar-thumb {
+.dashboard-tabs :deep(.n-tabs-pane-wrapper)::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, rgba(96, 165, 250, 0.7), rgba(129, 140, 248, 0.7));
   border: 2px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
 }
 
-.monitor-view::-webkit-scrollbar-thumb:hover {
+.dashboard-tabs :deep(.n-tabs-pane-wrapper)::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, rgba(59, 130, 246, 0.82), rgba(99, 102, 241, 0.82));
   border: 2px solid transparent;
   background-clip: padding-box;
