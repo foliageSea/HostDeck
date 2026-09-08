@@ -44,7 +44,8 @@ function resolveStoredWindowControlsStyle(): WindowControlsStyle {
     return value
   }
 
-  return 'mac'
+  const platform = `${navigator.platform} ${navigator.userAgent}`
+  return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'mac' : 'win'
 }
 
 function resolveStoredCornerStyle(): CornerStyle {
