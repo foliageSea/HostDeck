@@ -1,26 +1,86 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import AppIcon from '@/components/common/AppIcon.vue'
 import type { WindowState } from '@/stores/desktop'
 
 const settingsStore = useSettingsStore()
+const switcherElement = ref<HTMLElement>()
 
-defineProps<{
+const { selectedIndex, windows } = defineProps<{
   selectedIndex: number
   windows: WindowState[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   close: [id: string]
+  highlight: [index: number]
   select: [index: number]
 }>()
+
+function handleKeyDown(event: KeyboardEvent) {
+  if (event.target !== switcherElement.value) {
+    return
+  }
+
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    event.stopPropagation()
+    emit('select', selectedIndex)
+    return
+  }
+
+  if (!['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp'].includes(event.key)) {
+    return
+  }
+
+  const items = Array.from(
+    switcherElement.value?.querySelectorAll<HTMLElement>('[data-window-index]') ?? [],
+  )
+  const rows: number[][] = []
+  items.forEach((item, index) => {
+    const previousItem = items[index - 1]
+    if (!previousItem || item.offsetTop !== previousItem.offsetTop) {
+      rows.push([])
+    }
+    rows.at(-1)?.push(index)
+  })
+
+  const rowIndex = rows.findIndex((row) => row.includes(selectedIndex))
+  const columnIndex = rows[rowIndex]?.indexOf(selectedIndex) ?? -1
+  let nextIndex = selectedIndex
+
+  if (event.key === 'ArrowLeft') {
+    nextIndex = rows[rowIndex]?.[Math.max(0, columnIndex - 1)] ?? selectedIndex
+  } else if (event.key === 'ArrowRight') {
+    const currentRow = rows[rowIndex]
+    nextIndex = currentRow?.[Math.min(currentRow.length - 1, columnIndex + 1)] ?? selectedIndex
+  } else {
+    const nextRowIndex = event.key === 'ArrowUp' ? rowIndex - 1 : rowIndex + 1
+    const nextRow = rows[nextRowIndex]
+    if (nextRow) {
+      nextIndex = nextRow[Math.min(columnIndex, nextRow.length - 1)] ?? selectedIndex
+    }
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+  emit('highlight', nextIndex)
+}
+
+onMounted(() => {
+  nextTick(() => switcherElement.value?.focus())
+})
 </script>
 
 <template>
   <div
-    class="absolute inset-0 z-[99999] flex items-center justify-center backdrop-blur-[8px]"
+    ref="switcherElement"
+    class="absolute inset-0 z-[99999] flex items-center justify-center backdrop-blur-[8px] outline-none"
     :class="settingsStore.isDark ? 'bg-[rgba(2,6,23,0.28)]' : 'bg-[rgba(226,232,240,0.42)]'"
+    tabindex="-1"
+    @keydown="handleKeyDown"
   >
     <div
       class="app-radius-card min-w-[320px] max-w-[860px] rounded-[24px] p-[18px]"
@@ -42,6 +102,7 @@ defineEmits<{
         <div
           v-for="(window, index) in windows"
           :key="window.id"
+          :data-window-index="index"
           class="app-radius-card group relative w-[132px] rounded-[18px] border transition-[transform,border-color,background-color,box-shadow] duration-[200ms] ease-in-out hover:translate-y-[-2px] hover:scale-[1.06] hover:shadow-[0_18px_40px_rgba(15,23,42,0.28)]"
           :class="[
             settingsStore.isDark
@@ -57,6 +118,7 @@ defineEmits<{
           <button
             type="button"
             class="w-full cursor-pointer border-0 bg-transparent p-[16px_12px] text-inherit"
+            :aria-label="`切换到${window.title}`"
             @click="$emit('select', index)"
           >
             <div class="mb-[10px] flex justify-center">

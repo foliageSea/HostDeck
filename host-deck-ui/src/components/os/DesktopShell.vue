@@ -110,47 +110,34 @@ function handleKeyDown(event: KeyboardEvent) {
     return
   }
 
+  event.preventDefault()
+  event.stopPropagation()
+
+  if (event.repeat) {
+    return
+  }
+
+  if (switcherVisible.value) {
+    switcherVisible.value = false
+    return
+  }
+
   const sortedWindows = [...desktopStore.windows].sort((left, right) => right.zIndex - left.zIndex)
   if (sortedWindows.length < 2) {
     return
   }
 
-  event.preventDefault()
-  event.stopPropagation()
-
-  if (!switcherVisible.value) {
-    switcherWindows.value = sortedWindows
-    switcherVisible.value = true
-    switcherIndex.value = event.shiftKey ? sortedWindows.length - 1 : 1
-    return
-  }
-
-  if (event.shiftKey) {
-    switcherIndex.value =
-      (switcherIndex.value - 1 + switcherWindows.value.length) % switcherWindows.value.length
-    return
-  }
-
-  switcherIndex.value = (switcherIndex.value + 1) % switcherWindows.value.length
-}
-
-function handleKeyUp(event: KeyboardEvent) {
-  const isSwitchModifierReleased = isMacOS.value
-    ? event.key === 'Meta' || event.key === 'Control'
-    : event.key === 'Alt'
-  if (isSwitchModifierReleased && switcherVisible.value) {
-    selectWindow(switcherIndex.value)
-  }
+  switcherWindows.value = sortedWindows
+  switcherIndex.value = 0
+  switcherVisible.value = true
 }
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown, true)
-  window.addEventListener('keyup', handleKeyUp, true)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown, true)
-  window.removeEventListener('keyup', handleKeyUp, true)
 })
 </script>
 
@@ -195,6 +182,7 @@ onUnmounted(() => {
       :windows="switcherWindows"
       :selected-index="switcherIndex"
       @close="closeSwitcherWindow"
+      @highlight="switcherIndex = $event"
       @select="selectWindow"
     />
 
