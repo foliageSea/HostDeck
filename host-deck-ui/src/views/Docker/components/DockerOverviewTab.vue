@@ -165,7 +165,7 @@ const secondaryMetrics = computed(() => [
   --overview-line: rgba(112, 131, 160, 0.14);
   --overview-surface: rgba(255, 255, 255, 0.72);
   position: relative;
-  min-height: min(560px, 100%);
+  min-height: 100%;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 24px;
