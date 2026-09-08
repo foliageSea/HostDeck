@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import AppIcon from '@/components/common/AppIcon.vue'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { basename } from '@/utils/path'
+import { directoryTreeIconUrl } from '@/views/Files/components/fileIcons'
+import { Box } from '@lucide/vue'
 
 const DESKTOP_ICON_DRAG_THRESHOLD = 4
 const DESKTOP_ICON_HEIGHT = 108
@@ -792,7 +793,11 @@ onUnmounted(() => {
         <div
           class="app-radius-surface flex h-[52px] w-[52px] items-center justify-center rounded-[16px] transition-[transform,background-color,box-shadow] duration-[180ms] ease-in-out"
           :class="[
-            settingsStore.isDark ? 'bg-[rgba(30,41,59,0.72)]' : 'bg-[rgba(255,255,255,0.58)]',
+            item.type === 'port-link'
+              ? settingsStore.isDark
+                ? 'bg-[rgba(30,41,59,0.72)]'
+                : 'bg-[rgba(255,255,255,0.58)]'
+              : 'bg-transparent',
             isDirectorySelected(item.id)
               ? settingsStore.isDark
                 ? 'scale-[1.04] bg-[rgba(51,65,85,0.82)]'
@@ -800,7 +805,20 @@ onUnmounted(() => {
               : '',
           ]"
         >
-          <AppIcon :color="desktopIconColors[item.icon]" :name="item.icon" :size="28" />
+          <Box
+            v-if="item.type === 'port-link'"
+            :color="desktopIconColors[item.icon]"
+            :size="28"
+            :stroke-width="1.8"
+          />
+          <img
+            v-else
+            :src="directoryTreeIconUrl"
+            alt=""
+            aria-hidden="true"
+            class="block h-[52px] w-[52px] object-contain"
+            draggable="false"
+          />
         </div>
         <div class="w-full">
           <div
