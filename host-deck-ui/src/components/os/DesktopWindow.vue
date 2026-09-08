@@ -176,11 +176,19 @@ onUnmounted(() => {
       @mousedown="focusWindow"
     >
     <header
-      class="relative flex h-[48px] items-center justify-between gap-[12px] border-b px-[14px] backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(140%)]"
+      data-window-title-bar
+      class="relative flex h-[48px] items-center justify-between gap-[12px] border-b px-[14px]"
       :class="[
         settingsStore.isDark
-          ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(0,0,0,0.58)]'
-          : 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.62)]',
+          ? settingsStore.windowBlur
+            ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(0,0,0,0.58)]'
+            : 'border-[rgba(148,163,184,0.14)] bg-black'
+          : settingsStore.windowBlur
+            ? 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.62)]'
+            : 'border-[rgba(148,163,184,0.22)] bg-white',
+        settingsStore.windowBlur
+          ? 'backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(140%)]'
+          : '',
       ]"
       @mousedown.prevent="startDrag"
       @dblclick="maximizeWindow"
@@ -316,8 +324,20 @@ onUnmounted(() => {
     </header>
 
     <div
-      class="min-h-0 flex-1 backdrop-blur-[22px] [backdrop-filter:blur(22px)_saturate(135%)]"
-      :class="settingsStore.isDark ? 'bg-[rgba(0,0,0,0.72)]' : 'bg-[rgba(255,255,255,0.76)]'"
+      data-window-body
+      class="min-h-0 flex-1"
+      :class="[
+        settingsStore.isDark
+          ? settingsStore.windowBlur
+            ? 'bg-[rgba(0,0,0,0.72)]'
+            : 'bg-black'
+          : settingsStore.windowBlur
+            ? 'bg-[rgba(255,255,255,0.76)]'
+            : 'bg-white',
+        settingsStore.windowBlur
+          ? 'backdrop-blur-[22px] [backdrop-filter:blur(22px)_saturate(135%)]'
+          : '',
+      ]"
     >
       <component :is="window.component" :window-id="window.id" v-bind="window.props" />
     </div>

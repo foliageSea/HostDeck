@@ -183,6 +183,17 @@ async function exportLogs() {
                 </NSpace>
               </NRadioGroup>
             </NFormItem>
+            <NFormItem label="窗口高斯模糊">
+              <div class="flex w-full items-center justify-between gap-[16px]">
+                <span class="text-[12px] text-[rgba(148,163,184,0.96)]">
+                  关闭后标题栏和窗体将使用纯色背景。
+                </span>
+                <NSwitch
+                  :value="settingsStore.windowBlur"
+                  @update:value="settingsStore.setWindowBlur"
+                />
+              </div>
+            </NFormItem>
             <NFormItem label="圆角风格">
               <NRadioGroup
                 :value="settingsStore.cornerStyle"

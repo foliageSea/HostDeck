@@ -1,4 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
+import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -44,5 +45,16 @@ describe('settings window controls style', () => {
     window.localStorage.setItem('host-deck-ui.windowControlsStyle', 'mac')
 
     expect(useSettingsStore().windowControlsStyle).toBe('mac')
+  })
+
+  it('enables window blur by default and persists a disabled value', async () => {
+    const settingsStore = useSettingsStore()
+
+    expect(settingsStore.windowBlur).toBe(true)
+
+    settingsStore.setWindowBlur(false)
+    await nextTick()
+
+    expect(window.localStorage.getItem('host-deck-ui.windowBlur')).toBe('false')
   })
 })

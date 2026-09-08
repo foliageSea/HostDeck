@@ -53,4 +53,22 @@ describe('DesktopWindow', () => {
     expect(desktopWindow.isMaximized).toBe(true)
     expect(wrapper.find('.cursor-nwse-resize').exists()).toBe(false)
   })
+
+  it('uses solid title bar and window body backgrounds when blur is disabled', async () => {
+    const desktopStore = useDesktopStore()
+    const settingsStore = useSettingsStore()
+    const windowId = desktopStore.openWindow('settings')!
+    const desktopWindow = desktopStore.windows.find((window) => window.id === windowId)!
+    const wrapper = shallowMount(DesktopWindow, { props: { window: desktopWindow } })
+
+    expect(wrapper.get('[data-window-title-bar]').classes()).toContain('backdrop-blur-[18px]')
+    expect(wrapper.get('[data-window-body]').classes()).toContain('backdrop-blur-[22px]')
+
+    settingsStore.setWindowBlur(false)
+    await nextTick()
+    expect(wrapper.get('[data-window-title-bar]').classes()).not.toContain('backdrop-blur-[18px]')
+    expect(wrapper.get('[data-window-body]').classes()).not.toContain('backdrop-blur-[22px]')
+    expect(wrapper.get('[data-window-title-bar]').classes()).toContain('bg-white')
+    expect(wrapper.get('[data-window-body]').classes()).toContain('bg-white')
+  })
 })
