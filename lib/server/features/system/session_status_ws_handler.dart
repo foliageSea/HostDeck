@@ -9,7 +9,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 
 class SessionStatusWsHandler {
-  static const _disconnectDelay = Duration(minutes: 2);
+  static const _disconnectDelay = Duration(seconds: 10);
 
   final _log = Logger('SessionStatusWsHandler');
   final SshService _sshService;
