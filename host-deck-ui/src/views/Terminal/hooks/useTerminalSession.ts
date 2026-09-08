@@ -23,6 +23,9 @@ interface TerminalProps {
   closeConnectionOnUnmount?: boolean
 }
 
+const CWD_OSC_ID = 777
+const CWD_REQUEST_TIMEOUT_MS = 3000
+
 function buildTerminalTheme(isDark: boolean) {
   if (isDark) {
     return {
@@ -85,6 +88,12 @@ export function useTerminalSession(props: TerminalProps) {
   let webglAddon: WebglAddon | null = null
   let socket: WebSocket | null = null
   let resizeObserver: ResizeObserver | null = null
+  let cwdOscHandler: { dispose: () => void } | null = null
+  let pendingCwdRequest: {
+    reject: (reason: Error) => void
+    resolve: (path: string) => void
+    timeoutId: number
+  } | null = null
   let ownedSessionId: string | null = null
   let initializedCwd = false
   let startupCommandTimer: number | null = null
@@ -122,6 +131,36 @@ export function useTerminalSession(props: TerminalProps) {
       clearTimeout(openIframeTimer)
       openIframeTimer = null
     }
+  }
+
+  function clearPendingCwdRequest(error?: Error) {
+    if (!pendingCwdRequest) {
+      return
+    }
+
+    clearTimeout(pendingCwdRequest.timeoutId)
+    const { reject } = pendingCwdRequest
+    pendingCwdRequest = null
+    if (error) {
+      reject(error)
+    }
+  }
+
+  function requestCurrentDirectory() {
+    if (socket?.readyState !== WebSocket.OPEN) {
+      return Promise.reject(new Error('终端尚未连接。'))
+    }
+    if (pendingCwdRequest) {
+      return Promise.reject(new Error('正在获取当前目录。'))
+    }
+
+    return new Promise<string>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        clearPendingCwdRequest(new Error('获取当前目录超时。'))
+      }, CWD_REQUEST_TIMEOUT_MS)
+      pendingCwdRequest = { reject, resolve, timeoutId }
+      socket?.send(` printf '\\033]${CWD_OSC_ID};%s\\007' "$PWD"\r`)
+    })
   }
 
   async function shutdownTerminalProcess() {
@@ -246,6 +285,7 @@ export function useTerminalSession(props: TerminalProps) {
     }
 
     socket.onclose = () => {
+      clearPendingCwdRequest(new Error('终端连接已关闭。'))
       terminalRef.value?.write('\r\n连接已关闭。\r\n')
     }
 
@@ -307,6 +347,17 @@ export function useTerminalSession(props: TerminalProps) {
 
     terminalRef.value.loadAddon(fitAddon)
     terminalRef.value.loadAddon(webLinksAddon)
+    cwdOscHandler = terminalRef.value.parser.registerOscHandler(CWD_OSC_ID, (path) => {
+      if (!pendingCwdRequest) {
+        return true
+      }
+
+      clearTimeout(pendingCwdRequest.timeoutId)
+      const { resolve } = pendingCwdRequest
+      pendingCwdRequest = null
+      resolve(path)
+      return true
+    })
 
     try {
       webglAddon = markRaw(new WebglAddon())
@@ -400,14 +451,17 @@ export function useTerminalSession(props: TerminalProps) {
 
     resizeObserver?.disconnect()
     clearStartupTimers()
+    clearPendingCwdRequest(new Error('终端已关闭。'))
     await shutdownTerminalProcess()
     socket?.close()
+    cwdOscHandler?.dispose()
     terminalRef.value?.dispose()
     webglAddon = null
     webLinksAddon = null
     fitAddon = null
     socket = null
     resizeObserver = null
+    cwdOscHandler = null
 
     if (sessionIdToClose) {
       try {
@@ -419,6 +473,7 @@ export function useTerminalSession(props: TerminalProps) {
   })
 
   return {
+    requestCurrentDirectory,
     terminal: terminalRef,
     terminalContainer,
   }

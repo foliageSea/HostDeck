@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Help, Settings, Terminal } from '@vicons/carbon'
+import { FolderOpen, Help, Settings, Terminal } from '@vicons/carbon'
 import '@xterm/xterm/css/xterm.css'
 import TerminalSettingsModal from './components/TerminalSettingsModal.vue'
 import TerminalSnippetsModal from './components/TerminalSnippetsModal.vue'
 import { useTerminalSession } from './hooks/useTerminalSession'
 import { useSettingsStore } from '@/stores/settings'
+import { useDesktopStore } from '@/stores/desktop'
+import { useSshStore } from '@/stores/ssh'
 import { getUiApi } from '@/lib/ui'
 
 const props = defineProps<{
@@ -25,12 +27,15 @@ const props = defineProps<{
 }>()
 
 const settingsStore = useSettingsStore()
+const desktopStore = useDesktopStore()
+const sshStore = useSshStore()
 const showSettings = ref(false)
 const showSnippets = ref(false)
 const showCopyButton = ref(false)
+const openingCurrentDirectory = ref(false)
 const selectedText = ref('')
 const copyButtonStyle = ref({ left: '0px', top: '0px' })
-const { terminal, terminalContainer } = useTerminalSession(props)
+const { requestCurrentDirectory, terminal, terminalContainer } = useTerminalSession(props)
 
 void terminalContainer
 
@@ -83,6 +88,39 @@ function insertSnippet(command: string) {
   terminal.value?.paste(command)
   terminal.value?.focus()
 }
+
+async function openCurrentDirectory() {
+  if (openingCurrentDirectory.value) {
+    return
+  }
+
+  openingCurrentDirectory.value = true
+  try {
+    const path = await requestCurrentDirectory()
+    const connectionId = props.connectionId ?? sshStore.connectionId
+    if (!connectionId) {
+      throw new Error('当前没有可用的 SSH 连接。')
+    }
+
+    desktopStore.openWindow(
+      'files',
+      {
+        connectionId,
+        host: props.host ?? sshStore.host,
+        path,
+        title: `文件管理 · ${path}`,
+        username: props.username ?? sshStore.username,
+      },
+      { parentId: props.windowId },
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '无法获取终端当前目录。'
+    getUiApi().message.error(message)
+  } finally {
+    openingCurrentDirectory.value = false
+    terminal.value?.focus()
+  }
+}
 </script>
 
 <template>
@@ -97,8 +135,40 @@ function insertSnippet(command: string) {
     @mouseup="openCopyButton"
     @wheel="handleWheel"
   >
-    <div class="absolute right-[20px] top-[18px] z-10 flex items-center gap-[8px]">
-      <NPopover trigger="hover" placement="bottom-end">
+    <div
+      class="app-radius-card terminal-surface min-h-0 flex-1 overflow-hidden border mx-[12px] mb-[8px]"
+    >
+      <div
+        ref="terminalContainer"
+        class="terminal-host h-full min-h-0 overflow-hidden rounded-[inherit] px-2"
+      />
+    </div>
+
+    <div
+      class="app-radius-card flex shrink-0 items-center justify-end gap-[8px] border px-[12px] py-[8px] mx-[12px] mb-[12px]"
+      :class="settingsStore.isDark ? 'bg-[#050816]' : 'bg-[#f8fafc]'"
+    >
+      <NTooltip trigger="hover">
+        <template #trigger>
+          <NButton
+            quaternary
+            circle
+            size="small"
+            :loading="openingCurrentDirectory"
+            aria-label="在文件管理器中打开当前目录"
+            @click="openCurrentDirectory"
+          >
+            <template #icon>
+              <NIcon :size="16">
+                <FolderOpen />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        在文件管理器中打开当前目录
+      </NTooltip>
+
+      <NPopover trigger="hover" placement="top-end">
         <template #trigger>
           <NButton quaternary circle size="small" aria-label="终端快捷键">
             <template #icon>
@@ -156,15 +226,6 @@ function insertSnippet(command: string) {
         </template>
         终端设置
       </NTooltip>
-    </div>
-
-    <div
-      class="app-radius-card terminal-surface min-h-0 flex-1 overflow-hidden border mx-[12px] mb-[12px] mt-[0px]"
-    >
-      <div
-        ref="terminalContainer"
-        class="terminal-host h-full min-h-0 overflow-hidden rounded-[inherit] px-2"
-      />
     </div>
 
     <Teleport to="body">
