@@ -27,6 +27,7 @@ const historyLoading = ref(true)
 const historyError = ref<string | null>(null)
 const selectedRange = ref<RangeKey>('5m')
 const smoothLines = ref(true)
+const activeTab = ref<'host' | 'performance'>('host')
 const samples = ref<MonitorResponse[]>([])
 
 const monitorError = computed(() => sshStore.monitorError)
@@ -439,88 +440,6 @@ function createChartOption(config: {
     class="monitor-view h-full overflow-auto p-[20px]"
     :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]'"
   >
-    <div class="mb-[18px] flex items-start justify-between gap-[16px] lt-md:flex-col">
-      <div>
-        <h2 class="mb-[6px] text-[26px] font-700">性能监控</h2>
-      </div>
-
-      <NTooltip placement="bottom-end" trigger="hover" :show-arrow="true">
-        <template #trigger>
-          <div
-            class="flex cursor-default items-center justify-center p-[10px]"
-          >
-            <NIcon
-              size="20"
-              :color="settingsStore.isDark ? 'rgba(148,163,184,0.9)' : 'rgba(100,116,139,0.9)'"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8.009 8.009 0 0 1-8 8zm.5-13h-1v6l5.25 3.15.75-1.23-4.5-2.67V7z"
-                />
-              </svg>
-            </NIcon>
-          </div>
-        </template>
-        <div class="min-w-[200px] py-[2px]">
-          <div
-            class="mb-[6px] text-[11px] font-600 uppercase tracking-wider opacity-60"
-          >
-            最新采样
-          </div>
-          <div class="text-[16px] font-700">{{ latestUpdateText }}</div>
-          <div class="mt-[8px] text-[12px] opacity-70">
-            {{ samples.length }} 个缓存点 · 当前显示 {{ visibleRangeLabel }}
-          </div>
-          <div class="mt-[2px] text-[12px] opacity-70">3 秒采样粒度</div>
-        </div>
-      </NTooltip>
-    </div>
-
-    <div
-      class="mb-[16px] flex items-center justify-between gap-[12px] lt-md:flex-col lt-md:items-stretch"
-    >
-      <div class="flex flex-wrap items-center gap-[8px]">
-        <span
-          class="text-[13px]"
-          :class="
-            settingsStore.isDark ? 'text-[rgba(148,163,184,0.94)]' : 'text-[rgba(100,116,139,0.92)]'
-          "
-          >时间范围</span
-        >
-        <NButtonGroup>
-          <NButton
-            v-for="option in rangeOptions"
-            :key="option.key"
-            size="small"
-            :type="selectedRange === option.key ? 'primary' : 'default'"
-            :secondary="selectedRange !== option.key"
-            @click="selectedRange = option.key"
-          >
-            {{ option.label }}
-          </NButton>
-        </NButtonGroup>
-      </div>
-
-      <div
-        class="flex items-center gap-[12px] px-[14px] py-[10px]"
-      >
-        <div>
-          <div
-            class="text-[12px]"
-            :class="
-              settingsStore.isDark
-                ? 'text-[rgba(148,163,184,0.92)]'
-                : 'text-[rgba(100,116,139,0.92)]'
-            "
-          >
-            图表样式
-          </div>
-          <div class="text-[14px] font-600">平滑曲线</div>
-        </div>
-        <NSwitch v-model:value="smoothLines" />
-      </div>
-    </div>
-
     <div v-if="monitorError || historyError" class="mb-[16px] grid gap-[12px]">
       <NAlert v-if="historyError" type="warning" :show-icon="true" title="历史数据加载失败">
         {{ historyError }}
@@ -530,162 +449,239 @@ function createChartOption(config: {
       </NAlert>
     </div>
 
-    <div
-      class="app-radius-card mb-[18px] rounded-[24px] p-[18px] backdrop-blur-[16px]"
-      :class="
-        settingsStore.isDark
-          ? 'border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.68),rgba(15,23,42,0.5))]'
-          : 'border border-[rgba(148,163,184,0.22)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.82))]'
-      "
-    >
-      <div
-        class="mb-[14px] flex items-center justify-between gap-[12px] lt-md:flex-col lt-md:items-start"
-      >
-        <div>
-          <div class="text-[18px] font-700">主机信息</div>
-        </div>
+    <NTabs v-model:value="activeTab" type="line" animated class="dashboard-tabs">
+      <NTabPane name="host" tab="主机信息">
         <div
-          class="rounded-full px-[12px] py-[6px] text-[12px] font-600"
+          class="app-radius-card mb-[18px] rounded-[24px] p-[18px] backdrop-blur-[16px]"
           :class="
             settingsStore.isDark
-              ? 'bg-[rgba(59,130,246,0.16)] text-[rgba(191,219,254,0.96)]'
-              : 'bg-[rgba(37,99,235,0.1)] text-[rgba(29,78,216,0.92)]'
+              ? 'border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.68),rgba(15,23,42,0.5))]'
+              : 'border border-[rgba(148,163,184,0.22)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.82))]'
           "
-        >
-          {{ systemInfo?.hostname ?? '等待采样' }}
-        </div>
-      </div>
-
-      <div class="system-info-grid grid gap-[12px]">
-        <div
-          v-for="item in systemInfoItems"
-          :key="item.label"
-          class="px-[2px] py-[4px]"
         >
           <div
-            class="text-[12px]"
-            :class="
-              settingsStore.isDark ? 'text-[rgba(148,163,184,0.9)]' : 'text-[rgba(100,116,139,0.9)]'
-            "
+            class="mb-[14px] flex items-center justify-between gap-[12px] lt-md:flex-col lt-md:items-start"
           >
-            {{ item.label }}
+            <div class="text-[18px] font-700">主机信息</div>
+            <div
+              class="rounded-full px-[12px] py-[6px] text-[12px] font-600"
+              :class="
+                settingsStore.isDark
+                  ? 'bg-[rgba(59,130,246,0.16)] text-[rgba(191,219,254,0.96)]'
+                  : 'bg-[rgba(37,99,235,0.1)] text-[rgba(29,78,216,0.92)]'
+              "
+            >
+              {{ systemInfo?.hostname ?? '等待采样' }}
+            </div>
           </div>
-          <div class="mt-[8px] break-words text-[15px] font-600 leading-[1.35]">
-            {{ item.value }}
+
+          <div class="system-info-grid grid gap-[12px]">
+            <div v-for="item in systemInfoItems" :key="item.label" class="px-[2px] py-[4px]">
+              <div
+                class="text-[12px]"
+                :class="
+                  settingsStore.isDark
+                    ? 'text-[rgba(148,163,184,0.9)]'
+                    : 'text-[rgba(100,116,139,0.9)]'
+                "
+              >
+                {{ item.label }}
+              </div>
+              <div class="mt-[8px] break-words text-[15px] font-600 leading-[1.35]">
+                {{ item.value }}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </NTabPane>
 
-    <div class="stats-grid mb-[18px] grid gap-[14px]">
-      <div
-        v-for="item in [
-          { label: 'CPU 使用率', value: cpuUsageDisplay, detail: `Load ${cpuLoad}` },
-          { label: '内存占用', value: ramUsageDisplay, detail: ramDetail },
-          { label: '上传速率', value: formatSpeed(uploadSpeed), detail: '当前发送带宽' },
-          { label: '下载速率', value: formatSpeed(downloadSpeed), detail: '当前接收带宽' },
-          { label: '磁盘占用', value: diskUsage, detail: '根目录空间使用' },
-        ]"
-        :key="item.label"
-        class="app-radius-card rounded-[20px] p-[16px] backdrop-blur-[16px]"
-        :class="
-          settingsStore.isDark
-            ? 'border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(15,23,42,0.56))]'
-            : 'border border-[rgba(148,163,184,0.22)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.86))]'
-        "
-      >
+      <NTabPane name="performance" tab="性能监控">
         <div
-          class="text-[12px]"
+          class="mb-[16px] flex items-center justify-between gap-[12px] lt-md:flex-col lt-md:items-stretch"
+        >
+          <div class="flex flex-wrap items-center gap-[8px]">
+            <span
+              class="text-[13px]"
+              :class="
+                settingsStore.isDark
+                  ? 'text-[rgba(148,163,184,0.94)]'
+                  : 'text-[rgba(100,116,139,0.92)]'
+              "
+              >时间范围</span
+            >
+            <NButtonGroup>
+              <NButton
+                v-for="option in rangeOptions"
+                :key="option.key"
+                size="small"
+                :type="selectedRange === option.key ? 'primary' : 'default'"
+                :secondary="selectedRange !== option.key"
+                @click="selectedRange = option.key"
+              >
+                {{ option.label }}
+              </NButton>
+            </NButtonGroup>
+          </div>
+
+          <div class="flex items-center gap-[12px] px-[14px] py-[10px]">
+            <NTooltip placement="bottom-end" trigger="hover" :show-arrow="true">
+              <template #trigger>
+                <div class="flex cursor-default items-center justify-center p-[10px]">
+                  <NIcon
+                    size="20"
+                    :color="
+                      settingsStore.isDark ? 'rgba(148,163,184,0.9)' : 'rgba(100,116,139,0.9)'
+                    "
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8.009 8.009 0 0 1-8 8zm.5-13h-1v6l5.25 3.15.75-1.23-4.5-2.67V7z"
+                      />
+                    </svg>
+                  </NIcon>
+                </div>
+              </template>
+              <div class="min-w-[200px] py-[2px]">
+                <div class="mb-[6px] text-[11px] font-600 uppercase tracking-wider opacity-60">
+                  最新采样
+                </div>
+                <div class="text-[16px] font-700">{{ latestUpdateText }}</div>
+                <div class="mt-[8px] text-[12px] opacity-70">
+                  {{ samples.length }} 个缓存点 · 当前显示 {{ visibleRangeLabel }}
+                </div>
+                <div class="mt-[2px] text-[12px] opacity-70">3 秒采样粒度</div>
+              </div>
+            </NTooltip>
+            <div>
+              <div
+                class="text-[12px]"
+                :class="
+                  settingsStore.isDark
+                    ? 'text-[rgba(148,163,184,0.92)]'
+                    : 'text-[rgba(100,116,139,0.92)]'
+                "
+              >
+                图表样式
+              </div>
+              <div class="text-[14px] font-600">平滑曲线</div>
+            </div>
+            <NSwitch v-model:value="smoothLines" />
+          </div>
+        </div>
+
+        <div class="stats-grid mb-[18px] grid gap-[14px]">
+          <div
+            v-for="item in [
+              { label: 'CPU 使用率', value: cpuUsageDisplay, detail: `Load ${cpuLoad}` },
+              { label: '内存占用', value: ramUsageDisplay, detail: ramDetail },
+              { label: '上传速率', value: formatSpeed(uploadSpeed), detail: '当前发送带宽' },
+              { label: '下载速率', value: formatSpeed(downloadSpeed), detail: '当前接收带宽' },
+              { label: '磁盘占用', value: diskUsage, detail: '根目录空间使用' },
+            ]"
+            :key="item.label"
+            class="app-radius-card rounded-[20px] p-[16px] backdrop-blur-[16px]"
+            :class="
+              settingsStore.isDark
+                ? 'border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(15,23,42,0.56))]'
+                : 'border border-[rgba(148,163,184,0.22)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.86))]'
+            "
+          >
+            <div
+              class="text-[12px]"
+              :class="
+                settingsStore.isDark
+                  ? 'text-[rgba(148,163,184,0.92)]'
+                  : 'text-[rgba(100,116,139,0.92)]'
+              "
+            >
+              {{ item.label }}
+            </div>
+            <div class="mt-[10px] text-[30px] font-700 leading-[1.05]">{{ item.value }}</div>
+            <div
+              class="mt-[10px] text-[13px]"
+              :class="
+                settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(51,65,85,0.8)]'
+              "
+            >
+              {{ item.detail }}
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-if="historyLoading && !hasSamples"
+          class="app-radius-card flex min-h-[420px] items-center justify-center rounded-[24px] backdrop-blur-[16px]"
           :class="
-            settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'
+            settingsStore.isDark
+              ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
+              : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'
           "
         >
-          {{ item.label }}
+          <NSpin size="large" />
         </div>
-        <div class="mt-[10px] text-[30px] font-700 leading-[1.05]">{{ item.value }}</div>
-        <div
-          class="mt-[10px] text-[13px]"
+
+        <NEmpty
+          v-else-if="!hasSamples"
+          size="large"
+          class="app-radius-card min-h-[420px] rounded-[24px] backdrop-blur-[16px]"
           :class="
-            settingsStore.isDark ? 'text-[rgba(226,232,240,0.68)]' : 'text-[rgba(51,65,85,0.8)]'
+            settingsStore.isDark
+              ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
+              : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'
           "
-        >
-          {{ item.detail }}
+        />
+
+        <div v-else class="chart-grid grid gap-[16px]">
+          <NCard title="CPU 使用率趋势" :bordered="false" class="monitor-card">
+            <template #header-extra>
+              <span
+                class="text-[12px]"
+                :class="
+                  settingsStore.isDark
+                    ? 'text-[rgba(148,163,184,0.92)]'
+                    : 'text-[rgba(100,116,139,0.92)]'
+                "
+              >
+                均值 {{ cpuAverageDisplay }} · 峰值 {{ cpuPeakDisplay }}
+              </span>
+            </template>
+            <VChart :option="cpuChartOption" autoresize class="h-[280px] w-full" />
+          </NCard>
+
+          <NCard title="内存占用趋势" :bordered="false" class="monitor-card">
+            <template #header-extra>
+              <span
+                class="text-[12px]"
+                :class="
+                  settingsStore.isDark
+                    ? 'text-[rgba(148,163,184,0.92)]'
+                    : 'text-[rgba(100,116,139,0.92)]'
+                "
+              >
+                均值 {{ memoryAverageDisplay }} · 峰值 {{ memoryPeakDisplay }}
+              </span>
+            </template>
+            <VChart :option="memoryChartOption" autoresize class="h-[280px] w-full" />
+          </NCard>
+
+          <NCard title="网络吞吐趋势" :bordered="false" class="monitor-card chart-grid-span-2">
+            <template #header-extra>
+              <span
+                class="text-[12px]"
+                :class="
+                  settingsStore.isDark
+                    ? 'text-[rgba(148,163,184,0.92)]'
+                    : 'text-[rgba(100,116,139,0.92)]'
+                "
+              >
+                上传均值 {{ uploadAverageDisplay }} · 下载均值 {{ downloadAverageDisplay }}
+              </span>
+            </template>
+            <VChart :option="networkChartOption" autoresize class="h-[320px] w-full" />
+          </NCard>
         </div>
-      </div>
-    </div>
-
-    <div
-      v-if="historyLoading && !hasSamples"
-      class="app-radius-card flex min-h-[420px] items-center justify-center rounded-[24px] backdrop-blur-[16px]"
-      :class="
-        settingsStore.isDark
-          ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
-          : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'
-      "
-    >
-      <NSpin size="large" />
-    </div>
-
-    <NEmpty
-      v-else-if="!hasSamples"
-      size="large"
-      class="app-radius-card min-h-[420px] rounded-[24px] backdrop-blur-[16px]"
-      :class="
-        settingsStore.isDark
-          ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.46)]'
-          : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.72)]'
-      "
-    />
-
-    <div v-else class="chart-grid grid gap-[16px]">
-      <NCard title="CPU 使用率趋势" :bordered="false" class="monitor-card">
-        <template #header-extra>
-          <span
-            class="text-[12px]"
-            :class="
-              settingsStore.isDark
-                ? 'text-[rgba(148,163,184,0.92)]'
-                : 'text-[rgba(100,116,139,0.92)]'
-            "
-          >
-            均值 {{ cpuAverageDisplay }} · 峰值 {{ cpuPeakDisplay }}
-          </span>
-        </template>
-        <VChart :option="cpuChartOption" autoresize class="h-[280px] w-full" />
-      </NCard>
-
-      <NCard title="内存占用趋势" :bordered="false" class="monitor-card">
-        <template #header-extra>
-          <span
-            class="text-[12px]"
-            :class="
-              settingsStore.isDark
-                ? 'text-[rgba(148,163,184,0.92)]'
-                : 'text-[rgba(100,116,139,0.92)]'
-            "
-          >
-            均值 {{ memoryAverageDisplay }} · 峰值 {{ memoryPeakDisplay }}
-          </span>
-        </template>
-        <VChart :option="memoryChartOption" autoresize class="h-[280px] w-full" />
-      </NCard>
-
-      <NCard title="网络吞吐趋势" :bordered="false" class="monitor-card chart-grid-span-2">
-        <template #header-extra>
-          <span
-            class="text-[12px]"
-            :class="
-              settingsStore.isDark
-                ? 'text-[rgba(148,163,184,0.92)]'
-                : 'text-[rgba(100,116,139,0.92)]'
-            "
-          >
-            上传均值 {{ uploadAverageDisplay }} · 下载均值 {{ downloadAverageDisplay }}
-          </span>
-        </template>
-        <VChart :option="networkChartOption" autoresize class="h-[320px] w-full" />
-      </NCard>
-    </div>
+      </NTabPane>
+    </NTabs>
   </div>
 </template>
 
