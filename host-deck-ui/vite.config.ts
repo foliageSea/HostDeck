@@ -163,6 +163,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5178,
+      watch: {
+        ignored: ['**/src/assets/mac-tahoe/**'],
+      },
       proxy: {
         '/api': {
           target: proxyTarget,
