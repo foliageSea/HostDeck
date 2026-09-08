@@ -11,16 +11,12 @@ their own copyright notices and license terms.
 - License: GNU General Public License version 3 (GPL-3.0)
 - Source snapshot commit: `94c7e615a94e352366c3d5298efda16e86bc6da7`
 
-HostDeck includes a selected set of application and file-type SVG icons. The
-selected files are stored in source form under:
-
-- `host-deck-ui/src/assets/app-icons/mac-tahoe/`
-- `host-deck-ui/src/assets/file-icons/mac-tahoe/`
-
-The files were selected and placed into the directories above for use by
-HostDeck. The SVG contents have not been intentionally modified. See the
-adjacent `AUTHORS` and `README.md` files and the repository root `LICENSE` for
-the applicable notices and GPL version 3 terms.
+HostDeck imports a selected set of application and file-type SVG icons directly
+from the upstream source tracked as a Git submodule at
+`host-deck-ui/src/assets/mac-tahoe/`. The submodule is pinned to the commit above
+and the selected SVG contents have not been intentionally modified. See its
+`AUTHORS`, `COPYING`, and `README.md` files for the applicable notices and GPL
+version 3 terms.
 
 ## Maple Mono
 
@@ -35,10 +31,15 @@ license text.
 
 ## Corresponding Source
 
-The preferred form for modifying HostDeck and the bundled MacTahoe SVG files
-is available from:
+The preferred form for modifying HostDeck and the bundled MacTahoe SVG files is
+available by cloning the repository and initializing its submodules:
 
 https://github.com/foliageSea/HostDeck
 
-For a released binary, use the Git tag matching the displayed application
-version. GitHub release pages also provide source archives for each tag.
+```bash
+git clone --recurse-submodules https://github.com/foliageSea/HostDeck.git
+```
+
+For a released binary, check out the Git tag matching the displayed application
+version and initialize its submodules. GitHub-generated source archives do not
+contain submodule contents and are not sufficient on their own.

@@ -46,6 +46,7 @@ src/
 安装依赖：
 
 ```bash
+git submodule update --init --recursive
 pnpm install
 ```
 

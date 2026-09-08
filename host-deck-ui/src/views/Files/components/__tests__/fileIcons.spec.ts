@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import blankIconUrl from '@/assets/file-icons/mac-tahoe/application-blank.svg'
-import databaseIconUrl from '@/assets/file-icons/mac-tahoe/application-sql.svg'
-import folderIconUrl from '@/assets/file-icons/mac-tahoe/folder.svg'
-import markdownIconUrl from '@/assets/file-icons/mac-tahoe/text-markdown.svg'
-import pdfIconUrl from '@/assets/file-icons/mac-tahoe/application-pdf.svg'
-import pythonIconUrl from '@/assets/file-icons/mac-tahoe/text-x-python.svg'
-import typescriptIconUrl from '@/assets/file-icons/mac-tahoe/text-x-typescript.svg'
+import blankIconUrl from '@/assets/mac-tahoe/src/mimes/scalable/application-blank.svg'
+import databaseIconUrl from '@/assets/mac-tahoe/src/mimes/scalable/application-sql.svg'
+import folderIconUrl from '@/assets/mac-tahoe/src/places/scalable/folder.svg'
+import markdownIconUrl from '@/assets/mac-tahoe/src/mimes/scalable/text-markdown.svg'
+import pdfIconUrl from '@/assets/mac-tahoe/src/mimes/scalable/application-pdf.svg'
+import pythonIconUrl from '@/assets/mac-tahoe/src/mimes/scalable/text-x-python.svg'
+import typescriptIconUrl from '@/assets/mac-tahoe/src/mimes/scalable/text-x-typescript.svg'
 import { getFileIcon, getFilePreviewType } from '../fileIcons'
 
 function target(filename: string, isDirectory = false) {

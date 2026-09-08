@@ -80,6 +80,7 @@
 先安装依赖：
 
 ```bash
+git submodule update --init --recursive
 fvm flutter pub get
 pnpm --dir host-deck-ui install
 ```

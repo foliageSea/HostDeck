@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import terminalIconUrl from '@/assets/app-icons/mac-tahoe/terminal.svg'
+import terminalIconUrl from '@/assets/mac-tahoe/src/apps/scalable/terminal.svg'
 import AppIcon from '../AppIcon.vue'
 
 describe('AppIcon', () => {

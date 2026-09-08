@@ -11,6 +11,7 @@
 安装依赖：
 
 ```bash
+git submodule update --init --recursive
 flutter pub get
 pnpm --dir host-deck-ui install
 ```

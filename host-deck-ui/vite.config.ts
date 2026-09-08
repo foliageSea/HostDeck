@@ -12,6 +12,74 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
   version: string
 }
 
+const macTahoeSourceGroups = [
+  {
+    sourceDir: './src/assets/mac-tahoe/src/apps/scalable/',
+    outputDir: 'mac-tahoe/source/app-icons/',
+    files: [
+      'accessories-text-editor.svg',
+      'application-default-icon.svg',
+      'docker.svg',
+      'eog.svg',
+      'evolution-tasks.svg',
+      'file-manager.svg',
+      'gnome-connections.svg',
+      'gpk-log.svg',
+      'junction.svg',
+      'log-out.svg',
+      'logview.svg',
+      'multitasking-view.svg',
+      'preferences-system.svg',
+      'stacks-task-manager.svg',
+      'terminal.svg',
+      'utilities-system-monitor.svg',
+    ],
+  },
+  {
+    sourceDir: './src/assets/mac-tahoe/src/apps/22/',
+    outputDir: 'mac-tahoe/source/app-icons/',
+    files: ['network-connect.svg'],
+  },
+  {
+    sourceDir: './src/assets/mac-tahoe/src/mimes/scalable/',
+    outputDir: 'mac-tahoe/source/file-icons/',
+    files: [
+      'application-blank.svg',
+      'application-certificate.svg',
+      'application-json.svg',
+      'application-pdf.svg',
+      'application-script-blank.svg',
+      'application-sql.svg',
+      'application-toml.svg',
+      'application-x-archive.svg',
+      'application-x-pem-key.svg',
+      'application-x-shellscript.svg',
+      'audio-x-generic.svg',
+      'image-x-generic.svg',
+      'text-css.svg',
+      'text-html.svg',
+      'text-markdown.svg',
+      'text-rust.svg',
+      'text-x-generic.svg',
+      'text-x-java.svg',
+      'text-x-javascript.svg',
+      'text-x-python.svg',
+      'text-x-typescript.svg',
+      'text-xml.svg',
+      'text-yaml.svg',
+      'video-x-generic.svg',
+      'x-office-document.svg',
+      'x-office-presentation.svg',
+      'x-office-spreadsheet.svg',
+    ],
+  },
+  {
+    sourceDir: './src/assets/mac-tahoe/src/places/scalable/',
+    outputDir: 'mac-tahoe/source/file-icons/',
+    files: ['folder.svg'],
+  },
+]
+
 function legalFilesPlugin(): Plugin {
   const repoRoot = new URL('../', import.meta.url)
   const outputRoot = new URL('./dist/licenses/', import.meta.url)
@@ -45,18 +113,36 @@ function legalFilesPlugin(): Plugin {
 
       mkdirSync(outputRoot, { recursive: true })
       cpSync(new URL('LICENSE', repoRoot), new URL('GPL-3.0.txt', outputRoot))
-      cpSync(new URL('THIRD_PARTY_NOTICES.md', repoRoot), new URL('THIRD_PARTY_NOTICES.txt', outputRoot))
-      cpSync(new URL('./src/assets/MapleMono-OFL.txt', import.meta.url), new URL('MapleMono-OFL.txt', outputRoot))
       cpSync(
-        new URL('./src/assets/app-icons/mac-tahoe/', import.meta.url),
-        new URL('mac-tahoe/source/app-icons/', outputRoot),
-        { recursive: true },
+        new URL('THIRD_PARTY_NOTICES.md', repoRoot),
+        new URL('THIRD_PARTY_NOTICES.txt', outputRoot),
       )
       cpSync(
-        new URL('./src/assets/file-icons/mac-tahoe/', import.meta.url),
-        new URL('mac-tahoe/source/file-icons/', outputRoot),
-        { recursive: true },
+        new URL('./src/assets/MapleMono-OFL.txt', import.meta.url),
+        new URL('MapleMono-OFL.txt', outputRoot),
       )
+      cpSync(
+        new URL('./src/assets/mac-tahoe/AUTHORS', import.meta.url),
+        new URL('mac-tahoe/AUTHORS', outputRoot),
+      )
+      cpSync(
+        new URL('./src/assets/mac-tahoe/COPYING', import.meta.url),
+        new URL('mac-tahoe/COPYING', outputRoot),
+      )
+      cpSync(
+        new URL('./src/assets/mac-tahoe/README.md', import.meta.url),
+        new URL('mac-tahoe/README.md', outputRoot),
+      )
+
+      for (const group of macTahoeSourceGroups) {
+        const sourceDir = new URL(group.sourceDir, import.meta.url)
+        const targetDir = new URL(group.outputDir, outputRoot)
+        mkdirSync(targetDir, { recursive: true })
+
+        for (const file of group.files) {
+          cpSync(new URL(file, sourceDir), new URL(file, targetDir))
+        }
+      }
     },
   }
 }

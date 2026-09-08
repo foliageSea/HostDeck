@@ -1,0 +1,3 @@
+[submodule "host-deck-ui/src/assets/mac-tahoe"]
+	path = host-deck-ui/src/assets/mac-tahoe
+	url = https://github.com/vinceliuice/MacTahoe-icon-theme.git
