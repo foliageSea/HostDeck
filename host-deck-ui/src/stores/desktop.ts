@@ -22,6 +22,7 @@ import MediaViewerView from '@/views/MediaViewer/index.vue'
 import OperationLogsView from '@/views/OperationLogs/index.vue'
 import RealtimeLogsView from '@/views/RealtimeLogs/index.vue'
 import PortForwardView from '@/views/PortForward/index.vue'
+import SecureBrowserView from '@/views/SecureBrowser/index.vue'
 import ProcessesView from '@/views/Processes/index.vue'
 import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
 import SettingsView from '@/views/Settings/index.vue'
@@ -45,6 +46,7 @@ export const defaultDockAppIds: DesktopAppId[] = [
   'docker',
   'opencode',
   'port-forward',
+  'secure-browser',
   'operation-logs',
   'realtime-logs',
   'cron-tasks',
@@ -575,6 +577,17 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 840,
         title: '端口转发',
         width: 1040,
+        showInLaunchpad: true,
+      },
+      'secure-browser': {
+        component: markRaw(SecureBrowserView),
+        height: 620,
+        icon: 'secure-browser',
+        id: 'secure-browser',
+        minHeight: 460,
+        minWidth: 720,
+        title: '安全浏览器',
+        width: 920,
         showInLaunchpad: true,
       },
       'operation-logs': {

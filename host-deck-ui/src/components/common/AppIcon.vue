@@ -28,6 +28,7 @@ import logoutIconUrl from '@/assets/app-icons/mac-tahoe/log-out.svg'
 import mediaIconUrl from '@/assets/app-icons/mac-tahoe/eog.svg'
 import operationLogIconUrl from '@/assets/app-icons/mac-tahoe/gpk-log.svg'
 import portForwardIconUrl from '@/assets/app-icons/mac-tahoe/network-connect.svg'
+import secureBrowserIconUrl from '@/assets/app-icons/mac-tahoe/gnome-connections.svg'
 import processIconUrl from '@/assets/app-icons/mac-tahoe/stacks-task-manager.svg'
 import realtimeLogIconUrl from '@/assets/app-icons/mac-tahoe/logview.svg'
 import runtimeIconUrl from '@/assets/app-icons/mac-tahoe/multitasking-view.svg'
@@ -64,6 +65,7 @@ const iconMap: Record<AppIconKey, Component> = {
   'realtime-log': ScrollText,
   process: Activity,
   'port-forward': Connect,
+  'secure-browser': ApplicationWeb,
   runtime: ApplicationWeb,
   settings: Settings,
   terminal: Terminal,
@@ -85,6 +87,7 @@ const themedIconMap: Record<AppIconKey, string> = {
   'realtime-log': realtimeLogIconUrl,
   process: processIconUrl,
   'port-forward': portForwardIconUrl,
+  'secure-browser': secureBrowserIconUrl,
   runtime: runtimeIconUrl,
   settings: settingsIconUrl,
   terminal: terminalIconUrl,
