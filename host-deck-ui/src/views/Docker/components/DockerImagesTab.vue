@@ -179,10 +179,13 @@ function handleImageMoreAction(image: DockerImage, action: string) {
       <tbody>
         <tr v-for="image in controller.images" :key="image.id">
           <td>
-            <span class="docker-table-primary" :title="getImageName(image)">{{
-              getImageName(image)
-            }}</span
-            ><span class="docker-table-secondary" :title="image.id">{{
+            <NTooltip trigger="hover" placement="top-start">
+              <template #trigger>
+                <span class="docker-table-primary">{{ getImageName(image) }}</span>
+              </template>
+              {{ getImageName(image) }}
+            </NTooltip>
+            <span class="docker-table-secondary" :title="image.id">{{
               image.id.slice(0, 18)
             }}</span>
           </td>
