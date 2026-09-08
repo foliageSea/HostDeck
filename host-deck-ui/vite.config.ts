@@ -23,7 +23,6 @@ const macTahoeSourceGroups = [
       'eog.svg',
       'evolution-tasks.svg',
       'file-manager.svg',
-      'gnome-connections.svg',
       'gpk-log.svg',
       'junction.svg',
       'log-out.svg',
@@ -33,6 +32,7 @@ const macTahoeSourceGroups = [
       'stacks-task-manager.svg',
       'terminal.svg',
       'utilities-system-monitor.svg',
+      'web-browser.svg',
     ],
   },
   {
