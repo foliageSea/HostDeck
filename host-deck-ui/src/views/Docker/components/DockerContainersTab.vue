@@ -262,12 +262,13 @@ function isPaused(container: DockerContainer) {
               <template #trigger>
                 <NButton
                   quaternary
+                  circle
                   class="container-port-button"
                   :disabled="container.ports.length === 0"
                   aria-label="访问容器端口"
                 >
-                  <LogIn :size="19" />
-                  <ChevronDown :size="14" />
+                  <LogIn :size="16" />
+                  <ChevronDown :size="12" />
                 </NButton>
               </template>
               {{ container.ports.length ? '访问容器端口' : '没有可访问的端口' }}
