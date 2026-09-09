@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDesktopStore } from '@/stores/desktop'
+import { useSettingsStore } from '@/stores/settings'
 import DesktopShell from '../DesktopShell.vue'
 
 vi.mock('@/components/os/DesktopDock.vue', () => ({ default: { template: '<div />' } }))
@@ -130,6 +131,33 @@ describe('DesktopShell', () => {
     await wrapper.vm.$nextTick()
 
     expect(switcher.props('selectedIndex')).toBe(1)
+    wrapper.unmount()
+  })
+
+  it('uses the configured window switch shortcut', async () => {
+    setPlatform('Win32')
+    const desktopStore = useDesktopStore()
+    const settingsStore = useSettingsStore()
+    desktopStore.openWindow('settings')
+    desktopStore.openWindow('dashboard')
+    settingsStore.setWindowSwitchShortcut({
+      altKey: false,
+      code: 'KeyK',
+      ctrlKey: true,
+      ctrlOrMeta: false,
+      key: 'k',
+      metaKey: false,
+      shiftKey: true,
+    })
+    const wrapper = shallowMount(DesktopShell)
+
+    dispatchKeyboardEvent('keydown', { code: 'KeyK', ctrlKey: true, key: 'k', shiftKey: true })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(true)
+
+    dispatchKeyboardEvent('keydown', { altKey: true, code: 'Backquote', key: '`' })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(true)
     wrapper.unmount()
   })
 })

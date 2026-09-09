@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
+import { matchesKeyboardShortcut } from '@/lib/keyboard-shortcut'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import DesktopDock from '@/components/os/DesktopDock.vue'
@@ -28,9 +29,6 @@ const desktopWallpaperStyle = computed(() =>
 )
 const desktopWallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
 const isDefaultWallpaper = computed(() => settingsStore.desktopWallpaper.mode === 'default')
-const isMacOS = computed(
-  () => navigator.platform.startsWith('Mac') || navigator.userAgent.includes('Macintosh'),
-)
 const isVideoWallpaper = computed(
   () =>
     settingsStore.desktopWallpaper.mode === 'custom' &&
@@ -83,6 +81,10 @@ async function closeSwitcherWindow(id: string) {
 }
 
 function handleKeyDown(event: KeyboardEvent) {
+  if (event.target instanceof Element && event.target.closest('[data-shortcut-recorder]')) {
+    return
+  }
+
   if (event.key === 'Escape' && launchpadVisible.value) {
     event.preventDefault()
     event.stopPropagation()
@@ -101,11 +103,7 @@ function handleKeyDown(event: KeyboardEvent) {
     return
   }
 
-  const isSwitchKey =
-    event.code === 'Backquote' &&
-    (isMacOS.value
-      ? (event.metaKey || event.ctrlKey) && !event.altKey
-      : event.altKey && !event.metaKey && !event.ctrlKey)
+  const isSwitchKey = matchesKeyboardShortcut(event, settingsStore.windowSwitchShortcut)
   if (!isSwitchKey) {
     return
   }

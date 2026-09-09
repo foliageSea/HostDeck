@@ -57,4 +57,23 @@ describe('settings window controls style', () => {
 
     expect(window.localStorage.getItem('host-deck-ui.windowBlur')).toBe('false')
   })
+
+  it('persists a custom window switch shortcut', async () => {
+    const settingsStore = useSettingsStore()
+
+    settingsStore.setWindowSwitchShortcut({
+      altKey: false,
+      code: 'KeyK',
+      ctrlKey: true,
+      ctrlOrMeta: false,
+      key: 'k',
+      metaKey: false,
+      shiftKey: true,
+    })
+    await nextTick()
+
+    expect(
+      JSON.parse(window.localStorage.getItem('host-deck-ui.windowSwitchShortcut') ?? ''),
+    ).toEqual(settingsStore.windowSwitchShortcut)
+  })
 })

@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios'
 import { computed, onMounted, ref } from 'vue'
 import { settingsApi } from '@/api/settings'
 import { downloadBlob } from '@/lib/download'
+import { createKeyboardShortcut, formatKeyboardShortcut } from '@/lib/keyboard-shortcut'
 import { getUiApi } from '@/lib/ui'
 import WallpaperSection from './components/WallpaperSection.vue'
 import { useWallpaperSettings } from './hooks/useWallpaperSettings'
@@ -18,6 +19,7 @@ const clearingBrowserCache = ref(false)
 const externalAccess = ref(false)
 const externalAccessLoading = ref(false)
 const exportingLogs = ref(false)
+const recordingWindowSwitchShortcut = ref(false)
 const canClearBrowserCache = computed(() => Boolean(window.hostDeck?.app?.clearBrowserCache))
 const canManageExternalAccess = computed(() =>
   Boolean(window.hostDeck?.app?.getExternalAccess && window.hostDeck?.app?.setExternalAccess),
@@ -38,6 +40,30 @@ onMounted(async () => {
 })
 
 const primaryColorPresets = ['#2563eb', '#0891b2', '#059669', '#7c3aed', '#db2777', '#ea580c']
+const windowSwitchShortcutLabel = computed(() =>
+  formatKeyboardShortcut(settingsStore.windowSwitchShortcut),
+)
+
+function recordWindowSwitchShortcut(event: KeyboardEvent) {
+  if (!recordingWindowSwitchShortcut.value) {
+    return
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+  if (event.key === 'Escape') {
+    recordingWindowSwitchShortcut.value = false
+    return
+  }
+
+  const shortcut = createKeyboardShortcut(event)
+  if (!shortcut) {
+    return
+  }
+
+  settingsStore.setWindowSwitchShortcut(shortcut)
+  recordingWindowSwitchShortcut.value = false
+}
 
 function confirmClearBrowserCache() {
   const dialog = getUiApi().dialog.warning({
@@ -215,6 +241,35 @@ async function exportLogs() {
                   :value="settingsStore.dockAutoHide"
                   @update:value="settingsStore.setDockAutoHide"
                 />
+              </div>
+            </NFormItem>
+            <NFormItem label="切换窗口快捷键">
+              <div class="flex w-full flex-nowrap items-center gap-[10px]">
+                <NInput
+                  data-shortcut-recorder
+                  class="min-w-0 max-w-[240px] flex-1"
+                  readonly
+                  :value="recordingWindowSwitchShortcut ? '请按组合键' : windowSwitchShortcutLabel"
+                  @blur="recordingWindowSwitchShortcut = false"
+                  @focus="recordingWindowSwitchShortcut = true"
+                  @keydown="recordWindowSwitchShortcut"
+                />
+                <NTooltip>
+                  <template #trigger>
+                    <NButton
+                      class="shrink-0"
+                      circle
+                      secondary
+                      aria-label="恢复默认切换窗口快捷键"
+                      @click="settingsStore.resetWindowSwitchShortcut"
+                    >
+                      <template #icon>
+                        <NIcon><Renew /></NIcon>
+                      </template>
+                    </NButton>
+                  </template>
+                  恢复默认
+                </NTooltip>
               </div>
             </NFormItem>
           </NForm>
