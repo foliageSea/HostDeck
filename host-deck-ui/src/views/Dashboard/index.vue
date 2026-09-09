@@ -1,5 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import {
+  Clock3,
+  Cpu,
+  Eye,
+  EyeOff,
+  HardDrive,
+  Layers,
+  MemoryStick,
+  Network,
+  Server,
+  User,
+} from '@lucide/vue'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { use } from 'echarts/core'
@@ -28,6 +40,7 @@ const historyError = ref<string | null>(null)
 const selectedRange = ref<RangeKey>('5m')
 const smoothLines = ref(true)
 const activeTab = ref<'host' | 'performance'>('host')
+const showAddress = ref(true)
 const samples = ref<MonitorResponse[]>([])
 
 const monitorError = computed(() => sshStore.monitorError)
@@ -38,14 +51,15 @@ const hasSamples = computed(() => samples.value.length > 0)
 const lastUpdatedAt = computed(() => currentSample.value?.timestamp ?? null)
 const systemInfo = computed(() => currentSample.value?.systemInfo ?? null)
 const systemInfoItems = computed(() => [
-  { label: '主机名称', value: systemInfo.value?.hostname ?? '--' },
-  { label: '发行版本', value: systemInfo.value?.distribution ?? '--' },
   { label: '内核版本', value: systemInfo.value?.kernel ?? '--' },
   { label: '系统类型', value: systemInfo.value?.architecture ?? '--' },
-  { label: '主机地址', value: systemInfo.value?.hostAddress ?? '--' },
   { label: '启动时间', value: systemInfo.value?.bootTime ?? '--' },
-  { label: '运行时间', value: formatSystemUptime(systemInfo.value) },
 ])
+const rootDiskPercent = computed(() => {
+  const value = currentSample.value?.disk?.trim() ?? ''
+  if (!/^\d+(\.\d+)?%$/.test(value)) return null
+  return Math.min(100, Math.max(0, Number.parseFloat(value)))
+})
 
 const cpuLoad = computed(() => currentSample.value?.cpu || '0.0')
 const cpuUsagePercent = computed(() => currentSample.value?.cpuUsage ?? 0)
@@ -451,47 +465,117 @@ function createChartOption(config: {
 
     <NTabs v-model:value="activeTab" type="line" animated class="dashboard-tabs">
       <NTabPane name="host" tab="主机信息">
-        <div
-          class="app-radius-card mb-[18px] rounded-[24px] p-[18px] backdrop-blur-[16px]"
-          :class="
-            settingsStore.isDark
-              ? 'border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.68),rgba(15,23,42,0.5))]'
-              : 'border border-[rgba(148,163,184,0.22)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.82))]'
-          "
-        >
-          <div
-            class="mb-[14px] flex items-center justify-between gap-[12px] lt-md:flex-col lt-md:items-start"
-          >
-            <div class="text-[18px] font-700">主机信息</div>
-            <div
-              class="rounded-full px-[12px] py-[6px] text-[12px] font-600"
-              :class="
-                settingsStore.isDark
-                  ? 'bg-[rgba(59,130,246,0.16)] text-[rgba(191,219,254,0.96)]'
-                  : 'bg-[rgba(37,99,235,0.1)] text-[rgba(29,78,216,0.92)]'
-              "
-            >
-              {{ systemInfo?.hostname ?? '等待采样' }}
+        <div class="host-info" :class="{ 'host-info-dark': settingsStore.isDark }">
+          <section class="host-card host-card-wide" aria-labelledby="host-overview-title">
+            <header class="host-card-header">
+              <h2 id="host-overview-title">系统概览</h2>
+              <span class="host-muted host-sample-time">最新采样 {{ latestUpdateText }}</span>
+            </header>
+            <div class="host-overview">
+              <div class="host-system-icon"><Server :size="28" aria-hidden="true" /></div>
+              <div class="host-identity">
+                <h3>{{ systemInfo?.hostname || '等待主机信息' }}</h3>
+                <div class="host-meta host-muted">
+                  <span><User :size="14" aria-hidden="true" />{{ sshStore.username || '--' }}</span>
+                  <span
+                    ><Layers :size="14" aria-hidden="true" />{{
+                      systemInfo?.distribution || '--'
+                    }}</span
+                  >
+                </div>
+              </div>
+              <span class="host-uptime" :class="{ 'host-muted': !systemInfo }">
+                <Clock3 :size="14" aria-hidden="true" />
+                运行 {{ formatSystemUptime(systemInfo) }}
+              </span>
             </div>
-          </div>
+            <dl class="host-system-details">
+              <div v-for="item in systemInfoItems" :key="item.label">
+                <dt class="host-muted">{{ item.label }}</dt>
+                <dd>{{ item.value }}</dd>
+              </div>
+            </dl>
+          </section>
 
-          <div class="system-info-grid grid gap-[12px]">
-            <div v-for="item in systemInfoItems" :key="item.label" class="px-[2px] py-[4px]">
-              <div
-                class="text-[12px]"
-                :class="
-                  settingsStore.isDark
-                    ? 'text-[rgba(148,163,184,0.9)]'
-                    : 'text-[rgba(100,116,139,0.9)]'
-                "
+          <section class="host-card host-card-wide" aria-labelledby="host-network-title">
+            <header class="host-card-header">
+              <h2 id="host-network-title">地址信息</h2>
+              <NButton
+                text
+                :aria-label="showAddress ? '隐藏地址' : '显示地址'"
+                :title="showAddress ? '隐藏地址' : '显示地址'"
+                @click="showAddress = !showAddress"
               >
-                {{ item.label }}
+                <component :is="showAddress ? Eye : EyeOff" :size="17" />
+              </NButton>
+            </header>
+            <div class="host-addresses">
+              <div class="host-address">
+                <Network :size="18" class="host-muted" aria-hidden="true" />
+                <span class="host-muted">主机地址</span>
+                <strong>{{ showAddress ? systemInfo?.hostAddress || '--' : '••••••' }}</strong>
               </div>
-              <div class="mt-[8px] break-words text-[15px] font-600 leading-[1.35]">
-                {{ item.value }}
+              <div class="host-address">
+                <Server :size="18" class="host-muted" aria-hidden="true" />
+                <span class="host-muted">SSH 地址</span>
+                <strong>{{ showAddress ? sshStore.host || '--' : '••••••' }}</strong>
+                <span v-if="sshStore.port" class="host-muted">端口 {{ sshStore.port }}</span>
               </div>
             </div>
-          </div>
+          </section>
+
+          <section class="host-card" aria-labelledby="host-cpu-title">
+            <header class="host-card-header"><h2 id="host-cpu-title">CPU</h2></header>
+            <div class="host-resource">
+              <div class="host-resource-icon"><Cpu :size="22" aria-hidden="true" /></div>
+              <div>
+                <div class="host-muted">当前使用率</div>
+                <strong class="host-resource-value">{{
+                  currentSample?.cpuUsage == null ? '--' : cpuUsageDisplay
+                }}</strong>
+              </div>
+              <span class="host-resource-detail host-muted"
+                >系统负载 {{ currentSample ? cpuLoad : '--' }}</span
+              >
+            </div>
+          </section>
+
+          <section class="host-card" aria-labelledby="host-memory-title">
+            <header class="host-card-header"><h2 id="host-memory-title">内存</h2></header>
+            <div class="host-resource">
+              <div class="host-resource-icon"><MemoryStick :size="22" aria-hidden="true" /></div>
+              <div>
+                <div class="host-muted">总容量</div>
+                <strong class="host-resource-value">{{
+                  currentSample ? formatMemory(currentSample.ram.total) : '--'
+                }}</strong>
+              </div>
+              <span class="host-resource-detail host-muted"
+                >已用 {{ currentSample ? formatMemory(currentSample.ram.used) : '--' }}</span
+              >
+            </div>
+          </section>
+
+          <section class="host-card host-card-wide" aria-labelledby="host-storage-title">
+            <header class="host-card-header"><h2 id="host-storage-title">存储状态</h2></header>
+            <div class="host-storage">
+              <div class="host-storage-label">
+                <span><HardDrive :size="18" aria-hidden="true" />根目录 /</span>
+                <span class="host-muted">{{
+                  rootDiskPercent === null ? '暂无容量数据' : `已用 ${diskUsage}`
+                }}</span>
+              </div>
+              <NProgress
+                v-if="rootDiskPercent !== null"
+                type="line"
+                :percentage="rootDiskPercent"
+                :show-indicator="false"
+                :height="8"
+                :color="rootDiskPercent >= 90 ? '#f87171' : '#818cf8'"
+                aria-label="根目录磁盘使用率"
+              />
+            </div>
+          </section>
         </div>
       </NTabPane>
 
@@ -736,8 +820,207 @@ function createChartOption(config: {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
-.system-info-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.host-info {
+  --host-border: rgba(148, 163, 184, 0.2);
+  --host-surface: rgba(255, 255, 255, 0.72);
+  --host-header: rgba(148, 163, 184, 0.06);
+  --host-muted: #64748b;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding-bottom: 18px;
+  container-type: inline-size;
+}
+
+.host-info-dark {
+  --host-border: rgba(148, 163, 184, 0.13);
+  --host-surface: rgba(30, 32, 42, 0.66);
+  --host-header: rgba(255, 255, 255, 0.025);
+  --host-muted: #a1a1aa;
+}
+
+.host-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--host-border);
+  border-radius: var(--app-radius-card, 10px);
+  background: var(--host-surface);
+  backdrop-filter: blur(16px);
+}
+
+.host-card-wide {
+  grid-column: 1 / -1;
+}
+.host-muted {
+  color: var(--host-muted);
+}
+.host-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 45px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--host-border);
+  background: var(--host-header);
+}
+.host-card-header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+.host-sample-time {
+  font-size: 12px;
+  text-align: right;
+}
+.host-overview {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+.host-system-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  color: #fff;
+  background: #6366f1;
+}
+.host-identity {
+  flex: 1;
+  min-width: 0;
+}
+.host-identity h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.host-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+}
+.host-meta span,
+.host-uptime,
+.host-storage-label > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.host-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.host-meta svg,
+.host-address svg {
+  flex-shrink: 0;
+}
+.host-uptime {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #15803d;
+  font-size: 12px;
+}
+.host-info-dark .host-uptime {
+  color: #4ade80;
+}
+.host-system-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 20px;
+  padding: 16px 0 20px;
+  border-top: 1px solid var(--host-border);
+}
+.host-system-details dt {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.host-system-details dd {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.host-addresses {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  padding: 26px 20px;
+}
+.host-address {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  min-width: 0;
+}
+.host-address strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.host-resource {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 22px 20px;
+  font-size: 12px;
+}
+.host-resource-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(129, 140, 248, 0.12);
+  color: #6366f1;
+}
+.host-info-dark .host-resource-icon {
+  color: #a5b4fc;
+}
+.host-resource-value {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.host-resource-detail {
+  margin-left: auto;
+}
+.host-storage {
+  padding: 26px 20px;
+}
+.host-storage-label {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+@container (max-width: 600px) {
+  .host-card {
+    grid-column: 1 / -1;
+  }
+  .host-overview {
+    flex-wrap: wrap;
+  }
+  .host-uptime {
+    margin-left: 68px;
+  }
+  .host-system-details,
+  .host-addresses {
+    grid-template-columns: 1fr;
+  }
 }
 
 .chart-grid {
@@ -759,10 +1042,6 @@ function createChartOption(config: {
 }
 
 @media (max-width: 1280px) {
-  .system-info-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .stats-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -770,7 +1049,6 @@ function createChartOption(config: {
 
 @media (max-width: 980px) {
   .chart-grid,
-  .system-info-grid,
   .stats-grid {
     grid-template-columns: 1fr;
   }
