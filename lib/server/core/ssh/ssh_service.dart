@@ -24,7 +24,7 @@ class SshService {
   final Map<String, SshOperationLimiter> _operationLimiters = {};
   final List<FutureOr<void> Function(String connectionId)>
   _disconnectListeners = [];
-  int _pendingSessionCreations = 0;
+  final Map<String, int> _pendingSessionCreations = {};
 
   final logger = Logger('SshService');
 
@@ -81,7 +81,7 @@ class SshService {
       throw Exception('Connection is closed');
     }
 
-    _reserveSessionCapacity();
+    _reserveSessionCapacity(connectionId);
 
     try {
       final shell = await _operationLimiterFor(
@@ -118,7 +118,7 @@ class SshService {
 
       return session;
     } finally {
-      _releaseSessionReservation();
+      _releaseSessionReservation(connectionId);
     }
   }
 
@@ -133,7 +133,7 @@ class SshService {
       throw Exception('Connection is closed');
     }
 
-    _reserveSessionCapacity();
+    _reserveSessionCapacity(connectionId);
 
     try {
       final sessionId = _generateId();
@@ -149,7 +149,7 @@ class SshService {
       _sessions[sessionId] = session;
       return session;
     } finally {
-      _releaseSessionReservation();
+      _releaseSessionReservation(connectionId);
     }
   }
 
@@ -239,17 +239,24 @@ class SshService {
     }
   }
 
-  void _reserveSessionCapacity() {
-    if (_sessions.length + _pendingSessionCreations >= maxSessions) {
+  void _reserveSessionCapacity(String connectionId) {
+    final sessionCount = _sessions.values
+        .where((session) => session.connectionId == connectionId)
+        .length;
+    final pendingCount = _pendingSessionCreations[connectionId] ?? 0;
+    if (sessionCount + pendingCount >= maxSessions) {
       throw const SshSessionLimitExceeded(maxSessions);
     }
 
-    _pendingSessionCreations++;
+    _pendingSessionCreations[connectionId] = pendingCount + 1;
   }
 
-  void _releaseSessionReservation() {
-    if (_pendingSessionCreations > 0) {
-      _pendingSessionCreations--;
+  void _releaseSessionReservation(String connectionId) {
+    final pendingCount = _pendingSessionCreations[connectionId] ?? 0;
+    if (pendingCount <= 1) {
+      _pendingSessionCreations.remove(connectionId);
+    } else {
+      _pendingSessionCreations[connectionId] = pendingCount - 1;
     }
   }
 
