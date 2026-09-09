@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
-import { NDataTable, NTag, type DataTableColumns } from 'naive-ui'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RefreshCw } from '@lucide/vue'
+import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
+import { Handle, Position, VueFlow, useVueFlow } from '@vue-flow/core'
+import type { Edge, Node } from '@vue-flow/core'
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/controls/dist/style.css'
 import { runtimeApi } from '@/api/runtime'
 import type {
   RuntimeClientSummary,
@@ -11,6 +18,7 @@ import type {
 import { useSettingsStore } from '@/stores/settings'
 
 const settingsStore = useSettingsStore()
+const { fitView } = useVueFlow({ id: 'runtime-sessions' })
 
 interface RuntimeClientRow {
   connectionId: string
@@ -20,12 +28,24 @@ interface RuntimeClientRow {
   isSynthetic: boolean
 }
 
+interface RuntimeNodeData {
+  connectionId: string
+  isClosed: boolean
+  sessionCount: number
+  isSynthetic: boolean
+  sessionId?: string
+  type?: RuntimeSessionSummary['type']
+  purposes?: RuntimeSessionPurpose[]
+  hasShell?: boolean
+}
+
 const loading = ref(false)
 const refreshAt = ref<Date | null>(null)
 const snapshot = ref<RuntimeSnapshot | null>(null)
 const streamStatus = ref<'connecting' | 'connected' | 'reconnecting' | 'disconnected'>(
   'disconnected',
 )
+const hasFittedInitialSnapshot = ref(false)
 let runtimeSource: EventSource | null = null
 let isIntentionalClose = false
 
@@ -43,37 +63,6 @@ const purposeLabels: Record<RuntimeSessionPurpose, string> = {
   cronTask: '定时任务',
   processManagement: '进程管理',
 }
-const sessionColumns: DataTableColumns<RuntimeSessionSummary> = [
-  { title: 'Session ID', key: 'sessionId' },
-  {
-    title: '用途',
-    key: 'purposes',
-    render: (row) => {
-      if (row.purposes.length === 0) {
-        return '未标注'
-      }
-
-      return h(
-        'div',
-        { class: 'flex flex-wrap gap-[6px]' },
-        row.purposes.map((purpose) =>
-          h(
-            NTag,
-            { key: purpose, size: 'small', bordered: false },
-            { default: () => purposeLabels[purpose] ?? purpose },
-          ),
-        ),
-      )
-    },
-  },
-  { title: '类型', key: 'type' },
-  { title: 'Shell', key: 'hasShell', render: (row) => (row.hasShell ? '是' : '否') },
-  {
-    title: 'Client 状态',
-    key: 'clientClosed',
-    render: (row) => (row.clientClosed ? '已关闭' : '活跃'),
-  },
-]
 const clientRows = computed<RuntimeClientRow[]>(() => {
   const groupedSessions = new Map<string, RuntimeSessionSummary[]>()
 
@@ -108,34 +97,75 @@ const clientRows = computed<RuntimeClientRow[]>(() => {
 
   return rows.sort(
     (left, right) =>
-      right.sessionCount - left.sessionCount || left.connectionId.localeCompare(right.connectionId),
+      Number(left.isClosed) - Number(right.isClosed) ||
+      right.sessionCount - left.sessionCount ||
+      left.connectionId.localeCompare(right.connectionId),
   )
 })
-const clientColumns: DataTableColumns<RuntimeClientRow> = [
-  {
-    type: 'expand',
-    expandable: (row) => row.sessions.length > 0,
-    renderExpand: (row) =>
-      h('div', { class: 'runtime-session-expand' }, [
-        h(NDataTable, {
-          bordered: false,
-          singleLine: false,
-          columns: sessionColumns,
-          data: row.sessions,
-          pagination: false,
-          size: 'small',
-        }),
-      ]),
-  },
-  { title: 'Connection ID', key: 'connectionId' },
-  { title: '状态', key: 'isClosed', render: (row) => (row.isClosed ? '已关闭' : '活跃') },
-  {
-    title: '数据来源',
-    key: 'isSynthetic',
-    render: (row) => (row.isSynthetic ? '仅 session 快照' : 'client 快照'),
-  },
-  { title: '关联 Session', key: 'sessionCount' },
-]
+
+const flowNodes = computed<Node<RuntimeNodeData>[]>(() => {
+  const nodes: Node<RuntimeNodeData>[] = []
+  let groupTop = 32
+
+  for (const client of clientRows.value) {
+    const sessionAreaHeight = Math.max(client.sessions.length * 140 - 16, 96)
+    nodes.push({
+      id: `client:${client.connectionId}`,
+      type: 'client',
+      position: { x: 32, y: groupTop + (sessionAreaHeight - 96) / 2 },
+      data: {
+        connectionId: client.connectionId,
+        isClosed: client.isClosed,
+        sessionCount: client.sessionCount,
+        isSynthetic: client.isSynthetic,
+      },
+      draggable: false,
+      selectable: false,
+      connectable: false,
+    })
+
+    client.sessions.forEach((session, index) => {
+      nodes.push({
+        id: `session:${session.sessionId}`,
+        type: 'session',
+        position: { x: 430, y: groupTop + index * 140 },
+        data: {
+          connectionId: session.connectionId,
+          isClosed: session.clientClosed,
+          sessionCount: 0,
+          isSynthetic: false,
+          sessionId: session.sessionId,
+          type: session.type,
+          purposes: session.purposes,
+          hasShell: session.hasShell,
+        },
+        draggable: false,
+        selectable: false,
+        connectable: false,
+      })
+    })
+
+    groupTop += sessionAreaHeight + 48
+  }
+
+  return nodes
+})
+
+const flowEdges = computed<Edge[]>(() =>
+  clientRows.value.flatMap((client) =>
+    client.sessions.map((session) => ({
+      id: `edge:${client.connectionId}:${session.sessionId}`,
+      source: `client:${client.connectionId}`,
+      target: `session:${session.sessionId}`,
+      type: 'smoothstep',
+      animated: !client.isClosed && !session.clientClosed,
+      style: {
+        stroke: client.isClosed || session.clientClosed ? '#94a3b8' : '#22c55e',
+        strokeWidth: 1.8,
+      },
+    })),
+  ),
+)
 
 function stopRuntimeStream() {
   if (runtimeSource) {
@@ -199,6 +229,19 @@ async function requestRefresh() {
   }
 }
 
+function handleNodesInitialized() {
+  if (hasFittedInitialSnapshot.value || flowNodes.value.length === 0) {
+    return
+  }
+
+  hasFittedInitialSnapshot.value = true
+  void fitView({ padding: 0.16, maxZoom: 1, duration: 280 })
+}
+
+function formatPurpose(purpose: RuntimeSessionPurpose) {
+  return purposeLabels[purpose] ?? purpose
+}
+
 function formatRefreshAt(value: Date | null) {
   if (!value) {
     return '尚未刷新'
@@ -241,95 +284,411 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="runtime-view flex h-full flex-col gap-[16px] overflow-auto p-[20px]"
-    :class="
-      settingsStore.isDark
-        ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.14),rgba(15,23,42,0.04))]'
-        : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.68),rgba(226,232,240,0.34))]'
-    "
+    class="runtime-view flex h-full min-h-0 flex-col"
+    :class="{ 'is-dark': settingsStore.isDark }"
   >
-    <div class="flex items-start justify-between gap-[12px] lt-md:flex-col lt-md:items-stretch">
-      <div>
-        <div class="text-[24px] font-700">运行态会话</div>
+    <header class="runtime-header">
+      <div class="min-w-0">
+        <h1 class="m-0 text-[20px] font-700">运行态会话</h1>
+        <div class="mt-[5px] flex flex-wrap items-center gap-x-[14px] gap-y-[4px] text-[12px]">
+          <span class="stream-state" :data-state="streamStatus">
+            <i aria-hidden="true"></i>{{ formatStreamStatus(streamStatus) }}
+          </span>
+          <span class="secondary-text">最近刷新：{{ formatRefreshAt(refreshAt) }}</span>
+        </div>
       </div>
 
-      <div class="flex items-center gap-[12px] lt-md:justify-between">
-        <span
-          class="text-[12px]"
-          :class="
-            settingsStore.isDark ? 'text-[rgba(96,165,250,0.92)]' : 'text-[rgba(37,99,235,0.92)]'
-          "
-        >
-          {{ formatStreamStatus(streamStatus) }}
-        </span>
-        <span
-          class="text-[12px]"
-          :class="
-            settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'
-          "
-        >
-          最近刷新：{{ formatRefreshAt(refreshAt) }}
-        </span>
-        <NButton secondary :loading="loading" @click="requestRefresh">立即刷新</NButton>
+      <div class="flex shrink-0 items-center gap-[16px]">
+        <div class="runtime-metric">
+          <span>Clients</span>
+          <strong>{{ snapshot?.totalClients ?? 0 }}</strong>
+        </div>
+        <div class="runtime-metric">
+          <span>Sessions</span>
+          <strong>{{ snapshot?.totalSessions ?? 0 }}</strong>
+        </div>
+        <NTooltip>
+          <template #trigger>
+            <NButton circle secondary :loading="loading" aria-label="立即刷新" @click="requestRefresh">
+              <template #icon><RefreshCw :size="16" /></template>
+            </NButton>
+          </template>
+          立即刷新
+        </NTooltip>
       </div>
-    </div>
+    </header>
 
-    <div class="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-[16px] lt-md:grid-cols-1">
-      <NCard
-        :bordered="false"
-        class="app-radius-card rounded-[18px]"
-        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'"
+    <main class="runtime-canvas">
+      <VueFlow
+        id="runtime-sessions"
+        :nodes="flowNodes"
+        :edges="flowEdges"
+        :min-zoom="0.25"
+        :max-zoom="1.5"
+        :zoom-on-double-click="false"
+        :delete-key-code="null"
+        @nodes-initialized="handleNodesInitialized"
       >
-        <div
-          class="text-[13px]"
-          :class="
-            settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'
-          "
-        >
-          Clients
-        </div>
-        <div class="mt-[8px] text-[34px] font-700">{{ snapshot?.totalClients ?? 0 }}</div>
-      </NCard>
+        <Background :gap="20" :size="1" :color="settingsStore.isDark ? '#334155' : '#cbd5e1'" />
+        <Controls position="bottom-left" />
 
-      <NCard
-        :bordered="false"
-        class="app-radius-card rounded-[18px]"
-        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'"
-      >
-        <div
-          class="text-[13px]"
-          :class="
-            settingsStore.isDark ? 'text-[rgba(148,163,184,0.92)]' : 'text-[rgba(100,116,139,0.92)]'
-          "
-        >
-          Sessions
-        </div>
-        <div class="mt-[8px] text-[34px] font-700">{{ snapshot?.totalSessions ?? 0 }}</div>
-      </NCard>
-    </div>
+        <template #node-client="{ data }">
+          <article class="flow-node client-node" :class="{ closed: data.isClosed }">
+            <div class="node-heading">
+              <span class="node-kind">Client</span>
+              <span class="status-badge"><i aria-hidden="true"></i>{{ data.isClosed ? '已关闭' : '活跃' }}</span>
+            </div>
+            <div class="node-id" :title="data.connectionId">{{ data.connectionId }}</div>
+            <div class="node-footer">
+              <span>{{ data.sessionCount }} 个会话</span>
+              <span v-if="data.isSynthetic">仅 Session 快照</span>
+            </div>
+            <Handle type="source" :position="Position.Right" />
+          </article>
+        </template>
 
-    <div class="flex-1 min-h-0">
-      <NCard
-        title="Clients / Sessions"
-        :bordered="false"
-        class="app-radius-card rounded-[18px] min-h-0"
-        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.72)]' : 'bg-[rgba(255,255,255,0.82)]'"
-      >
-        <NDataTable
-          :bordered="false"
-          :single-line="false"
-          :pagination="{ pageSize: 10 }"
-          :columns="clientColumns"
-          :data="clientRows"
-          :loading="loading"
-        />
-      </NCard>
-    </div>
+        <template #node-session="{ data }">
+          <article class="flow-node session-node" :class="{ closed: data.isClosed }">
+            <Handle type="target" :position="Position.Left" />
+            <div class="node-heading">
+              <span class="node-kind">Session</span>
+              <span class="session-type">{{ data.type?.toUpperCase() }}</span>
+            </div>
+            <div class="node-id" :title="data.sessionId">{{ data.sessionId }}</div>
+            <div class="purpose-list">
+              <span v-if="!data.purposes?.length" class="purpose-tag muted">未标注</span>
+              <span v-for="purpose in data.purposes" :key="purpose" class="purpose-tag">
+                {{ formatPurpose(purpose) }}
+              </span>
+            </div>
+            <div class="node-footer">
+              <span>{{ data.hasShell ? 'Shell 已就绪' : '无 Shell' }}</span>
+              <span>{{ data.isClosed ? 'Client 已关闭' : 'Client 活跃' }}</span>
+            </div>
+          </article>
+        </template>
+      </VueFlow>
+
+      <div v-if="!loading && flowNodes.length === 0" class="empty-state">
+        <NEmpty description="当前没有运行中的客户端或会话" />
+      </div>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.runtime-session-expand {
-  padding: 8px 0 4px;
+.runtime-view {
+  color: #172033;
+  background: #f4f7fa;
+}
+
+.runtime-view.is-dark {
+  color: #e5e7eb;
+  background: #111827;
+}
+
+.runtime-header {
+  z-index: 2;
+  display: flex;
+  min-height: 78px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #dbe2ea;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.is-dark .runtime-header {
+  border-bottom-color: #273244;
+  background: rgba(17, 24, 39, 0.92);
+}
+
+.secondary-text {
+  color: #64748b;
+}
+
+.is-dark .secondary-text {
+  color: #94a3b8;
+}
+
+.stream-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+}
+
+.stream-state i,
+.status-badge i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.stream-state[data-state='connected'] i,
+.status-badge i {
+  background: #22c55e;
+}
+
+.stream-state[data-state='connecting'] i,
+.stream-state[data-state='reconnecting'] i {
+  background: #eab308;
+  animation: status-pulse 1.4s ease-in-out infinite;
+}
+
+.runtime-metric {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 7px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.runtime-metric strong {
+  color: #172033;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.is-dark .runtime-metric {
+  color: #94a3b8;
+}
+
+.is-dark .runtime-metric strong {
+  color: #f8fafc;
+}
+
+.runtime-canvas {
+  position: relative;
+  min-height: 360px;
+  flex: 1 1 auto;
+}
+
+.runtime-canvas :deep(.vue-flow) {
+  background: #f8fafc;
+}
+
+.is-dark .runtime-canvas :deep(.vue-flow) {
+  background: #151d2a;
+}
+
+.flow-node {
+  box-sizing: border-box;
+  width: 300px;
+  height: 124px;
+  padding: 13px 15px;
+  overflow: hidden;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  color: #172033;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.client-node {
+  width: 276px;
+  height: 96px;
+  border-left: 4px solid #2563eb;
+}
+
+.flow-node.closed {
+  border-color: #cbd5e1;
+  border-left-color: #94a3b8;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.is-dark .flow-node {
+  border-color: #3a475a;
+  color: #e5e7eb;
+  background: #202b3b;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+.is-dark .client-node {
+  border-left-color: #60a5fa;
+}
+
+.is-dark .flow-node.closed {
+  border-color: #3a475a;
+  border-left-color: #64748b;
+  color: #94a3b8;
+  background: #1a2432;
+}
+
+.node-heading,
+.node-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.node-kind {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.is-dark .node-kind {
+  color: #a8b4c5;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #15803d;
+  font-size: 11px;
+}
+
+.closed .status-badge {
+  color: #64748b;
+}
+
+.closed .status-badge i {
+  background: #94a3b8;
+}
+
+.node-id {
+  margin-top: 6px;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-footer {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.is-dark .node-footer {
+  color: #94a3b8;
+}
+
+.session-type {
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+}
+
+.purpose-list {
+  display: flex;
+  height: 22px;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.purpose-tag {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #1d4ed8;
+  background: #dbeafe;
+  font-size: 10px;
+  line-height: 18px;
+}
+
+.purpose-tag.muted {
+  color: #64748b;
+  background: #e2e8f0;
+}
+
+.is-dark .purpose-tag {
+  color: #bfdbfe;
+  background: #1e3a5f;
+}
+
+.is-dark .purpose-tag.muted {
+  color: #cbd5e1;
+  background: #334155;
+}
+
+.runtime-canvas :deep(.vue-flow__handle) {
+  width: 9px;
+  height: 9px;
+  border: 2px solid #ffffff;
+  background: #2563eb;
+}
+
+.is-dark .runtime-canvas :deep(.vue-flow__handle) {
+  border-color: #202b3b;
+  background: #60a5fa;
+}
+
+.runtime-canvas :deep(.vue-flow__controls) {
+  overflow: hidden;
+  border: 1px solid #d7dee8;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
+}
+
+.is-dark .runtime-canvas :deep(.vue-flow__controls) {
+  border-color: #3a475a;
+}
+
+.is-dark .runtime-canvas :deep(.vue-flow__controls-button) {
+  border-bottom-color: #3a475a;
+  color: #e5e7eb;
+  background: #202b3b;
+  fill: currentColor;
+}
+
+.empty-state {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+}
+
+@keyframes status-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (max-width: 720px) {
+  .runtime-header {
+    min-height: 102px;
+    align-items: flex-start;
+    padding: 12px 14px;
+  }
+
+  .runtime-header h1 {
+    font-size: 17px;
+  }
+
+  .runtime-header > div:last-child {
+    gap: 9px;
+  }
+
+  .runtime-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .runtime-metric strong {
+    font-size: 18px;
+  }
+
+  .runtime-header .secondary-text {
+    display: none;
+  }
 }
 </style>
