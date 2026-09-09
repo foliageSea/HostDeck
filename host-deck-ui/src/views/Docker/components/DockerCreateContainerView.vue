@@ -331,10 +331,10 @@ watch(
               <NSelect
                 v-model:value="createForm.restartPolicy"
                 :options="[
-                  { label: 'no', value: 'no' },
-                  { label: 'always', value: 'always' },
-                  { label: 'unless-stopped', value: 'unless-stopped' },
-                  { label: 'on-failure', value: 'on-failure' },
+                  { label: '不重启', value: 'no' },
+                  { label: '始终重启', value: 'always' },
+                  { label: '除非手动停止', value: 'unless-stopped' },
+                  { label: '失败时重启', value: 'on-failure' },
                 ]"
               />
             </NFormItemGi>
