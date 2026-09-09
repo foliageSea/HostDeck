@@ -9,13 +9,16 @@ enum SharedSshSessionType { shell, sftp }
 class SharedSshSessionResolver {
   final SshService _sshService;
   final SharedSshSessionType _type;
+  final SshSessionPurpose _purpose;
   final Map<String, String> _sharedSessionIds = {};
   final Map<String, Future<SshSession>> _pendingSharedSessions = {};
 
   SharedSshSessionResolver(
     this._sshService, {
     required SharedSshSessionType type,
-  }) : _type = type;
+    required SshSessionPurpose purpose,
+  }) : _type = type,
+       _purpose = purpose;
 
   Future<SshSession> createForConnection(String connectionId) {
     return _getOrCreateSharedSession(connectionId);
@@ -26,6 +29,7 @@ class SharedSshSessionResolver {
     if (sessionId != null) {
       final session = _sshService.getSession(sessionId);
       if (session != null) {
+        _sshService.addSessionPurpose(session.id, _purpose);
         return session;
       }
 
@@ -100,8 +104,14 @@ class SharedSshSessionResolver {
 
   Future<SshSession> _createSession(String connectionId) {
     return switch (_type) {
-      SharedSshSessionType.shell => _sshService.createShell(connectionId),
-      SharedSshSessionType.sftp => _sshService.createSftpSession(connectionId),
+      SharedSshSessionType.shell => _sshService.createShell(
+        connectionId,
+        purpose: _purpose,
+      ),
+      SharedSshSessionType.sftp => _sshService.createSftpSession(
+        connectionId,
+        purpose: _purpose,
+      ),
     };
   }
 

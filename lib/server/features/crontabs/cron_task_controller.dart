@@ -20,6 +20,7 @@ class CronTaskController {
     : _sessionResolver = SharedSshSessionResolver(
         _sshService,
         type: SharedSshSessionType.sftp,
+        purpose: SshSessionPurpose.cronTask,
       );
 
   Future<Response> list(Request request) async {

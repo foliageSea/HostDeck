@@ -133,7 +133,10 @@ class FileTaskManager {
     SshSession? session;
     var failed = false;
     try {
-      session = await _sshService.createSftpSession(task.connectionId);
+      session = await _sshService.createSftpSession(
+        task.connectionId,
+        purpose: SshSessionPurpose.fileTask,
+      );
       task = find(id)!;
       for (final item in task.items) {
         if (_cancelRequested.contains(id)) break;

@@ -21,6 +21,7 @@ class FileController {
     : _sessionResolver = SharedSshSessionResolver(
         sshService,
         type: SharedSshSessionType.sftp,
+        purpose: SshSessionPurpose.fileManagement,
       );
 
   Future<SshSession> _resolveSession(Request request) async {

@@ -246,8 +246,10 @@ class _FakeSshService extends SshService {
   SshSession? getSession(String id) => id == session.id ? session : null;
 
   @override
-  Future<SshSession> createShell(String connectionId) =>
-      shellSession ?? Future.value(session);
+  Future<SshSession> createShell(
+    String connectionId, {
+    required SshSessionPurpose purpose,
+  }) => shellSession ?? Future.value(session);
 }
 
 class _FakeDockerComposeService extends DockerComposeService {

@@ -19,6 +19,7 @@ class AgentController {
     : _sessionResolver = SharedSshSessionResolver(
         _sshService,
         type: SharedSshSessionType.sftp,
+        purpose: SshSessionPurpose.agent,
       );
 
   Future<Response> listSessions(Request request) async {

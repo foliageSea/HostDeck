@@ -15,11 +15,25 @@ class SshSessionLimitExceeded implements Exception {
   String toString() => 'SSH session limit exceeded: $maxSessions';
 }
 
+enum SshSessionPurpose {
+  terminal,
+  fileManagement,
+  fileTask,
+  docker,
+  dockerCompose,
+  containerShell,
+  systemMonitor,
+  agent,
+  cronTask,
+  processManagement,
+}
+
 class SshService {
   static const maxSessions = 8;
   static const maxConcurrentOperations = 4;
 
   final Map<String, SshSession> _sessions = {};
+  final Map<String, Set<SshSessionPurpose>> _sessionPurposes = {};
   final Map<String, SSHClient> _clients = {};
   final Map<String, SshOperationLimiter> _operationLimiters = {};
   final List<FutureOr<void> Function(String connectionId)>
@@ -70,7 +84,10 @@ class SshService {
     return connectionId;
   }
 
-  Future<SshSession> createShell(String connectionId) async {
+  Future<SshSession> createShell(
+    String connectionId, {
+    required SshSessionPurpose purpose,
+  }) async {
     final client = _clients[connectionId];
     if (client == null) {
       throw Exception('Connection not found: $connectionId');
@@ -109,6 +126,7 @@ class SshService {
       );
 
       _sessions[sessionId] = session;
+      _sessionPurposes[sessionId] = {purpose};
 
       // Handle client disconnection (only once per client usually, but safe to add listener?)
       // Actually client.done is a future. We should set it up when client is created.
@@ -122,7 +140,10 @@ class SshService {
     }
   }
 
-  Future<SshSession> createSftpSession(String connectionId) async {
+  Future<SshSession> createSftpSession(
+    String connectionId, {
+    required SshSessionPurpose purpose,
+  }) async {
     final client = _clients[connectionId];
     if (client == null) {
       throw Exception('Connection not found: $connectionId');
@@ -147,6 +168,7 @@ class SshService {
       );
 
       _sessions[sessionId] = session;
+      _sessionPurposes[sessionId] = {purpose};
       return session;
     } finally {
       _releaseSessionReservation(connectionId);
@@ -161,6 +183,15 @@ class SshService {
   // Let's fix connect() to attach listener.
 
   SshSession? getSession(String id) => _sessions[id];
+
+  bool addSessionPurpose(String id, SshSessionPurpose purpose) {
+    if (!_sessions.containsKey(id)) {
+      return false;
+    }
+
+    _sessionPurposes.putIfAbsent(id, () => {}).add(purpose);
+    return true;
+  }
 
   SSHClient? getClient(String connectionId) => _clients[connectionId];
 
@@ -198,22 +229,25 @@ class SshService {
           );
 
     final sessions =
-        _sessions.values
-            .map(
-              (session) => {
-                'sessionId': session.id,
-                'connectionId': session.connectionId,
-                'type': session.shell == null ? 'sftp' : 'shell',
-                'hasShell': session.shell != null,
-                'clientClosed': session.client.isClosed,
-              },
-            )
-            .toList()
-          ..sort(
-            (left, right) => (left['sessionId'] as String).compareTo(
-              right['sessionId'] as String,
-            ),
-          );
+        _sessions.values.map((session) {
+          final purposes =
+              (_sessionPurposes[session.id] ?? const <SshSessionPurpose>{})
+                  .map((purpose) => purpose.name)
+                  .toList()
+                ..sort();
+          return {
+            'sessionId': session.id,
+            'connectionId': session.connectionId,
+            'type': session.shell == null ? 'sftp' : 'shell',
+            'purposes': purposes,
+            'hasShell': session.shell != null,
+            'clientClosed': session.client.isClosed,
+          };
+        }).toList()..sort(
+          (left, right) => (left['sessionId'] as String).compareTo(
+            right['sessionId'] as String,
+          ),
+        );
 
     return {
       'totalClients': clients.length,
@@ -228,6 +262,7 @@ class SshService {
     if (session != null) {
       await session.close();
       _sessions.remove(id);
+      _sessionPurposes.remove(id);
     }
   }
 
@@ -268,6 +303,7 @@ class SshService {
       // We don't await here because this might be called from sync context or fire-and-forget
       session.close();
       _sessions.remove(session.id);
+      _sessionPurposes.remove(session.id);
     }
     _clients.remove(connectionId);
     _operationLimiters.remove(connectionId);

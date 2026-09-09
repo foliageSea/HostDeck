@@ -6,10 +6,23 @@ export interface RuntimeClientSummary {
   sessionCount: number
 }
 
+export type RuntimeSessionPurpose =
+  | 'terminal'
+  | 'fileManagement'
+  | 'fileTask'
+  | 'docker'
+  | 'dockerCompose'
+  | 'containerShell'
+  | 'systemMonitor'
+  | 'agent'
+  | 'cronTask'
+  | 'processManagement'
+
 export interface RuntimeSessionSummary {
   sessionId: string
   connectionId: string
   type: 'shell' | 'sftp'
+  purposes: RuntimeSessionPurpose[]
   hasShell: boolean
   clientClosed: boolean
 }

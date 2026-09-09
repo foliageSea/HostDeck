@@ -15,6 +15,7 @@ class ProcessController {
     : _sessionResolver = SharedSshSessionResolver(
         _sshService,
         type: SharedSshSessionType.sftp,
+        purpose: SshSessionPurpose.processManagement,
       );
 
   Future<Response> list(Request request) async {

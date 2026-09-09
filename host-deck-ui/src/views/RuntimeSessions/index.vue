@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
-import { NDataTable, type DataTableColumns } from 'naive-ui'
-import type { RuntimeClientSummary, RuntimeSessionSummary, RuntimeSnapshot } from '@/api/runtime'
+import { NDataTable, NTag, type DataTableColumns } from 'naive-ui'
+import type {
+  RuntimeClientSummary,
+  RuntimeSessionPurpose,
+  RuntimeSessionSummary,
+  RuntimeSnapshot,
+} from '@/api/runtime'
 import { useSettingsStore } from '@/stores/settings'
 
 const settingsStore = useSettingsStore()
@@ -25,8 +30,41 @@ let isIntentionalClose = false
 
 const clients = computed<RuntimeClientSummary[]>(() => snapshot.value?.clients ?? [])
 const sessions = computed<RuntimeSessionSummary[]>(() => snapshot.value?.sessions ?? [])
+const purposeLabels: Record<RuntimeSessionPurpose, string> = {
+  terminal: '终端',
+  fileManagement: '文件管理',
+  fileTask: '文件任务',
+  docker: 'Docker 管理',
+  dockerCompose: 'Docker Compose',
+  containerShell: '容器终端',
+  systemMonitor: '系统监控',
+  agent: 'Agent 操作',
+  cronTask: '定时任务',
+  processManagement: '进程管理',
+}
 const sessionColumns: DataTableColumns<RuntimeSessionSummary> = [
   { title: 'Session ID', key: 'sessionId' },
+  {
+    title: '用途',
+    key: 'purposes',
+    render: (row) => {
+      if (row.purposes.length === 0) {
+        return '未标注'
+      }
+
+      return h(
+        'div',
+        { class: 'flex flex-wrap gap-[6px]' },
+        row.purposes.map((purpose) =>
+          h(
+            NTag,
+            { key: purpose, size: 'small', bordered: false },
+            { default: () => purposeLabels[purpose] ?? purpose },
+          ),
+        ),
+      )
+    },
+  },
   { title: '类型', key: 'type' },
   { title: 'Shell', key: 'hasShell', render: (row) => (row.hasShell ? '是' : '否') },
   {

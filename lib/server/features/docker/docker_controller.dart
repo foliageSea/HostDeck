@@ -35,10 +35,12 @@ class DockerController {
   ) : _sessionResolver = SharedSshSessionResolver(
         _sshService,
         type: SharedSshSessionType.sftp,
+        purpose: SshSessionPurpose.docker,
       ),
       _composeSessionResolver = SharedSshSessionResolver(
         _sshService,
         type: SharedSshSessionType.shell,
+        purpose: SshSessionPurpose.dockerCompose,
       );
 
   Future<SshSession> _resolveSession(Request request) async {
@@ -131,6 +133,7 @@ class DockerController {
       try {
         final shellSession = await _sshService.createShell(
           session.connectionId,
+          purpose: SshSessionPurpose.containerShell,
         );
         final shell = shellSession.shell;
         if (shell == null) {

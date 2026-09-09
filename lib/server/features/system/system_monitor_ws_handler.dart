@@ -64,7 +64,10 @@ class SystemMonitorWsHandler {
             return existingSession;
           }
 
-          final nextSession = await _sshService.createSftpSession(connectionId);
+          final nextSession = await _sshService.createSftpSession(
+            connectionId,
+            purpose: SshSessionPurpose.systemMonitor,
+          );
           monitorSession = nextSession;
           return nextSession;
         }

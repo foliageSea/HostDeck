@@ -44,7 +44,10 @@ class TerminalController {
         return Result.fail(400, 'Missing connectionId');
       }
 
-      final session = await _sshService.createShell(connectionId);
+      final session = await _sshService.createShell(
+        connectionId,
+        purpose: SshSessionPurpose.terminal,
+      );
 
       return Result.ok({'sessionId': session.id});
     } on SshSessionLimitExceeded catch (e) {
