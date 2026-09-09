@@ -179,7 +179,7 @@ onMounted(() => void loadProjectForEditing())
       <NIcon :size="20"><LogoDocker /></NIcon>
       <h2 class="m-0 text-[18px]">{{ editing ? '编辑编排' : '新建编排' }}</h2>
     </div>
-    <NForm label-placement="top" class="min-h-0 flex-1 overflow-auto p-[18px] app-scrollbar"
+    <NForm label-placement="top" class="compose-form min-h-0 flex-1 overflow-hidden p-[18px]"
       ><NGrid :cols="2" :x-gap="12" responsive="screen"
         ><NFormItemGi label="项目名" required
           ><NInput v-model:value="form.projectName" placeholder="my-stack" /></NFormItemGi
@@ -195,9 +195,10 @@ onMounted(() => void loadProjectForEditing())
         </div></NFormItem
       ><NFormItem label="创建后立即启动"
         ><NSwitch v-model:value="form.startAfterCreate" /></NFormItem
-      ><NFormItem label="Compose YAML" required
-        ><div class="h-[420px] min-h-[320px] w-full overflow-hidden">
-          <CodeEditor v-model="form.content" language="yaml" class="compose-editor h-full" /></div></NFormItem
+      ><NFormItem label="Compose YAML" required class="compose-editor-item"
+        ><div class="min-h-0 w-full flex-1 overflow-hidden h-full">
+          <CodeEditor v-model="form.content" language="yaml" class="compose-editor h-full" />
+        </div></NFormItem
     ></NForm>
     <div class="flex shrink-0 justify-end border-t px-[18px] py-[12px]">
       <NSpace
@@ -220,5 +221,19 @@ onMounted(() => void loadProjectForEditing())
 <style scoped>
 .compose-editor {
   border-radius: 0 !important;
+}
+
+.compose-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.compose-editor-item {
+  flex: 1;
+  min-height: 0;
+}
+
+.compose-editor-item :deep(.n-form-item-blank) {
+  min-height: 0;
 }
 </style>
