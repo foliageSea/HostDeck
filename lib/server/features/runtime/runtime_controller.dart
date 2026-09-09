@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
-import 'package:shelf_web_socket/shelf_web_socket.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'package:host_deck/server/core/http/result.dart';
+import 'package:host_deck/server/core/http/server_sent_event.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 
 class RuntimeController {
@@ -20,60 +19,53 @@ class RuntimeController {
     }
   }
 
-  Handler get wsSessions {
-    return (Request request) {
-      return webSocketHandler((WebSocketChannel channel, String? protocol) {
-        Timer? timer;
-        var isActive = true;
+  Response streamSessions(Request request) {
+    late final StreamController<List<int>> controller;
+    Timer? timer;
 
-        void sendSnapshot() {
-          if (!isActive) {
-            return;
-          }
+    void sendSnapshot() {
+      if (controller.isClosed) return;
 
-          try {
-            channel.sink.add(
-              jsonEncode({
-                'code': 200,
-                'data': _sshService.getRuntimeSnapshot(),
-                'message': 'success',
-              }),
-            );
-          } catch (e) {
-            channel.sink.add(
-              jsonEncode({'code': 500, 'data': null, 'message': e.toString()}),
-            );
-          }
-        }
-
-        void dispose() {
-          isActive = false;
-          timer?.cancel();
-          timer = null;
-        }
-
-        sendSnapshot();
-        timer = Timer.periodic(const Duration(seconds: 3), (_) {
-          sendSnapshot();
-        });
-
-        channel.stream.listen(
-          (message) {
-            if (message == 'ping') {
-              channel.sink.add('pong');
-              return;
-            }
-
-            if (message == 'refresh') {
-              sendSnapshot();
-            }
-          },
-          onDone: dispose,
-          onError: (_) {
-            dispose();
-          },
+      try {
+        controller.add(
+          encodeServerSentEvent('snapshot', _sshService.getRuntimeSnapshot()),
         );
-      })(request);
-    };
+      } catch (error) {
+        controller.add(
+          encodeServerSentEvent('snapshot-error', {
+            'message': error.toString(),
+          }),
+        );
+      }
+    }
+
+    controller = StreamController<List<int>>(
+      onListen: () {
+        controller.add(<int>[
+          ...utf8.encode(': ${' '.padRight(2048)}\n\n'),
+          ...encodeServerSentEvent('connected', const {}, retry: 3000),
+        ]);
+        sendSnapshot();
+        timer = Timer.periodic(
+          const Duration(seconds: 3),
+          (_) => sendSnapshot(),
+        );
+      },
+      onCancel: () {
+        timer?.cancel();
+        timer = null;
+      },
+    );
+
+    return Response.ok(
+      controller.stream,
+      headers: const {
+        'content-type': 'text/event-stream; charset=utf-8',
+        'cache-control': 'no-cache, no-transform',
+        'connection': 'keep-alive',
+        'x-accel-buffering': 'no',
+      },
+      context: const {'shelf.io.buffer_output': false},
+    );
   }
 }

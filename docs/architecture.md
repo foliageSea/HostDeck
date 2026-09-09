@@ -59,11 +59,14 @@ WebSocket 请求：
 - 终端使用 `/api/ws/terminal`。
 - 系统监控使用 `/api/ws/monitor`。
 - SSH 会话状态使用 `/api/ws/session`。
-- 运行态会话使用 `/api/ws/runtime`。
+
+SSE 请求：
+
+- 运行态会话使用 `/api/runtime/sessions/stream`。
 
 ## 分层原则
 
-- `controllers` 只处理协议层细节，包括参数、路由、响应和 WebSocket 生命周期。
+- `controllers` 只处理协议层细节，包括参数、路由、响应以及 WebSocket/SSE 生命周期。
 - `services` 处理可测试的业务逻辑。
 - `repositories` 封装外部系统访问，例如 SSH、Docker Engine、sqlite。
 - `models` 定义跨层传递的数据结构。

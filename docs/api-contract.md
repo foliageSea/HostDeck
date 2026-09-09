@@ -52,9 +52,14 @@
 - `/api/ws/terminal`：终端会话通道。
 - `/api/ws/monitor`：系统监控推送。
 - `/api/ws/session`：SSH 会话状态推送。
-- `/api/ws/runtime`：运行态会话推送。
 
 WebSocket 路由不走统一 JSON API 解包。新增 WebSocket 时需要明确消息格式、连接生命周期、关闭语义和前端重连策略。
+
+## SSE 路由
+
+- `/api/runtime/sessions/stream`：运行态会话推送。
+
+SSE 路由不走统一 JSON API 解包。前端使用 `EventSource` 接收命名事件，并由浏览器处理断线重连。
 
 ## 非统一响应场景
 

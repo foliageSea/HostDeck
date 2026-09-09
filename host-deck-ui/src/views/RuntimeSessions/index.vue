@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { NDataTable, NTag, type DataTableColumns } from 'naive-ui'
+import { runtimeApi } from '@/api/runtime'
 import type {
   RuntimeClientSummary,
   RuntimeSessionPurpose,
@@ -22,10 +23,10 @@ interface RuntimeClientRow {
 const loading = ref(false)
 const refreshAt = ref<Date | null>(null)
 const snapshot = ref<RuntimeSnapshot | null>(null)
-const wsStatus = ref<'connecting' | 'connected' | 'reconnecting' | 'disconnected'>('disconnected')
-let runtimeWs: WebSocket | null = null
-let reconnectTimer: number | null = null
-let pingTimer: number | null = null
+const streamStatus = ref<'connecting' | 'connected' | 'reconnecting' | 'disconnected'>(
+  'disconnected',
+)
+let runtimeSource: EventSource | null = null
 let isIntentionalClose = false
 
 const clients = computed<RuntimeClientSummary[]>(() => snapshot.value?.clients ?? [])
@@ -136,20 +137,10 @@ const clientColumns: DataTableColumns<RuntimeClientRow> = [
   { title: '关联 Session', key: 'sessionCount' },
 ]
 
-function stopRuntimeWs() {
-  if (reconnectTimer !== null) {
-    clearTimeout(reconnectTimer)
-    reconnectTimer = null
-  }
-
-  if (pingTimer !== null) {
-    clearInterval(pingTimer)
-    pingTimer = null
-  }
-
-  if (runtimeWs) {
-    runtimeWs.close(1000, 'Normal Closure')
-    runtimeWs = null
+function stopRuntimeStream() {
+  if (runtimeSource) {
+    runtimeSource.close()
+    runtimeSource = null
   }
 }
 
@@ -158,64 +149,53 @@ function handleSnapshot(payload: unknown) {
     return
   }
 
-  const message = payload as { code?: number; data?: RuntimeSnapshot }
-  if (message.code === 200 && message.data) {
-    snapshot.value = message.data
-    refreshAt.value = new Date()
-    loading.value = false
-  }
+  snapshot.value = payload as RuntimeSnapshot
+  refreshAt.value = new Date()
+  loading.value = false
 }
 
-function startRuntimeWs() {
-  stopRuntimeWs()
+function startRuntimeStream() {
+  stopRuntimeStream()
   loading.value = true
-  wsStatus.value = wsStatus.value === 'disconnected' ? 'connecting' : 'reconnecting'
+  streamStatus.value = streamStatus.value === 'disconnected' ? 'connecting' : 'reconnecting'
 
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/api/ws/runtime`
-  runtimeWs = new WebSocket(wsUrl)
-
-  runtimeWs.onopen = () => {
-    wsStatus.value = 'connected'
+  const source = new EventSource('/api/runtime/sessions/stream')
+  runtimeSource = source
+  source.onopen = () => {
+    streamStatus.value = 'connected'
     loading.value = false
   }
 
-  runtimeWs.onmessage = (event) => {
-    if (event.data === 'pong') {
-      return
-    }
-
+  source.addEventListener('snapshot', (event) => {
     try {
-      handleSnapshot(JSON.parse(event.data) as unknown)
+      handleSnapshot(JSON.parse((event as MessageEvent<string>).data) as unknown)
     } catch (error) {
-      console.error('Failed to parse runtime WS message', error)
+      console.error('Failed to parse runtime SSE message', error)
     }
-  }
+  })
 
-  runtimeWs.onclose = () => {
-    stopRuntimeWs()
-    if (isIntentionalClose) {
-      wsStatus.value = 'disconnected'
+  source.addEventListener('snapshot-error', (event) => {
+    console.error('Runtime SSE snapshot failed', (event as MessageEvent<string>).data)
+  })
+
+  source.onerror = () => {
+    if (isIntentionalClose || source !== runtimeSource) {
       return
     }
 
-    wsStatus.value = 'reconnecting'
-    reconnectTimer = window.setTimeout(() => {
-      startRuntimeWs()
-    }, 3000)
+    streamStatus.value = 'reconnecting'
+    loading.value = false
   }
-
-  pingTimer = window.setInterval(() => {
-    if (runtimeWs?.readyState === WebSocket.OPEN) {
-      runtimeWs.send('ping')
-    }
-  }, 10000)
 }
 
-function requestRefresh() {
-  if (runtimeWs?.readyState === WebSocket.OPEN) {
-    loading.value = true
-    runtimeWs.send('refresh')
+async function requestRefresh() {
+  loading.value = true
+  try {
+    handleSnapshot(await runtimeApi.getSessions())
+  } catch (error) {
+    console.error('Failed to refresh runtime sessions', error)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -231,7 +211,7 @@ function formatRefreshAt(value: Date | null) {
   }).format(value)
 }
 
-function formatWsStatus(value: typeof wsStatus.value) {
+function formatStreamStatus(value: typeof streamStatus.value) {
   if (value === 'connected') {
     return '实时连接已建立'
   }
@@ -249,13 +229,13 @@ function formatWsStatus(value: typeof wsStatus.value) {
 
 onMounted(() => {
   isIntentionalClose = false
-  startRuntimeWs()
+  startRuntimeStream()
 })
 
 onBeforeUnmount(() => {
   isIntentionalClose = true
-  stopRuntimeWs()
-  wsStatus.value = 'disconnected'
+  stopRuntimeStream()
+  streamStatus.value = 'disconnected'
 })
 </script>
 
@@ -280,7 +260,7 @@ onBeforeUnmount(() => {
             settingsStore.isDark ? 'text-[rgba(96,165,250,0.92)]' : 'text-[rgba(37,99,235,0.92)]'
           "
         >
-          {{ formatWsStatus(wsStatus) }}
+          {{ formatStreamStatus(streamStatus) }}
         </span>
         <span
           class="text-[12px]"
@@ -290,13 +270,7 @@ onBeforeUnmount(() => {
         >
           最近刷新：{{ formatRefreshAt(refreshAt) }}
         </span>
-        <NButton
-          secondary
-          :loading="loading"
-          :disabled="wsStatus !== 'connected'"
-          @click="requestRefresh"
-          >立即刷新</NButton
-        >
+        <NButton secondary :loading="loading" @click="requestRefresh">立即刷新</NButton>
       </div>
     </div>
 
