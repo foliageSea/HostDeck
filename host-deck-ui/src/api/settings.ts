@@ -15,9 +15,33 @@ export interface ServiceVersion {
   version: string
 }
 
+export interface BackendPortInfo {
+  id: string
+  type: 'server' | 'port-forward' | 'secure-browser' | 'docker'
+  name: string
+  host: string
+  port: number
+  purpose: string
+  status: 'running' | 'error'
+  target?: string
+  connectionId?: string
+  activeConnections?: number
+  startedAt?: number
+  error?: string
+}
+
+export interface BackendPortsPayload {
+  items: BackendPortInfo[]
+}
+
 export const settingsApi = {
   getServiceVersion: async () => {
     const response = await http.get<ServiceVersion>('/api/settings/version')
+    return response.data
+  },
+
+  getBackendPorts: async () => {
+    const response = await http.get<BackendPortsPayload>('/api/settings/ports')
     return response.data
   },
 

@@ -45,6 +45,7 @@ import 'package:host_deck/server/features/servers/server_repository.dart';
 import 'package:host_deck/server/features/server_metrics/server_metrics_controller.dart';
 import 'package:host_deck/server/features/server_metrics/server_metrics_service.dart';
 import 'package:host_deck/server/features/settings/log_export_service.dart';
+import 'package:host_deck/server/features/settings/backend_ports_service.dart';
 import 'package:host_deck/server/features/settings/settings_controller.dart';
 import 'package:host_deck/server/features/system/monitor_history_service.dart';
 import 'package:host_deck/server/features/system/monitor_service.dart';
@@ -89,6 +90,8 @@ class ServerContainer {
     bool secureCookies = false,
     required ServerLogService logService,
     ChromeLauncher? chromeLauncher,
+    required String Function() serverHost,
+    required int Function() serverPort,
   }) async {
     AppSettings.configure(dataDir: dataDir);
     final getIt = GetIt.asNewInstance();
@@ -212,6 +215,15 @@ class ServerContainer {
         log: log,
       ),
     );
+    getIt.registerLazySingleton<BackendPortsService>(
+      () => BackendPortsService(
+        serverHost: serverHost,
+        serverPort: serverPort,
+        portForwardService: getIt<PortForwardService>(),
+        secureBrowserTunnelService: getIt<SecureBrowserTunnelService>(),
+        dockerSocketTunnelService: getIt<DockerSocketTunnelService>(),
+      ),
+    );
     getIt.registerLazySingleton<ApiRoutes>(
       () => ApiRoutes(
         accessController: AccessController(getIt<AccessAuthService>()),
@@ -263,7 +275,10 @@ class ServerContainer {
         serverMetricsController: ServerMetricsController(
           getIt<ServerMetricsService>(),
         ),
-        settingsController: SettingsController(getIt<LogExportService>()),
+        settingsController: SettingsController(
+          getIt<LogExportService>(),
+          backendPortsService: getIt<BackendPortsService>(),
+        ),
         portForwardController: PortForwardController(
           getIt<PortForwardRepository>(),
           getIt<PortForwardService>(),

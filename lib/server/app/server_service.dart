@@ -29,6 +29,8 @@ class ServerService {
   bool _disposed = false;
 
   bool get isRunning => _server != null;
+  String get listeningHost => _server?.address.address ?? host;
+  int get listeningPort => _server?.port ?? port;
 
   ServerService({
     this.port = 8080,
@@ -77,6 +79,8 @@ class ServerService {
       secureCookies: secureCookies,
       logService: logService,
       chromeLauncher: chromeLauncher,
+      serverHost: () => listeningHost,
+      serverPort: () => listeningPort,
     );
     final handler = await buildServerHandler(
       apiRoutes: _container!.apiRoutes,

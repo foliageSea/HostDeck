@@ -54,6 +54,26 @@ class DockerSocketTunnelService {
     }
   }
 
+  Future<List<DockerSocketTunnelSnapshot>> listActiveListeners() async {
+    final entries = _tunnels.entries.toList(growable: false);
+    final snapshots = <DockerSocketTunnelSnapshot>[];
+    for (final entry in entries) {
+      try {
+        final tunnel = await entry.value;
+        snapshots.add(
+          DockerSocketTunnelSnapshot(
+            connectionId: entry.key,
+            host: tunnel.endpoint.host,
+            port: tunnel.endpoint.port,
+          ),
+        );
+      } catch (_) {
+        // Failed tunnel startups are removed by endpoint().
+      }
+    }
+    return snapshots;
+  }
+
   Future<void> stop(String connectionId) async {
     final future = _tunnels.remove(connectionId);
     if (future == null) {
@@ -103,6 +123,18 @@ class DockerSocketTunnelService {
     final channel = await session.client.forwardLocalUnix(socketPath);
     return _SshDockerSocketTunnelChannel(channel);
   }
+}
+
+class DockerSocketTunnelSnapshot {
+  final String connectionId;
+  final String host;
+  final int port;
+
+  const DockerSocketTunnelSnapshot({
+    required this.connectionId,
+    required this.host,
+    required this.port,
+  });
 }
 
 class _DockerSocketTunnel {

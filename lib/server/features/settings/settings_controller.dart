@@ -9,18 +9,35 @@ import 'package:shelf_multipart/shelf_multipart.dart';
 import 'package:host_deck/server/app/server_runtime.dart';
 import 'package:host_deck/server/core/http/result.dart';
 import 'package:host_deck/server/features/settings/log_export_service.dart';
+import 'package:host_deck/server/features/settings/backend_ports_service.dart';
 import 'package:host_deck/utils/app_settings.dart';
 
 class SettingsController {
   final LogExportService _logExportService;
+  final BackendPortsService? _backendPortsService;
 
-  SettingsController(this._logExportService);
+  SettingsController(
+    this._logExportService, {
+    BackendPortsService? backendPortsService,
+  }) : _backendPortsService = backendPortsService;
 
   Future<Response> getServiceVersion(Request request) async {
     try {
       return Result.ok({'version': await resolveAppVersion()});
     } catch (_) {
       return Result.fail(500, '获取后端服务版本失败。');
+    }
+  }
+
+  Future<Response> getBackendPorts(Request request) async {
+    try {
+      final service = _backendPortsService;
+      if (service == null) {
+        return Result.fail(503, '后端端口服务不可用。');
+      }
+      return Result.ok({'items': await service.list()});
+    } catch (_) {
+      return Result.fail(500, '获取后端端口失败。');
     }
   }
 

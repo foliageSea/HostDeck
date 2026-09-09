@@ -24,6 +24,15 @@ void main() {
     expect(second, first);
     expect(first.host, InternetAddress.loopbackIPv4.address);
     expect(first.port, greaterThan(0));
+
+    final listeners = await service.listActiveListeners();
+    expect(listeners, hasLength(1));
+    expect(listeners.single.connectionId, 'connection-1');
+    expect(listeners.single.host, first.host);
+    expect(listeners.single.port, first.port);
+
+    await service.stop('connection-1');
+    expect(await service.listActiveListeners(), isEmpty);
   });
 
   test('forwards bytes and closes active channel on stopAll', () async {

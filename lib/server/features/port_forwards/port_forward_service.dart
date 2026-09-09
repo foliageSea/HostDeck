@@ -37,6 +37,25 @@ class PortForwardService {
     };
   }
 
+  List<PortForwardListenerSnapshot> listActiveListeners() {
+    return _activeForwards.values
+        .map(
+          (active) => PortForwardListenerSnapshot(
+            ruleId: active.ruleId,
+            name: active.rule.name,
+            host: active.server.address.address,
+            port: active.server.port,
+            remoteHost: active.rule.remoteHost,
+            remotePort: active.rule.remotePort,
+            connectionId: active.connectionId,
+            startedAt: active.startedAt,
+            activeConnections: active.activeConnections,
+            error: active.error,
+          ),
+        )
+        .toList(growable: false);
+  }
+
   Future<void> start(String connectionId, PortForwardRule rule) async {
     final id = rule.id;
     if (id == null) {
@@ -61,6 +80,7 @@ class PortForwardService {
     final active = _ActivePortForward(
       connectionId: connectionId,
       ruleId: id,
+      rule: rule,
       server: server,
       startedAt: DateTime.now().millisecondsSinceEpoch,
     );
@@ -182,6 +202,7 @@ class PortForwardService {
 class _ActivePortForward {
   final String connectionId;
   final int ruleId;
+  final PortForwardRule rule;
   final ServerSocket server;
   final int startedAt;
   StreamSubscription<Socket>? subscription;
@@ -191,6 +212,7 @@ class _ActivePortForward {
   _ActivePortForward({
     required this.connectionId,
     required this.ruleId,
+    required this.rule,
     required this.server,
     required this.startedAt,
   });
@@ -199,4 +221,30 @@ class _ActivePortForward {
     await subscription?.cancel();
     await server.close();
   }
+}
+
+class PortForwardListenerSnapshot {
+  final int ruleId;
+  final String name;
+  final String host;
+  final int port;
+  final String remoteHost;
+  final int remotePort;
+  final String connectionId;
+  final int startedAt;
+  final int activeConnections;
+  final String? error;
+
+  const PortForwardListenerSnapshot({
+    required this.ruleId,
+    required this.name,
+    required this.host,
+    required this.port,
+    required this.remoteHost,
+    required this.remotePort,
+    required this.connectionId,
+    required this.startedAt,
+    required this.activeConnections,
+    required this.error,
+  });
 }

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Renew } from '@vicons/carbon'
 import { isAxiosError } from 'axios'
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { settingsApi } from '@/api/settings'
 import { downloadBlob } from '@/lib/download'
 import { createKeyboardShortcut, formatKeyboardShortcut } from '@/lib/keyboard-shortcut'
 import { getUiApi } from '@/lib/ui'
+import BackendPortsSection from './components/BackendPortsSection.vue'
 import WallpaperSection from './components/WallpaperSection.vue'
 import { useWallpaperSettings } from './hooks/useWallpaperSettings'
 
@@ -20,10 +21,20 @@ const externalAccess = ref(false)
 const externalAccessLoading = ref(false)
 const exportingLogs = ref(false)
 const recordingWindowSwitchShortcut = ref(false)
+const backendPortsSection = ref<InstanceType<typeof BackendPortsSection>>()
 const canClearBrowserCache = computed(() => Boolean(window.hostDeck?.app?.clearBrowserCache))
 const canManageExternalAccess = computed(() =>
   Boolean(window.hostDeck?.app?.getExternalAccess && window.hostDeck?.app?.setExternalAccess),
 )
+
+async function handleTabChange(tab: string | number) {
+  if (tab !== 'ports') {
+    return
+  }
+
+  await nextTick()
+  await backendPortsSection.value?.refresh()
+}
 
 onMounted(async () => {
   try {
@@ -140,7 +151,7 @@ async function exportLogs() {
   <div
     class="settings-view scrollbar-none h-full overflow-hidden px-[20px] pb-[20px] lt-md:px-[16px] lt-md:pb-[16px]"
   >
-    <NTabs type="line" animated class="settings-tabs h-full">
+    <NTabs type="line" animated class="settings-tabs h-full" @update:value="handleTabChange">
       <NTabPane name="appearance" tab="外观">
         <NCard title="基础设置" size="large">
           <NForm label-placement="top">
@@ -286,6 +297,10 @@ async function exportLogs() {
             />
           </NSpace>
         </NCard>
+      </NTabPane>
+
+      <NTabPane name="ports" tab="后端端口">
+        <BackendPortsSection ref="backendPortsSection" />
       </NTabPane>
 
       <NTabPane name="app" tab="应用">
