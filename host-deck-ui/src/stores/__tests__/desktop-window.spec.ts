@@ -26,7 +26,7 @@ describe('desktop window management', () => {
     const restrictedWindowId = store.openWindow('settings', undefined, {
       maximizable: false,
       minimizable: false,
-      resizable: false,
+      resizable: true,
     })
     const defaultWindow = store.windows.find((window) => window.id === defaultWindowId)
     const restrictedWindow = store.windows.find((window) => window.id === restrictedWindowId)
@@ -57,6 +57,7 @@ describe('desktop window management', () => {
     expect(store.windows.find((window) => window.appId === 'settings' && window.id !== restrictedWindowId))
       .toMatchObject({
         maximizable: false,
+        resizable: false,
       })
   })
 

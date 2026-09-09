@@ -25,11 +25,12 @@ describe('DesktopWindow', () => {
     const settingsStore = useSettingsStore()
     const windowId = desktopStore.openWindow('settings', undefined, {
       maximizable: false,
-      resizable: false,
+      resizable: true,
     })!
     const desktopWindow = desktopStore.windows.find((window) => window.id === windowId)!
     const wrapper = shallowMount(DesktopWindow, { props: { window: desktopWindow } })
 
+    expect(desktopWindow.resizable).toBe(false)
     expect(wrapper.get('[aria-label="最大化不可用"]').attributes()).toHaveProperty('disabled')
     expect(wrapper.find('.cursor-nwse-resize').exists()).toBe(false)
 

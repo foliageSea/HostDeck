@@ -1144,6 +1144,7 @@ export const useDesktopStore = defineStore('desktop', {
       const availableHeight = Math.max(0, window.innerHeight - topBarHeight - dockSafeArea)
       const centeredX = Math.round((window.innerWidth - width) / 2)
       const centeredY = Math.round((availableHeight - height) / 2)
+      const maximizable = options.maximizable ?? app.maximizable ?? true
       const windowState: WindowState = {
         appId,
         component: app.component,
@@ -1153,12 +1154,12 @@ export const useDesktopStore = defineStore('desktop', {
         isClosePending: false,
         id: windowId,
         isMaximized:
-          (options.maximizable ?? app.maximizable ?? true) &&
+          maximizable &&
           maximizeUiWindowWhenElectronWindowed &&
           Boolean(window.hostDeck?.window) &&
           !this.electronWindowState.isMaximized,
         isMinimized: false,
-        maximizable: options.maximizable ?? app.maximizable ?? true,
+        maximizable,
         minimizable: options.minimizable ?? app.minimizable ?? true,
         minHeight,
         minWidth,
@@ -1174,7 +1175,7 @@ export const useDesktopStore = defineStore('desktop', {
                 ...props,
               }
             : props,
-        resizable: options.resizable ?? app.resizable ?? true,
+        resizable: maximizable && (options.resizable ?? app.resizable ?? true),
         title: typeof props?.title === 'string' ? props.title : app.title,
         width,
         x: Math.max(edgeGap, centeredX),
