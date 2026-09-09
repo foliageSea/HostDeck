@@ -1,12 +1,24 @@
 import { describe, expect, it, vi } from 'vitest'
 
-const { listContainers, openWindow, warning } = vi.hoisted(() => ({
+const {
+  appendOutput,
+  composeProjectActionStream,
+  createTask,
+  listContainers,
+  openWindow,
+  runTask,
+  warning,
+} = vi.hoisted(() => ({
+  appendOutput: vi.fn(),
+  composeProjectActionStream: vi.fn(),
+  createTask: vi.fn(),
   listContainers: vi.fn(),
   openWindow: vi.fn(),
+  runTask: vi.fn(),
   warning: vi.fn(),
 }))
 
-vi.mock('@/api/docker', () => ({ dockerApi: { listContainers } }))
+vi.mock('@/api/docker', () => ({ dockerApi: { composeProjectActionStream, listContainers } }))
 vi.mock('@/lib/ui', () => ({
   getUiApi: () => ({
     dialog: { warning },
@@ -14,7 +26,9 @@ vi.mock('@/lib/ui', () => ({
   }),
 }))
 vi.mock('@/stores/desktop', () => ({ useDesktopStore: () => ({ openWindow }) }))
-vi.mock('@/stores/docker-output', () => ({ useDockerOutputStore: () => ({}) }))
+vi.mock('@/stores/docker-output', () => ({
+  useDockerOutputStore: () => ({ createTask, runTask }),
+}))
 vi.mock('@/stores/ssh', () => ({
   useSshStore: () => ({ connectionId: 'conn-1', host: 'host.example', username: 'deploy' }),
 }))
@@ -241,6 +255,61 @@ describe('useDockerView container windows', () => {
 })
 
 describe('useDockerView compose windows', () => {
+  it('starts compose in the streaming window and closes confirmation immediately', async () => {
+    appendOutput.mockReset()
+    composeProjectActionStream.mockReset()
+    createTask.mockReset()
+    openWindow.mockReset()
+    runTask.mockReset()
+    warning.mockReset()
+    createTask.mockReturnValue('task-1')
+    runTask.mockImplementation(async (_taskId, runner) =>
+      runner({ append: appendOutput, signal: new AbortController().signal }),
+    )
+    composeProjectActionStream.mockImplementation(
+      async (_connectionId, action, _payload, onEvent) => {
+        onEvent({ event: 'phase', data: { phase: 'execute', message: '正在启动 Compose 项目' } })
+        onEvent({ event: 'stdout', data: { text: 'started\n' } })
+        onEvent({ event: 'done', data: { success: true, action } })
+        return { success: true, action }
+      },
+    )
+    warning.mockReturnValue({ loading: false })
+    const controller = useDockerView({ connectionId: 'conn-1', windowId: 'docker-window' })
+    const project = {
+      configFiles: '/opt/website/compose.yml',
+      name: 'website',
+      status: 'running',
+      workingDir: '/opt/website',
+    }
+
+    controller.confirmComposeProjectAction(project, 'up')
+    const confirmationResult = warning.mock.calls[0][0].onPositiveClick()
+
+    expect(confirmationResult).toBeUndefined()
+    expect(createTask).toHaveBeenCalledWith('conn-1', '启动编排 · website')
+    expect(openWindow).toHaveBeenCalledWith(
+      'docker-output',
+      { taskId: 'task-1', title: '启动编排 · website' },
+      { maximizable: false, parentId: 'docker-window', resizable: false },
+    )
+    await vi.waitFor(() => {
+      expect(composeProjectActionStream).toHaveBeenCalledWith(
+        'conn-1',
+        'up',
+        {
+          configFiles: ['/opt/website/compose.yml'],
+          projectName: 'website',
+          workingDir: '/opt/website',
+        },
+        expect.any(Function),
+        expect.any(AbortSignal),
+      )
+    })
+    expect(appendOutput).toHaveBeenNthCalledWith(1, '> 正在启动 Compose 项目\n')
+    expect(appendOutput).toHaveBeenNthCalledWith(2, 'started\n')
+  })
+
   it('opens the compose working directory in files', () => {
     openWindow.mockReset()
     const controller = useDockerView({
@@ -276,9 +345,6 @@ describe('useDockerView compose windows', () => {
       workingDir: '',
     })
 
-    expect(openWindow).toHaveBeenCalledWith(
-      'files',
-      expect.objectContaining({ path: '/srv/app' }),
-    )
+    expect(openWindow).toHaveBeenCalledWith('files', expect.objectContaining({ path: '/srv/app' }))
   })
 })

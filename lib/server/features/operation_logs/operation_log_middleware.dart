@@ -592,7 +592,19 @@ List<_OperationPolicy> _policies(
   ),
   _OperationPolicy(
     'POST',
+    r'api/docker/compose/project/up/stream',
+    'docker',
+    'composeUp',
+  ),
+  _OperationPolicy(
+    'POST',
     r'api/docker/compose/project/stop',
+    'docker',
+    'composeStop',
+  ),
+  _OperationPolicy(
+    'POST',
+    r'api/docker/compose/project/stop/stream',
     'docker',
     'composeStop',
   ),
@@ -604,7 +616,19 @@ List<_OperationPolicy> _policies(
   ),
   _OperationPolicy(
     'POST',
+    r'api/docker/compose/project/restart/stream',
+    'docker',
+    'composeRestart',
+  ),
+  _OperationPolicy(
+    'POST',
     r'api/docker/compose/project/down',
+    'docker',
+    'composeDown',
+  ),
+  _OperationPolicy(
+    'POST',
+    r'api/docker/compose/project/down/stream',
     'docker',
     'composeDown',
   ),

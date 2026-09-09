@@ -17,6 +17,51 @@ import 'package:host_deck/server/features/docker/docker_resource_service.dart';
 import 'package:shelf/shelf.dart';
 
 void main() {
+  test('streams compose project actions with unbuffered output', () async {
+    final session = _FakeSshSession();
+    final sshService = _FakeSshService(session);
+    final repository = DockerEngineRepository();
+    addTearDown(repository.close);
+    final mapper = DockerEngineMapper();
+    final controller = DockerController(
+      sshService,
+      _FakeDockerContainerService(repository, mapper),
+      DockerImageService(repository, mapper),
+      DockerResourceService(repository, mapper),
+      _FakeDockerComposeService(),
+    );
+
+    for (final entry in {
+      'up': controller.upComposeProjectStream,
+      'stop': controller.stopComposeProjectStream,
+      'restart': controller.restartComposeProjectStream,
+      'down': controller.downComposeProjectStream,
+    }.entries) {
+      final response = await entry.value(
+        Request(
+          'POST',
+          Uri.parse(
+            'http://localhost/api/docker/compose/project/${entry.key}/stream'
+            '?sessionId=session-1',
+          ),
+          body: jsonEncode({
+            'projectName': 'website',
+            'configFiles': ['/opt/website/compose.yml'],
+            'workingDir': '/opt/website',
+          }),
+        ),
+      );
+      final body = await utf8.decodeStream(response.read());
+
+      expect(response.statusCode, 200);
+      expect(response.context['shelf.io.buffer_output'], isFalse);
+      expect(body, contains('event: phase'));
+      expect(body, contains('event: stdout'));
+      expect(body, contains('event: done'));
+      expect(body, contains('"action":"${entry.key}"'));
+    }
+  });
+
   test('opens compose output stream before SSH connection completes', () async {
     final session = _FakeSshSession();
     final shellSession = Completer<SshSession>();
@@ -209,11 +254,11 @@ class _FakeDockerComposeService extends DockerComposeService {
   _FakeDockerComposeService() : super(SshRepository());
 
   @override
-  Stream<DockerComposeCreateEvent> createComposeProjectStream(
+  Stream<DockerComposeStreamEvent> createComposeProjectStream(
     SshSession session,
     Map<String, dynamic> payload,
   ) => Stream.value(
-    const DockerComposeCreateEvent('done', {
+    const DockerComposeStreamEvent('done', {
       'projectName': 'website',
       'workingDir': '/opt/website',
       'configFiles': ['/opt/website/docker-compose.yml'],
@@ -221,6 +266,22 @@ class _FakeDockerComposeService extends DockerComposeService {
       'startError': null,
     }),
   );
+
+  @override
+  Stream<DockerComposeStreamEvent> streamComposeProjectAction(
+    SshSession session, {
+    required String action,
+    required String projectName,
+    required List<String> configFiles,
+    String? workingDir,
+  }) async* {
+    yield DockerComposeStreamEvent('phase', {
+      'phase': 'execute',
+      'message': 'running $action',
+    });
+    yield const DockerComposeStreamEvent('stdout', {'text': 'working\n'});
+    yield DockerComposeStreamEvent('done', {'success': true, 'action': action});
+  }
 }
 
 class _FakeSshSession implements SshSession {

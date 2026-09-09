@@ -5,6 +5,7 @@ import {
   type DockerContainerStatusFilter,
   type DockerContainerSummary,
   type DockerComposeProject,
+  type DockerComposeProjectAction,
   type DockerCreateNetworkPayload,
   type DockerCreateVolumePayload,
   type DockerImageContainerRef,
@@ -16,6 +17,7 @@ import {
 } from '@/api/docker'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
+import { useDockerOutputStore } from '@/stores/docker-output'
 import { useSshStore } from '@/stores/ssh'
 import { useUploadCenterStore } from '@/stores/upload-center'
 import { dirname } from '@/utils/path'
@@ -37,6 +39,7 @@ export type { DockerViewProps } from './dockerViewTypes'
 
 export function useDockerView(props: DockerViewProps) {
   const desktopStore = useDesktopStore()
+  const outputStore = useDockerOutputStore()
   const sshStore = useSshStore()
   const uploadCenterStore = useUploadCenterStore()
   const childWindowOptions = {
@@ -134,7 +137,10 @@ export function useDockerView(props: DockerViewProps) {
   ]
   const containerComposeProjectOptions = computed(() => [
     { label: '全部编排', value: '' },
-    ...containerSummary.value.composeProjects.map((project) => ({ label: project, value: project })),
+    ...containerSummary.value.composeProjects.map((project) => ({
+      label: project,
+      value: project,
+    })),
   ])
   const selectedStoppedIds = computed(() =>
     containers.value
@@ -674,7 +680,7 @@ export function useDockerView(props: DockerViewProps) {
 
   async function handleComposeProjectAction(
     project: DockerComposeProject,
-    action: 'up' | 'stop' | 'restart' | 'down',
+    action: DockerComposeProjectAction,
   ) {
     const payload = getComposeProjectPayload(project)
     if (!payload) {
@@ -684,8 +690,25 @@ export function useDockerView(props: DockerViewProps) {
     composeActionLoadingMap.value = { ...composeActionLoadingMap.value, [project.name]: true }
     try {
       const connectionId = requireConnectionId()
-      await queueDockerRequest(() => dockerApi.composeProjectAction(connectionId, action, payload))
       const labels = { up: '启动', stop: '停止', restart: '重启', down: '下线' } as const
+      const title = `${labels[action]}编排 · ${project.name}`
+      const taskId = outputStore.createTask(connectionId, title)
+      desktopStore.openWindow('docker-output', { taskId, title }, childWindowOptions)
+      await outputStore.runTask(taskId, ({ append, signal }) =>
+        queueDockerRequest(() =>
+          dockerApi.composeProjectActionStream(
+            connectionId,
+            action,
+            payload,
+            (event) => {
+              if (event.event === 'phase') append(`> ${event.data.message}\n`)
+              else if (event.event === 'stdout' || event.event === 'stderr') append(event.data.text)
+              else if (event.event === 'error') append(`\n[错误] ${event.data.message}\n`)
+            },
+            signal,
+          ),
+        ),
+      )
       getUiApi().message.success(`已${labels[action]}编排项目 ${project.name}。`)
       await refreshTabsAfterChange('containers', 'compose')
     } catch (error) {
@@ -698,14 +721,17 @@ export function useDockerView(props: DockerViewProps) {
 
   function confirmComposeProjectAction(
     project: DockerComposeProject,
-    action: 'up' | 'stop' | 'restart' | 'down',
+    action: DockerComposeProjectAction,
   ) {
     const labels = { up: '启动', stop: '停止', restart: '重启', down: '下线' } as const
-    confirmDangerAction({
+    getUiApi().dialog.warning({
       title: `${labels[action]}编排项目`,
       content: `确认${labels[action]}编排项目 ${project.name}？`,
       positiveText: labels[action],
-      action: () => handleComposeProjectAction(project, action),
+      negativeText: '取消',
+      onPositiveClick: () => {
+        void handleComposeProjectAction(project, action)
+      },
     })
   }
 

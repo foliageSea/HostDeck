@@ -188,15 +188,8 @@ class DockerController {
       if (payload is! Map<String, dynamic>) {
         return Result.fail(400, 'Invalid compose project payload');
       }
-      return Response.ok(
-        _encodeComposeEvents(_createComposeProjectEvents(request, payload)),
-        headers: const {
-          'content-type': 'text/event-stream; charset=utf-8',
-          'cache-control': 'no-cache, no-transform',
-          'connection': 'keep-alive',
-          'x-accel-buffering': 'no',
-        },
-        context: const {'shelf.io.buffer_output': false},
+      return _composeStreamResponse(
+        _createComposeProjectEvents(request, payload),
       );
     } on FormatException catch (error) {
       return Result.fail(400, error.message);
@@ -205,11 +198,11 @@ class DockerController {
     }
   }
 
-  Stream<DockerComposeCreateEvent> _createComposeProjectEvents(
+  Stream<DockerComposeStreamEvent> _createComposeProjectEvents(
     Request request,
     Map<String, dynamic> payload,
   ) async* {
-    yield const DockerComposeCreateEvent('phase', {
+    yield const DockerComposeStreamEvent('phase', {
       'phase': 'connect',
       'message': '正在连接服务器',
     });
@@ -217,8 +210,21 @@ class DockerController {
     yield* _composeService.createComposeProjectStream(session, payload);
   }
 
+  Response _composeStreamResponse(Stream<DockerComposeStreamEvent> events) {
+    return Response.ok(
+      _encodeComposeEvents(events),
+      headers: const {
+        'content-type': 'text/event-stream; charset=utf-8',
+        'cache-control': 'no-cache, no-transform',
+        'connection': 'keep-alive',
+        'x-accel-buffering': 'no',
+      },
+      context: const {'shelf.io.buffer_output': false},
+    );
+  }
+
   Stream<List<int>> _encodeComposeEvents(
-    Stream<DockerComposeCreateEvent> events,
+    Stream<DockerComposeStreamEvent> events,
   ) async* {
     try {
       // Flush the connection phase through buffering proxies immediately.
@@ -257,6 +263,47 @@ class DockerController {
   Future<Response> downComposeProject(Request request) =>
       _composeAction(request, _composeService.downComposeProject);
 
+  Future<Response> upComposeProjectStream(Request request) =>
+      _composeActionStream(request, 'up');
+  Future<Response> stopComposeProjectStream(Request request) =>
+      _composeActionStream(request, 'stop');
+  Future<Response> restartComposeProjectStream(Request request) =>
+      _composeActionStream(request, 'restart');
+  Future<Response> downComposeProjectStream(Request request) =>
+      _composeActionStream(request, 'down');
+
+  Future<Response> _composeActionStream(Request request, String action) async {
+    try {
+      final payload = _parseComposeProjectPayload(
+        jsonDecode(await request.readAsString()),
+      );
+      return _composeStreamResponse(
+        _composeProjectActionEvents(request, payload, action),
+      );
+    } catch (_) {
+      return Result.fail(400, 'Missing or invalid compose project payload');
+    }
+  }
+
+  Stream<DockerComposeStreamEvent> _composeProjectActionEvents(
+    Request request,
+    _ComposeProjectPayload payload,
+    String action,
+  ) async* {
+    yield const DockerComposeStreamEvent('phase', {
+      'phase': 'connect',
+      'message': '正在连接服务器',
+    });
+    final session = await _composeSessionResolver.resolveFromRequest(request);
+    yield* _composeService.streamComposeProjectAction(
+      session,
+      action: action,
+      projectName: payload.projectName,
+      configFiles: payload.configFiles,
+      workingDir: payload.workingDir,
+    );
+  }
+
   Future<Response> _composeAction(
     Request request,
     Future<String> Function(
@@ -287,29 +334,37 @@ class DockerController {
     Future<Response> Function(SshSession, _ComposeProjectPayload) action,
   ) async {
     try {
-      final data =
-          jsonDecode(await request.readAsString()) as Map<String, dynamic>;
-      final projectName = data['projectName']?.toString().trim() ?? '';
-      final configFiles =
-          (data['configFiles'] as List?)
-              ?.map((item) => item.toString().trim())
-              .where((item) => item.isNotEmpty)
-              .toList() ??
-          [];
-      if (projectName.isEmpty || configFiles.isEmpty) {
-        return Result.fail(400, 'Missing or invalid compose project payload');
-      }
-      final workingDir = data['workingDir']?.toString().trim();
+      final payload = _parseComposeProjectPayload(
+        jsonDecode(await request.readAsString()),
+      );
       return _withComposeSession(
         request,
-        (session) => action(
-          session,
-          _ComposeProjectPayload(projectName, configFiles, workingDir),
-        ),
+        (session) => action(session, payload),
       );
     } catch (_) {
       return Result.fail(400, 'Missing or invalid compose project payload');
     }
+  }
+
+  _ComposeProjectPayload _parseComposeProjectPayload(Object? data) {
+    if (data is! Map<String, dynamic>) {
+      throw const FormatException('Invalid compose project payload');
+    }
+    final projectName = data['projectName']?.toString().trim() ?? '';
+    final configFiles =
+        (data['configFiles'] as List?)
+            ?.map((item) => item.toString().trim())
+            .where((item) => item.isNotEmpty)
+            .toList() ??
+        [];
+    if (projectName.isEmpty || configFiles.isEmpty) {
+      throw const FormatException('Invalid compose project payload');
+    }
+    return _ComposeProjectPayload(
+      projectName,
+      configFiles,
+      data['workingDir']?.toString().trim(),
+    );
   }
 
   /// 获取容器列表

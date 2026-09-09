@@ -181,6 +181,18 @@ export interface DockerComposeProjectPayload {
   workingDir?: string
 }
 
+export type DockerComposeProjectAction = 'up' | 'stop' | 'restart' | 'down'
+export type DockerComposeProjectStreamAction = DockerComposeProjectAction
+
+export type DockerComposeProjectActionStreamEvent =
+  | { event: 'phase'; data: { phase: string; message: string } }
+  | { event: 'stdout' | 'stderr'; data: { text: string } }
+  | {
+      event: 'done'
+      data: { success: boolean; action: DockerComposeProjectStreamAction }
+    }
+  | { event: 'error'; data: { message: string } }
+
 export interface DockerComposeCreatePayload {
   projectName: string
   workingDir: string
@@ -387,7 +399,7 @@ export const dockerApi = {
 
   async composeProjectAction(
     connectionId: string,
-    action: 'up' | 'stop' | 'restart' | 'down',
+    action: DockerComposeProjectAction,
     payload: DockerComposeProjectPayload,
   ) {
     const response = await http.post<{ success: boolean; output: string }>(
@@ -396,6 +408,42 @@ export const dockerApi = {
       { params: { connectionId } },
     )
     return response.data
+  },
+
+  async composeProjectActionStream(
+    connectionId: string,
+    action: DockerComposeProjectStreamAction,
+    payload: DockerComposeProjectPayload,
+    onEvent: (event: DockerComposeProjectActionStreamEvent) => void,
+    signal?: AbortSignal,
+  ) {
+    const response = await fetch(
+      `/api/docker/compose/project/${action}/stream?${new URLSearchParams({ connectionId })}`,
+      {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal,
+      },
+    )
+    if (!response.ok)
+      throw new Error((await response.text()) || `编排操作失败 (${response.status})`)
+    if (!response.body) throw new Error('浏览器未提供流式响应。')
+    let result: { success: boolean; action: DockerComposeProjectStreamAction } | undefined
+    let streamError: string | undefined
+    await consumeServerSentEvents(response.body, (message) => {
+      const event = {
+        event: message.event,
+        data: JSON.parse(message.data) as Record<string, unknown>,
+      } as DockerComposeProjectActionStreamEvent
+      onEvent(event)
+      if (event.event === 'done') result = event.data
+      if (event.event === 'error') streamError = event.data.message
+    })
+    if (streamError) throw new Error(streamError)
+    if (!result) throw new Error('编排操作的输出流意外结束。')
+    return result
   },
 
   async upComposeProject(connectionId: string, payload: DockerComposeProjectPayload) {

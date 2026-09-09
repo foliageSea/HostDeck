@@ -18,16 +18,32 @@ void registerDockerRoutes(Router router, DockerController controller) {
   );
   router.post('/api/docker/compose/project/up', controller.upComposeProject);
   router.post(
+    '/api/docker/compose/project/up/stream',
+    controller.upComposeProjectStream,
+  );
+  router.post(
     '/api/docker/compose/project/stop',
     controller.stopComposeProject,
+  );
+  router.post(
+    '/api/docker/compose/project/stop/stream',
+    controller.stopComposeProjectStream,
   );
   router.post(
     '/api/docker/compose/project/restart',
     controller.restartComposeProject,
   );
   router.post(
+    '/api/docker/compose/project/restart/stream',
+    controller.restartComposeProjectStream,
+  );
+  router.post(
     '/api/docker/compose/project/down',
     controller.downComposeProject,
+  );
+  router.post(
+    '/api/docker/compose/project/down/stream',
+    controller.downComposeProjectStream,
   );
   router.get('/api/docker/containers', controller.listContainers);
   router.get(

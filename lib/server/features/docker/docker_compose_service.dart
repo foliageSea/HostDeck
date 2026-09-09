@@ -4,11 +4,11 @@ import 'dart:typed_data';
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 
-class DockerComposeCreateEvent {
+class DockerComposeStreamEvent {
   final String event;
   final Map<String, dynamic> data;
 
-  const DockerComposeCreateEvent(this.event, this.data);
+  const DockerComposeStreamEvent(this.event, this.data);
 }
 
 class DockerComposeService {
@@ -44,7 +44,7 @@ class DockerComposeService {
         .toList();
   }
 
-  Stream<DockerComposeCreateEvent> createComposeProjectStream(
+  Stream<DockerComposeStreamEvent> createComposeProjectStream(
     SshSession session,
     Map<String, dynamic> payload,
   ) async* {
@@ -62,14 +62,14 @@ class DockerComposeService {
       throw ArgumentError('fileName must be a .yml or .yaml file name');
     }
 
-    yield const DockerComposeCreateEvent('phase', {
+    yield const DockerComposeStreamEvent('phase', {
       'phase': 'prepare',
       'message': '正在准备项目目录',
     });
     await _runShell(session, ['mkdir', '-p', workingDir]);
     final composePath =
         '${workingDir.endsWith('/') ? workingDir.substring(0, workingDir.length - 1) : workingDir}/$fileName';
-    yield const DockerComposeCreateEvent('phase', {
+    yield const DockerComposeStreamEvent('phase', {
       'phase': 'write',
       'message': '正在写入 Compose 配置',
     });
@@ -82,7 +82,7 @@ class DockerComposeService {
     var started = false;
     String? startError;
     if (start) {
-      yield const DockerComposeCreateEvent('phase', {
+      yield const DockerComposeStreamEvent('phase', {
         'phase': 'start',
         'message': '正在启动 Compose 项目',
       });
@@ -104,9 +104,9 @@ class DockerComposeService {
           }
           if (event.source == SshExecStreamSource.stderr) {
             stderr.write(event.text);
-            yield DockerComposeCreateEvent('stderr', {'text': event.text});
+            yield DockerComposeStreamEvent('stderr', {'text': event.text});
           } else {
-            yield DockerComposeCreateEvent('stdout', {'text': event.text});
+            yield DockerComposeStreamEvent('stdout', {'text': event.text});
           }
         }
         started = exitCode == 0;
@@ -115,15 +115,15 @@ class DockerComposeService {
               ? 'Compose command failed with exit code ${exitCode ?? 'unknown'}.'
               : stderr.toString().trim();
           if (stderr.isEmpty) {
-            yield DockerComposeCreateEvent('stderr', {'text': '$startError\n'});
+            yield DockerComposeStreamEvent('stderr', {'text': '$startError\n'});
           }
         }
       } catch (error) {
         startError = error.toString();
-        yield DockerComposeCreateEvent('stderr', {'text': '$startError\n'});
+        yield DockerComposeStreamEvent('stderr', {'text': '$startError\n'});
       }
     }
-    yield DockerComposeCreateEvent('done', {
+    yield DockerComposeStreamEvent('done', {
       'projectName': projectName,
       'workingDir': workingDir,
       'configFiles': [composePath],
@@ -224,6 +224,76 @@ class DockerComposeService {
     workingDir: workingDir,
     args: const ['down'],
   );
+  Stream<DockerComposeStreamEvent> streamComposeProjectAction(
+    SshSession session, {
+    required String action,
+    required String projectName,
+    required List<String> configFiles,
+    String? workingDir,
+  }) async* {
+    const actionLabels = {
+      'up': '启动',
+      'stop': '停止',
+      'restart': '重启',
+      'down': '下线',
+    };
+    final actionLabel = actionLabels[action];
+    if (actionLabel == null) {
+      throw ArgumentError('Unsupported compose project action: $action');
+    }
+
+    final files = configFiles
+        .map((file) => file.trim())
+        .where((file) => file.isNotEmpty)
+        .toSet()
+        .toList();
+    if (files.isEmpty) throw ArgumentError('configFiles is required');
+
+    yield DockerComposeStreamEvent('phase', {
+      'phase': 'execute',
+      'message': '正在$actionLabel Compose 项目',
+    });
+    final command = await _resolveComposeCommand(session);
+    final commandText = _buildShellCommand([
+      ...command.args,
+      if (action == 'up' && command.supportsPlainProgress) ...[
+        '--ansi',
+        'never',
+        '--progress',
+        'plain',
+      ],
+      '-p',
+      projectName,
+      for (final file in files) ...['-f', file],
+      action,
+      if (action == 'up') '-d',
+    ], workingDir: workingDir);
+    final stderr = StringBuffer();
+    int? exitCode;
+    await for (final event in _sshRepository.execStream(
+      session,
+      'sh -lc ${_quote(commandText)}',
+    )) {
+      if (event.completed) {
+        exitCode = event.exitCode;
+      } else if (event.text.isNotEmpty) {
+        final source = event.source == SshExecStreamSource.stderr
+            ? 'stderr'
+            : 'stdout';
+        if (source == 'stderr') stderr.write(event.text);
+        yield DockerComposeStreamEvent(source, {'text': event.text});
+      }
+    }
+    if (exitCode != 0) {
+      throw Exception(
+        stderr.toString().trim().isEmpty
+            ? 'Compose command failed with exit code ${exitCode ?? 'unknown'}.'
+            : stderr.toString().trim(),
+      );
+    }
+    yield DockerComposeStreamEvent('done', {'success': true, 'action': action});
+  }
+
   Future<String> _runProject(
     SshSession session, {
     required String projectName,
@@ -251,7 +321,10 @@ class DockerComposeService {
     String? workingDir,
   }) async {
     final command = await _resolveComposeCommand(session);
-    return _runShell(session, [...command.args, ...args], workingDir: workingDir);
+    return _runShell(session, [
+      ...command.args,
+      ...args,
+    ], workingDir: workingDir);
   }
 
   Stream<SshExecStreamEvent> _streamUpComposeProject(
@@ -270,7 +343,12 @@ class DockerComposeService {
     final command = await _resolveComposeCommand(session);
     final args = [
       ...command.args,
-      if (command.supportsPlainProgress) ...['--ansi', 'never', '--progress', 'plain'],
+      if (command.supportsPlainProgress) ...[
+        '--ansi',
+        'never',
+        '--progress',
+        'plain',
+      ],
       '-p',
       projectName,
       for (final file in files) ...['-f', file],
@@ -278,10 +356,7 @@ class DockerComposeService {
       '-d',
     ];
     final commandText = _buildShellCommand(args, workingDir: workingDir);
-    yield* _sshRepository.execStream(
-      session,
-      'sh -lc ${_quote(commandText)}',
-    );
+    yield* _sshRepository.execStream(session, 'sh -lc ${_quote(commandText)}');
   }
 
   Future<_ComposeCommand> _resolveComposeCommand(SshSession session) async {
