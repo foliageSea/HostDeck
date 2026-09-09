@@ -697,6 +697,7 @@ export const useDesktopStore = defineStore('desktop', {
         hide: true,
         icon: 'settings',
         id: 'settings',
+        maximizable: false,
         minHeight: 460,
         minWidth: 420,
         title: '设置',

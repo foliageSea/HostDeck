@@ -43,7 +43,7 @@ describe('DesktopWindow', () => {
 
   it('maximizes from the title bar and hides the resize handle', async () => {
     const desktopStore = useDesktopStore()
-    const windowId = desktopStore.openWindow('settings')!
+    const windowId = desktopStore.openWindow('files')!
     const desktopWindow = desktopStore.windows.find((window) => window.id === windowId)!
     const wrapper = shallowMount(DesktopWindow, { props: { window: desktopWindow } })
 

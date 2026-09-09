@@ -22,7 +22,7 @@ describe('desktop window management', () => {
 
   it('applies app defaults and per-window capability overrides', () => {
     const store = useDesktopStore()
-    const defaultWindowId = store.openWindow('settings')
+    const defaultWindowId = store.openWindow('files')
     const restrictedWindowId = store.openWindow('settings', undefined, {
       maximizable: false,
       minimizable: false,
@@ -52,6 +52,12 @@ describe('desktop window management', () => {
       isMinimized: false,
       width: 480,
     })
+
+    expect(store.openWindow('settings')).toBeDefined()
+    expect(store.windows.find((window) => window.appId === 'settings' && window.id !== restrictedWindowId))
+      .toMatchObject({
+        maximizable: false,
+      })
   })
 
   it('creates nested child windows and rejects an invalid parent', () => {
