@@ -17,6 +17,56 @@ import 'package:host_deck/server/features/docker/docker_resource_service.dart';
 import 'package:shelf/shelf.dart';
 
 void main() {
+  test('opens compose output stream before SSH connection completes', () async {
+    final session = _FakeSshSession();
+    final shellSession = Completer<SshSession>();
+    final sshService = _FakeSshService(
+      session,
+      shellSession: shellSession.future,
+    );
+    final repository = DockerEngineRepository();
+    addTearDown(repository.close);
+    final mapper = DockerEngineMapper();
+    final controller = DockerController(
+      sshService,
+      _FakeDockerContainerService(repository, mapper),
+      DockerImageService(repository, mapper),
+      DockerResourceService(repository, mapper),
+      _FakeDockerComposeService(),
+    );
+
+    final response = await controller.createComposeProjectStream(
+      Request(
+        'POST',
+        Uri.parse(
+          'http://localhost/api/docker/compose/project/stream'
+          '?connectionId=connection-1',
+        ),
+        body: jsonEncode({
+          'projectName': 'website',
+          'workingDir': '/opt/website',
+          'content': 'services: {}',
+        }),
+      ),
+    );
+
+    expect(response.statusCode, 200);
+    expect(response.context['shelf.io.buffer_output'], isFalse);
+    final iterator = StreamIterator<List<int>>(response.read());
+    expect(await iterator.moveNext(), isTrue);
+    expect(utf8.decode(iterator.current), startsWith(': '));
+    expect(await iterator.moveNext(), isTrue);
+    expect(
+      utf8.decode(iterator.current),
+      'event: phase\ndata: {"phase":"connect","message":"正在连接服务器"}\n\n',
+    );
+
+    shellSession.complete(session);
+    expect(await iterator.moveNext(), isTrue);
+    expect(utf8.decode(iterator.current), contains('event: done'));
+    await iterator.cancel();
+  });
+
   test('streams logs incrementally with output buffering disabled', () async {
     final session = _FakeSshSession();
     final sshService = _FakeSshService(session);
@@ -143,11 +193,34 @@ class _FakeDockerContainerService extends DockerContainerService {
 
 class _FakeSshService extends SshService {
   final SshSession session;
+  final Future<SshSession>? shellSession;
 
-  _FakeSshService(this.session);
+  _FakeSshService(this.session, {this.shellSession});
 
   @override
   SshSession? getSession(String id) => id == session.id ? session : null;
+
+  @override
+  Future<SshSession> createShell(String connectionId) =>
+      shellSession ?? Future.value(session);
+}
+
+class _FakeDockerComposeService extends DockerComposeService {
+  _FakeDockerComposeService() : super(SshRepository());
+
+  @override
+  Stream<DockerComposeCreateEvent> createComposeProjectStream(
+    SshSession session,
+    Map<String, dynamic> payload,
+  ) => Stream.value(
+    const DockerComposeCreateEvent('done', {
+      'projectName': 'website',
+      'workingDir': '/opt/website',
+      'configFiles': ['/opt/website/docker-compose.yml'],
+      'started': false,
+      'startError': null,
+    }),
+  );
 }
 
 class _FakeSshSession implements SshSession {

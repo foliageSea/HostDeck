@@ -183,32 +183,46 @@ class DockerController {
   }
 
   Future<Response> createComposeProjectStream(Request request) async {
-    return _withComposeSession(request, (session) async {
-      try {
-        final payload = jsonDecode(await request.readAsString());
-        if (payload is! Map<String, dynamic>) {
-          return Result.fail(400, 'Invalid compose project payload');
-        }
-        return Response.ok(
-          _encodeComposeEvents(
-            _composeService.createComposeProjectStream(session, payload),
-          ),
-          headers: const {
-            'content-type': 'text/event-stream; charset=utf-8',
-            'cache-control': 'no-cache, no-transform',
-            'x-accel-buffering': 'no',
-          },
-        );
-      } catch (error) {
-        return Result.fail(500, error.toString());
+    try {
+      final payload = jsonDecode(await request.readAsString());
+      if (payload is! Map<String, dynamic>) {
+        return Result.fail(400, 'Invalid compose project payload');
       }
+      return Response.ok(
+        _encodeComposeEvents(_createComposeProjectEvents(request, payload)),
+        headers: const {
+          'content-type': 'text/event-stream; charset=utf-8',
+          'cache-control': 'no-cache, no-transform',
+          'connection': 'keep-alive',
+          'x-accel-buffering': 'no',
+        },
+        context: const {'shelf.io.buffer_output': false},
+      );
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    } catch (error) {
+      return Result.fail(500, error.toString());
+    }
+  }
+
+  Stream<DockerComposeCreateEvent> _createComposeProjectEvents(
+    Request request,
+    Map<String, dynamic> payload,
+  ) async* {
+    yield const DockerComposeCreateEvent('phase', {
+      'phase': 'connect',
+      'message': '正在连接服务器',
     });
+    final session = await _composeSessionResolver.resolveFromRequest(request);
+    yield* _composeService.createComposeProjectStream(session, payload);
   }
 
   Stream<List<int>> _encodeComposeEvents(
     Stream<DockerComposeCreateEvent> events,
   ) async* {
     try {
+      // Flush the connection phase through buffering proxies immediately.
+      yield utf8.encode(': ${' '.padRight(2048)}\n\n');
       await for (final event in events) {
         yield encodeServerSentEvent(event.event, event.data);
       }
