@@ -28,8 +28,8 @@ import logoutIconUrl from '@/assets/mac-tahoe/src/apps/scalable/log-out.svg'
 import mediaIconUrl from '@/assets/mac-tahoe/src/apps/scalable/eog.svg'
 import operationLogIconUrl from '@/assets/mac-tahoe/src/apps/scalable/gpk-log.svg'
 import portForwardIconUrl from '@/assets/mac-tahoe/src/apps/22/network-connect.svg'
+import processManagerIconUrl from '@/assets/mac-tahoe/src/apps/scalable/net.nokyan.Resources.svg'
 import secureBrowserIconUrl from '@/assets/mac-tahoe/src/apps/scalable/web-browser.svg'
-import processIconUrl from '@/assets/mac-tahoe/src/apps/scalable/stacks-task-manager.svg'
 import realtimeLogIconUrl from '@/assets/mac-tahoe/src/apps/scalable/logview.svg'
 import runtimeIconUrl from '@/assets/mac-tahoe/src/apps/scalable/multitasking-view.svg'
 import settingsIconUrl from '@/assets/mac-tahoe/src/apps/scalable/preferences-system.svg'
@@ -85,7 +85,7 @@ const themedIconMap: Record<AppIconKey, string> = {
   opencode: '/opencode.ico',
   'operation-log': operationLogIconUrl,
   'realtime-log': realtimeLogIconUrl,
-  process: processIconUrl,
+  process: processManagerIconUrl,
   'port-forward': portForwardIconUrl,
   'secure-browser': secureBrowserIconUrl,
   runtime: runtimeIconUrl,
@@ -97,7 +97,8 @@ const iconImageSrc = computed(() => {
     return themedIconMap[props.name]
   }
 
-  return props.name === 'opencode' ? '/opencode.ico' : null
+  if (props.name === 'opencode') return '/opencode.ico'
+  return props.name === 'process' ? processManagerIconUrl : null
 })
 </script>
 
