@@ -310,7 +310,7 @@ function openLaunchpad() {
   <div class="dock-hover-zone absolute inset-x-0 bottom-0 z-20 h-[12px]">
     <footer
       ref="selectorTarget"
-      class="app-radius-card desktop-dock absolute bottom-0 left-1/2 flex translate-x-[-50%] items-center gap-[12px] rounded-[24px] p-[10px] backdrop-blur-[16px]"
+      class="app-radius-card desktop-dock absolute bottom-[2px] left-1/2 flex translate-x-[-50%] items-center gap-[12px] rounded-[24px] p-[10px] backdrop-blur-[16px]"
       :class="[
         {
           'dock-auto-hide': settingsStore.dockAutoHide,

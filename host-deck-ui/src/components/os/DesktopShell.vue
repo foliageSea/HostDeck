@@ -141,7 +141,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="desktop-shell relative h-full min-h-screen overflow-hidden [--desktop-topbar-height:40px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:12px] [--desktop-dock-height:72px]"
+    class="desktop-shell relative h-full min-h-screen overflow-hidden [--desktop-topbar-height:40px] [--desktop-window-edge-gap:16px] [--desktop-dock-bottom-gap:2px] [--desktop-dock-height:74px]"
     :style="{ '--desktop-dock-safe-area': desktopDockSafeArea }"
   >
     <video
@@ -212,6 +212,10 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .desktop-shell {
+    --desktop-dock-height: 68px;
+  }
+
   .desktop-status-card {
     left: 16px;
     right: 16px;
