@@ -77,7 +77,9 @@ describe('FileColumnBrowser', () => {
 
     await wrapper.setProps({ selectedNames: ['var'], selectionPath: '/' })
     expect(wrapper.findAll('[data-file-name]')[0]!.attributes('aria-selected')).toBe('true')
-    expect(wrapper.findAll('[data-file-name]')[0]!.classes()).toContain('file-column-item-selected')
+    expect(wrapper.findAll('[data-file-name]')[0]!.classes()).toContain(
+      'file-column-item-directory-selected',
+    )
   })
 
   it('keeps the active directory highlighted when a file is selected', async () => {
@@ -91,9 +93,10 @@ describe('FileColumnBrowser', () => {
 
     const [activeDirectory, selectedFile] = wrapper.findAll('[data-file-name]')
     expect(activeDirectory!.attributes('aria-current')).toBe('page')
-    expect(activeDirectory!.classes()).toContain('file-column-item-selected')
+    expect(activeDirectory!.classes()).toContain('file-column-item-directory-selected')
     expect(selectedFile!.attributes('aria-selected')).toBe('true')
-    expect(selectedFile!.classes()).toContain('file-column-item-selected')
+    expect(selectedFile!.classes()).toContain('file-column-item-file-selected')
+    expect(selectedFile!.classes()).not.toContain('file-column-item-directory-selected')
   })
 
   it('filters only the active column', async () => {

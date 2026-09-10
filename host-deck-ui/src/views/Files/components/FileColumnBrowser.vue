@@ -252,8 +252,11 @@ onBeforeUnmount(stopColumnResize)
             type="button"
             class="mb-[2px] grid h-[36px] w-full grid-cols-[44px_minmax(0,1fr)_18px] items-center gap-[5px] border-0 rounded-[5px] px-[2px] text-left text-[13px] outline-none transition-colors"
             :class="
-              isSelected(column, file) || isActiveDirectory(column, file)
-                ? 'file-column-item-selected bg-[var(--app-primary-color)] text-white shadow-[0_1px_3px_rgba(0,0,0,0.18)]'
+              isSelected(column, file) && !file.isDirectory
+                ? 'file-column-item-selected file-column-item-file-selected bg-[var(--app-primary-color)] text-white shadow-[0_1px_3px_rgba(0,0,0,0.18)]'
+                : (isSelected(column, file) && file.isDirectory) ||
+                    isActiveDirectory(column, file)
+                  ? 'file-column-item-selected file-column-item-directory-selected bg-[var(--app-primary-soft)] text-[var(--app-primary-color)] shadow-[inset_0_0_0_1px_var(--app-primary-border-strong)]'
                 : isExpanded(column, file)
                   ? 'bg-[var(--app-primary-soft)] text-[var(--app-primary-color)]'
                   : settingsStore.isDark
