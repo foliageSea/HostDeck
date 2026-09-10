@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { shallowMount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useDesktopStore } from '@/stores/desktop'
 import DesktopTopBar from '../DesktopTopBar.vue'
 
 vi.hoisted(() => {
@@ -37,6 +38,31 @@ describe('DesktopTopBar', () => {
     await nextTick()
 
     expect(wrapper.get('time').text()).toBe('11:00')
+    wrapper.unmount()
+  })
+
+  it('opens one task center window and restores it on repeated clicks', async () => {
+    const desktopStore = useDesktopStore()
+    const wrapper = shallowMount(DesktopTopBar, {
+      global: {
+        stubs: {
+          NBadge: { template: '<div><slot /></div>' },
+          NButton: { template: '<button><slot name="icon" /><slot /></button>' },
+          NTooltip: { template: '<div><slot name="trigger" /><slot /></div>' },
+        },
+      },
+    })
+    const trigger = wrapper.get('[aria-label="打开任务中心"]')
+
+    await trigger.trigger('click')
+    const taskCenterWindow = desktopStore.windows.find((window) => window.appId === 'task-center')
+    expect(taskCenterWindow).toBeDefined()
+
+    desktopStore.minimizeWindow(taskCenterWindow!.id)
+    await trigger.trigger('click')
+
+    expect(desktopStore.windows.filter((window) => window.appId === 'task-center')).toHaveLength(1)
+    expect(taskCenterWindow?.isMinimized).toBe(false)
     wrapper.unmount()
   })
 })

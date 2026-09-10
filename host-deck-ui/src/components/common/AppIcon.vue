@@ -34,6 +34,7 @@ import realtimeLogIconUrl from '@/assets/mac-tahoe/src/apps/scalable/logview.svg
 import runtimeIconUrl from '@/assets/mac-tahoe/src/apps/scalable/multitasking-view.svg'
 import settingsIconUrl from '@/assets/mac-tahoe/src/apps/scalable/preferences-system.svg'
 import taskIconUrl from '@/assets/mac-tahoe/src/apps/scalable/evolution-tasks.svg'
+import taskCenterIconUrl from '@/assets/mac-tahoe/src/apps/scalable/stacks-task-manager.svg'
 import terminalIconUrl from '@/assets/mac-tahoe/src/apps/scalable/terminal.svg'
 import type { AppIconKey } from '@/types/desktop'
 
@@ -69,6 +70,7 @@ const iconMap: Record<AppIconKey, Component> = {
   runtime: ApplicationWeb,
   settings: Settings,
   terminal: Terminal,
+  'task-center': ListBoxes,
 }
 
 const icon = computed(() => iconMap[props.name])
@@ -91,6 +93,7 @@ const themedIconMap: Record<AppIconKey, string> = {
   runtime: runtimeIconUrl,
   settings: settingsIconUrl,
   terminal: terminalIconUrl,
+  'task-center': taskCenterIconUrl,
 }
 const iconImageSrc = computed(() => {
   if (props.themed) {

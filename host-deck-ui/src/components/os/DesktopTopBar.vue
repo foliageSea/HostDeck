@@ -1,19 +1,29 @@
 <script setup lang="ts">
 import { computed, h, onMounted, onUnmounted, ref } from 'vue'
-import { ApplicationWeb, Information, Logout, Moon, Settings, Sun } from '@vicons/carbon'
+import {
+  ApplicationWeb,
+  CloudUpload,
+  Download,
+  Information,
+  Logout,
+  Moon,
+  Settings,
+  Sun,
+} from '@vicons/carbon'
 import { NIcon } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
 import { getUiApi } from '@/lib/ui'
 import CopyableText from '@/components/common/CopyableText.vue'
-import DesktopTaskCenter from '@/components/os/DesktopTaskCenter.vue'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
+import { useUploadCenterStore } from '@/stores/upload-center'
 import type { DesktopAppId } from '@/types/desktop'
 
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const desktopStore = useDesktopStore()
+const uploadCenterStore = useUploadCenterStore()
 const aboutVisible = ref(false)
 const appVersion = __APP_VERSION__
 const now = ref(new Date())
@@ -108,6 +118,11 @@ const performanceStats = computed(() => [
   { label: '内存', value: memoryUsage.value },
   { label: '下载', value: downloadSpeed.value },
 ])
+const hasActiveDownloads = computed(() =>
+  uploadCenterStore.batches.some((batch) =>
+    batch.tasks.some((task) => task.status === 'downloading'),
+  ),
+)
 function formatSpeed(value: number) {
   if (value >= 1024 * 1024) {
     return `${(value / 1024 / 1024).toFixed(2)} MB/s`
@@ -127,6 +142,18 @@ function handleAppMenuSelect(key: string | number) {
   }
 
   desktopStore.openWindow(key as DesktopAppId)
+}
+
+function openTaskCenter() {
+  const taskCenterWindow = desktopStore.windows.find(
+    (window) => window.appId === 'task-center' && !window.isClosing,
+  )
+  if (taskCenterWindow) {
+    desktopStore.restoreWindow(taskCenterWindow.id)
+    return
+  }
+
+  desktopStore.openWindow('task-center')
 }
 
 function disconnect() {
@@ -163,13 +190,15 @@ function disconnect() {
           type="button"
           class="app-radius-item flex min-w-0 items-center gap-[8px] rounded-[12px] border-0 bg-transparent px-[8px] py-[3px] cursor-pointer transition-colors"
           :class="
-            settingsStore.isDark
-              ? 'text-[rgba(226,232,240,0.9)]'
-              : 'text-[rgba(30,41,59,0.9)]'
+            settingsStore.isDark ? 'text-[rgba(226,232,240,0.9)]' : 'text-[rgba(30,41,59,0.9)]'
           "
           aria-label="打开 HostDeck 菜单"
         >
-          <img class="h-[18px] w-[18px] flex-none object-contain" src="/favicon.png" alt="HostDeck" />
+          <img
+            class="h-[18px] w-[18px] flex-none object-contain"
+            src="/favicon.png"
+            alt="HostDeck"
+          />
           <span class="truncate text-[12px] font-700 tracking-[0.02em] lt-sm:hidden">HostDeck</span>
         </button>
       </NDropdown>
@@ -194,9 +223,7 @@ function disconnect() {
           <div
             class="app-radius-control flex min-w-[120px] max-w-[320px] items-center justify-between gap-[8px] rounded-[10px] px-[10px] py-[3px] text-[12px]"
             :class="
-              settingsStore.isDark
-                ? 'text-[rgba(226,232,240,0.88)]'
-                : 'text-[rgba(30,41,59,0.88)]'
+              settingsStore.isDark ? 'text-[rgba(226,232,240,0.88)]' : 'text-[rgba(30,41,59,0.88)]'
             "
           >
             <span class="shrink-0">IP</span>
@@ -247,7 +274,27 @@ function disconnect() {
           <strong class="whitespace-nowrap font-600">{{ stat.value }}</strong>
         </div>
       </div>
-      <DesktopTaskCenter />
+      <NBadge
+        :value="uploadCenterStore.activeTaskCount"
+        :show="uploadCenterStore.activeTaskCount > 0"
+        :max="99"
+        :offset="[-4, 6]"
+        :color="settingsStore.primaryColor"
+        processing
+      >
+        <NTooltip placement="bottom">
+          <template #trigger>
+            <NButton quaternary circle aria-label="打开任务中心" @click="openTaskCenter">
+              <template #icon>
+                <NIcon :size="16">
+                  <component :is="hasActiveDownloads ? Download : CloudUpload" />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
+          任务中心
+        </NTooltip>
+      </NBadge>
 
       <NButton quaternary circle @click="disconnect">
         <template #icon>
@@ -266,7 +313,12 @@ function disconnect() {
       <time :datetime="now.toISOString()">{{ currentTime }}</time>
     </div>
 
-    <NModal v-model:show="aboutVisible" preset="card" title="关于 HostDeck" class="w-[min(400px,calc(100vw-32px))]">
+    <NModal
+      v-model:show="aboutVisible"
+      preset="card"
+      title="关于 HostDeck"
+      class="w-[min(400px,calc(100vw-32px))]"
+    >
       <div class="flex flex-col items-center gap-[16px] py-[8px] text-center">
         <img class="h-[56px] w-[56px] object-contain" src="/favicon.png" alt="HostDeck" />
         <div>
@@ -291,7 +343,12 @@ function disconnect() {
           >
             第三方许可
           </NButton>
-          <NButton tag="a" href="https://github.com/foliageSea/HostDeck" target="_blank" rel="noopener noreferrer">
+          <NButton
+            tag="a"
+            href="https://github.com/foliageSea/HostDeck"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             项目仓库
           </NButton>
         </div>

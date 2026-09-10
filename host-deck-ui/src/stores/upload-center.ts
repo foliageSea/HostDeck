@@ -51,7 +51,6 @@ export interface UploadBatchFile {
 
 export const useUploadCenterStore = defineStore('upload-center', () => {
   const batches = ref<UploadBatch[]>([])
-  const panelOpen = ref(false)
   const batchControllers = new Map<string, AbortController>()
   const cancelledBatchIds = new Set<string>()
 
@@ -115,7 +114,6 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
       tasks,
     })
 
-    panelOpen.value = true
     return batchId
   }
 
@@ -198,7 +196,6 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     }
 
     batch.errorMessage = message
-    panelOpen.value = true
   }
 
   function clearBatchError(batchId: string) {
@@ -249,8 +246,6 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
         task.status = 'cancelled'
       }
     }
-
-    panelOpen.value = true
   }
 
   function removeBatch(batchId: string) {
@@ -282,18 +277,6 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     batches.value = []
   }
 
-  function openPanel() {
-    panelOpen.value = true
-  }
-
-  function closePanel() {
-    panelOpen.value = false
-  }
-
-  function togglePanel() {
-    panelOpen.value = !panelOpen.value
-  }
-
   return {
     activeTaskCount,
     batches,
@@ -302,16 +285,12 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     clearBatchError,
     clearBatchController,
     clearFinished,
-    closePanel,
     createBatch,
     hasTasks,
     isBatchCancelled,
     markBatchError,
-    openPanel,
-    panelOpen,
     registerBatchController,
     removeBatch,
-    togglePanel,
     totalTaskCount,
     updateTask,
     upsertRemoteTask,

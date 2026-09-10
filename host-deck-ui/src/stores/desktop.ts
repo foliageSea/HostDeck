@@ -28,6 +28,7 @@ import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
 import SettingsView from '@/views/Settings/index.vue'
 import TerminalView from '@/views/Terminal/index.vue'
 import TextEditorView from '@/views/TextEditor/index.vue'
+import TaskCenterView from '@/views/TaskCenter/index.vue'
 
 export const maxSessionWindows = 8
 const windowCloseAnimationMs = 220
@@ -59,6 +60,7 @@ const launchpadAppIds = new Set<DesktopAppId>([
   'runtime-sessions',
   'cron-tasks',
   'settings',
+  'task-center',
 ])
 
 const sessionWindowAppIds = new Set<DesktopAppId>(['terminal', 'opencode'])
@@ -702,6 +704,17 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 420,
         title: '设置',
         width: 480,
+        showInLaunchpad: true,
+      },
+      'task-center': {
+        component: markRaw(TaskCenterView),
+        height: 620,
+        icon: 'task-center',
+        id: 'task-center',
+        minHeight: 420,
+        minWidth: 680,
+        title: '任务中心',
+        width: 1040,
         showInLaunchpad: true,
       },
     } as Record<DesktopAppId, AppConfig>,
