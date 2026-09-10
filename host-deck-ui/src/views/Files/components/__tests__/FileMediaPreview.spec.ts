@@ -12,7 +12,7 @@ const baseFile: FileItem = {
 function mountPreview(
   file: FileItem,
   connectionId: string | null = 'connection-1',
-  variant: 'grid' | 'list' = 'grid',
+  variant: 'grid' | 'list' | 'preview' = 'grid',
 ) {
   return mount(FileMediaPreview, {
     props: {
@@ -54,6 +54,12 @@ describe('FileMediaPreview', () => {
     const wrapper = mountPreview(baseFile, 'connection-1', 'list')
 
     expect(wrapper.get('img:not(.file-type-icon)').classes()).toContain('h-[28px]')
+  })
+
+  it('supports a large preview variant', () => {
+    const wrapper = mountPreview(baseFile, 'connection-1', 'preview')
+
+    expect(wrapper.get('img:not(.file-type-icon)').classes()).toContain('max-w-full')
   })
 
   it('falls back to the file icon when no connection is available', () => {

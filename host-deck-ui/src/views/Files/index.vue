@@ -20,8 +20,8 @@ import FileNameDialog from './components/FileNameDialog.vue'
 import FileNavigationToolbar from './components/FileNavigationToolbar.vue'
 import FilePathToolbar from './components/FilePathToolbar.vue'
 import FilePermissionDialog from './components/FilePermissionDialog.vue'
+import FilePreviewDialog from './components/FilePreviewDialog.vue'
 import FilePropertiesDialog from './components/FilePropertiesDialog.vue'
-import FileSelectionDetails from './components/FileSelectionDetails.vue'
 import { useFileClipboardOperations } from './composables/useFileClipboardOperations'
 import { useFileDownloads } from './composables/useFileDownloads'
 import { useFileUploads } from './composables/useFileUploads'
@@ -85,6 +85,7 @@ const showCompressDialog = ref(false)
 const showDeleteDialog = ref(false)
 const showPropertiesDialog = ref(false)
 const showPermissionDialog = ref(false)
+const showPreviewDialog = ref(false)
 const deletingFiles = ref(false)
 const extractingArchive = ref(false)
 const calculatingDirectorySize = ref(false)
@@ -1129,6 +1130,13 @@ function handleKeydown(event: KeyboardEvent) {
     return
   }
 
+  if (event.key === ' ' && selectedFiles.value.length === 1 && selectedFile.value) {
+    event.preventDefault()
+    closeContextMenu()
+    showPreviewDialog.value = true
+    return
+  }
+
   if (event.key === 'F2' && selectedFiles.value.length === 1) {
     event.preventDefault()
     closeContextMenu()
@@ -1311,11 +1319,6 @@ onMounted(async () => {
             </div>
           </div>
         </div>
-
-        <FileSelectionDetails
-          :selected-count="selectedFiles.length"
-          :selected-file="selectedFile"
-        />
       </div>
     </div>
 
@@ -1389,6 +1392,13 @@ onMounted(async () => {
       :path="permissionItemPath"
       @apply-preset="applyPermissionMode"
       @confirm="confirmPermissionChange"
+    />
+
+    <FilePreviewDialog
+      v-model:show="showPreviewDialog"
+      :connection-id="fileStore.connectionId"
+      :file="selectedFile"
+      :path="selectedParentPath"
     />
 
     <FileDeleteDialog

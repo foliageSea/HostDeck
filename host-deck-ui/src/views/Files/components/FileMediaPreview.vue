@@ -8,7 +8,7 @@ const props = defineProps<{
   connectionId?: string | null
   currentPath?: string
   file: FileItem
-  variant: 'grid' | 'list'
+  variant: 'grid' | 'list' | 'preview'
 }>()
 
 const previewReady = ref(false)
@@ -49,7 +49,11 @@ function handleVideoMetadata(event: Event) {
   <div
     class="file-media-preview relative flex flex-none items-center justify-center overflow-hidden"
     :class="
-      variant === 'grid' ? 'h-[76px] w-full rounded-[10px]' : 'h-[36px] w-[44px] rounded-[7px]'
+      variant === 'grid'
+        ? 'h-[76px] w-full rounded-[10px]'
+        : variant === 'preview'
+          ? 'max-h-[min(60vh,520px)] min-h-[180px] w-full rounded-[12px]'
+          : 'h-[36px] w-[44px] rounded-[7px]'
     "
   >
     <img
@@ -57,7 +61,11 @@ function handleVideoMetadata(event: Event) {
       :alt="file.filename"
       class="object-cover transition-opacity duration-150"
       :class="[
-        variant === 'grid' ? 'h-[60px] w-[60px] rounded-[8px]' : 'h-[28px] w-[28px] rounded-[5px]',
+        variant === 'grid'
+          ? 'h-[60px] w-[60px] rounded-[8px]'
+          : variant === 'preview'
+            ? 'max-h-[min(60vh,520px)] max-w-full rounded-[10px]'
+            : 'h-[28px] w-[28px] rounded-[5px]',
         previewReady ? 'opacity-100' : 'opacity-0',
       ]"
       decoding="async"
@@ -71,7 +79,11 @@ function handleVideoMetadata(event: Event) {
       :aria-label="`${file.filename} 视频预览`"
       class="pointer-events-none object-cover transition-opacity duration-150"
       :class="[
-        variant === 'grid' ? 'h-[60px] w-[60px] rounded-[8px]' : 'h-[28px] w-[28px] rounded-[5px]',
+        variant === 'grid'
+          ? 'h-[60px] w-[60px] rounded-[8px]'
+          : variant === 'preview'
+            ? 'max-h-[min(60vh,520px)] max-w-full rounded-[10px]'
+            : 'h-[28px] w-[28px] rounded-[5px]',
         previewReady ? 'opacity-100' : 'opacity-0',
       ]"
       muted
@@ -88,7 +100,13 @@ function handleVideoMetadata(event: Event) {
       alt=""
       aria-hidden="true"
       class="file-type-icon absolute object-contain"
-      :class="variant === 'grid' ? 'h-[60px] w-[60px]' : 'h-[28px] w-[28px]'"
+      :class="
+        variant === 'grid'
+          ? 'h-[60px] w-[60px]'
+          : variant === 'preview'
+            ? 'h-[180px] w-[180px]'
+            : 'h-[28px] w-[28px]'
+      "
       decoding="async"
       draggable="false"
       :src="getFileIcon(file).src"
