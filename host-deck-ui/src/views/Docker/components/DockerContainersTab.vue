@@ -176,7 +176,7 @@ function isPaused(container: DockerContainer) {
                 aria-label="刷新容器"
                 @click="controller.refreshContainers"
               >
-                <RefreshCw :size="16" />
+                <template #icon><RefreshCw :size="16" /></template>
               </NButton>
             </template>
             刷新

@@ -80,7 +80,7 @@ function handleComposeMoreAction(project: DockerComposeProject, action: string) 
               aria-label="刷新编排"
               @click="controller.refreshCompose"
             >
-              <RefreshCw :size="16" />
+              <template #icon><RefreshCw :size="16" /></template>
             </NButton>
           </template>
           刷新
