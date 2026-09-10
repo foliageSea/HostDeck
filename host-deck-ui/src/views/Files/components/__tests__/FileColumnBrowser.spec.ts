@@ -80,6 +80,22 @@ describe('FileColumnBrowser', () => {
     expect(wrapper.findAll('[data-file-name]')[0]!.classes()).toContain('file-column-item-selected')
   })
 
+  it('keeps the active directory highlighted when a file is selected', async () => {
+    vi.mocked(filesApi.list)
+      .mockResolvedValueOnce([directory('var')])
+      .mockResolvedValueOnce([file('notes.txt')])
+
+    const wrapper = createWrapper()
+    await flushPromises()
+    await wrapper.setProps({ selectedNames: ['notes.txt'], selectionPath: '/var' })
+
+    const [activeDirectory, selectedFile] = wrapper.findAll('[data-file-name]')
+    expect(activeDirectory!.attributes('aria-current')).toBe('page')
+    expect(activeDirectory!.classes()).toContain('file-column-item-selected')
+    expect(selectedFile!.attributes('aria-selected')).toBe('true')
+    expect(selectedFile!.classes()).toContain('file-column-item-selected')
+  })
+
   it('filters only the active column', async () => {
     vi.mocked(filesApi.list)
       .mockResolvedValueOnce([directory('var'), directory('home')])

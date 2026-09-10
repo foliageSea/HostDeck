@@ -149,10 +149,14 @@ function isSelected(column: FileColumn, file: FileItem) {
   return column.path === props.selectionPath && props.selectedNames.includes(file.filename)
 }
 
+function isActiveDirectory(column: FileColumn, file: FileItem) {
+  return file.isDirectory && resolve(column.path, file.filename) === props.currentPath
+}
+
 function isExpanded(column: FileColumn, file: FileItem) {
   if (!file.isDirectory) return false
   const filePath = resolve(column.path, file.filename)
-  return props.currentPath === filePath || props.currentPath.startsWith(`${filePath}/`)
+  return props.currentPath.startsWith(`${filePath}/`)
 }
 
 function handleClick(column: FileColumn, file: FileItem, event: MouseEvent) {
@@ -242,12 +246,13 @@ onBeforeUnmount(stopColumnResize)
             v-for="file in displayFiles(column)"
             v-else
             :key="file.filename"
+            :aria-current="isActiveDirectory(column, file) ? 'page' : undefined"
             :aria-selected="isSelected(column, file)"
             :data-file-name="file.filename"
             type="button"
             class="mb-[2px] grid h-[36px] w-full grid-cols-[44px_minmax(0,1fr)_18px] items-center gap-[5px] border-0 rounded-[5px] px-[2px] text-left text-[13px] outline-none transition-colors"
             :class="
-              isSelected(column, file)
+              isSelected(column, file) || isActiveDirectory(column, file)
                 ? 'file-column-item-selected bg-[var(--app-primary-color)] text-white shadow-[0_1px_3px_rgba(0,0,0,0.18)]'
                 : isExpanded(column, file)
                   ? 'bg-[var(--app-primary-soft)] text-[var(--app-primary-color)]'
