@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, type ComponentPublicInstance } from 'vue'
+import { computed, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 import { Upload } from '@vicons/carbon'
 import { filesApi, type FileItem } from '@/api/files'
@@ -11,6 +11,7 @@ import { useSshStore } from '@/stores/ssh'
 import { resolve } from '@/utils/path'
 import FileActionToolbar from './components/FileActionToolbar.vue'
 import FileBrowserContent from './components/FileBrowserContent.vue'
+import FileColumnBrowser from './components/FileColumnBrowser.vue'
 import FileCompressDialog from './components/FileCompressDialog.vue'
 import FileDeleteDialog from './components/FileDeleteDialog.vue'
 import FileExtractDialog from './components/FileExtractDialog.vue'
@@ -101,16 +102,30 @@ const contextMenu = ref<{
 } | null>(null)
 const isFavoriteSidebarVisible = useLocalStorage(FAVORITE_SIDEBAR_VISIBLE_STORAGE_KEY, false)
 const favoriteSidebarWidth = useLocalStorage(FAVORITE_SIDEBAR_WIDTH_STORAGE_KEY, 252)
+const columnBrowserRef = ref<InstanceType<typeof FileColumnBrowser> | null>(null)
+
+async function refreshVisibleFiles() {
+  await fileStore.fetchFiles()
+  if (fileStore.viewMode === 'columns') await columnBrowserRef.value?.refresh()
+}
+
+watch(
+  () => fileStore.viewMode,
+  (viewMode) => {
+    if (viewMode !== 'columns') fileStore.setSelectedNames([])
+  },
+)
 
 const selectedFile = computed(() => fileStore.selectedFile)
 const selectedFiles = computed(() =>
-  fileStore.files.filter((file) => fileStore.selectedNames.includes(file.filename)),
+  fileStore.selectionFiles.filter((file) => fileStore.selectedNames.includes(file.filename)),
 )
+const selectedParentPath = computed(() => fileStore.selectionPath)
 const { restoreRemoteTasks, startRemoteTask } = useRemoteFileTasks({
   getConnectionId: () => fileStore.connectionId,
   getCurrentPath: () => fileStore.currentPath,
   getWindowId: () => props.windowId,
-  refreshFiles: () => fileStore.fetchFiles(),
+  refreshFiles: refreshVisibleFiles,
 })
 const { canPasteToCurrentPath, clipboardPasteLabel, pasteClipboardItems, saveClipboard } =
   useFileClipboardOperations({
@@ -119,16 +134,17 @@ const { canPasteToCurrentPath, clipboardPasteLabel, pasteClipboardItems, saveCli
     getPort: () => (props.port as number | undefined) ?? sshStore.port,
     getUsername: () => (props.username as string | undefined) ?? sshStore.username,
     getCurrentPath: () => fileStore.currentPath,
+    getSelectionPath: () => selectedParentPath.value,
     getFiles: () => fileStore.files,
     getSelectedFiles: () => selectedFiles.value,
     getWindowId: () => props.windowId,
     setSelectedNames: (names) => fileStore.setSelectedNames(names),
-    refreshFiles: () => fileStore.fetchFiles(),
+    refreshFiles: refreshVisibleFiles,
     startRemoteTask,
   })
 const { downloadSelectedFiles } = useFileDownloads({
   getConnectionId: () => fileStore.connectionId,
-  getCurrentPath: () => fileStore.currentPath,
+  getCurrentPath: () => selectedParentPath.value,
   getSelectedFiles: () => selectedFiles.value,
 })
 const {
@@ -146,7 +162,7 @@ const {
 } = useFileUploads({
   getConnectionId: () => fileStore.connectionId,
   getCurrentPath: () => fileStore.currentPath,
-  refreshFiles: () => fileStore.fetchFiles(),
+  refreshFiles: refreshVisibleFiles,
 })
 
 function setFileInputRef(element: Element | ComponentPublicInstance | null) {
@@ -179,7 +195,7 @@ const selectedDirectoryPath = computed(() => {
     return null
   }
 
-  return resolve(fileStore.currentPath, selectedFile.value.filename)
+  return resolve(selectedParentPath.value, selectedFile.value.filename)
 })
 const isSelectedDirectoryPinned = computed(() =>
   selectedDirectoryPath.value ? desktopStore.isDirectoryPinned(selectedDirectoryPath.value) : false,
@@ -388,6 +404,43 @@ function handleSelectNames(names: string[]) {
   fileStore.setSelectedNames(names)
 }
 
+function handleColumnFileClick(path: string, files: FileItem[], file: FileItem, event: MouseEvent) {
+  closeContextMenu()
+  fileStore.selectColumnFile(path, files, file, {
+    append: event.ctrlKey || event.metaKey,
+    range: event.shiftKey,
+  })
+}
+
+function handleColumnContextMenu(
+  path: string,
+  files: FileItem[],
+  file: FileItem,
+  event: MouseEvent,
+) {
+  if (fileStore.selectionPath !== path || !fileStore.selectedNames.includes(file.filename)) {
+    fileStore.selectColumnFile(path, files, file)
+  }
+  contextMenu.value = { type: 'file', x: event.clientX, y: event.clientY }
+}
+
+function openColumnBlankContextMenu(path: string, event: MouseEvent) {
+  fileStore.clearSelection()
+  if (path !== fileStore.currentPath) void navigateToPath(path)
+  openBlankContextMenu(event)
+}
+
+async function activateColumnDirectory(path: string) {
+  await fileStore.navigateTo(path)
+  clearSearch()
+  syncPathInput()
+}
+
+function openColumnFile(path: string, files: FileItem[], file: FileItem) {
+  fileStore.selectColumnFile(path, files, file)
+  if (!file.isDirectory) void openFile(file)
+}
+
 function openFileContextMenu(file: FileItem, event: MouseEvent) {
   if (!fileStore.selectedNames.includes(file.filename)) {
     fileStore.selectFile(file)
@@ -458,7 +511,7 @@ function handleContextMenuSelect(key: string | number) {
 
   if (key === 'copy-path' && selectedFile.value) {
     void copyPathToClipboard(
-      resolve(fileStore.currentPath, selectedFile.value.filename),
+      resolve(selectedParentPath.value, selectedFile.value.filename),
       '已复制路径。',
     )
     return
@@ -520,7 +573,7 @@ function handleContextMenuSelect(key: string | number) {
   }
 
   if (key === 'refresh') {
-    void fileStore.fetchFiles()
+    void refreshVisibleFiles()
     return
   }
 
@@ -563,7 +616,7 @@ function openFileInEditor(file: FileItem) {
     'editor',
     {
       connectionId: fileStore.connectionId,
-      path: resolve(fileStore.currentPath, file.filename),
+      path: resolve(selectedParentPath.value, file.filename),
       title: file.filename,
     },
     { parentId: props.windowId },
@@ -572,7 +625,7 @@ function openFileInEditor(file: FileItem) {
 
 async function openFile(file: FileItem) {
   closeContextMenu()
-  fileStore.selectFile(file)
+  if (fileStore.viewMode !== 'columns') fileStore.selectFile(file)
   if (!file.isDirectory) {
     const category = getFileOpenCategory(file.filename)
 
@@ -582,14 +635,14 @@ async function openFile(file: FileItem) {
     }
 
     if (category === 'image' || category === 'video') {
-      const playlist = fileStore.files
+      const playlist = fileStore.selectionFiles
         .filter((item) => !item.isDirectory)
         .filter((item) => ['image', 'video'].includes(getFileOpenCategory(item.filename)))
         .map((item) => {
           const itemCategory = getFileOpenCategory(item.filename)
           return {
             filename: item.filename,
-            path: resolve(fileStore.currentPath, item.filename),
+            path: resolve(selectedParentPath.value, item.filename),
             type: itemCategory === 'video' ? 'video' : 'image',
           }
         })
@@ -598,7 +651,7 @@ async function openFile(file: FileItem) {
         'media-viewer',
         {
           connectionId: fileStore.connectionId,
-          path: resolve(fileStore.currentPath, file.filename),
+          path: resolve(selectedParentPath.value, file.filename),
           playlist,
           title: file.filename,
         },
@@ -609,7 +662,7 @@ async function openFile(file: FileItem) {
     return
   }
 
-  await fileStore.navigateTo(file.filename)
+  await fileStore.navigateTo(resolve(selectedParentPath.value, file.filename))
   clearSearch()
   syncPathInput()
 }
@@ -789,7 +842,7 @@ function openPropertiesDialog() {
   }
 
   propertiesFile.value = selectedFile.value
-  propertiesItemPath.value = resolve(fileStore.currentPath, selectedFile.value.filename)
+  propertiesItemPath.value = resolve(selectedParentPath.value, selectedFile.value.filename)
   calculatedDirectorySize.value = null
   showPropertiesDialog.value = true
 }
@@ -800,7 +853,7 @@ function openPermissionDialog(file = selectedFile.value, path?: string) {
   }
 
   permissionFile.value = file
-  permissionItemPath.value = path ?? resolve(fileStore.currentPath, file.filename)
+  permissionItemPath.value = path ?? resolve(selectedParentPath.value, file.filename)
   permissionRecursive.value = false
 
   const currentMode = permissionToMode(getPermissionFromLongname(file.longname))
@@ -921,8 +974,8 @@ async function confirmExtract() {
 
   const task = await startRemoteTask('extract', [
     {
-      sourcePath: resolve(fileStore.currentPath, selectedFile.value.filename),
-      targetPath: resolve(fileStore.currentPath, targetName),
+      sourcePath: resolve(selectedParentPath.value, selectedFile.value.filename),
+      targetPath: resolve(selectedParentPath.value, targetName),
     },
   ])
   if (task) {
@@ -950,8 +1003,8 @@ async function confirmCompress() {
 
   const task = await startRemoteTask('compress', [
     {
-      sourcePath: resolve(fileStore.currentPath, selectedFile.value.filename),
-      targetPath: resolve(fileStore.currentPath, targetName),
+      sourcePath: resolve(selectedParentPath.value, selectedFile.value.filename),
+      targetPath: resolve(selectedParentPath.value, targetName),
     },
   ])
   if (task) {
@@ -968,8 +1021,8 @@ async function confirmRename() {
   try {
     await filesApi.rename(
       fileStore.connectionId,
-      resolve(fileStore.currentPath, selectedFile.value.filename),
-      resolve(fileStore.currentPath, renameValue.value.trim()),
+      resolve(selectedParentPath.value, selectedFile.value.filename),
+      resolve(selectedParentPath.value, renameValue.value.trim()),
     )
     showRenameDialog.value = false
     await fileStore.fetchFiles()
@@ -988,7 +1041,7 @@ async function confirmDelete() {
   const task = await startRemoteTask(
     'delete',
     selectedFiles.value.map((file) => ({
-      sourcePath: resolve(fileStore.currentPath, file.filename),
+      sourcePath: resolve(selectedParentPath.value, file.filename),
     })),
   )
   if (task) {
@@ -1132,7 +1185,7 @@ onMounted(async () => {
       @navigate-back="navigateBack"
       @navigate-forward="navigateForward"
       @navigate-up="navigateUp"
-      @refresh="fileStore.fetchFiles()"
+      @refresh="refreshVisibleFiles"
       @toggle-sort-direction="fileStore.toggleSortDirection()"
       @update:sort-key="updateSortKey"
     />
@@ -1199,7 +1252,26 @@ onMounted(async () => {
         </div>
 
         <div class="relative min-h-0 flex flex-1">
+          <FileColumnBrowser
+            v-if="fileStore.viewMode === 'columns'"
+            ref="columnBrowserRef"
+            :connection-id="fileStore.connectionId"
+            :current-path="fileStore.currentPath"
+            :search="fileStore.search"
+            :selected-names="fileStore.selectedNames"
+            :selection-path="fileStore.selectionPath"
+            :sort-direction="fileStore.sortDirection"
+            :sort-key="fileStore.sortKey"
+            @activate-directory="activateColumnDirectory"
+            @clear-selection="fileStore.clearSelection()"
+            @click-file="handleColumnFileClick"
+            @context-blank="openColumnBlankContextMenu"
+            @context-file="handleColumnContextMenu"
+            @open-file="openColumnFile"
+          />
+
           <FileBrowserContent
+            v-else
             :connection-id="fileStore.connectionId"
             :current-path="fileStore.currentPath"
             :files="fileStore.displayFiles"

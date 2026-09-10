@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 import type { FileItem } from '@/api/files'
+import type { FileViewMode } from '@/stores/file'
 import { useSettingsStore } from '@/stores/settings'
 import FileMediaPreview from './FileMediaPreview.vue'
 
@@ -13,7 +14,7 @@ const props = defineProps<{
   emptyDescription?: string
   loading: boolean
   selectedNames: string[]
-  viewMode: 'list' | 'grid'
+  viewMode: FileViewMode
   formatFileSize: (size: number) => string
   formatModifyTime: (value?: string) => string
 }>()

@@ -3,7 +3,7 @@ import { useLocalStorage } from '@vueuse/core'
 import { filesApi, type FileItem } from '@/api/files'
 import { dirname, resolve } from '@/utils/path'
 
-export type FileViewMode = 'grid' | 'list'
+export type FileViewMode = 'columns' | 'grid' | 'list'
 export type FileSortKey = 'name' | 'size' | 'modifyTime'
 export type FileSortDirection = 'asc' | 'desc'
 
@@ -80,6 +80,8 @@ export function createFileStore(connection: FileStoreConnection) {
     {},
   )
   const selectedNames = ref<string[]>([])
+  const selectionFiles = ref<FileItem[]>([])
+  const selectionPath = ref('/')
   const lastSelectedName = ref<string | null>(null)
   const search = ref('')
   const backHistory = ref<string[]>([])
@@ -99,7 +101,7 @@ export function createFileStore(connection: FileStoreConnection) {
       return null
     }
 
-    return files.value.find((file) => file.filename === currentSelectedName) ?? null
+    return selectionFiles.value.find((file) => file.filename === currentSelectedName) ?? null
   })
 
   const hasSelection = computed(() => selectedNames.value.length > 0)
@@ -203,11 +205,15 @@ export function createFileStore(connection: FileStoreConnection) {
       files.value = response
       currentPath.value = targetPath
 
-      selectedNames.value = selectedNames.value.filter((selectedName) =>
-        response.some((file) => file.filename === selectedName),
-      )
-      if (selectedNames.value.length === 0) {
-        lastSelectedName.value = null
+      if (viewMode.value !== 'columns' || selectionPath.value === targetPath) {
+        selectionFiles.value = response
+        selectionPath.value = targetPath
+        selectedNames.value = selectedNames.value.filter((selectedName) =>
+          response.some((file) => file.filename === selectedName),
+        )
+        if (selectedNames.value.length === 0) {
+          lastSelectedName.value = null
+        }
       }
     } finally {
       loading.value = false
@@ -261,6 +267,8 @@ export function createFileStore(connection: FileStoreConnection) {
   }
 
   function selectFile(file: FileItem, options?: { append?: boolean; range?: boolean }) {
+    selectionFiles.value = files.value
+    selectionPath.value = currentPath.value
     if (options?.range && lastSelectedName.value) {
       const orderedFiles = displayFiles.value
       const startIndex = orderedFiles.findIndex((item) => item.filename === lastSelectedName.value)
@@ -292,7 +300,48 @@ export function createFileStore(connection: FileStoreConnection) {
     lastSelectedName.value = null
   }
 
+  function selectColumnFile(
+    path: string,
+    columnFiles: FileItem[],
+    file: FileItem,
+    options?: { append?: boolean; range?: boolean },
+  ) {
+    const orderedFiles = getDisplayFiles(columnFiles)
+    const isSameColumn = selectionPath.value === path
+    selectionFiles.value = columnFiles
+    selectionPath.value = path
+
+    if (options?.range && isSameColumn && lastSelectedName.value) {
+      const startIndex = orderedFiles.findIndex((item) => item.filename === lastSelectedName.value)
+      const endIndex = orderedFiles.findIndex((item) => item.filename === file.filename)
+      if (startIndex !== -1 && endIndex !== -1) {
+        const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex]
+        selectedNames.value = orderedFiles.slice(from, to + 1).map((item) => item.filename)
+        return
+      }
+    }
+
+    if (options?.append && isSameColumn) {
+      selectedNames.value = selectedNames.value.includes(file.filename)
+        ? selectedNames.value.filter((name) => name !== file.filename)
+        : [...selectedNames.value, file.filename]
+    } else {
+      selectedNames.value = [file.filename]
+    }
+    lastSelectedName.value = file.filename
+  }
+
+  function getDisplayFiles(sourceFiles: FileItem[]) {
+    const keyword = search.value.trim().toLowerCase()
+    return [...sourceFiles]
+      .filter((file) => file.filename !== '.' && file.filename !== '..')
+      .filter((file) => !keyword || file.filename.toLowerCase().includes(keyword))
+      .sort((left, right) => compareFiles(left, right, sortState.value))
+  }
+
   function setSelectedNames(names: string[]) {
+    selectionFiles.value = files.value
+    selectionPath.value = currentPath.value
     const availableNames = new Set(displayFiles.value.map((file) => file.filename))
     selectedNames.value = names.filter((name) => availableNames.has(name))
     lastSelectedName.value = selectedNames.value[selectedNames.value.length - 1] ?? null
@@ -340,7 +389,10 @@ export function createFileStore(connection: FileStoreConnection) {
     selectAll,
     selectFile,
     selectedFile,
+    selectionFiles,
+    selectionPath,
     selectedNames,
+    selectColumnFile,
     setSelectedNames,
     setSortKey,
     sortDirection: computed(() => sortState.value.direction),

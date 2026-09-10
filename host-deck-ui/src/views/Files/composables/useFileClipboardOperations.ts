@@ -10,6 +10,7 @@ interface FileClipboardOperationsDependencies {
   getPort: () => number | null
   getUsername: () => string
   getCurrentPath: () => string
+  getSelectionPath?: () => string
   getFiles: () => FileItem[]
   getSelectedFiles: () => FileItem[]
   getWindowId: () => string | undefined
@@ -27,6 +28,7 @@ export function useFileClipboardOperations({
   getPort,
   getUsername,
   getCurrentPath,
+  getSelectionPath,
   getFiles,
   getSelectedFiles,
   getWindowId,
@@ -97,15 +99,16 @@ export function useFileClipboardOperations({
     const selectedFiles = getSelectedFiles()
     if (selectedFiles.length === 0 || !currentConnectionKey.value) return
 
+    const sourcePath = getSelectionPath?.() ?? getCurrentPath()
     fileClipboardStore.setPayload({
       connectionKey: currentConnectionKey.value,
       entries: selectedFiles.map((file) => ({
         filename: file.filename,
         isDirectory: file.isDirectory,
-        path: resolve(getCurrentPath(), file.filename),
+        path: resolve(sourcePath, file.filename),
       })),
       operation,
-      sourcePath: getCurrentPath(),
+      sourcePath,
     })
 
     getUiApi().message.success(

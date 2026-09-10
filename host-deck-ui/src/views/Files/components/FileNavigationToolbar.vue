@@ -10,7 +10,8 @@ import {
   SortAscending,
   SortDescending,
 } from '@vicons/carbon'
-import type { FileSortKey } from '@/stores/file'
+import { Columns3 } from '@lucide/vue'
+import type { FileSortKey, FileViewMode } from '@/stores/file'
 import { useSettingsStore } from '@/stores/settings'
 
 defineProps<{
@@ -19,7 +20,7 @@ defineProps<{
   search: string
   sortDirection: 'asc' | 'desc'
   sortKey: FileSortKey
-  viewMode: 'list' | 'grid'
+  viewMode: FileViewMode
 }>()
 
 const emit = defineEmits<{
@@ -30,7 +31,7 @@ const emit = defineEmits<{
   toggleSortDirection: []
   'update:search': [value: string]
   'update:sortKey': [value: FileSortKey]
-  'update:viewMode': [value: 'list' | 'grid']
+  'update:viewMode': [value: FileViewMode]
 }>()
 
 const settingsStore = useSettingsStore()
@@ -114,6 +115,18 @@ const sortOptions: { label: string; value: FileSortKey }[] = [
         {{ sortDirection === 'asc' ? '升序' : '降序' }}
       </NTooltip>
       <div class="flex items-center gap-[8px]">
+        <NTooltip>
+          <template #trigger>
+            <NButton
+              quaternary
+              :type="viewMode === 'columns' ? 'primary' : 'default'"
+              @click="emit('update:viewMode', 'columns')"
+            >
+              <template #icon><Columns3 :size="18" /></template>
+            </NButton>
+          </template>
+          分栏视图
+        </NTooltip>
         <NTooltip>
           <template #trigger>
             <NButton
