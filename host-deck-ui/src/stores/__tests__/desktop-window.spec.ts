@@ -53,12 +53,28 @@ describe('desktop window management', () => {
       width: 480,
     })
 
-    expect(store.openWindow('settings')).toBeDefined()
-    expect(store.windows.find((window) => window.appId === 'settings' && window.id !== restrictedWindowId))
-      .toMatchObject({
-        maximizable: false,
-        resizable: false,
-      })
+    expect(store.openWindow('settings')).toBe(restrictedWindowId)
+    expect(store.windows.filter((window) => window.appId === 'settings')).toHaveLength(1)
+  })
+
+  it('opens only terminal and files as multiple instances by default', () => {
+    const store = useDesktopStore()
+    const settingsWindowId = store.openWindow('settings')!
+
+    store.minimizeWindow(settingsWindowId)
+
+    expect(store.canOpenWindow('settings')).toBe(false)
+    expect(store.openWindow('settings')).toBe(settingsWindowId)
+    expect(store.windows.find((window) => window.id === settingsWindowId)?.isMinimized).toBe(false)
+    expect(store.windows.filter((window) => window.appId === 'settings')).toHaveLength(1)
+
+    expect(store.canOpenWindow('terminal')).toBe(true)
+    expect(store.openWindow('terminal')).not.toBe(store.openWindow('terminal'))
+    expect(store.windows.filter((window) => window.appId === 'terminal')).toHaveLength(2)
+
+    expect(store.canOpenWindow('files')).toBe(true)
+    expect(store.openWindow('files')).not.toBe(store.openWindow('files'))
+    expect(store.windows.filter((window) => window.appId === 'files')).toHaveLength(2)
   })
 
   it('creates nested child windows and rejects an invalid parent', () => {

@@ -363,6 +363,7 @@ export interface AppConfig {
   maximizable?: boolean
   minimizable?: boolean
   resizable?: boolean
+  singleInstance?: boolean
   hide?: boolean
   showInLaunchpad?: boolean
 }
@@ -444,6 +445,7 @@ export const useDesktopStore = defineStore('desktop', {
         title: '终端',
         width: 920,
         showInLaunchpad: true,
+        singleInstance: false,
       },
       'iframe-app': {
         component: markRaw(IframeAppView),
@@ -466,6 +468,7 @@ export const useDesktopStore = defineStore('desktop', {
         title: '文件管理',
         width: 1280,
         showInLaunchpad: true,
+        singleInstance: false,
       },
       docker: {
         component: markRaw(DockerView),
@@ -737,6 +740,18 @@ export const useDesktopStore = defineStore('desktop', {
 
   actions: {
     canOpenWindow(appId: DesktopAppId) {
+      const app = this.apps[appId]
+      if (!app) {
+        return false
+      }
+
+      if (
+        (app.singleInstance ?? true) &&
+        this.windows.some((window) => window.appId === appId && !window.isClosing)
+      ) {
+        return false
+      }
+
       return !isSessionWindowAppId(appId) || this.sessionWindowCount < maxSessionWindows
     },
 
@@ -1131,11 +1146,6 @@ export const useDesktopStore = defineStore('desktop', {
         return
       }
 
-      if (!this.canOpenWindow(appId)) {
-        getUiApi().message.warning(`最多只能打开 ${maxSessionWindows} 个会话窗口。`)
-        return
-      }
-
       const parentWindow = options.parentId
         ? this.windows.find((window) => window.id === options.parentId)
         : undefined
@@ -1143,6 +1153,21 @@ export const useDesktopStore = defineStore('desktop', {
         options.parentId &&
         (!parentWindow || parentWindow.isClosing || parentWindow.isClosePending)
       ) {
+        return
+      }
+
+      if (app.singleInstance ?? true) {
+        const existingWindow = this.windows.find(
+          (window) => window.appId === appId && !window.isClosing,
+        )
+        if (existingWindow) {
+          this.restoreWindow(existingWindow.id)
+          return existingWindow.id
+        }
+      }
+
+      if (!this.canOpenWindow(appId)) {
+        getUiApi().message.warning(`最多只能打开 ${maxSessionWindows} 个会话窗口。`)
         return
       }
 
