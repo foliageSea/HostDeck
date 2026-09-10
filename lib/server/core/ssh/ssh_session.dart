@@ -59,7 +59,7 @@ class SshSession {
     }
 
     _isClosed = true;
-    _sftpClient?.close();
+    await _sftpClient?.close();
     shell?.close();
     // Do not close client here, as it may be shared across sessions
     // client.close();
