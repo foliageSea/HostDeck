@@ -35,8 +35,17 @@ export function createDefaultWindowSwitchShortcut(): KeyboardShortcut {
   }
 }
 
-export function normalizeKeyboardShortcut(value: unknown): KeyboardShortcut {
-  const defaultShortcut = createDefaultWindowSwitchShortcut()
+export function createDefaultWindowSwitcherToggleShortcut(): KeyboardShortcut {
+  return {
+    ...createDefaultWindowSwitchShortcut(),
+    shiftKey: true,
+  }
+}
+
+export function normalizeKeyboardShortcut(
+  value: unknown,
+  defaultShortcut = createDefaultWindowSwitchShortcut(),
+): KeyboardShortcut {
   if (!value || typeof value !== 'object') {
     return defaultShortcut
   }

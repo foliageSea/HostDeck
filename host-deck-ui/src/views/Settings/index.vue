@@ -21,6 +21,7 @@ const externalAccess = ref(false)
 const externalAccessLoading = ref(false)
 const exportingLogs = ref(false)
 const recordingWindowSwitchShortcut = ref(false)
+const recordingWindowSwitcherToggleShortcut = ref(false)
 const backendPortsSection = ref<InstanceType<typeof BackendPortsSection>>()
 const canClearBrowserCache = computed(() => Boolean(window.hostDeck?.app?.clearBrowserCache))
 const canManageExternalAccess = computed(() =>
@@ -54,6 +55,9 @@ const primaryColorPresets = ['#2563eb', '#0891b2', '#059669', '#7c3aed', '#db277
 const windowSwitchShortcutLabel = computed(() =>
   formatKeyboardShortcut(settingsStore.windowSwitchShortcut),
 )
+const windowSwitcherToggleShortcutLabel = computed(() =>
+  formatKeyboardShortcut(settingsStore.windowSwitcherToggleShortcut),
+)
 
 function recordWindowSwitchShortcut(event: KeyboardEvent) {
   if (!recordingWindowSwitchShortcut.value) {
@@ -74,6 +78,27 @@ function recordWindowSwitchShortcut(event: KeyboardEvent) {
 
   settingsStore.setWindowSwitchShortcut(shortcut)
   recordingWindowSwitchShortcut.value = false
+}
+
+function recordWindowSwitcherToggleShortcut(event: KeyboardEvent) {
+  if (!recordingWindowSwitcherToggleShortcut.value) {
+    return
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+  if (event.key === 'Escape') {
+    recordingWindowSwitcherToggleShortcut.value = false
+    return
+  }
+
+  const shortcut = createKeyboardShortcut(event)
+  if (!shortcut) {
+    return
+  }
+
+  settingsStore.setWindowSwitcherToggleShortcut(shortcut)
+  recordingWindowSwitcherToggleShortcut.value = false
 }
 
 function confirmClearBrowserCache() {
@@ -254,7 +279,7 @@ async function exportLogs() {
                 />
               </div>
             </NFormItem>
-            <NFormItem label="切换窗口快捷键">
+            <NFormItem label="直接切换窗口快捷键">
               <div class="flex w-full flex-nowrap items-center gap-[10px]">
                 <NInput
                   data-shortcut-recorder
@@ -271,8 +296,41 @@ async function exportLogs() {
                       class="shrink-0"
                       circle
                       secondary
-                      aria-label="恢复默认切换窗口快捷键"
+                      aria-label="恢复默认直接切换窗口快捷键"
                       @click="settingsStore.resetWindowSwitchShortcut"
+                    >
+                      <template #icon>
+                        <NIcon><Renew /></NIcon>
+                      </template>
+                    </NButton>
+                  </template>
+                  恢复默认
+                </NTooltip>
+              </div>
+            </NFormItem>
+            <NFormItem label="打开/关闭窗口选择器快捷键">
+              <div class="flex w-full flex-nowrap items-center gap-[10px]">
+                <NInput
+                  data-shortcut-recorder
+                  class="min-w-0 max-w-[240px] flex-1"
+                  readonly
+                  :value="
+                    recordingWindowSwitcherToggleShortcut
+                      ? '请按组合键'
+                      : windowSwitcherToggleShortcutLabel
+                  "
+                  @blur="recordingWindowSwitcherToggleShortcut = false"
+                  @focus="recordingWindowSwitcherToggleShortcut = true"
+                  @keydown="recordWindowSwitcherToggleShortcut"
+                />
+                <NTooltip>
+                  <template #trigger>
+                    <NButton
+                      class="shrink-0"
+                      circle
+                      secondary
+                      aria-label="恢复默认窗口选择器快捷键"
+                      @click="settingsStore.resetWindowSwitcherToggleShortcut"
                     >
                       <template #icon>
                         <NIcon><Renew /></NIcon>

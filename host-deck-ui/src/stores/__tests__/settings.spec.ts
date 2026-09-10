@@ -76,4 +76,24 @@ describe('settings window controls style', () => {
       JSON.parse(window.localStorage.getItem('host-deck-ui.windowSwitchShortcut') ?? ''),
     ).toEqual(settingsStore.windowSwitchShortcut)
   })
+
+  it('persists a custom window switcher toggle shortcut independently', async () => {
+    const settingsStore = useSettingsStore()
+
+    settingsStore.setWindowSwitcherToggleShortcut({
+      altKey: false,
+      code: 'KeyJ',
+      ctrlKey: true,
+      ctrlOrMeta: false,
+      key: 'j',
+      metaKey: false,
+      shiftKey: false,
+    })
+    await nextTick()
+
+    expect(
+      JSON.parse(window.localStorage.getItem('host-deck-ui.windowSwitcherToggleShortcut') ?? ''),
+    ).toEqual(settingsStore.windowSwitcherToggleShortcut)
+    expect(settingsStore.windowSwitchShortcut.code).toBe('Backquote')
+  })
 })

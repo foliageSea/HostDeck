@@ -7,7 +7,9 @@ import DesktopShell from '../DesktopShell.vue'
 
 vi.mock('@/components/os/DesktopDock.vue', () => ({ default: { template: '<div />' } }))
 vi.mock('@/components/os/DesktopLaunchpad.vue', () => ({ default: { template: '<div />' } }))
-vi.mock('@/components/os/DesktopPinnedDirectories.vue', () => ({ default: { template: '<div />' } }))
+vi.mock('@/components/os/DesktopPinnedDirectories.vue', () => ({
+  default: { template: '<div />' },
+}))
 vi.mock('@/components/os/DesktopTopBar.vue', () => ({ default: { template: '<div />' } }))
 vi.mock('@/components/os/DesktopWindow.vue', () => ({ default: { template: '<div />' } }))
 vi.mock('@/components/os/DesktopWindowSwitcher.vue', () => ({
@@ -44,57 +46,79 @@ describe('DesktopShell', () => {
     setActivePinia(createPinia())
   })
 
-  it('uses Alt+` to show and hide the window switcher on Windows', async () => {
+  it('uses Alt+` to switch directly and Alt+Shift+` to toggle the switcher on Windows', async () => {
     setPlatform('Win32')
     const desktopStore = useDesktopStore()
-    desktopStore.openWindow('settings')
+    const firstWindowId = desktopStore.openWindow('settings')!
     const secondWindowId = desktopStore.openWindow('dashboard')!
     const wrapper = shallowMount(DesktopShell)
 
     dispatchKeyboardEvent('keydown', { altKey: true, code: 'Backquote', key: '`' })
     await wrapper.vm.$nextTick()
     expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(true)
+    expect(desktopStore.activeWindowId).toBe(secondWindowId)
 
     dispatchKeyboardEvent('keyup', { key: 'Alt' })
     await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(false)
+    expect(desktopStore.activeWindowId).toBe(firstWindowId)
+
+    dispatchKeyboardEvent('keydown', {
+      altKey: true,
+      code: 'Backquote',
+      key: '`',
+      shiftKey: true,
+    })
+    await wrapper.vm.$nextTick()
     expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(true)
-    expect(desktopStore.activeWindowId).toBe(secondWindowId)
 
-    dispatchKeyboardEvent('keydown', { altKey: true, code: 'Backquote', key: '`' })
+    dispatchKeyboardEvent('keydown', {
+      altKey: true,
+      code: 'Backquote',
+      key: '`',
+      shiftKey: true,
+    })
     await wrapper.vm.$nextTick()
     expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(false)
-
-    dispatchKeyboardEvent('keydown', { code: 'Backquote', key: '`', metaKey: true })
-    await wrapper.vm.$nextTick()
-    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(false)
-    expect(desktopStore.activeWindowId).toBe(secondWindowId)
+    expect(desktopStore.activeWindowId).toBe(firstWindowId)
     wrapper.unmount()
   })
 
-  it('uses Command+` or Control+` to toggle the window switcher on macOS', async () => {
+  it('uses Command+` to switch directly and Command+Shift+` to toggle the switcher on macOS', async () => {
     setPlatform('MacIntel')
     const desktopStore = useDesktopStore()
-    desktopStore.openWindow('settings')
+    const firstWindowId = desktopStore.openWindow('settings')!
     const secondWindowId = desktopStore.openWindow('dashboard')!
     const wrapper = shallowMount(DesktopShell)
 
     dispatchKeyboardEvent('keydown', { code: 'Backquote', key: '`', metaKey: true })
     await wrapper.vm.$nextTick()
     expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(true)
+    expect(desktopStore.activeWindowId).toBe(secondWindowId)
 
     dispatchKeyboardEvent('keyup', { key: 'Meta' })
     await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(false)
+    expect(desktopStore.activeWindowId).toBe(firstWindowId)
+
+    dispatchKeyboardEvent('keydown', {
+      code: 'Backquote',
+      key: '`',
+      metaKey: true,
+      shiftKey: true,
+    })
+    await wrapper.vm.$nextTick()
     expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(true)
-    expect(desktopStore.activeWindowId).toBe(secondWindowId)
 
-    dispatchKeyboardEvent('keydown', { code: 'Backquote', key: '`', ctrlKey: true })
+    dispatchKeyboardEvent('keydown', {
+      code: 'Backquote',
+      ctrlKey: true,
+      key: '`',
+      shiftKey: true,
+    })
     await wrapper.vm.$nextTick()
     expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(false)
-
-    dispatchKeyboardEvent('keydown', { altKey: true, code: 'Backquote', key: '`' })
-    await wrapper.vm.$nextTick()
-    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(false)
-    expect(desktopStore.activeWindowId).toBe(secondWindowId)
+    expect(desktopStore.activeWindowId).toBe(firstWindowId)
     wrapper.unmount()
   })
 
@@ -105,7 +129,12 @@ describe('DesktopShell', () => {
     desktopStore.openWindow('dashboard')
     const wrapper = shallowMount(DesktopShell)
 
-    dispatchKeyboardEvent('keydown', { altKey: true, code: 'Backquote', key: '`' })
+    dispatchKeyboardEvent('keydown', {
+      altKey: true,
+      code: 'Backquote',
+      key: '`',
+      shiftKey: true,
+    })
     await wrapper.vm.$nextTick()
 
     wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).vm.$emit('select', 1)
@@ -123,7 +152,12 @@ describe('DesktopShell', () => {
     desktopStore.openWindow('dashboard')
     const wrapper = shallowMount(DesktopShell)
 
-    dispatchKeyboardEvent('keydown', { altKey: true, code: 'Backquote', key: '`' })
+    dispatchKeyboardEvent('keydown', {
+      altKey: true,
+      code: 'Backquote',
+      key: '`',
+      shiftKey: true,
+    })
     await wrapper.vm.$nextTick()
     const switcher = wrapper.findComponent({ name: 'DesktopWindowSwitcher' })
 
@@ -134,12 +168,12 @@ describe('DesktopShell', () => {
     wrapper.unmount()
   })
 
-  it('uses the configured window switch shortcut', async () => {
+  it('uses the configured direct window switch shortcut', async () => {
     setPlatform('Win32')
     const desktopStore = useDesktopStore()
     const settingsStore = useSettingsStore()
-    desktopStore.openWindow('settings')
-    desktopStore.openWindow('dashboard')
+    const firstWindowId = desktopStore.openWindow('settings')!
+    const secondWindowId = desktopStore.openWindow('dashboard')!
     settingsStore.setWindowSwitchShortcut({
       altKey: false,
       code: 'KeyK',
@@ -147,17 +181,77 @@ describe('DesktopShell', () => {
       ctrlOrMeta: false,
       key: 'k',
       metaKey: false,
+      shiftKey: false,
+    })
+    const wrapper = shallowMount(DesktopShell)
+
+    dispatchKeyboardEvent('keydown', { code: 'KeyK', ctrlKey: true, key: 'k' })
+    await wrapper.vm.$nextTick()
+    expect(desktopStore.activeWindowId).toBe(secondWindowId)
+    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(true)
+
+    dispatchKeyboardEvent('keyup', { key: 'Control' })
+    await wrapper.vm.$nextTick()
+    expect(desktopStore.activeWindowId).toBe(firstWindowId)
+    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(false)
+
+    dispatchKeyboardEvent('keydown', { altKey: true, code: 'Backquote', key: '`' })
+    await wrapper.vm.$nextTick()
+    expect(desktopStore.activeWindowId).toBe(firstWindowId)
+    expect(secondWindowId).not.toBe(firstWindowId)
+    wrapper.unmount()
+  })
+
+  it('uses the independently configured window switcher toggle shortcut', async () => {
+    setPlatform('Win32')
+    const desktopStore = useDesktopStore()
+    const settingsStore = useSettingsStore()
+    const firstWindowId = desktopStore.openWindow('settings')!
+    const secondWindowId = desktopStore.openWindow('dashboard')!
+    settingsStore.setWindowSwitchShortcut({
+      altKey: false,
+      code: 'KeyJ',
+      ctrlKey: true,
+      ctrlOrMeta: false,
+      key: 'j',
+      metaKey: false,
+      shiftKey: false,
+    })
+    settingsStore.setWindowSwitcherToggleShortcut({
+      altKey: false,
+      code: 'KeyL',
+      ctrlKey: true,
+      ctrlOrMeta: false,
+      key: 'l',
+      metaKey: false,
       shiftKey: true,
     })
     const wrapper = shallowMount(DesktopShell)
 
-    dispatchKeyboardEvent('keydown', { code: 'KeyK', ctrlKey: true, key: 'k', shiftKey: true })
+    dispatchKeyboardEvent('keydown', { code: 'KeyJ', ctrlKey: true, key: 'j' })
     await wrapper.vm.$nextTick()
+    expect(desktopStore.activeWindowId).toBe(secondWindowId)
     expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(true)
 
-    dispatchKeyboardEvent('keydown', { altKey: true, code: 'Backquote', key: '`' })
+    dispatchKeyboardEvent('keyup', { key: 'Control' })
     await wrapper.vm.$nextTick()
+    expect(desktopStore.activeWindowId).toBe(firstWindowId)
+    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(false)
+
+    dispatchKeyboardEvent('keydown', { code: 'KeyL', ctrlKey: true, key: 'l', shiftKey: true })
+    await wrapper.vm.$nextTick()
+    expect(desktopStore.activeWindowId).toBe(firstWindowId)
     expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(true)
+
+    dispatchKeyboardEvent('keydown', { code: 'KeyJ', ctrlKey: true, key: 'j' })
+    await wrapper.vm.$nextTick()
+    expect(desktopStore.activeWindowId).toBe(firstWindowId)
+    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(true)
+
+    dispatchKeyboardEvent('keyup', { key: 'Control' })
+    await wrapper.vm.$nextTick()
+    expect(desktopStore.activeWindowId).toBe(secondWindowId)
+    expect(wrapper.findComponent({ name: 'DesktopWindowSwitcher' }).exists()).toBe(false)
     wrapper.unmount()
   })
 })

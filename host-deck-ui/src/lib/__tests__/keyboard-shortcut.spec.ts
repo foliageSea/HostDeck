@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createDefaultWindowSwitchShortcut,
+  createDefaultWindowSwitcherToggleShortcut,
   createKeyboardShortcut,
   formatKeyboardShortcut,
   matchesKeyboardShortcut,
 } from '@/lib/keyboard-shortcut'
 
 describe('keyboard shortcuts', () => {
+  it('uses Shift only for toggling the window switcher', () => {
+    expect(createDefaultWindowSwitchShortcut().shiftKey).toBe(false)
+    expect(createDefaultWindowSwitcherToggleShortcut().shiftKey).toBe(true)
+  })
+
   it('creates and formats a modified shortcut', () => {
     const event = new KeyboardEvent('keydown', {
       code: 'KeyK',

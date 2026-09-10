@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { settingsApi } from '@/api/settings'
 import {
   createDefaultWindowSwitchShortcut,
+  createDefaultWindowSwitcherToggleShortcut,
   normalizeKeyboardShortcut,
   type KeyboardShortcut,
 } from '@/lib/keyboard-shortcut'
@@ -25,6 +26,7 @@ const WINDOW_BLUR_STORAGE_KEY = 'host-deck-ui.windowBlur'
 const CORNER_STYLE_STORAGE_KEY = 'host-deck-ui.cornerStyle'
 const DOCK_AUTO_HIDE_STORAGE_KEY = 'host-deck-ui.dockAutoHide'
 const WINDOW_SWITCH_SHORTCUT_STORAGE_KEY = 'host-deck-ui.windowSwitchShortcut'
+const WINDOW_SWITCHER_TOGGLE_SHORTCUT_STORAGE_KEY = 'host-deck-ui.windowSwitcherToggleShortcut'
 
 const DEFAULT_TERMINAL_FONT_SIZE = 14
 const DEFAULT_TERMINAL_FONT_FAMILY = '"Maple Mono"'
@@ -77,6 +79,20 @@ function resolveStoredWindowSwitchShortcut(): KeyboardShortcut {
     return normalizeKeyboardShortcut(JSON.parse(value))
   } catch {
     return createDefaultWindowSwitchShortcut()
+  }
+}
+
+function resolveStoredWindowSwitcherToggleShortcut(): KeyboardShortcut {
+  const defaultShortcut = createDefaultWindowSwitcherToggleShortcut()
+  const value = window.localStorage.getItem(WINDOW_SWITCHER_TOGGLE_SHORTCUT_STORAGE_KEY)
+  if (!value) {
+    return defaultShortcut
+  }
+
+  try {
+    return normalizeKeyboardShortcut(JSON.parse(value), defaultShortcut)
+  } catch {
+    return defaultShortcut
   }
 }
 
@@ -219,6 +235,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const cornerStyle = ref<CornerStyle>(resolveStoredCornerStyle())
   const dockAutoHide = ref(resolveStoredDockAutoHide())
   const windowSwitchShortcut = ref(resolveStoredWindowSwitchShortcut())
+  const windowSwitcherToggleShortcut = ref(resolveStoredWindowSwitcherToggleShortcut())
   const desktopWallpaper = ref<WallpaperSettings>(
     resolveStoredWallpaper(DESKTOP_WALLPAPER_STORAGE_KEY),
   )
@@ -391,6 +408,17 @@ export const useSettingsStore = defineStore('settings', () => {
   )
 
   watch(
+    windowSwitcherToggleShortcut,
+    (value) => {
+      window.localStorage.setItem(
+        WINDOW_SWITCHER_TOGGLE_SHORTCUT_STORAGE_KEY,
+        JSON.stringify(value),
+      )
+    },
+    { deep: true, immediate: true },
+  )
+
+  watch(
     desktopWallpaper,
     (value) => {
       void syncWallpaperStorage('desktop', value)
@@ -435,6 +463,17 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function resetWindowSwitchShortcut() {
     windowSwitchShortcut.value = createDefaultWindowSwitchShortcut()
+  }
+
+  function setWindowSwitcherToggleShortcut(shortcut: KeyboardShortcut) {
+    windowSwitcherToggleShortcut.value = normalizeKeyboardShortcut(
+      shortcut,
+      createDefaultWindowSwitcherToggleShortcut(),
+    )
+  }
+
+  function resetWindowSwitcherToggleShortcut() {
+    windowSwitcherToggleShortcut.value = createDefaultWindowSwitcherToggleShortcut()
   }
 
   function resetPrimaryColor() {
@@ -520,5 +559,8 @@ export const useSettingsStore = defineStore('settings', () => {
     windowControlsStyle,
     windowBlur,
     windowSwitchShortcut,
+    windowSwitcherToggleShortcut,
+    resetWindowSwitcherToggleShortcut,
+    setWindowSwitcherToggleShortcut,
   }
 })

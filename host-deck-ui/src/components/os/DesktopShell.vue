@@ -17,6 +17,7 @@ const switcherVisible = ref(false)
 const launchpadVisible = ref(false)
 const switcherIndex = ref(0)
 const switcherWindows = ref<typeof desktopStore.windows>([])
+const directSwitchActive = ref(false)
 
 const windows = computed(() => desktopStore.windows)
 const desktopDockSafeArea = computed(() =>
@@ -61,6 +62,7 @@ function selectWindow(index: number) {
 
   desktopStore.focusWindow(targetWindow.id)
   switcherVisible.value = false
+  directSwitchActive.value = false
 }
 
 async function closeSwitcherWindow(id: string) {
@@ -100,16 +102,39 @@ function handleKeyDown(event: KeyboardEvent) {
     event.preventDefault()
     event.stopPropagation()
     switcherVisible.value = false
+    directSwitchActive.value = false
     return
   }
 
-  const isSwitchKey = matchesKeyboardShortcut(event, settingsStore.windowSwitchShortcut)
-  if (!isSwitchKey) {
+  const isSwitcherToggleKey = matchesKeyboardShortcut(
+    event,
+    settingsStore.windowSwitcherToggleShortcut,
+  )
+  const isDirectSwitchKey = matchesKeyboardShortcut(event, settingsStore.windowSwitchShortcut)
+  if (!isSwitcherToggleKey && !isDirectSwitchKey) {
     return
   }
 
   event.preventDefault()
   event.stopPropagation()
+
+  const sortedWindows = [...desktopStore.windows].sort((left, right) => right.zIndex - left.zIndex)
+  if (sortedWindows.length < 2) {
+    return
+  }
+
+  if (isDirectSwitchKey && !isSwitcherToggleKey) {
+    if (!switcherVisible.value || !directSwitchActive.value) {
+      switcherWindows.value = sortedWindows
+      switcherIndex.value = 1
+      switcherVisible.value = true
+      directSwitchActive.value = true
+      return
+    }
+
+    switcherIndex.value = (switcherIndex.value + 1) % switcherWindows.value.length
+    return
+  }
 
   if (event.repeat) {
     return
@@ -117,25 +142,40 @@ function handleKeyDown(event: KeyboardEvent) {
 
   if (switcherVisible.value) {
     switcherVisible.value = false
-    return
-  }
-
-  const sortedWindows = [...desktopStore.windows].sort((left, right) => right.zIndex - left.zIndex)
-  if (sortedWindows.length < 2) {
+    directSwitchActive.value = false
     return
   }
 
   switcherWindows.value = sortedWindows
   switcherIndex.value = 0
   switcherVisible.value = true
+  directSwitchActive.value = false
+}
+
+function handleKeyUp(event: KeyboardEvent) {
+  if (!directSwitchActive.value || !switcherVisible.value) {
+    return
+  }
+
+  const shortcut = settingsStore.windowSwitchShortcut
+  const releasedRequiredModifier =
+    (event.key === 'Alt' && shortcut.altKey) ||
+    (event.key === 'Control' && (shortcut.ctrlKey || shortcut.ctrlOrMeta)) ||
+    (event.key === 'Meta' && (shortcut.metaKey || shortcut.ctrlOrMeta)) ||
+    (event.key === 'Shift' && shortcut.shiftKey)
+  if (releasedRequiredModifier) {
+    selectWindow(switcherIndex.value)
+  }
 }
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown, true)
+  window.addEventListener('keyup', handleKeyUp, true)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown, true)
+  window.removeEventListener('keyup', handleKeyUp, true)
 })
 </script>
 
