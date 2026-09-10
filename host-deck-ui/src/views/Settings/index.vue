@@ -279,6 +279,13 @@ async function exportLogs() {
                 />
               </div>
             </NFormItem>
+          </NForm>
+        </NCard>
+      </NTabPane>
+
+      <NTabPane name="shortcuts" tab="快捷键">
+        <NCard title="快捷键设置" size="large">
+          <NForm label-placement="top">
             <NFormItem label="直接切换窗口快捷键">
               <div class="flex w-full flex-nowrap items-center gap-[10px]">
                 <NInput
