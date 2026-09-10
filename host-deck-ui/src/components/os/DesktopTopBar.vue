@@ -2,9 +2,8 @@
 import { computed, h, onMounted, onUnmounted, ref } from 'vue'
 import {
   ApplicationWeb,
-  CloudUpload,
-  Download,
   Information,
+  ListChecked,
   Logout,
   Moon,
   Settings,
@@ -118,11 +117,6 @@ const performanceStats = computed(() => [
   { label: '内存', value: memoryUsage.value },
   { label: '下载', value: downloadSpeed.value },
 ])
-const hasActiveDownloads = computed(() =>
-  uploadCenterStore.batches.some((batch) =>
-    batch.tasks.some((task) => task.status === 'downloading'),
-  ),
-)
 function formatSpeed(value: number) {
   if (value >= 1024 * 1024) {
     return `${(value / 1024 / 1024).toFixed(2)} MB/s`
@@ -287,7 +281,7 @@ function disconnect() {
             <NButton quaternary circle aria-label="打开任务中心" @click="openTaskCenter">
               <template #icon>
                 <NIcon :size="16">
-                  <component :is="hasActiveDownloads ? Download : CloudUpload" />
+                  <ListChecked />
                 </NIcon>
               </template>
             </NButton>
