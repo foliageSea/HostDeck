@@ -8,6 +8,7 @@ import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
+import { useTerminalCompletion } from './useTerminalCompletion'
 
 interface TerminalProps {
   windowId?: string
@@ -89,6 +90,10 @@ export function useTerminalSession(props: TerminalProps) {
   let socket: WebSocket | null = null
   let resizeObserver: ResizeObserver | null = null
   let cwdOscHandler: { dispose: () => void } | null = null
+  let terminalBlurHandler: { dispose: () => void } | null = null
+  let terminalCursorHandler: { dispose: () => void } | null = null
+  let terminalDataHandler: { dispose: () => void } | null = null
+  let terminalWriteHandler: { dispose: () => void } | null = null
   let pendingCwdRequest: {
     reject: (reason: Error) => void
     resolve: (path: string) => void
@@ -98,6 +103,20 @@ export function useTerminalSession(props: TerminalProps) {
   let initializedCwd = false
   let startupCommandTimer: number | null = null
   let openIframeTimer: number | null = null
+
+  function sendTerminalInput(data: string) {
+    if (socket?.readyState !== WebSocket.OPEN) {
+      return false
+    }
+    socket.send(data)
+    completion.handleData(data)
+    return true
+  }
+
+  const completion = useTerminalCompletion({
+    sendInput: sendTerminalInput,
+    terminal: terminalRef,
+  })
 
   function delay(ms: number) {
     return new Promise((resolve) => window.setTimeout(resolve, ms))
@@ -281,22 +300,27 @@ export function useTerminalSession(props: TerminalProps) {
     }
 
     socket.onmessage = (event) => {
-      terminalRef.value?.write(typeof event.data === 'string' ? event.data : '')
+      const data = typeof event.data === 'string' ? event.data : ''
+      completion.handleOutput(data)
+      terminalRef.value?.write(data)
     }
 
     socket.onclose = () => {
+      completion.reset()
       clearPendingCwdRequest(new Error('终端连接已关闭。'))
       terminalRef.value?.write('\r\n连接已关闭。\r\n')
     }
 
     socket.onerror = (error) => {
+      completion.close()
       console.error('Terminal socket error', error)
       terminalRef.value?.write('\r\n终端连接失败。\r\n')
     }
 
-    terminalRef.value?.onData((data) => {
-      socket?.send(data)
-    })
+    terminalDataHandler =
+      terminalRef.value?.onData((data) => {
+        sendTerminalInput(data)
+      }) ?? null
   }
 
   function createTerminal() {
@@ -312,13 +336,17 @@ export function useTerminalSession(props: TerminalProps) {
     )
 
     terminalRef.value.attachCustomKeyEventHandler((event) => {
+      if (completion.handleKeyEvent(event)) {
+        return false
+      }
+
       if (event.type !== 'keydown' || event.metaKey) {
         return true
       }
 
       const key = event.key.toLowerCase()
       const isPasteShortcut =
-        key === 'v' && !event.shiftKey && !event.metaKey && event.ctrlKey !== event.altKey
+        key === 'v' && event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey
       const isCopyShortcut = key === 'c' && event.altKey && !event.ctrlKey && !event.shiftKey
 
       if (isPasteShortcut || isCopyShortcut) {
@@ -358,6 +386,13 @@ export function useTerminalSession(props: TerminalProps) {
       resolve(path)
       return true
     })
+    terminalCursorHandler = terminalRef.value.onCursorMove(completion.updateAnchor)
+    terminalWriteHandler = terminalRef.value.onWriteParsed(() => {
+      if (terminalRef.value?.buffer.active.type === 'alternate') {
+        completion.close()
+      }
+    })
+    void completion.refreshSnippets()
 
     try {
       webglAddon = markRaw(new WebglAddon())
@@ -428,6 +463,10 @@ export function useTerminalSession(props: TerminalProps) {
     }
 
     terminalRef.value.open(terminalContainer.value)
+    terminalRef.value.textarea?.addEventListener('blur', completion.close)
+    terminalBlurHandler = {
+      dispose: () => terminalRef.value?.textarea?.removeEventListener('blur', completion.close),
+    }
     fitTerminal()
     terminalRef.value.focus()
 
@@ -455,6 +494,11 @@ export function useTerminalSession(props: TerminalProps) {
     await shutdownTerminalProcess()
     socket?.close()
     cwdOscHandler?.dispose()
+    terminalBlurHandler?.dispose()
+    terminalCursorHandler?.dispose()
+    terminalDataHandler?.dispose()
+    terminalWriteHandler?.dispose()
+    completion.reset()
     terminalRef.value?.dispose()
     webglAddon = null
     webLinksAddon = null
@@ -462,6 +506,10 @@ export function useTerminalSession(props: TerminalProps) {
     socket = null
     resizeObserver = null
     cwdOscHandler = null
+    terminalBlurHandler = null
+    terminalCursorHandler = null
+    terminalDataHandler = null
+    terminalWriteHandler = null
 
     if (sessionIdToClose) {
       try {
@@ -473,6 +521,7 @@ export function useTerminalSession(props: TerminalProps) {
   })
 
   return {
+    completion,
     requestCurrentDirectory,
     terminal: terminalRef,
     terminalContainer,

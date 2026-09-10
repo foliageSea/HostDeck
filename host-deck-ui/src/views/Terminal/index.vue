@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { FolderOpen, Help, Settings, Terminal } from '@vicons/carbon'
 import '@xterm/xterm/css/xterm.css'
+import TerminalCompletionPopover from './components/TerminalCompletionPopover.vue'
 import TerminalSettingsModal from './components/TerminalSettingsModal.vue'
 import TerminalSnippetsModal from './components/TerminalSnippetsModal.vue'
 import { useTerminalSession } from './hooks/useTerminalSession'
@@ -35,7 +36,8 @@ const showCopyButton = ref(false)
 const openingCurrentDirectory = ref(false)
 const selectedText = ref('')
 const copyButtonStyle = ref({ left: '0px', top: '0px' })
-const { requestCurrentDirectory, terminal, terminalContainer } = useTerminalSession(props)
+const { completion, requestCurrentDirectory, terminal, terminalContainer } =
+  useTerminalSession(props)
 
 void terminalContainer
 
@@ -87,6 +89,20 @@ async function copySelection() {
 function insertSnippet(command: string) {
   terminal.value?.paste(command)
   terminal.value?.focus()
+}
+
+function setActiveCompletion(index: number) {
+  completion.activeIndex.value = index
+}
+
+function openSnippets() {
+  completion.close()
+  showSnippets.value = true
+}
+
+function openSettings() {
+  completion.close()
+  showSettings.value = true
 }
 
 async function openCurrentDirectory() {
@@ -186,18 +202,14 @@ async function openCurrentDirectory() {
         >
           <div>Ctrl + V：粘贴</div>
           <div>Alt + C：复制选中内容</div>
+          <div>输入至少 2 个字符：显示命令补全</div>
+          <div>补全中使用 ↑↓ 选择，Tab 填入，Enter 执行</div>
         </div>
       </NPopover>
 
       <NTooltip trigger="hover">
         <template #trigger>
-          <NButton
-            quaternary
-            circle
-            size="small"
-            aria-label="命令片段"
-            @click="showSnippets = true"
-          >
+          <NButton quaternary circle size="small" aria-label="命令片段" @click="openSnippets">
             <template #icon>
               <NIcon :size="16">
                 <Terminal />
@@ -210,13 +222,7 @@ async function openCurrentDirectory() {
 
       <NTooltip trigger="hover">
         <template #trigger>
-          <NButton
-            quaternary
-            circle
-            size="small"
-            aria-label="终端设置"
-            @click="showSettings = true"
-          >
+          <NButton quaternary circle size="small" aria-label="终端设置" @click="openSettings">
             <template #icon>
               <NIcon :size="16">
                 <Settings />
@@ -239,8 +245,22 @@ async function openCurrentDirectory() {
       </div>
     </Teleport>
 
+    <TerminalCompletionPopover
+      :active-index="completion.activeIndex.value"
+      :anchor-style="completion.anchorStyle.value"
+      :dark="settingsStore.isDark"
+      :items="completion.items.value"
+      :visible="completion.visible.value"
+      @hover="setActiveCompletion"
+      @select="completion.accept"
+    />
+
     <TerminalSettingsModal v-model:show="showSettings" />
-    <TerminalSnippetsModal v-model:show="showSnippets" @select="insertSnippet" />
+    <TerminalSnippetsModal
+      v-model:show="showSnippets"
+      @changed="completion.refreshSnippets"
+      @select="insertSnippet"
+    />
   </div>
 </template>
 

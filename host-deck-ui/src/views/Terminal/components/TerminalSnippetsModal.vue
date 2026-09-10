@@ -8,6 +8,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  changed: []
   'update:show': [value: boolean]
   select: [command: string]
 }>()
@@ -81,6 +82,7 @@ async function saveSnippet() {
       snippets.value[index] = snippet
     }
     editorVisible.value = false
+    emit('changed')
     getUiApi().message.success('命令片段已保存。')
   } catch (error) {
     getUiApi().message.error(error instanceof Error ? error.message : '保存命令片段失败。')
@@ -99,6 +101,7 @@ function removeSnippet(snippet: TerminalSnippet) {
       try {
         await terminalApi.deleteSnippet(snippet.id)
         snippets.value = snippets.value.filter((item) => item.id !== snippet.id)
+        emit('changed')
         getUiApi().message.success('命令片段已删除。')
       } catch (error) {
         getUiApi().message.error(error instanceof Error ? error.message : '删除命令片段失败。')
