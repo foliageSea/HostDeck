@@ -104,15 +104,43 @@ const clientRows = computed<RuntimeClientRow[]>(() => {
 })
 
 const flowNodes = computed<Node<RuntimeNodeData>[]>(() => {
+  if (!snapshot.value) {
+    return []
+  }
+
   const nodes: Node<RuntimeNodeData>[] = []
   let groupTop = 32
+
+  const contentHeight = Math.max(
+    clientRows.value.reduce(
+      (height, client, index) =>
+        height + Math.max(client.sessions.length * 140 - 16, 96) + (index > 0 ? 48 : 0),
+      0,
+    ),
+    96,
+  )
+
+  nodes.push({
+    id: 'backend',
+    type: 'backend',
+    position: { x: 32, y: 32 + (contentHeight - 96) / 2 },
+    data: {
+      connectionId: 'HostDeck Service',
+      isClosed: streamStatus.value === 'disconnected',
+      sessionCount: snapshot.value.totalClients,
+      isSynthetic: false,
+    },
+    draggable: false,
+    selectable: false,
+    connectable: false,
+  })
 
   for (const client of clientRows.value) {
     const sessionAreaHeight = Math.max(client.sessions.length * 140 - 16, 96)
     nodes.push({
       id: `client:${client.connectionId}`,
       type: 'client',
-      position: { x: 32, y: groupTop + (sessionAreaHeight - 96) / 2 },
+      position: { x: 378, y: groupTop + (sessionAreaHeight - 96) / 2 },
       data: {
         connectionId: client.connectionId,
         isClosed: client.isClosed,
@@ -128,7 +156,7 @@ const flowNodes = computed<Node<RuntimeNodeData>[]>(() => {
       nodes.push({
         id: `session:${session.sessionId}`,
         type: 'session',
-        position: { x: 430, y: groupTop + index * 140 },
+        position: { x: 776, y: groupTop + index * 140 },
         data: {
           connectionId: session.connectionId,
           isClosed: session.clientClosed,
@@ -151,8 +179,19 @@ const flowNodes = computed<Node<RuntimeNodeData>[]>(() => {
   return nodes
 })
 
-const flowEdges = computed<Edge[]>(() =>
-  clientRows.value.flatMap((client) =>
+const flowEdges = computed<Edge[]>(() => [
+  ...clientRows.value.map((client) => ({
+    id: `edge:backend:${client.connectionId}`,
+    source: 'backend',
+    target: `client:${client.connectionId}`,
+    type: 'smoothstep',
+    animated: !client.isClosed,
+    style: {
+      stroke: client.isClosed ? '#94a3b8' : '#22c55e',
+      strokeWidth: 1.8,
+    },
+  })),
+  ...clientRows.value.flatMap((client) =>
     client.sessions.map((session) => ({
       id: `edge:${client.connectionId}:${session.sessionId}`,
       source: `client:${client.connectionId}`,
@@ -165,7 +204,7 @@ const flowEdges = computed<Edge[]>(() =>
       },
     })),
   ),
-)
+])
 
 function stopRuntimeStream() {
   if (runtimeSource) {
@@ -309,7 +348,13 @@ onBeforeUnmount(() => {
         </div>
         <NTooltip>
           <template #trigger>
-            <NButton circle secondary :loading="loading" aria-label="立即刷新" @click="requestRefresh">
+            <NButton
+              circle
+              secondary
+              :loading="loading"
+              aria-label="立即刷新"
+              @click="requestRefresh"
+            >
               <template #icon><RefreshCw :size="16" /></template>
             </NButton>
           </template>
@@ -332,11 +377,31 @@ onBeforeUnmount(() => {
         <Background :gap="20" :size="1" :color="settingsStore.isDark ? '#334155' : '#cbd5e1'" />
         <Controls position="bottom-left" />
 
+        <template #node-backend="{ data }">
+          <article class="flow-node backend-node" :class="{ closed: data.isClosed }">
+            <div class="node-heading">
+              <span class="node-kind">Backend</span>
+              <span class="status-badge"
+                ><i aria-hidden="true"></i>{{ data.isClosed ? '已断开' : '运行中' }}</span
+              >
+            </div>
+            <div class="node-id">{{ data.connectionId }}</div>
+            <div class="node-footer">
+              <span>后端服务</span>
+              <span>{{ data.sessionCount }} 个 Client</span>
+            </div>
+            <Handle type="source" :position="Position.Right" />
+          </article>
+        </template>
+
         <template #node-client="{ data }">
           <article class="flow-node client-node" :class="{ closed: data.isClosed }">
+            <Handle type="target" :position="Position.Left" />
             <div class="node-heading">
               <span class="node-kind">Client</span>
-              <span class="status-badge"><i aria-hidden="true"></i>{{ data.isClosed ? '已关闭' : '活跃' }}</span>
+              <span class="status-badge"
+                ><i aria-hidden="true"></i>{{ data.isClosed ? '已关闭' : '活跃' }}</span
+              >
             </div>
             <div class="node-id" :title="data.connectionId">{{ data.connectionId }}</div>
             <div class="node-footer">
@@ -369,7 +434,7 @@ onBeforeUnmount(() => {
         </template>
       </VueFlow>
 
-      <div v-if="!loading && flowNodes.length === 0" class="empty-state">
+      <div v-if="!loading && !snapshot" class="empty-state">
         <NEmpty description="当前没有运行中的客户端或会话" />
       </div>
     </main>
@@ -496,6 +561,13 @@ onBeforeUnmount(() => {
   border-left: 4px solid #2563eb;
 }
 
+.backend-node {
+  width: 250px;
+  height: 96px;
+  border-left: 4px solid #0f766e;
+  background: #f0fdfa;
+}
+
 .flow-node.closed {
   border-color: #cbd5e1;
   border-left-color: #94a3b8;
@@ -512,6 +584,11 @@ onBeforeUnmount(() => {
 
 .is-dark .client-node {
   border-left-color: #60a5fa;
+}
+
+.is-dark .backend-node {
+  border-left-color: #2dd4bf;
+  background: #183536;
 }
 
 .is-dark .flow-node.closed {
