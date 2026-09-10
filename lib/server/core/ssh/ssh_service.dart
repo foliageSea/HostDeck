@@ -269,7 +269,7 @@ class SshService {
   Future<void> disconnect(String connectionId) async {
     final client = _clients[connectionId];
     if (client != null) {
-      await client.close();
+      client.close();
       _disconnectInternal(connectionId);
     }
   }
