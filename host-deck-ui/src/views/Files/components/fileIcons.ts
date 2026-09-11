@@ -219,17 +219,34 @@ function getFileExtension(filename: string) {
   return parts.length > 1 ? parts[parts.length - 1] : ''
 }
 
+const ICON_CACHE_LIMIT = 1000
+const iconCache = new Map<string, FileIconMeta>()
+
+function resolveFileIcon(normalizedName: string): FileIconMeta {
+  return (
+    filenameIcons[normalizedName] ??
+    extensionIcons[getFileExtension(normalizedName)] ??
+    defaultFileIcon
+  )
+}
+
 export function getFileIcon(file: FileIconTarget) {
   if (file.isDirectory) {
     return folderIcon
   }
 
   const normalizedName = file.filename.toLowerCase()
-  return (
-    filenameIcons[normalizedName] ??
-    extensionIcons[getFileExtension(normalizedName)] ??
-    defaultFileIcon
-  )
+  const cached = iconCache.get(normalizedName)
+  if (cached) {
+    return cached
+  }
+
+  const icon = resolveFileIcon(normalizedName)
+  if (iconCache.size >= ICON_CACHE_LIMIT) {
+    iconCache.clear()
+  }
+  iconCache.set(normalizedName, icon)
+  return icon
 }
 
 export function getFilePreviewType(file: FileIconTarget): FilePreviewType {
