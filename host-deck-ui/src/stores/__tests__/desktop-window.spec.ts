@@ -57,7 +57,7 @@ describe('desktop window management', () => {
     expect(store.windows.filter((window) => window.appId === 'settings')).toHaveLength(1)
   })
 
-  it('opens only terminal and files as multiple instances by default', () => {
+  it('opens configured multi-instance applications in separate windows', () => {
     const store = useDesktopStore()
     const settingsWindowId = store.openWindow('settings')!
 
@@ -75,6 +75,14 @@ describe('desktop window management', () => {
     expect(store.canOpenWindow('files')).toBe(true)
     expect(store.openWindow('files')).not.toBe(store.openWindow('files'))
     expect(store.windows.filter((window) => window.appId === 'files')).toHaveLength(2)
+
+    expect(store.canOpenWindow('editor')).toBe(true)
+    expect(store.openWindow('editor')).not.toBe(store.openWindow('editor'))
+    expect(store.windows.filter((window) => window.appId === 'editor')).toHaveLength(2)
+
+    expect(store.canOpenWindow('media-viewer')).toBe(true)
+    expect(store.openWindow('media-viewer')).not.toBe(store.openWindow('media-viewer'))
+    expect(store.windows.filter((window) => window.appId === 'media-viewer')).toHaveLength(2)
   })
 
   it('creates nested child windows and rejects an invalid parent', () => {
