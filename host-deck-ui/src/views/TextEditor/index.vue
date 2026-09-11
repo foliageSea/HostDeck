@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Help } from '@vicons/carbon'
 import CodeEditor from '@/components/editor/CodeEditor.vue'
 import { filesApi } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
+import { isMacPlatform } from '@/lib/keyboard-shortcut'
 
 const props = defineProps<{
   connectionId: string
@@ -27,6 +29,8 @@ const confirmingUnsavedChanges = ref(false)
 const language = computed(() => detectLanguage(props.path))
 const canFormatDocument = computed(() => ['json', 'yaml'].includes(language.value))
 const hasUnsavedChanges = computed(() => content.value !== savedContent.value)
+const saveShortcut = computed(() => (isMacPlatform() ? 'Command + S' : 'Ctrl + S'))
+const formatShortcut = computed(() => (isMacPlatform() ? 'Option + Shift + F' : 'Alt + Shift + F'))
 
 const menuOptions = computed(() => [
   {
@@ -284,7 +288,7 @@ function handleActionSelect(key: string) {
 }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (event.ctrlKey && event.key.toLowerCase() === 's') {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
     event.preventDefault()
     void saveFile()
   }
@@ -363,6 +367,27 @@ watch(showSettings, (value) => {
       >
         未保存
       </span>
+      <NPopover trigger="hover" placement="bottom-start">
+        <template #trigger>
+          <NButton quaternary circle size="small" aria-label="编辑器快捷键">
+            <template #icon>
+              <NIcon :size="16">
+                <Help />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        <div
+          class="flex flex-col gap-[6px] text-[12px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'
+          "
+        >
+          <div>{{ saveShortcut }}：保存文件</div>
+          <div v-if="canFormatDocument">{{ formatShortcut }}：格式化文档</div>
+          <div>Ctrl + 滚轮：调整字体大小</div>
+        </div>
+      </NPopover>
     </div>
 
     <NSpin :show="loading" class="editor-body relative z-[1] flex-1 min-h-0">
