@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Help } from '@vicons/carbon'
+import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Close, Code, Help, Renew, Save, Settings } from '@vicons/carbon'
+import { NIcon } from 'naive-ui'
 import CodeEditor from '@/components/editor/CodeEditor.vue'
 import { filesApi } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
@@ -32,15 +33,29 @@ const hasUnsavedChanges = computed(() => content.value !== savedContent.value)
 const saveShortcut = computed(() => (isMacPlatform() ? 'Command + S' : 'Ctrl + S'))
 const formatShortcut = computed(() => (isMacPlatform() ? 'Option + Shift + F' : 'Alt + Shift + F'))
 
+function renderMenuIcon(icon: typeof Save) {
+  return () => h(NIcon, { size: 16 }, { default: () => h(icon) })
+}
+
 const menuOptions = computed(() => [
   {
     key: 'file',
     label: '文件',
     children: [
-      { key: 'save', label: hasUnsavedChanges.value ? '保存 *' : '保存', disabled: saving.value },
-      { key: 'reload', label: '重新加载', disabled: loading.value || saving.value },
+      {
+        key: 'save',
+        label: hasUnsavedChanges.value ? '保存 *' : '保存',
+        icon: renderMenuIcon(Save),
+        disabled: saving.value,
+      },
+      {
+        key: 'reload',
+        label: '重新加载',
+        icon: renderMenuIcon(Renew),
+        disabled: loading.value || saving.value,
+      },
       { key: 'divider', type: 'divider' },
-      { key: 'close', label: '关闭' },
+      { key: 'close', label: '关闭', icon: renderMenuIcon(Close) },
     ],
   },
   {
@@ -50,6 +65,7 @@ const menuOptions = computed(() => [
       {
         key: 'format',
         label: '格式化',
+        icon: renderMenuIcon(Code),
         disabled: !canFormatDocument.value || loading.value,
       },
     ],
@@ -57,7 +73,7 @@ const menuOptions = computed(() => [
   {
     key: 'view',
     label: '查看',
-    children: [{ key: 'settings', label: '设置' }],
+    children: [{ key: 'settings', label: '设置', icon: renderMenuIcon(Settings) }],
   },
 ])
 
