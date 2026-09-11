@@ -51,6 +51,7 @@ describe('FileFavoriteSidebar', () => {
 
     expect(wrapper.find('[data-testid="directory-tree"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('log')
+    expect(wrapper.get('img[aria-hidden="true"]').attributes('src')).toBeTruthy()
   })
 
   it('forwards directory tree navigation', async () => {

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Close } from '@vicons/carbon'
 import { useSettingsStore } from '@/stores/settings'
 import { basename } from '@/utils/path'
 import FileDirectoryTree from './FileDirectoryTree.vue'
+import { directoryTreeIconUrl } from './fileIcons'
 
 const props = defineProps<{
   connectionId?: string | null
@@ -165,11 +166,20 @@ onBeforeUnmount(stopResize)
             >
               <button
                 type="button"
-                class="btn-reset truncate-line min-w-0 text-left"
+                class="btn-reset flex min-w-0 items-center gap-[7px] text-left"
                 :title="path"
                 @click="emit('navigate', path)"
               >
-                {{ formatFavoritePath(path) }}
+                <img
+                  :src="directoryTreeIconUrl"
+                  alt=""
+                  aria-hidden="true"
+                  draggable="false"
+                  width="16"
+                  height="16"
+                  class="shrink-0"
+                />
+                <span class="truncate-line min-w-0">{{ formatFavoritePath(path) }}</span>
               </button>
               <NButton
                 quaternary
@@ -209,7 +219,7 @@ onBeforeUnmount(stopResize)
       />
     </div>
 
-    <div class="pointer-events-none absolute right-[16px] top-1/2 z-2 -translate-y-1/2">
+    <div class="pointer-events-none absolute right-[10px] top-1/2 z-2 -translate-y-1/2">
       <NTooltip placement="right">
         <template #trigger>
           <div
