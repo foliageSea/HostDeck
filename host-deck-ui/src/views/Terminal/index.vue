@@ -161,83 +161,77 @@ async function openCurrentDirectory() {
     </div>
 
     <div
-      class="app-radius-card flex shrink-0 items-center justify-between border px-[12px] py-[8px] mx-[12px] mb-[12px]"
+      class="app-radius-card flex shrink-0 items-center justify-end gap-[8px] border px-[12px] py-[8px] mx-[12px] mb-[12px]"
       :class="settingsStore.isDark ? 'bg-[#050816]' : 'bg-[#f8fafc]'"
     >
-      <div class="flex items-center gap-[8px]">
-        <NTooltip trigger="hover">
-          <template #trigger>
-            <NButton
-              quaternary
-              circle
-              size="small"
-              :loading="openingCurrentDirectory"
-              aria-label="在文件管理器中打开当前目录"
-              @click="openCurrentDirectory"
-            >
-              <template #icon>
-                <NIcon :size="16">
-                  <FolderOpen />
-                </NIcon>
-              </template>
-            </NButton>
-          </template>
-          在文件管理器中打开当前目录
-        </NTooltip>
-
-        <NTooltip trigger="hover">
-          <template #trigger>
-            <NButton quaternary circle size="small" aria-label="命令片段" @click="openSnippets">
-              <template #icon>
-                <NIcon :size="16">
-                  <Terminal />
-                </NIcon>
-              </template>
-            </NButton>
-          </template>
-          命令片段
-        </NTooltip>
-      </div>
-
-      <div class="flex items-center gap-[8px]">
-        <NPopover trigger="hover" placement="top-end">
-          <template #trigger>
-            <NButton quaternary circle size="small" aria-label="终端快捷键">
-              <template #icon>
-                <NIcon :size="16">
-                  <Help />
-                </NIcon>
-              </template>
-            </NButton>
-          </template>
-          <div
-            class="flex flex-col gap-[6px] text-[12px]"
-            :class="
-              settingsStore.isDark
-                ? 'text-[rgba(226,232,240,0.96)]'
-                : 'text-[rgba(51,65,85,0.96)]'
-            "
+      <NTooltip trigger="hover">
+        <template #trigger>
+          <NButton
+            quaternary
+            circle
+            size="small"
+            :loading="openingCurrentDirectory"
+            aria-label="在文件管理器中打开当前目录"
+            @click="openCurrentDirectory"
           >
-            <div>Ctrl + V：粘贴</div>
-            <div>Alt + C：复制选中内容</div>
-            <div>输入至少 2 个字符：显示命令补全</div>
-            <div>补全中使用 ↑↓ 选择，Tab 填入，Enter 执行</div>
-          </div>
-        </NPopover>
+            <template #icon>
+              <NIcon :size="16">
+                <FolderOpen />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        在文件管理器中打开当前目录
+      </NTooltip>
 
-        <NTooltip trigger="hover">
-          <template #trigger>
-            <NButton quaternary circle size="small" aria-label="终端设置" @click="openSettings">
-              <template #icon>
-                <NIcon :size="16">
-                  <Settings />
-                </NIcon>
-              </template>
-            </NButton>
-          </template>
-          终端设置
-        </NTooltip>
-      </div>
+      <NPopover trigger="hover" placement="top-end">
+        <template #trigger>
+          <NButton quaternary circle size="small" aria-label="终端快捷键">
+            <template #icon>
+              <NIcon :size="16">
+                <Help />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        <div
+          class="flex flex-col gap-[6px] text-[12px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'
+          "
+        >
+          <div>Ctrl + V：粘贴</div>
+          <div>Alt + C：复制选中内容</div>
+          <div>输入至少 2 个字符：显示命令补全</div>
+          <div>补全中使用 ↑↓ 选择，Tab 填入，Enter 执行</div>
+        </div>
+      </NPopover>
+
+      <NTooltip trigger="hover">
+        <template #trigger>
+          <NButton quaternary circle size="small" aria-label="命令片段" @click="openSnippets">
+            <template #icon>
+              <NIcon :size="16">
+                <Terminal />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        命令片段
+      </NTooltip>
+
+      <NTooltip trigger="hover">
+        <template #trigger>
+          <NButton quaternary circle size="small" aria-label="终端设置" @click="openSettings">
+            <template #icon>
+              <NIcon :size="16">
+                <Settings />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        终端设置
+      </NTooltip>
     </div>
 
     <Teleport to="body">
