@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { parseDocument } from 'yaml'
+import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
 
 const props = withDefaults(
@@ -26,8 +28,10 @@ let monacoApi: typeof import('monaco-editor') | null = null
 let editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null
 let model: import('monaco-editor').editor.ITextModel | null = null
 let syncDisposable: import('monaco-editor').IDisposable | null = null
+let formatDisposable: import('monaco-editor').IDisposable | null = null
 
 const editorTheme = computed(() => (settingsStore.isDark ? 'vs-dark' : 'vs'))
+const canFormat = computed(() => ['json', 'yaml', 'yml'].includes(props.language.toLowerCase()))
 
 function syncEditorContent(nextContent: string) {
   if (!model || model.getValue() === nextContent) {
@@ -50,6 +54,51 @@ function updateEditorFontOptions(options: { fontFamily?: string; fontSize?: numb
 
   editor.layout()
 }
+
+function formatDocument() {
+  if (!editor || !model || !canFormat.value || props.readonly) {
+    return
+  }
+
+  const source = model.getValue()
+  if (!source.trim()) {
+    getUiApi().message.warning('内容为空，无需格式化。')
+    return
+  }
+
+  try {
+    let formatted: string
+    if (props.language.toLowerCase() === 'json') {
+      formatted = JSON.stringify(JSON.parse(source), null, 2)
+    } else {
+      const document = parseDocument(source)
+      if (document.errors.length > 0) {
+        throw document.errors[0]
+      }
+      formatted = document.toString({ indent: 2, lineWidth: 0 })
+    }
+
+    if (formatted === source) {
+      return
+    }
+
+    editor.pushUndoStop()
+    editor.executeEdits('format-document', [
+      {
+        range: model.getFullModelRange(),
+        text: formatted,
+        forceMoveMarkers: true,
+      },
+    ])
+    editor.pushUndoStop()
+  } catch (error) {
+    const languageLabel = props.language.toLowerCase() === 'json' ? 'JSON' : 'YAML'
+    console.error(`Failed to format ${languageLabel}`, error)
+    getUiApi().message.error(`${languageLabel} 格式错误，无法格式化。`)
+  }
+}
+
+defineExpose({ formatDocument })
 
 async function initEditor() {
   try {
@@ -81,12 +130,24 @@ async function initEditor() {
     syncDisposable = editor.onDidChangeModelContent(() => {
       emit('update:modelValue', editor?.getValue() ?? '')
     })
+    formatDisposable = editor.addAction({
+      id: 'host-deck.format-document',
+      label: '格式化文档',
+      keybindings: [monacoApi.KeyMod.Shift | monacoApi.KeyMod.Alt | monacoApi.KeyCode.KeyF],
+      contextMenuGroupId: '1_modification',
+      contextMenuOrder: 1.5,
+      precondition:
+        '!editorReadonly && (editorLangId == json || editorLangId == yaml || editorLangId == yml)',
+      run: formatDocument,
+    })
   } finally {
     loading.value = false
   }
 }
 
 function disposeEditor() {
+  formatDisposable?.dispose()
+  formatDisposable = null
   syncDisposable?.dispose()
   syncDisposable = null
   editor?.dispose()

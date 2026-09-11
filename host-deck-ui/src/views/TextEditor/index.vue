@@ -19,11 +19,13 @@ const saving = ref(false)
 const error = ref('')
 const content = ref('')
 const savedContent = ref('')
+const codeEditor = ref<InstanceType<typeof CodeEditor> | null>(null)
 const showSettings = ref(false)
 const editorFontFamilyDraft = ref(settingsStore.editorFontFamily)
 const confirmingUnsavedChanges = ref(false)
 
 const language = computed(() => detectLanguage(props.path))
+const canFormatDocument = computed(() => ['json', 'yaml'].includes(language.value))
 const hasUnsavedChanges = computed(() => content.value !== savedContent.value)
 
 const menuOptions = computed(() => [
@@ -35,6 +37,17 @@ const menuOptions = computed(() => [
       { key: 'reload', label: '重新加载', disabled: loading.value || saving.value },
       { key: 'divider', type: 'divider' },
       { key: 'close', label: '关闭' },
+    ],
+  },
+  {
+    key: 'edit',
+    label: '编辑',
+    children: [
+      {
+        key: 'format',
+        label: '格式化',
+        disabled: !canFormatDocument.value || loading.value,
+      },
     ],
   },
   {
@@ -261,6 +274,9 @@ function handleActionSelect(key: string) {
     case 'settings':
       showSettings.value = true
       break
+    case 'format':
+      codeEditor.value?.formatDocument()
+      break
     case 'close':
       closeWindow()
       break
@@ -356,7 +372,13 @@ watch(showSettings, (value) => {
         </template>
       </NResult>
 
-      <CodeEditor v-else v-model="content" :language="language" class="h-full min-h-0" />
+      <CodeEditor
+        v-else
+        ref="codeEditor"
+        v-model="content"
+        :language="language"
+        class="h-full min-h-0"
+      />
     </NSpin>
 
     <NModal
