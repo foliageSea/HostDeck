@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch, type CSSProperties } from 'vue'
+import { Bookmark, Terminal, Time } from '@vicons/carbon'
+import { NIcon } from 'naive-ui'
 import type { TerminalCompletionItem } from '../completion/terminalCompletion'
 
 const props = defineProps<{
@@ -20,6 +22,18 @@ const sourceLabels = {
   command: '命令',
   history: '历史',
   snippet: '片段',
+} as const
+
+const sourceIcons = {
+  command: Terminal,
+  history: Time,
+  snippet: Bookmark,
+} as const
+
+const sourceIconColors = {
+  command: 'text-blue-400',
+  history: 'text-amber-400',
+  snippet: 'text-cyan-400',
 } as const
 
 watch(
@@ -72,13 +86,11 @@ watch(
           @mouseenter="emit('hover', index)"
           @click="emit('select', item)"
         >
-          <span
-            class="h-[6px] w-[6px] shrink-0 rounded-full"
-            :class="{
-              'bg-cyan-400': item.source === 'snippet',
-              'bg-amber-400': item.source === 'history',
-              'bg-blue-400': item.source === 'command',
-            }"
+          <NIcon
+            class="shrink-0"
+            :class="sourceIconColors[item.source]"
+            :size="14"
+            :component="sourceIcons[item.source]"
           />
           <span
             class="min-w-0 flex-1 truncate font-mono text-[13px] leading-[18px]"
