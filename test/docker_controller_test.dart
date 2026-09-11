@@ -112,6 +112,48 @@ void main() {
     await iterator.cancel();
   });
 
+  test('opens image pull stream before SSH connection completes', () async {
+    final session = _FakeSshSession();
+    final sftpSession = Completer<SshSession>();
+    final sshService = _FakeSshService(
+      session,
+      sftpSession: sftpSession.future,
+    );
+    final repository = DockerEngineRepository();
+    addTearDown(repository.close);
+    final mapper = DockerEngineMapper();
+    final controller = DockerController(
+      sshService,
+      _FakeDockerContainerService(repository, mapper),
+      _FakeDockerImageService(repository, mapper),
+      DockerResourceService(repository, mapper),
+      DockerComposeService(SshRepository()),
+    );
+
+    final response = await controller.pullImageStream(
+      Request(
+        'POST',
+        Uri.parse(
+          'http://localhost/api/docker/images/pull/stream'
+          '?connectionId=connection-1',
+        ),
+        body: jsonEncode({'image': 'nginx:latest'}),
+      ),
+    );
+
+    expect(response.statusCode, 200);
+    expect(response.headers['connection'], 'keep-alive');
+    expect(response.context['shelf.io.buffer_output'], isFalse);
+    final iterator = StreamIterator<List<int>>(response.read());
+    expect(await iterator.moveNext(), isTrue);
+    expect(utf8.decode(iterator.current), startsWith(': '));
+
+    sftpSession.complete(session);
+    expect(await iterator.moveNext(), isTrue);
+    expect(utf8.decode(iterator.current), contains('event: done'));
+    await iterator.cancel();
+  });
+
   test('streams logs incrementally with output buffering disabled', () async {
     final session = _FakeSshSession();
     final sshService = _FakeSshService(session);
@@ -236,11 +278,22 @@ class _FakeDockerContainerService extends DockerContainerService {
   ) => const Stream.empty();
 }
 
+class _FakeDockerImageService extends DockerImageService {
+  _FakeDockerImageService(super.engineRepository, super.mapper);
+
+  @override
+  Stream<DockerImagePullEvent> pullImageStream(
+    SshSession session,
+    String imageRef,
+  ) => Stream.value(DockerImagePullEvent('done', {'image': imageRef}));
+}
+
 class _FakeSshService extends SshService {
   final SshSession session;
   final Future<SshSession>? shellSession;
+  final Future<SshSession>? sftpSession;
 
-  _FakeSshService(this.session, {this.shellSession});
+  _FakeSshService(this.session, {this.shellSession, this.sftpSession});
 
   @override
   SshSession? getSession(String id) => id == session.id ? session : null;
@@ -250,6 +303,12 @@ class _FakeSshService extends SshService {
     String connectionId, {
     required SshSessionPurpose purpose,
   }) => shellSession ?? Future.value(session);
+
+  @override
+  Future<SshSession> createSftpSession(
+    String connectionId, {
+    required SshSessionPurpose purpose,
+  }) => sftpSession ?? Future.value(session);
 }
 
 class _FakeDockerComposeService extends DockerComposeService {

@@ -932,38 +932,46 @@ class DockerController {
 
   /// 拉取镜像并通过 SSE 返回实时进度
   Future<Response> pullImageStream(Request request) async {
-    return _withSession(request, (session) async {
-      try {
-        final body = await request.readAsString();
-        final decoded = jsonDecode(body);
-        if (decoded is! Map<String, dynamic>) {
-          return Result.fail(400, 'Invalid image pull payload');
-        }
-        final image = decoded['image']?.toString().trim() ?? '';
-        if (image.isEmpty) {
-          return Result.fail(400, 'image is required');
-        }
-
-        return Response.ok(
-          _encodeImagePullEvents(_imageService.pullImageStream(session, image)),
-          headers: {
-            'content-type': 'text/event-stream; charset=utf-8',
-            'cache-control': 'no-cache, no-transform',
-            'x-accel-buffering': 'no',
-          },
-        );
-      } on FormatException catch (error) {
-        return Result.fail(400, error.message);
-      } catch (error) {
-        return Result.fail(500, error.toString());
+    try {
+      final decoded = jsonDecode(await request.readAsString());
+      if (decoded is! Map<String, dynamic>) {
+        return Result.fail(400, 'Invalid image pull payload');
       }
-    });
+      final image = decoded['image']?.toString().trim() ?? '';
+      if (image.isEmpty) {
+        return Result.fail(400, 'image is required');
+      }
+
+      return Response.ok(
+        _encodeImagePullEvents(_pullImageEvents(request, image)),
+        headers: const {
+          'content-type': 'text/event-stream; charset=utf-8',
+          'cache-control': 'no-cache, no-transform',
+          'connection': 'keep-alive',
+          'x-accel-buffering': 'no',
+        },
+        context: const {'shelf.io.buffer_output': false},
+      );
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    } catch (error) {
+      return Result.fail(500, error.toString());
+    }
+  }
+
+  Stream<DockerImagePullEvent> _pullImageEvents(
+    Request request,
+    String image,
+  ) async* {
+    final session = await _resolveSession(request);
+    yield* _imageService.pullImageStream(session, image);
   }
 
   Stream<List<int>> _encodeImagePullEvents(
     Stream<DockerImagePullEvent> events,
   ) async* {
     try {
+      yield utf8.encode(': ${' '.padRight(2048)}\n\n');
       await for (final event in events) {
         yield encodeServerSentEvent(event.event, event.data);
       }
