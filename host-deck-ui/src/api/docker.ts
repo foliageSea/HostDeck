@@ -198,6 +198,8 @@ export interface DockerComposeCreatePayload {
   workingDir: string
   fileName: string
   content: string
+  envContent?: string
+  writeEnvFile?: boolean
   startAfterCreate?: boolean
 }
 

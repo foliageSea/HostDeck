@@ -54,6 +54,8 @@ class DockerComposeService {
         ? payload['fileName'].toString().trim()
         : 'docker-compose.yml';
     final content = payload['content']?.toString() ?? '';
+    final envContent = payload['envContent']?.toString() ?? '';
+    final writeEnvFile = payload['writeEnvFile'] == true;
     final start = payload['startAfterCreate'] == true;
     if (projectName.isEmpty || workingDir.isEmpty || content.trim().isEmpty) {
       throw ArgumentError('projectName, workingDir and content are required');
@@ -78,6 +80,19 @@ class DockerComposeService {
       composePath,
       Stream.value(Uint8List.fromList(utf8.encode(content))),
     );
+    if (writeEnvFile) {
+      final envPath =
+          '${workingDir.endsWith('/') ? workingDir.substring(0, workingDir.length - 1) : workingDir}/.env';
+      yield const DockerComposeStreamEvent('phase', {
+        'phase': 'write-env',
+        'message': '正在写入 .env',
+      });
+      await _sshRepository.writeFileStream(
+        session,
+        envPath,
+        Stream.value(Uint8List.fromList(utf8.encode(envContent))),
+      );
+    }
 
     var started = false;
     String? startError;

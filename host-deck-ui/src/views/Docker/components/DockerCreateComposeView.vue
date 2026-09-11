@@ -2,11 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { LogoDocker } from '@vicons/ionicons5'
 import CodeEditor from '@/components/editor/CodeEditor.vue'
-import {
-  dockerApi,
-  type DockerComposeCreatePayload,
-  type DockerComposeProject,
-} from '@/api/docker'
+import { dockerApi, type DockerComposeCreatePayload, type DockerComposeProject } from '@/api/docker'
 import { filesApi } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
@@ -29,12 +25,15 @@ const sshStore = useSshStore()
 const outputStore = useDockerOutputStore()
 const creating = ref(false)
 const pickerVisible = ref(false)
+const editorTab = ref<'compose' | 'env'>('compose')
 const form = ref<DockerComposeCreatePayload>({
   projectName: '',
   workingDir: '',
   fileName: 'docker-compose.yml',
   content:
     'services:\n  app:\n    image: nginx:latest\n    ports:\n      - "18080:80"\n    restart: unless-stopped\n',
+  envContent: '',
+  writeEnvFile: false,
   startAfterCreate: true,
 })
 const connectionId = computed(() => props.connectionId ?? sshStore.connectionId)
@@ -60,6 +59,35 @@ async function loadExistingComposeFile(connectionId: string, directory: string, 
   }
 }
 
+async function loadEnvFile(connectionId: string, directory: string) {
+  try {
+    form.value.envContent = await filesApi.readFile(connectionId, resolve(directory, '.env'))
+    form.value.writeEnvFile = true
+  } catch (error) {
+    console.error('Failed to read existing .env file', error)
+    getUiApi().message.error('.env 读取失败，已保留当前内容。')
+  }
+}
+
+async function inspectEnvFile(connectionId: string, directory: string) {
+  form.value.envContent = ''
+  form.value.writeEnvFile = false
+  try {
+    const files = await filesApi.list(connectionId, directory)
+    if (files.some((file) => !file.isDirectory && file.filename === '.env')) {
+      await loadEnvFile(connectionId, directory)
+    }
+  } catch (error) {
+    console.error('Failed to inspect .env file', error)
+    getUiApi().message.error('.env 检查失败，请检查目录访问权限。')
+  }
+}
+
+function updateEnvContent(value: string) {
+  form.value.envContent = value
+  form.value.writeEnvFile = true
+}
+
 async function loadProjectForEditing() {
   const project = props.project
   const selectedConnectionId = connectionId.value
@@ -71,7 +99,10 @@ async function loadProjectForEditing() {
   form.value.workingDir = project.workingDir || configFile.slice(0, separatorIndex) || '/'
   form.value.fileName = configFile.slice(separatorIndex + 1)
   form.value.startAfterCreate = false
-  await loadExistingComposeFile(selectedConnectionId, form.value.workingDir, form.value.fileName)
+  await Promise.all([
+    loadExistingComposeFile(selectedConnectionId, form.value.workingDir, form.value.fileName),
+    inspectEnvFile(selectedConnectionId, form.value.workingDir),
+  ])
 }
 
 async function picked(value: FilePickerConfirmPayload) {
@@ -80,9 +111,12 @@ async function picked(value: FilePickerConfirmPayload) {
   if (!selectedPath || !selectedConnectionId) return
 
   form.value.workingDir = selectedPath
+  form.value.envContent = ''
+  form.value.writeEnvFile = false
   try {
     const files = await filesApi.list(selectedConnectionId, selectedPath)
     const names = new Set(files.filter((file) => !file.isDirectory).map((file) => file.filename))
+    if (names.has('.env')) await loadEnvFile(selectedConnectionId, selectedPath)
     const existingFileName = [form.value.fileName.trim(), ...composeFileNames].find((name) =>
       names.has(name),
     )
@@ -193,17 +227,27 @@ onMounted(() => void loadProjectForEditing())
             >选择目录</NButton
           >
         </div></NFormItem
-      ><NFormItem label="创建后立即启动"
+      ><NFormItem label="创建后立即启动" :show-feedback="false"
         ><NSwitch v-model:value="form.startAfterCreate" /></NFormItem
-      ><NFormItem label="Compose YAML" required class="compose-editor-item"
-        ><div class="min-h-0 w-full flex-1 overflow-hidden h-full">
-          <CodeEditor v-model="form.content" language="yaml" class="compose-editor h-full" />
-        </div></NFormItem
+      ><NFormItem :show-label="false" :show-feedback="false" class="compose-editor-item"
+        ><NTabs v-model:value="editorTab" type="line" class="compose-editor-tabs">
+          <NTabPane name="compose" tab="Compose YAML">
+            <CodeEditor v-model="form.content" language="yaml" class="compose-editor h-full" />
+          </NTabPane>
+          <NTabPane name="env" tab=".env">
+            <CodeEditor
+              :model-value="form.envContent ?? ''"
+              language="plaintext"
+              class="compose-editor h-full"
+              @update:model-value="updateEnvContent"
+            /> </NTabPane></NTabs></NFormItem
     ></NForm>
     <div class="flex shrink-0 justify-end border-t px-[18px] py-[12px]">
       <NSpace
         ><NButton @click="close">取消</NButton
-        ><NButton type="primary" :loading="creating" @click="submit">{{ editing ? '保存' : '创建' }}</NButton></NSpace
+        ><NButton type="primary" :loading="creating" @click="submit">{{
+          editing ? '保存' : '创建'
+        }}</NButton></NSpace
       >
     </div>
     <FilePickerDialog
@@ -235,5 +279,26 @@ onMounted(() => void loadProjectForEditing())
 
 .compose-editor-item :deep(.n-form-item-blank) {
   min-height: 0;
+}
+
+.compose-editor-tabs {
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.compose-editor-tabs :deep(.n-tabs-pane-wrapper) {
+  flex: 1;
+  overflow: hidden;
+}
+
+.compose-editor-tabs :deep(.n-tabs-pane-wrapper),
+.compose-editor-tabs :deep(.n-tab-pane) {
+  min-height: 0;
+  height: 100%;
+}
+
+.compose-editor-tabs :deep(.n-tab-pane) {
+  overflow: hidden;
 }
 </style>
