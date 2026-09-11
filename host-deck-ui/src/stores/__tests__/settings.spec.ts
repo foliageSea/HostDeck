@@ -47,15 +47,15 @@ describe('settings window controls style', () => {
     expect(useSettingsStore().windowControlsStyle).toBe('mac')
   })
 
-  it('enables window blur by default and persists a disabled value', async () => {
+  it('disables window blur by default and persists an enabled value', async () => {
     const settingsStore = useSettingsStore()
 
-    expect(settingsStore.windowBlur).toBe(true)
+    expect(settingsStore.windowBlur).toBe(false)
 
-    settingsStore.setWindowBlur(false)
+    settingsStore.setWindowBlur(true)
     await nextTick()
 
-    expect(window.localStorage.getItem('host-deck-ui.windowBlur')).toBe('false')
+    expect(window.localStorage.getItem('host-deck-ui.windowBlur')).toBe('true')
   })
 
   it('persists a custom window switch shortcut', async () => {

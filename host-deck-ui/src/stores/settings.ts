@@ -66,7 +66,7 @@ function resolveStoredDockAutoHide(): boolean {
 }
 
 function resolveStoredWindowBlur(): boolean {
-  return window.localStorage.getItem(WINDOW_BLUR_STORAGE_KEY) !== 'false'
+  return window.localStorage.getItem(WINDOW_BLUR_STORAGE_KEY) === 'true'
 }
 
 function resolveStoredWindowSwitchShortcut(): KeyboardShortcut {

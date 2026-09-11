@@ -62,6 +62,8 @@ describe('DesktopWindow', () => {
     const desktopWindow = desktopStore.windows.find((window) => window.id === windowId)!
     const wrapper = shallowMount(DesktopWindow, { props: { window: desktopWindow } })
 
+    settingsStore.setWindowBlur(true)
+    await nextTick()
     expect(wrapper.get('[data-window-title-bar]').classes()).toContain('backdrop-blur-[18px]')
     expect(wrapper.get('[data-window-body]').classes()).toContain('backdrop-blur-[22px]')
 
