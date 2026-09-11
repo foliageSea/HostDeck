@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { LayoutGrid } from '@lucide/vue'
 import AppIcon from '@/components/common/AppIcon.vue'
+import { preloadAppIcons } from '@/lib/app-icons'
 import { useDesktopStore, type AppConfig } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import type { DesktopAppId } from '@/types/desktop'
@@ -55,6 +56,14 @@ const dockApps = computed<AppConfig[]>(() =>
   desktopStore.dockAppIds
     .map((appId) => desktopStore.apps[appId])
     .filter((app): app is AppConfig => Boolean(app?.showInLaunchpad)),
+)
+
+watch(
+  () => dockApps.value.map((app) => app.icon),
+  (icons) => {
+    void preloadAppIcons(icons)
+  },
+  { immediate: true },
 )
 const isDockExpanded = computed(
   () => !settingsStore.dockAutoHide || Boolean(selectorAppId.value || contextMenu.value),

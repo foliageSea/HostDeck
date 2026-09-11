@@ -18,24 +18,7 @@ import {
 import { LogoDocker } from '@vicons/ionicons5'
 import { ScrollText } from '@lucide/vue'
 import type { Component } from 'vue'
-import dashboardIconUrl from '@/assets/mac-tahoe/src/apps/scalable/utilities-system-monitor.svg'
-import dockerIconUrl from '@/assets/mac-tahoe/src/apps/scalable/docker.svg'
-import editorIconUrl from '@/assets/mac-tahoe/src/apps/scalable/accessories-text-editor.svg'
-import fallbackAppIconUrl from '@/assets/mac-tahoe/src/apps/scalable/application-default-icon.svg'
-import fileManagerIconUrl from '@/assets/mac-tahoe/src/apps/scalable/file-manager.svg'
-import linkIconUrl from '@/assets/mac-tahoe/src/apps/scalable/junction.svg'
-import logoutIconUrl from '@/assets/mac-tahoe/src/apps/scalable/log-out.svg'
-import mediaIconUrl from '@/assets/mac-tahoe/src/apps/scalable/eog.svg'
-import operationLogIconUrl from '@/assets/mac-tahoe/src/apps/scalable/gpk-log.svg'
-import portForwardIconUrl from '@/assets/mac-tahoe/src/apps/22/network-connect.svg'
-import processManagerIconUrl from '@/assets/mac-tahoe/src/apps/scalable/net.nokyan.Resources.svg'
-import secureBrowserIconUrl from '@/assets/mac-tahoe/src/apps/scalable/web-browser.svg'
-import realtimeLogIconUrl from '@/assets/mac-tahoe/src/apps/scalable/logview.svg'
-import runtimeIconUrl from '@/assets/mac-tahoe/src/apps/scalable/multitasking-view.svg'
-import settingsIconUrl from '@/assets/mac-tahoe/src/apps/scalable/preferences-system.svg'
-import taskIconUrl from '@/assets/mac-tahoe/src/apps/scalable/evolution-tasks.svg'
-import taskCenterIconUrl from '@/assets/mac-tahoe/src/apps/scalable/stacks-task-manager.svg'
-import terminalIconUrl from '@/assets/mac-tahoe/src/apps/scalable/terminal.svg'
+import { themedAppIconMap } from '@/lib/app-icons'
 import type { AppIconKey } from '@/types/desktop'
 
 const props = withDefaults(
@@ -74,34 +57,13 @@ const iconMap: Record<AppIconKey, Component> = {
 }
 
 const icon = computed(() => iconMap[props.name])
-const themedIconMap: Record<AppIconKey, string> = {
-  dashboard: dashboardIconUrl,
-  'cron-task': taskIconUrl,
-  docker: dockerIconUrl,
-  editor: editorIconUrl,
-  folder: fileManagerIconUrl,
-  'iframe-app': fallbackAppIconUrl,
-  link: linkIconUrl,
-  logout: logoutIconUrl,
-  media: mediaIconUrl,
-  opencode: '/opencode.ico',
-  'operation-log': operationLogIconUrl,
-  'realtime-log': realtimeLogIconUrl,
-  process: processManagerIconUrl,
-  'port-forward': portForwardIconUrl,
-  'secure-browser': secureBrowserIconUrl,
-  runtime: runtimeIconUrl,
-  settings: settingsIconUrl,
-  terminal: terminalIconUrl,
-  'task-center': taskCenterIconUrl,
-}
 const iconImageSrc = computed(() => {
   if (props.themed) {
-    return themedIconMap[props.name]
+    return themedAppIconMap[props.name]
   }
 
-  if (props.name === 'opencode') return '/opencode.ico'
-  return props.name === 'process' ? processManagerIconUrl : null
+  if (props.name === 'opencode') return themedAppIconMap.opencode
+  return props.name === 'process' ? themedAppIconMap.process : null
 })
 </script>
 

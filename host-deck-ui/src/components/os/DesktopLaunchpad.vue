@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { Pin, PinOff, Search, X } from '@lucide/vue'
 import AppIcon from '@/components/common/AppIcon.vue'
+import { preloadAppIcons } from '@/lib/app-icons'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import type { DesktopAppId } from '@/types/desktop'
@@ -19,14 +20,24 @@ const settingsStore = useSettingsStore()
 const query = ref('')
 const searchInput = ref<HTMLInputElement | null>(null)
 
+const launchpadApps = computed(() =>
+  Object.values(desktopStore.apps).filter((app) => app.showInLaunchpad),
+)
+
 const apps = computed(() => {
   const normalizedQuery = query.value.trim().toLocaleLowerCase()
-  return Object.values(desktopStore.apps).filter(
-    (app) =>
-      app.showInLaunchpad &&
-      (!normalizedQuery || app.title.toLocaleLowerCase().includes(normalizedQuery)),
+  return launchpadApps.value.filter(
+    (app) => !normalizedQuery || app.title.toLocaleLowerCase().includes(normalizedQuery),
   )
 })
+
+watch(
+  () => launchpadApps.value.map((app) => app.icon),
+  (icons) => {
+    void preloadAppIcons(icons)
+  },
+  { immediate: true },
+)
 
 watch(
   () => props.show,
