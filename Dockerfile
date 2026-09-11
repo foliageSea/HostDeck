@@ -4,10 +4,11 @@ ARG HOSTDECK_REVISION=unknown
 FROM node:20-bookworm-slim AS web-builder
 WORKDIR /src/host-deck-ui
 
-COPY host-deck-ui/package.json host-deck-ui/pnpm-lock.yaml* ./
-RUN npm install -g pnpm && pnpm install
+COPY host-deck-ui/package.json host-deck-ui/pnpm-lock.yaml* host-deck-ui/pnpm-workspace.yaml ./
+RUN npm install -g pnpm@10.34.5 && pnpm install
 
 COPY host-deck-ui/ ./
+COPY LICENSE THIRD_PARTY_NOTICES.md /src/
 RUN pnpm build
 
 FROM ghcr.io/cirruslabs/flutter:stable AS server-builder
