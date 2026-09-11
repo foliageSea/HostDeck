@@ -232,6 +232,29 @@ export interface DockerCreateVolumePayload {
   labels?: Record<string, string>
 }
 
+export interface DockerProxyConfiguration {
+  enabled: boolean
+  httpProxy: string
+  httpsProxy: string
+  noProxy: string
+}
+
+export interface DockerRegistrySetting {
+  id?: number
+  address: string
+  name: string
+  namespace: string
+  authentication: boolean
+  username: string
+  password?: string
+}
+
+export interface DockerConfiguration {
+  mirrors: string[]
+  proxy: DockerProxyConfiguration
+  registries: DockerRegistrySetting[]
+}
+
 export interface DockerNetworkContainerPayload {
   container: string
   force?: boolean
@@ -336,6 +359,34 @@ export const dockerApi = {
     const response = await http.get<{ available: boolean }>('/api/docker/check', {
       params: { connectionId },
     })
+    return response.data
+  },
+
+  async getConfiguration(connectionId: string) {
+    const response = await http.get<DockerConfiguration>('/api/docker/configuration', {
+      params: { connectionId },
+    })
+    return response.data
+  },
+
+  async updateDaemonConfiguration(
+    connectionId: string,
+    payload: Partial<Pick<DockerConfiguration, 'mirrors' | 'proxy'>>,
+  ) {
+    const response = await http.put<DockerConfiguration>(
+      '/api/docker/configuration/daemon',
+      payload,
+      { params: { connectionId } },
+    )
+    return response.data
+  },
+
+  async updateRegistries(connectionId: string, registries: DockerRegistrySetting[]) {
+    const response = await http.put<DockerRegistrySetting[]>(
+      '/api/docker/configuration/registries',
+      registries,
+      { params: { connectionId } },
+    )
     return response.data
   },
 

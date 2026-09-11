@@ -14,6 +14,7 @@ import 'package:host_deck/server/features/auth/auth_controller.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_repository.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_service.dart';
+import 'package:host_deck/server/features/docker/docker_config_service.dart';
 import 'package:host_deck/server/features/docker/docker_container_service.dart';
 import 'package:host_deck/server/features/docker/docker_compose_service.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
@@ -21,6 +22,7 @@ import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
 import 'package:host_deck/server/features/docker/docker_image_service.dart';
 import 'package:host_deck/server/features/docker/docker_resource_service.dart';
+import 'package:host_deck/server/features/docker/docker_registry_repository.dart';
 import 'package:host_deck/server/features/docker/docker_socket_tunnel_service.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
 import 'package:host_deck/server/features/files/file_service.dart';
@@ -178,6 +180,15 @@ class ServerContainer {
     getIt.registerLazySingleton<DockerComposeService>(
       () => DockerComposeService(getIt<SshRepository>()),
     );
+    getIt.registerLazySingleton<DockerRegistryRepository>(
+      () => DockerRegistryRepository(getIt<DatabaseService>()),
+    );
+    getIt.registerLazySingleton<DockerConfigService>(
+      () => DockerConfigService(
+        getIt<SshRepository>(),
+        getIt<DockerRegistryRepository>(),
+      ),
+    );
     getIt.registerLazySingleton<DockerContainerService>(
       () => DockerContainerService(
         getIt<DockerEngineRepository>(),
@@ -261,6 +272,7 @@ class ServerContainer {
           getIt<DockerImageService>(),
           getIt<DockerResourceService>(),
           getIt<DockerComposeService>(),
+          getIt<DockerConfigService>(),
         ),
         cronTaskController: CronTaskController(
           getIt<SshService>(),

@@ -12,6 +12,7 @@ import DockerInspectModal from './components/DockerInspectModal.vue'
 import DockerImagesTab from './components/DockerImagesTab.vue'
 import DockerNetworksTab from './components/DockerNetworksTab.vue'
 import DockerOverviewTab from './components/DockerOverviewTab.vue'
+import DockerSettingsTab from './components/DockerSettingsTab.vue'
 import DockerRenameContainerModal from './components/DockerRenameContainerModal.vue'
 import DockerVolumesTab from './components/DockerVolumesTab.vue'
 import { useDockerView, type DockerViewController } from './hooks/useDockerView'
@@ -90,6 +91,13 @@ const controller: DockerViewController = reactive(useDockerView(props))
 
         <NTabPane name="volumes" tab="存储" class="docker-internal-scroll-pane">
           <DockerVolumesTab :controller="controller" />
+        </NTabPane>
+
+        <NTabPane name="settings" tab="设置">
+          <DockerSettingsTab
+            :connection-id="controller.requireConnectionId()"
+            :window-id="props.windowId"
+          />
         </NTabPane>
       </NTabs>
     </NSpin>

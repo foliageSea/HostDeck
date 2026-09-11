@@ -207,6 +207,46 @@ class DatabaseService {
       ''');
       _setVersion(6);
     }
+
+    // v6 -> v7: Store Docker registry metadata per remote host and user.
+    if (currentVersion < 7) {
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS docker_registries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          targetKey TEXT NOT NULL,
+          address TEXT NOT NULL,
+          name TEXT NOT NULL,
+          namespace TEXT NOT NULL DEFAULT '',
+          authentication INTEGER NOT NULL DEFAULT 0,
+          username TEXT NOT NULL DEFAULT '',
+          UNIQUE(targetKey, address)
+        )
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_docker_registries_target
+        ON docker_registries(targetKey, id)
+      ''');
+      _setVersion(7);
+    }
+
+    // v7 -> v8: Upgrade installations created with the temporary connectionId key.
+    if (currentVersion < 8) {
+      final columns = _db
+          .select('PRAGMA table_info(docker_registries)')
+          .map((row) => row['name'] as String)
+          .toSet();
+      if (columns.contains('connectionId') && !columns.contains('targetKey')) {
+        _db.execute(
+          'ALTER TABLE docker_registries RENAME COLUMN connectionId TO targetKey',
+        );
+      }
+      _db.execute('DROP INDEX IF EXISTS idx_docker_registries_connection');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_docker_registries_target
+        ON docker_registries(targetKey, id)
+      ''');
+      _setVersion(8);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

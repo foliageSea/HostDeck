@@ -6,6 +6,12 @@ void registerDockerRoutes(Router router, DockerController controller) {
   router.post('/api/docker/session', controller.createSession);
   router.delete('/api/docker/session', controller.closeSession);
   router.get('/api/docker/check', controller.checkDocker);
+  router.get('/api/docker/configuration', controller.getConfiguration);
+  router.put('/api/docker/configuration/daemon', controller.updateDaemonConfig);
+  router.put(
+    '/api/docker/configuration/registries',
+    controller.updateRegistries,
+  );
   router.get('/api/docker/compose/check', controller.checkCompose);
   router.get('/api/docker/compose/projects', controller.listComposeProjects);
   router.post(

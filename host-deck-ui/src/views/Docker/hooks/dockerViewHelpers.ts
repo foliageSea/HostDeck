@@ -38,6 +38,7 @@ export function formatDateTime(value: Date | null) {
 export function createLoadedTabs(): Record<DockerTabName, boolean> {
   return {
     compose: false,
+    settings: false,
     containers: false,
     images: false,
     networks: false,

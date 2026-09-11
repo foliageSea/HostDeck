@@ -13,6 +13,7 @@ import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/docker/docker_container.dart';
 import 'package:host_deck/server/features/docker/docker_container_service.dart';
 import 'package:host_deck/server/features/docker/docker_compose_service.dart';
+import 'package:host_deck/server/features/docker/docker_config_service.dart';
 import 'package:host_deck/server/features/docker/docker_image.dart';
 import 'package:host_deck/server/features/docker/docker_image_service.dart';
 import 'package:host_deck/server/features/docker/docker_resource_service.dart';
@@ -23,6 +24,7 @@ class DockerController {
   final DockerImageService _imageService;
   final DockerResourceService _resourceService;
   final DockerComposeService _composeService;
+  final DockerConfigService? _configService;
   final SharedSshSessionResolver _sessionResolver;
   final SharedSshSessionResolver _composeSessionResolver;
 
@@ -31,17 +33,18 @@ class DockerController {
     this._containerService,
     this._imageService,
     this._resourceService,
-    this._composeService,
-  ) : _sessionResolver = SharedSshSessionResolver(
-        _sshService,
-        type: SharedSshSessionType.sftp,
-        purpose: SshSessionPurpose.docker,
-      ),
-      _composeSessionResolver = SharedSshSessionResolver(
-        _sshService,
-        type: SharedSshSessionType.shell,
-        purpose: SshSessionPurpose.dockerCompose,
-      );
+    this._composeService, [
+    this._configService,
+  ]) : _sessionResolver = SharedSshSessionResolver(
+         _sshService,
+         type: SharedSshSessionType.sftp,
+         purpose: SshSessionPurpose.docker,
+       ),
+       _composeSessionResolver = SharedSshSessionResolver(
+         _sshService,
+         type: SharedSshSessionType.shell,
+         purpose: SshSessionPurpose.dockerCompose,
+       );
 
   Future<SshSession> _resolveSession(Request request) async {
     return _sessionResolver.resolveFromRequest(request);
@@ -173,6 +176,59 @@ class DockerController {
         'available': await _composeService.isComposeAvailable(session),
       });
     });
+  }
+
+  Future<Response> getConfiguration(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        return Result.ok(
+          await _requireConfigService().getConfiguration(session),
+        );
+      } catch (error) {
+        return Result.fail(500, error.toString());
+      }
+    });
+  }
+
+  Future<Response> updateDaemonConfig(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final payload = jsonDecode(await request.readAsString());
+        if (payload is! Map<String, dynamic>) {
+          return Result.fail(400, 'Invalid Docker configuration payload');
+        }
+        return Result.ok(
+          await _requireConfigService().updateDaemonConfig(session, payload),
+        );
+      } on ArgumentError catch (error) {
+        return Result.fail(400, error.message?.toString() ?? error.toString());
+      } catch (error) {
+        return Result.fail(500, error.toString());
+      }
+    });
+  }
+
+  Future<Response> updateRegistries(Request request) async {
+    return _withSession(request, (session) async {
+      try {
+        final payload = jsonDecode(await request.readAsString());
+        return Result.ok(
+          await _requireConfigService().updateRegistries(session, payload),
+        );
+      } on ArgumentError catch (error) {
+        return Result.fail(400, error.message?.toString() ?? error.toString());
+      } catch (error) {
+        return Result.fail(500, error.toString());
+      }
+    });
+  }
+
+  DockerConfigService _requireConfigService() {
+    final service = _configService;
+    if (service == null) {
+      throw StateError('Docker configuration is unavailable');
+    }
+    return service;
   }
 
   Future<Response> listComposeProjects(Request request) async {

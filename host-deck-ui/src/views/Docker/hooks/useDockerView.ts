@@ -454,6 +454,9 @@ export function useDockerView(props: DockerViewProps) {
     if (tab === 'compose') {
       return '加载 Docker 编排失败。'
     }
+    if (tab === 'settings') {
+      return '加载 Docker 配置失败。'
+    }
     return '加载 Docker 数据失败。'
   }
 
@@ -517,7 +520,7 @@ export function useDockerView(props: DockerViewProps) {
           await loadVolumes()
         } else if (tab === 'compose') {
           await loadComposeProjects()
-        } else {
+        } else if (tab === 'overview') {
           await loadContainersPage()
           await loadImagesPage()
           await loadNetworks()
