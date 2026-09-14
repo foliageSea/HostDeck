@@ -1,7 +1,39 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
+import {
+  computed,
+  h,
+  onMounted,
+  ref,
+  watch,
+  type Component,
+  type ComponentPublicInstance,
+} from 'vue'
 import { useLocalStorage } from '@vueuse/core'
-import { Upload } from '@vicons/carbon'
+import {
+  Archive,
+  Copy,
+  CopyLink,
+  DocumentAdd,
+  Download,
+  Edit,
+  FolderAdd,
+  FolderMoveTo,
+  FolderOpen,
+  Information,
+  Locked,
+  Paste,
+  Pin,
+  PinFilled,
+  Renew,
+  Select01,
+  Star,
+  StarFilled,
+  Terminal,
+  TrashCan,
+  Upload,
+  Zip,
+} from '@vicons/carbon'
+import { NIcon } from 'naive-ui'
 import { filesApi, type FileItem } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
@@ -104,6 +136,10 @@ const contextMenu = ref<{
 const isFavoriteSidebarVisible = useLocalStorage(FAVORITE_SIDEBAR_VISIBLE_STORAGE_KEY, false)
 const favoriteSidebarWidth = useLocalStorage(FAVORITE_SIDEBAR_WIDTH_STORAGE_KEY, 252)
 const columnBrowserRef = ref<InstanceType<typeof FileColumnBrowser> | null>(null)
+
+function renderMenuIcon(icon: Component) {
+  return () => h(NIcon, { size: 16 }, { default: () => h(icon) })
+}
 
 async function refreshVisibleFiles() {
   await fileStore.fetchFiles()
@@ -224,62 +260,74 @@ const contextMenuOptions = computed(() => {
       {
         label: '打开',
         key: 'open',
+        icon: renderMenuIcon(FolderOpen),
         disabled: selectedFiles.value.length !== 1,
       },
       {
         label: '使用文本编辑器打开',
         key: 'open-in-editor',
+        icon: renderMenuIcon(Edit),
         disabled: !canOpenSelectedFileInEditor.value,
       },
       {
         label: '解压缩',
         key: 'extract',
+        icon: renderMenuIcon(Archive),
         disabled: !canExtractSelectedArchive.value,
       },
       {
         label: '压缩',
         key: 'compress',
+        icon: renderMenuIcon(Zip),
         disabled: !canCompressSelectedItem.value,
       },
       {
         label: '下载',
         key: 'download',
+        icon: renderMenuIcon(Download),
         disabled: selectedFiles.value.length === 0,
       },
       {
         label: '复制',
         key: 'copy',
+        icon: renderMenuIcon(Copy),
         disabled: selectedFiles.value.length === 0,
       },
       {
         label: '复制路径',
         key: 'copy-path',
+        icon: renderMenuIcon(CopyLink),
         disabled: selectedFiles.value.length !== 1,
       },
       {
         label: '移动',
         key: 'move',
+        icon: renderMenuIcon(FolderMoveTo),
         disabled: selectedFiles.value.length === 0,
       },
       { type: 'divider', key: 'file-divider-1' },
       {
         label: '重命名',
         key: 'rename',
+        icon: renderMenuIcon(Edit),
         disabled: selectedFiles.value.length !== 1,
       },
       {
         label: '删除',
         key: 'delete',
+        icon: renderMenuIcon(TrashCan),
         disabled: selectedFiles.value.length === 0,
       },
       {
         label: '修改权限',
         key: 'chmod',
+        icon: renderMenuIcon(Locked),
         disabled: selectedFiles.value.length !== 1,
       },
       {
         label: '属性',
         key: 'properties',
+        icon: renderMenuIcon(Information),
         disabled: selectedFiles.value.length !== 1,
       },
     ]
@@ -290,11 +338,15 @@ const contextMenuOptions = computed(() => {
           ? '取消收藏该目录'
           : '收藏该目录',
         key: 'toggle-selected-directory-favorite',
+        icon: renderMenuIcon(
+          fileStore.isFavoritePath(selectedDirectoryPath.value) ? StarFilled : Star,
+        ),
         disabled: false,
       })
       options.splice(3, 0, {
         label: isSelectedDirectoryPinned.value ? '从桌面移除该目录' : '将该目录钉到桌面',
         key: 'toggle-selected-directory-pin',
+        icon: renderMenuIcon(isSelectedDirectoryPinned.value ? PinFilled : Pin),
         disabled: false,
       })
     }
@@ -303,33 +355,47 @@ const contextMenuOptions = computed(() => {
   }
 
   return [
-    { label: '新建目录', key: 'new-directory' },
-    { label: '新建文件', key: 'new-file' },
-    { label: '上传文件', key: 'upload', disabled: isUploading.value },
-    { label: '上传目录', key: 'upload-directory', disabled: isUploading.value },
+    { label: '新建目录', key: 'new-directory', icon: renderMenuIcon(FolderAdd) },
+    { label: '新建文件', key: 'new-file', icon: renderMenuIcon(DocumentAdd) },
+    {
+      label: '上传文件',
+      key: 'upload',
+      icon: renderMenuIcon(Upload),
+      disabled: isUploading.value,
+    },
+    {
+      label: '上传目录',
+      key: 'upload-directory',
+      icon: renderMenuIcon(Upload),
+      disabled: isUploading.value,
+    },
     {
       label: clipboardPasteLabel.value,
       key: 'paste',
+      icon: renderMenuIcon(Paste),
       disabled: !canPasteToCurrentPath.value,
     },
-    { label: '复制当前路径', key: 'copy-current-path' },
+    { label: '复制当前路径', key: 'copy-current-path', icon: renderMenuIcon(CopyLink) },
     { type: 'divider', key: 'blank-divider-1' },
-    { label: '刷新', key: 'refresh' },
+    { label: '刷新', key: 'refresh', icon: renderMenuIcon(Renew) },
     {
       label: '全选',
       key: 'select-all',
+      icon: renderMenuIcon(Select01),
       disabled: fileStore.displayFiles.length === 0,
     },
     { type: 'divider', key: 'blank-divider-2' },
     {
       label: isCurrentPathFavorite.value ? '取消收藏当前目录' : '收藏当前目录',
       key: 'toggle-current-favorite',
+      icon: renderMenuIcon(isCurrentPathFavorite.value ? StarFilled : Star),
     },
     {
       label: isCurrentPathPinned.value ? '从桌面移除当前目录' : '将当前目录钉到桌面',
       key: 'toggle-current-directory-pin',
+      icon: renderMenuIcon(isCurrentPathPinned.value ? PinFilled : Pin),
     },
-    { label: '在当前目录打开终端', key: 'terminal' },
+    { label: '在当前目录打开终端', key: 'terminal', icon: renderMenuIcon(Terminal) },
   ]
 })
 const breadcrumbs = computed(() => {
