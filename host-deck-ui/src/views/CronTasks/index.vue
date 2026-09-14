@@ -38,6 +38,14 @@ const templates = {
   },
 } as const
 
+const createOptions = [
+  { label: '新建任务', key: 'blank' },
+  { type: 'divider', key: 'template-divider' },
+  { label: '快速创建备份', key: 'backup' },
+  { label: '快速创建清理', key: 'cleanup' },
+  { label: '快速创建健康检查', key: 'health-check' },
+]
+
 function resetForm() {
   editingId.value = null
   form.name = ''
@@ -58,6 +66,11 @@ function applyTemplate(type: keyof typeof templates) {
 function openCreate() {
   resetForm()
   editorVisible.value = true
+}
+
+function handleCreate(key: string | number) {
+  openCreate()
+  if (key === 'backup' || key === 'cleanup' || key === 'health-check') applyTemplate(key)
 }
 
 function openEdit(task: CronTask) {
@@ -198,14 +211,9 @@ onMounted(() => void loadTasks())
   <div class="flex h-full min-h-0 flex-col gap-[14px] p-[18px]" :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]'">
     <div class="flex flex-wrap items-center justify-between gap-[12px]">
       <div><div class="text-[18px] font-700">定时任务</div><div class="mt-1 text-[12px] opacity-60">管理 HostDeck 托管的远端 crontab 与执行历史</div></div>
-      <div class="flex gap-2"><NButton size="small" secondary :loading="loading" :disabled="!connected" @click="loadTasks"><RefreshCw :size="15" /></NButton><NButton size="small" type="primary" :disabled="!connected" @click="openCreate"><template #icon><Plus :size="16" /></template>新增任务</NButton></div>
+      <div class="flex gap-2"><NButton size="small" secondary :loading="loading" :disabled="!connected" @click="loadTasks"><RefreshCw :size="15" /></NButton><NDropdown trigger="click" :options="createOptions" @select="handleCreate"><NButton size="small" type="primary" :disabled="!connected"><template #icon><Plus :size="16" /></template>新增任务</NButton></NDropdown></div>
     </div>
     <NAlert v-if="!connected" type="warning" :show-icon="true">请先建立 SSH 连接。</NAlert>
-    <div class="grid grid-cols-3 gap-2 lt-md:grid-cols-1">
-      <NButton secondary @click="openCreate(); applyTemplate('backup')">快速创建备份</NButton>
-      <NButton secondary @click="openCreate(); applyTemplate('cleanup')">快速创建清理</NButton>
-      <NButton secondary @click="openCreate(); applyTemplate('health-check')">快速创建健康检查</NButton>
-    </div>
     <NDataTable class="min-h-0 flex-1" :columns="taskColumns" :data="tasks" :loading="loading" :pagination="{ pageSize: 12 }" :row-key="(row: CronTask) => row.id" flex-height size="small" />
 
     <NModal v-model:show="editorVisible" preset="card" :title="editingId === null ? '新增定时任务' : '编辑定时任务'" style="width: min(680px, calc(100vw - 32px))">
