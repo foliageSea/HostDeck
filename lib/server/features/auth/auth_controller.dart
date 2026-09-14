@@ -31,6 +31,7 @@ class AuthController {
         host: server?.host ?? data['host'],
         port: server?.port ?? int.parse(data['port'].toString()),
         username: server?.username ?? data['username'],
+        serverId: server?.id,
         password: server?.password ?? _stringOrNull(data['password']),
         privateKey: server?.privateKey ?? _stringOrNull(data['privateKey']),
       );
@@ -52,6 +53,7 @@ class AuthController {
         host: server?.host ?? data['host'],
         port: server?.port ?? int.parse(data['port'].toString()),
         username: server?.username ?? data['username'],
+        serverId: server?.id,
         password: server?.password ?? _stringOrNull(data['password']),
         privateKey: server?.privateKey ?? _stringOrNull(data['privateKey']),
       );

@@ -25,33 +25,36 @@ void main() {
       await dataDirectory.delete(recursive: true);
     });
 
-    test('stores tasks per connection and keeps execution history', () {
+    test('stores tasks per server and keeps execution history', () {
       final task = repository.add(
         const CronTask(
-          connectionId: 'connection-a',
+          serverId: 1,
           name: 'Daily backup',
           schedule: '0 2 * * *',
           command: 'echo backup',
           enabled: true,
         ),
+        connectionId: 'connection-a',
       );
       repository.add(
         const CronTask(
-          connectionId: 'connection-b',
+          serverId: 2,
           name: 'Other task',
           schedule: '@daily',
           command: 'echo other',
           enabled: true,
         ),
+        connectionId: 'connection-b',
       );
 
-      expect(repository.list('connection-a'), hasLength(1));
-      expect(repository.list('connection-b'), hasLength(1));
+      expect(repository.list(1), hasLength(1));
+      expect(repository.list(2), hasLength(1));
 
       repository.addHistory(
         CronExecutionHistory(
           taskId: task.id!,
-          connectionId: task.connectionId,
+          serverId: task.serverId,
+          connectionId: 'connection-a',
           triggerType: 'scheduled',
           startedAt: 1000,
           finishedAt: 2000,
@@ -64,7 +67,8 @@ void main() {
       repository.addHistory(
         CronExecutionHistory(
           taskId: task.id!,
-          connectionId: task.connectionId,
+          serverId: task.serverId,
+          connectionId: 'connection-a',
           triggerType: 'scheduled',
           startedAt: 1000,
           finishedAt: 2000,
@@ -83,7 +87,7 @@ void main() {
     test('rejects cron task input containing line breaks', () {
       expect(
         () => CronTask.fromJson({
-          'connectionId': 'connection-a',
+          'serverId': 1,
           'name': 'unsafe\nname',
           'schedule': '0 2 * * *',
           'command': 'echo safe',
@@ -92,7 +96,7 @@ void main() {
       );
       expect(
         () => CronTask.fromJson({
-          'connectionId': 'connection-a',
+          'serverId': 1,
           'name': 'unsafe command',
           'schedule': '0 2 * * *',
           'command': 'echo safe\nrm -rf /',

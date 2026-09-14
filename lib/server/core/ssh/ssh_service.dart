@@ -35,6 +35,7 @@ class SshService {
   final Map<String, SshSession> _sessions = {};
   final Map<String, Set<SshSessionPurpose>> _sessionPurposes = {};
   final Map<String, SSHClient> _clients = {};
+  final Map<String, int?> _connectionServerIds = {};
   final Map<String, SshOperationLimiter> _operationLimiters = {};
   final List<FutureOr<void> Function(String connectionId)>
   _disconnectListeners = [];
@@ -46,6 +47,7 @@ class SshService {
     required String host,
     required int port,
     required String username,
+    int? serverId,
     String? password,
     String? privateKey,
   }) async {
@@ -64,6 +66,7 @@ class SshService {
 
     final connectionId = _generateId();
     _clients[connectionId] = client;
+    _connectionServerIds[connectionId] = serverId;
     _operationLimiters[connectionId] = SshOperationLimiter(
       maxConcurrentOperations: maxConcurrentOperations,
     );
@@ -83,6 +86,8 @@ class SshService {
 
     return connectionId;
   }
+
+  int? getServerId(String connectionId) => _connectionServerIds[connectionId];
 
   Future<SshSession> createShell(
     String connectionId, {
@@ -306,6 +311,7 @@ class SshService {
       _sessionPurposes.remove(session.id);
     }
     _clients.remove(connectionId);
+    _connectionServerIds.remove(connectionId);
     _operationLimiters.remove(connectionId);
     for (final listener in _disconnectListeners) {
       unawaited(Future.sync(() => listener(connectionId)));

@@ -7,10 +7,10 @@ class CronTaskRepository {
 
   CronTaskRepository(this._databaseService);
 
-  List<CronTask> list(String connectionId) => _databaseService.db
+  List<CronTask> list(int serverId) => _databaseService.db
       .select(
-        'SELECT * FROM cron_tasks WHERE connectionId = ? ORDER BY updatedAt DESC, id DESC',
-        [connectionId],
+        'SELECT * FROM cron_tasks WHERE serverId = ? ORDER BY updatedAt DESC, id DESC',
+        [serverId],
       )
       .map(_taskFromRow)
       .toList();
@@ -23,14 +23,15 @@ class CronTaskRepository {
     return rows.isEmpty ? null : _taskFromRow(rows.first);
   }
 
-  CronTask add(CronTask task) {
+  CronTask add(CronTask task, {required String connectionId}) {
     final now = DateTime.now().millisecondsSinceEpoch;
     _databaseService.db.execute(
       '''INSERT INTO cron_tasks
-        (connectionId, name, schedule, command, enabled, templateType, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+        (connectionId, serverId, name, schedule, command, enabled, templateType, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
       [
-        task.connectionId,
+        connectionId,
+        task.serverId,
         task.name,
         task.schedule,
         task.command,
@@ -42,7 +43,8 @@ class CronTaskRepository {
     );
     return CronTask(
       id: _databaseService.db.lastInsertRowId,
-      connectionId: task.connectionId,
+      serverId: task.serverId,
+      connectionId: connectionId,
       name: task.name,
       schedule: task.schedule,
       command: task.command,
@@ -56,11 +58,12 @@ class CronTaskRepository {
   void restore(CronTask task) {
     _databaseService.db.execute(
       '''INSERT OR REPLACE INTO cron_tasks
-        (id, connectionId, name, schedule, command, enabled, templateType, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (id, connectionId, serverId, name, schedule, command, enabled, templateType, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
       [
         task.id,
-        task.connectionId,
+        task.connectionId ?? '',
+        task.serverId,
         task.name,
         task.schedule,
         task.command,
@@ -77,9 +80,10 @@ class CronTaskRepository {
     if (existing == null) return null;
     final now = DateTime.now().millisecondsSinceEpoch;
     _databaseService.db.execute(
-      '''UPDATE cron_tasks SET name = ?, schedule = ?, command = ?, enabled = ?,
+      '''UPDATE cron_tasks SET serverId = ?, name = ?, schedule = ?, command = ?, enabled = ?,
         templateType = ?, updatedAt = ? WHERE id = ?''',
       [
+        task.serverId,
         task.name,
         task.schedule,
         task.command,
@@ -91,6 +95,7 @@ class CronTaskRepository {
     );
     return CronTask(
       id: id,
+      serverId: task.serverId,
       connectionId: existing.connectionId,
       name: task.name,
       schedule: task.schedule,
@@ -125,11 +130,12 @@ class CronTaskRepository {
   void addHistory(CronExecutionHistory entry) {
     _databaseService.db.execute(
       '''INSERT OR IGNORE INTO cron_execution_history
-        (taskId, connectionId, triggerType, startedAt, finishedAt, durationMs, exitCode, status, stdout, stderr, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (taskId, connectionId, serverId, triggerType, startedAt, finishedAt, durationMs, exitCode, status, stdout, stderr, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
       [
         entry.taskId,
         entry.connectionId,
+        entry.serverId,
         entry.triggerType,
         entry.startedAt,
         entry.finishedAt,
@@ -151,7 +157,8 @@ class CronTaskRepository {
 
   CronTask _taskFromRow(Map<String, dynamic> row) => CronTask(
     id: row['id'] as int,
-    connectionId: row['connectionId'] as String,
+    serverId: row['serverId'] as int?,
+    connectionId: row['connectionId'] as String?,
     name: row['name'] as String,
     schedule: row['schedule'] as String,
     command: row['command'] as String,
@@ -165,6 +172,7 @@ class CronTaskRepository {
       CronExecutionHistory(
         id: row['id'] as int,
         taskId: row['taskId'] as int,
+        serverId: row['serverId'] as int?,
         connectionId: row['connectionId'] as String,
         triggerType: row['triggerType'] as String,
         startedAt: row['startedAt'] as int,

@@ -294,6 +294,7 @@ export const useSshStore = defineStore('ssh', () => {
   }
 
   const baseConnectPayload = computed(() => connectPayload.value)
+  const serverId = computed(() => connectPayload.value?.serverId ?? null)
 
   return {
     addServer,
@@ -309,6 +310,7 @@ export const useSshStore = defineStore('ssh', () => {
     removeServer,
     savedServers,
     sessionStatus,
+    serverId,
     setSession,
     updateServer,
     username,

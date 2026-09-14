@@ -247,6 +247,68 @@ class DatabaseService {
       ''');
       _setVersion(8);
     }
+
+    // v8 -> v9: Associate cron tasks with stable saved server IDs.
+    if (currentVersion < 9) {
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS cron_tasks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          connectionId TEXT NOT NULL,
+          serverId INTEGER,
+          name TEXT NOT NULL,
+          schedule TEXT NOT NULL,
+          command TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          templateType TEXT,
+          createdAt INTEGER NOT NULL,
+          updatedAt INTEGER NOT NULL
+        )
+      ''');
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS cron_execution_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          taskId INTEGER NOT NULL,
+          connectionId TEXT NOT NULL,
+          serverId INTEGER,
+          triggerType TEXT NOT NULL,
+          startedAt INTEGER NOT NULL,
+          finishedAt INTEGER,
+          durationMs INTEGER,
+          exitCode INTEGER,
+          status TEXT NOT NULL,
+          stdout TEXT,
+          stderr TEXT,
+          createdAt INTEGER NOT NULL,
+          UNIQUE(taskId, startedAt)
+        )
+      ''');
+      final taskColumns = _db
+          .select('PRAGMA table_info(cron_tasks)')
+          .map((row) => row['name'] as String)
+          .toSet();
+      if (!taskColumns.contains('serverId')) {
+        _db.execute('ALTER TABLE cron_tasks ADD COLUMN serverId INTEGER');
+      }
+
+      final historyColumns = _db
+          .select('PRAGMA table_info(cron_execution_history)')
+          .map((row) => row['name'] as String)
+          .toSet();
+      if (!historyColumns.contains('serverId')) {
+        _db.execute(
+          'ALTER TABLE cron_execution_history ADD COLUMN serverId INTEGER',
+        );
+      }
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_cron_tasks_server_updated
+        ON cron_tasks(serverId, updatedAt DESC)
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_cron_history_server_task_started
+        ON cron_execution_history(serverId, taskId, startedAt DESC)
+      ''');
+      _setVersion(9);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

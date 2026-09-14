@@ -20,8 +20,9 @@ const editingId = ref<number | null>(null)
 const activeTask = ref<CronTask | null>(null)
 const form = reactive({ name: '', schedule: '0 2 * * *', command: '', enabled: true, templateType: null as CronTask['templateType'] })
 
-const connected = computed(() => Boolean(sshStore.isConnected && sshStore.connectionId))
+const connected = computed(() => Boolean(sshStore.isConnected && sshStore.connectionId && sshStore.serverId !== null))
 const connectionId = computed(() => sshStore.connectionId ?? '')
+const serverId = computed(() => sshStore.serverId)
 
 const templates = {
   backup: {
@@ -84,8 +85,9 @@ function openEdit(task: CronTask) {
 }
 
 function payload(): CronTaskPayload {
+  if (serverId.value === null) throw new Error('定时任务需要使用已保存的服务器连接。')
   return {
-    connectionId: connectionId.value,
+    serverId: serverId.value,
     name: form.name.trim(),
     schedule: form.schedule.trim(),
     command: form.command.trim(),
@@ -104,7 +106,7 @@ async function loadTasks() {
   if (!connected.value) return
   loading.value = true
   try {
-    tasks.value = await cronTaskApi.list(connectionId.value)
+    tasks.value = await cronTaskApi.list(serverId.value!, connectionId.value)
   } catch (error) {
     getUiApi().message.error(error instanceof Error ? error.message : '加载定时任务失败。')
   } finally {
@@ -120,8 +122,8 @@ async function saveTask() {
   saving.value = true
   try {
     const next = editingId.value === null
-      ? await cronTaskApi.create(payload())
-      : await cronTaskApi.update(editingId.value, payload())
+      ? await cronTaskApi.create(payload(), connectionId.value)
+      : await cronTaskApi.update(editingId.value, payload(), connectionId.value)
     upsert(next)
     editorVisible.value = false
     getUiApi().message.success('定时任务已保存。')
@@ -135,7 +137,7 @@ async function saveTask() {
 async function runTask(task: CronTask) {
   operatingId.value = task.id
   try {
-    const result = await cronTaskApi.run(task.id, connectionId.value)
+    const result = await cronTaskApi.run(task.id, task.serverId, connectionId.value)
     getUiApi().message[result.status === 'success' ? 'success' : 'error'](
       result.status === 'success' ? '任务执行成功。' : '任务执行失败，请查看历史记录。',
     )
@@ -152,7 +154,7 @@ function removeTask(task: CronTask) {
     onPositiveClick: async () => {
       operatingId.value = task.id
       try {
-        await cronTaskApi.delete(task.id, connectionId.value)
+        await cronTaskApi.delete(task.id, task.serverId, connectionId.value)
         tasks.value = tasks.value.filter((item) => item.id !== task.id)
       } catch (error) {
         getUiApi().message.error(error instanceof Error ? error.message : '删除定时任务失败。')
@@ -174,8 +176,8 @@ async function refreshHistory() {
   if (!task) return
   operatingId.value = task.id
   try {
-    await cronTaskApi.syncHistory(task.id, connectionId.value)
-    history.value = await cronTaskApi.history(task.id, connectionId.value)
+    await cronTaskApi.syncHistory(task.id, task.serverId, connectionId.value)
+    history.value = await cronTaskApi.history(task.id, task.serverId, connectionId.value)
   } catch (error) {
     getUiApi().message.error(error instanceof Error ? error.message : '同步执行历史失败。')
   } finally {
@@ -213,7 +215,7 @@ onMounted(() => void loadTasks())
       <div><div class="text-[18px] font-700">定时任务</div><div class="mt-1 text-[12px] opacity-60">管理 HostDeck 托管的远端 crontab 与执行历史</div></div>
       <div class="flex gap-2"><NButton size="small" secondary :loading="loading" :disabled="!connected" @click="loadTasks"><RefreshCw :size="15" /></NButton><NDropdown trigger="click" :options="createOptions" @select="handleCreate"><NButton size="small" type="primary" :disabled="!connected"><template #icon><Plus :size="16" /></template>新增任务</NButton></NDropdown></div>
     </div>
-    <NAlert v-if="!connected" type="warning" :show-icon="true">请先建立 SSH 连接。</NAlert>
+    <NAlert v-if="!connected" type="warning" :show-icon="true">请使用已保存的服务器建立 SSH 连接。</NAlert>
     <NDataTable class="min-h-0 flex-1" :columns="taskColumns" :data="tasks" :loading="loading" :pagination="{ pageSize: 12 }" :row-key="(row: CronTask) => row.id" flex-height size="small" />
 
     <NModal v-model:show="editorVisible" preset="card" :title="editingId === null ? '新增定时任务' : '编辑定时任务'" style="width: min(680px, calc(100vw - 32px))">

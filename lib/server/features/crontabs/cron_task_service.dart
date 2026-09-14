@@ -10,7 +10,7 @@ class CronTaskService {
 
   CronTaskService(this._sshRepository, this._repository);
 
-  List<CronTask> list(String connectionId) => _repository.list(connectionId);
+  List<CronTask> list(int serverId) => _repository.list(serverId);
   List<CronExecutionHistory> listHistory(
     int taskId, {
     int limit = 100,
@@ -18,9 +18,11 @@ class CronTaskService {
   }) => _repository.listHistory(taskId, limit: limit, offset: offset);
 
   Future<CronTask> create(SshSession session, CronTask task) async {
-    final created = _repository.add(task);
+    final serverId = task.serverId;
+    if (serverId == null) throw ArgumentError('缺少 serverId。');
+    final created = _repository.add(task, connectionId: session.connectionId);
     try {
-      await _syncRemoteCrontab(session, task.connectionId);
+      await _syncRemoteCrontab(session, serverId);
       return created;
     } catch (_) {
       _repository.delete(created.id!);
@@ -30,13 +32,13 @@ class CronTaskService {
 
   Future<CronTask?> update(SshSession session, int id, CronTask task) async {
     final existing = _repository.get(id);
-    if (existing == null || existing.connectionId != task.connectionId) {
+    if (existing == null || existing.serverId != task.serverId) {
       return null;
     }
     final updated = _repository.update(id, task);
     if (updated == null) return null;
     try {
-      await _syncRemoteCrontab(session, task.connectionId);
+      await _syncRemoteCrontab(session, task.serverId!);
     } catch (_) {
       _repository.restore(existing);
       await _writeTaskScript(session, existing);
@@ -45,12 +47,12 @@ class CronTaskService {
     return updated;
   }
 
-  Future<bool> delete(SshSession session, int id, String connectionId) async {
+  Future<bool> delete(SshSession session, int id, int serverId) async {
     final task = _repository.get(id);
-    if (task == null || task.connectionId != connectionId) return false;
+    if (task == null || task.serverId != serverId) return false;
     if (!_repository.delete(id)) return false;
     try {
-      await _syncRemoteCrontab(session, connectionId);
+      await _syncRemoteCrontab(session, serverId);
       await _sshRepository.execWithResult(
         session,
         'rm -f $_baseDir/task-$id.sh',
@@ -63,6 +65,8 @@ class CronTaskService {
   }
 
   Future<CronExecutionHistory> runNow(SshSession session, CronTask task) async {
+    final serverId = task.serverId;
+    if (serverId == null) throw ArgumentError('缺少 serverId。');
     final startedAt = DateTime.now().millisecondsSinceEpoch;
     final result = await _sshRepository.execWithResult(
       session,
@@ -78,7 +82,8 @@ class CronTaskService {
 
     final entry = CronExecutionHistory(
       taskId: task.id!,
-      connectionId: task.connectionId,
+      serverId: serverId,
+      connectionId: session.connectionId,
       triggerType: 'manual',
       startedAt: startedAt,
       finishedAt: finishedAt,
@@ -93,28 +98,31 @@ class CronTaskService {
   }
 
   Future<int> syncHistory(SshSession session, CronTask task) async {
+    final serverId = task.serverId;
+    if (serverId == null) throw ArgumentError('缺少 serverId。');
     final result = await _sshRepository.execWithResult(
       session,
       'test -f $_baseDir/logs/task-${task.id}.log && tail -c 262144 $_baseDir/logs/task-${task.id}.log || true',
     );
     var imported = 0;
-    for (final entry in _parseHistory(task, result.stdout)) {
+    for (final entry in _parseHistory(
+      task,
+      session.connectionId,
+      result.stdout,
+    )) {
       _repository.addHistory(entry);
       imported++;
     }
     return imported;
   }
 
-  Future<void> _syncRemoteCrontab(
-    SshSession session,
-    String connectionId,
-  ) async {
+  Future<void> _syncRemoteCrontab(SshSession session, int serverId) async {
     final current = await _sshRepository.execWithResult(
       session,
       'crontab -l 2>/dev/null || true',
     );
     final preserved = _removeManagedEntries(current.stdout);
-    final tasks = _repository.list(connectionId);
+    final tasks = _repository.list(serverId);
     for (final task in tasks) {
       await _writeTaskScript(session, task);
     }
@@ -199,7 +207,11 @@ exit "\$STATUS"
     return retained;
   }
 
-  List<CronExecutionHistory> _parseHistory(CronTask task, String content) {
+  List<CronExecutionHistory> _parseHistory(
+    CronTask task,
+    String connectionId,
+    String content,
+  ) {
     final entries = <CronExecutionHistory>[];
     _PendingHistory? pending;
     for (final line in content.split('\n')) {
@@ -221,7 +233,8 @@ exit "\$STATUS"
           entries.add(
             CronExecutionHistory(
               taskId: task.id!,
-              connectionId: task.connectionId,
+              serverId: task.serverId,
+              connectionId: connectionId,
               triggerType: pending.triggerType,
               startedAt: pending.startedAt,
               finishedAt: finishedAt,

@@ -1,6 +1,7 @@
 class CronTask {
   final int? id;
-  final String connectionId;
+  final int? serverId;
+  final String? connectionId;
   final String name;
   final String schedule;
   final String command;
@@ -11,7 +12,8 @@ class CronTask {
 
   const CronTask({
     this.id,
-    required this.connectionId,
+    this.serverId,
+    this.connectionId,
     required this.name,
     required this.schedule,
     required this.command,
@@ -22,13 +24,13 @@ class CronTask {
   });
 
   factory CronTask.fromJson(Map<String, dynamic> json) {
-    final connectionId = (json['connectionId'] ?? '').toString().trim();
+    final serverId = _asInt(json['serverId']);
     final name = (json['name'] ?? '').toString().trim();
     final schedule = (json['schedule'] ?? '').toString().trim();
     final command = (json['command'] ?? '').toString().trim();
     final templateType = (json['templateType'] ?? '').toString().trim();
 
-    if (connectionId.isEmpty) throw ArgumentError('缺少 connectionId。');
+    if (serverId == null) throw ArgumentError('缺少 serverId。');
     if (name.isEmpty) throw ArgumentError('任务名称不能为空。');
     if (name.length > 100 || _hasLineBreak(name)) {
       throw ArgumentError('任务名称不能包含换行且最多 100 个字符。');
@@ -40,7 +42,7 @@ class CronTask {
 
     return CronTask(
       id: _asInt(json['id']),
-      connectionId: connectionId,
+      serverId: serverId,
       name: name,
       schedule: schedule,
       command: command,
@@ -53,7 +55,7 @@ class CronTask {
 
   Map<String, dynamic> toJson() => {
     'id': id,
-    'connectionId': connectionId,
+    'serverId': serverId,
     'name': name,
     'schedule': schedule,
     'command': command,
@@ -84,6 +86,7 @@ class CronTask {
 class CronExecutionHistory {
   final int? id;
   final int taskId;
+  final int? serverId;
   final String connectionId;
   final String triggerType;
   final int startedAt;
@@ -97,6 +100,7 @@ class CronExecutionHistory {
   const CronExecutionHistory({
     this.id,
     required this.taskId,
+    this.serverId,
     required this.connectionId,
     required this.triggerType,
     required this.startedAt,
@@ -111,7 +115,7 @@ class CronExecutionHistory {
   Map<String, dynamic> toJson() => {
     'id': id,
     'taskId': taskId,
-    'connectionId': connectionId,
+    'serverId': serverId,
     'triggerType': triggerType,
     'startedAt': startedAt,
     'finishedAt': finishedAt,
