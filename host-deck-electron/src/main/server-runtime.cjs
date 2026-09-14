@@ -84,7 +84,7 @@ function createServerRuntime({ app, frontendRoot, isPackaged, readSettings, repo
     const dataDir = path.join(app.getPath('userData'), 'data')
     const serverName = process.platform === 'win32' ? 'server.exe' : 'server'
     const command = isPackaged()
-      ? path.join(process.resourcesPath, 'server', serverName)
+      ? path.join(process.resourcesPath, 'server', 'bin', serverName)
       : process.env.HOST_DECK_DART_COMMAND || 'dart'
     const args = isPackaged() ? [] : ['run', path.join(repoRoot, 'bin', 'server.dart')]
     const packaged = isPackaged()

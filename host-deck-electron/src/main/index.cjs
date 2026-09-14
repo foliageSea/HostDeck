@@ -225,9 +225,7 @@ function createWindow() {
 
 async function loadApplication() {
   applicationUrl = await resolveAppUrl()
-  if (useDevServers) {
-    await waitForUrl(applicationUrl, 15000)
-  }
+  await waitForUrl(applicationUrl, useDevServers ? 15000 : 30000)
   if (await loadShellPage('tabs')) {
     tabManager.createTab(applicationUrl)
   }

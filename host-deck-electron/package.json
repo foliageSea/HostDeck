@@ -45,7 +45,7 @@
     ],
     "extraResources": [
       {
-        "from": "../build/electron-server/bundle/bin",
+        "from": "../build/electron-server/bundle",
         "to": "server"
       },
       {
