@@ -73,6 +73,7 @@
       ]
     },
     "mac": {
+      "sign": null,
       "artifactName": "host-deck-electron-macos-arm64-${version}.${ext}",
       "target": [
         "dmg",
