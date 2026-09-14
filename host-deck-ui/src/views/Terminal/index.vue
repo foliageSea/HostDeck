@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { FolderOpen, Help, Settings, Terminal } from '@vicons/carbon'
+import { Folder, Help, Settings, Terminal } from '@vicons/carbon'
 import '@xterm/xterm/css/xterm.css'
 import TerminalCompletionPopover from './components/TerminalCompletionPopover.vue'
 import TerminalSettingsModal from './components/TerminalSettingsModal.vue'
@@ -176,7 +176,7 @@ async function openCurrentDirectory() {
           >
             <template #icon>
               <NIcon :size="16">
-                <FolderOpen />
+                <Folder />
               </NIcon>
             </template>
           </NButton>
