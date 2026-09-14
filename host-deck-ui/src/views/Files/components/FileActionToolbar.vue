@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, FolderAdd, Upload } from '@vicons/carbon'
+import { Archive, Download, Edit, FolderAdd, Locked, TrashCan, Upload, Zip } from '@vicons/carbon'
 
 defineProps<{
   canCompress: boolean
@@ -59,13 +59,26 @@ function handleUpload(key: string | number) {
         上传
       </NButton>
     </NDropdown>
-    <NButton quaternary :disabled="!canExtract" @click="emit('extract')">解压缩</NButton>
-    <NButton quaternary :disabled="!canCompress" @click="emit('compress')">压缩</NButton>
-    <NButton quaternary :disabled="selectedCount !== 1" @click="emit('rename')">重命名</NButton>
-    <NButton quaternary :disabled="selectedCount !== 1" @click="emit('permission')">权限</NButton>
-    <NButton quaternary :disabled="selectedCount === 0" type="error" @click="emit('delete')"
-      >删除</NButton
-    >
+    <NButton quaternary :disabled="!canExtract" @click="emit('extract')">
+      <template #icon><NIcon><Archive /></NIcon></template>
+      解压缩
+    </NButton>
+    <NButton quaternary :disabled="!canCompress" @click="emit('compress')">
+      <template #icon><NIcon><Zip /></NIcon></template>
+      压缩
+    </NButton>
+    <NButton quaternary :disabled="selectedCount !== 1" @click="emit('rename')">
+      <template #icon><NIcon><Edit /></NIcon></template>
+      重命名
+    </NButton>
+    <NButton quaternary :disabled="selectedCount !== 1" @click="emit('permission')">
+      <template #icon><NIcon><Locked /></NIcon></template>
+      权限
+    </NButton>
+    <NButton quaternary :disabled="selectedCount === 0" type="error" @click="emit('delete')">
+      <template #icon><NIcon><TrashCan /></NIcon></template>
+      删除
+    </NButton>
     <NButton quaternary :disabled="selectedCount === 0" @click="emit('download')">
       <template #icon
         ><NIcon><Download /></NIcon
