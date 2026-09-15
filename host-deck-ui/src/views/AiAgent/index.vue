@@ -671,7 +671,6 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-history-row:hover .agent-history-delete,
-.agent-history-row-active .agent-history-delete,
 .agent-history-delete:focus-visible {
   opacity: 0.62;
 }
