@@ -630,7 +630,7 @@ let resizeObserver: ResizeObserver | undefined
   display: flex;
   min-width: 0;
   align-items: center;
-  border-radius: var(--app-radius-item);
+  border-radius: 0;
 }
 
 .agent-history-row:hover,
@@ -858,14 +858,13 @@ let resizeObserver: ResizeObserver | undefined
     box-shadow 150ms ease;
 }
 
-.agent-composer:focus-within,
 .agent-composer-running {
   border-color: var(--app-primary-border);
   box-shadow: 0 12px 42px rgba(var(--app-primary-rgb), 0.12);
 }
 
-.agent-composer-input :deep(.n-input) {
-  background: transparent;
+.agent-composer-input {
+  background: transparent !important;
 }
 
 .agent-composer-input :deep(.n-input__border),
@@ -873,7 +872,8 @@ let resizeObserver: ResizeObserver | undefined
   display: none;
 }
 
-.agent-composer-input :deep(textarea) {
+.agent-composer-input :deep(textarea),
+.agent-composer-input :deep(.n-input__placeholder) {
   padding: 13px 14px 4px !important;
   caret-color: var(--app-primary-color);
   font-size: 12px;
