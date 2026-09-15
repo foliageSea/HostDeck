@@ -28,6 +28,7 @@
 - `modules/terminal.md`：终端会话
 - `modules/files.md`：文件管理
 - `modules/system-monitor.md`：系统监控
+- `modules/ai-agent.md`：LangChain.dart AI 运维 Agent、审批与 SSE 合约
 - `modules/runtime-sessions.md`：运行态会话
 - `modules/docker.md`：Docker 管理
 - `modules/desktop-shell.md`：桌面工作台与窗口系统

@@ -93,6 +93,31 @@ void main() {
       expect(log.errorMessage, 'Server not found');
     });
 
+    test('audits AI settings without retaining the API key', () async {
+      handler = operationLogMiddleware(
+        OperationLogService(repository),
+        serverRepository,
+        portForwardRepository,
+      )((request) => Result.ok({'hasApiKey': true}));
+
+      await handler(
+        Request(
+          'PUT',
+          Uri.parse('http://localhost/api/ai-agent/settings'),
+          body: '{"model":"ops","apiKey":"never-log-this"}',
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+
+      final log = repository.list().single;
+      expect(log.category, 'aiAgent');
+      expect(log.action, 'settingsUpdate');
+      expect(log.target, isNull);
+      expect(log.detail, isNull);
+      expect(log.errorMessage, isNull);
+      expect(log.toJson().toString(), isNot(contains('never-log-this')));
+    });
+
     test('records an SSE operation only after its done event', () async {
       handler =
           operationLogMiddleware(

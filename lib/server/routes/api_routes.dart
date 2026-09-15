@@ -3,6 +3,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'package:host_deck/server/features/auth/auth_controller.dart';
 import 'package:host_deck/server/features/access/access_controller.dart';
 import 'package:host_deck/server/features/agent/agent_controller.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_controller.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
@@ -20,6 +21,7 @@ import 'package:host_deck/server/features/terminal/terminal_controller.dart';
 import 'package:host_deck/server/routes/auth_routes.dart';
 import 'package:host_deck/server/routes/access_routes.dart';
 import 'package:host_deck/server/routes/agent_routes.dart';
+import 'package:host_deck/server/routes/ai_agent_routes.dart';
 import 'package:host_deck/server/routes/docker_routes.dart';
 import 'package:host_deck/server/routes/cron_task_routes.dart';
 import 'package:host_deck/server/routes/file_routes.dart';
@@ -39,6 +41,7 @@ class ApiRoutes {
   final AccessController accessController;
   final AuthController authController;
   final AgentController agentController;
+  final AiAgentController aiAgentController;
   final SystemController systemController;
   final FileController fileController;
   final OperationLogController operationLogController;
@@ -58,6 +61,7 @@ class ApiRoutes {
     required this.accessController,
     required this.authController,
     required this.agentController,
+    required this.aiAgentController,
     required this.systemController,
     required this.fileController,
     required this.operationLogController,
@@ -79,6 +83,7 @@ class ApiRoutes {
     registerAccessRoutes(router, accessController);
     registerAuthRoutes(router, authController);
     registerAgentRoutes(router, agentController);
+    registerAiAgentRoutes(router, aiAgentController);
     registerServerRoutes(router, serverController);
     registerRuntimeRoutes(router, runtimeController);
     registerServerMetricsRoutes(router, serverMetricsController);

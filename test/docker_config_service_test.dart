@@ -58,7 +58,7 @@ void main() {
         migrated.db
             .select('SELECT version FROM schema_version')
             .single['version'],
-        9,
+        11,
       );
     } finally {
       migrated.close();
@@ -178,6 +178,7 @@ class _FakeSshRepository extends SshRepository {
     SshSession session,
     String command, {
     String? cwd,
+    int? maxOutputBytes,
     Duration? timeout,
     String? stdin,
   }) async {

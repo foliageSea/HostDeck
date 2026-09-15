@@ -26,6 +26,24 @@ enum SshSessionPurpose {
   agent,
   cronTask,
   processManagement,
+  aiAgent,
+}
+
+class SshConnectionMetadata {
+  final String host;
+  final int port;
+  final String username;
+  final int? serverId;
+
+  const SshConnectionMetadata({
+    required this.host,
+    required this.port,
+    required this.username,
+    this.serverId,
+  });
+
+  String get targetKey =>
+      serverId == null ? '$username@$host:$port' : 'server:$serverId';
 }
 
 class SshService {
@@ -36,6 +54,7 @@ class SshService {
   final Map<String, Set<SshSessionPurpose>> _sessionPurposes = {};
   final Map<String, SSHClient> _clients = {};
   final Map<String, int?> _connectionServerIds = {};
+  final Map<String, SshConnectionMetadata> _connectionMetadata = {};
   final Map<String, SshOperationLimiter> _operationLimiters = {};
   final List<FutureOr<void> Function(String connectionId)>
   _disconnectListeners = [];
@@ -67,6 +86,12 @@ class SshService {
     final connectionId = _generateId();
     _clients[connectionId] = client;
     _connectionServerIds[connectionId] = serverId;
+    _connectionMetadata[connectionId] = SshConnectionMetadata(
+      host: host,
+      port: port,
+      username: username,
+      serverId: serverId,
+    );
     _operationLimiters[connectionId] = SshOperationLimiter(
       maxConcurrentOperations: maxConcurrentOperations,
     );
@@ -88,6 +113,9 @@ class SshService {
   }
 
   int? getServerId(String connectionId) => _connectionServerIds[connectionId];
+
+  SshConnectionMetadata? getConnectionMetadata(String connectionId) =>
+      _connectionMetadata[connectionId];
 
   Future<SshSession> createShell(
     String connectionId, {
@@ -312,6 +340,7 @@ class SshService {
     }
     _clients.remove(connectionId);
     _connectionServerIds.remove(connectionId);
+    _connectionMetadata.remove(connectionId);
     _operationLimiters.remove(connectionId);
     for (final listener in _disconnectListeners) {
       unawaited(Future.sync(() => listener(connectionId)));

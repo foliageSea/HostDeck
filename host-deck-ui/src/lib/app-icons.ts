@@ -1,4 +1,5 @@
 import type { AppIconKey } from '@/types/desktop'
+import aiAgentIconUrl from '@/assets/ai-agent.svg'
 import dashboardIconUrl from '@/assets/mac-tahoe/src/apps/scalable/utilities-system-monitor.svg'
 import dockerIconUrl from '@/assets/mac-tahoe/src/apps/scalable/docker.svg'
 import editorIconUrl from '@/assets/mac-tahoe/src/apps/scalable/accessories-text-editor.svg'
@@ -19,6 +20,7 @@ import taskCenterIconUrl from '@/assets/mac-tahoe/src/apps/scalable/stacks-task-
 import terminalIconUrl from '@/assets/mac-tahoe/src/apps/scalable/terminal.svg'
 
 export const themedAppIconMap: Record<AppIconKey, string> = {
+  'ai-agent': aiAgentIconUrl,
   dashboard: dashboardIconUrl,
   'cron-task': taskIconUrl,
   docker: dockerIconUrl,

@@ -35,6 +35,7 @@ const props = withDefaults(
 )
 
 const iconMap: Record<AppIconKey, Component> = {
+  'ai-agent': ApplicationWeb,
   dashboard: ChartLine,
   'cron-task': Time,
   docker: LogoDocker,
@@ -62,7 +63,7 @@ const iconImageSrc = computed(() => {
     return themedAppIconMap[props.name]
   }
 
-  if (props.name === 'opencode') return themedAppIconMap.opencode
+  if (props.name === 'opencode' || props.name === 'ai-agent') return themedAppIconMap[props.name]
   return props.name === 'process' ? themedAppIconMap.process : null
 })
 </script>
@@ -76,7 +77,10 @@ const iconImageSrc = computed(() => {
     alt=""
     aria-hidden="true"
     class="block flex-none object-contain"
-    :class="{ 'rounded-[22%]': name === 'opencode', 'scale-[0.92]': name === 'port-forward' }"
+    :class="{
+      'rounded-[22%]': name === 'opencode' || name === 'ai-agent',
+      'scale-[0.92]': name === 'port-forward',
+    }"
     draggable="false"
   />
   <NIcon v-else :color="color" :size="size">

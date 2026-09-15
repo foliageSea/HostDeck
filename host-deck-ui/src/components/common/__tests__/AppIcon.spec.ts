@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import terminalIconUrl from '@/assets/mac-tahoe/src/apps/scalable/terminal.svg'
+import aiAgentIconUrl from '@/assets/ai-agent.svg'
 import AppIcon from '../AppIcon.vue'
 
 describe('AppIcon', () => {
@@ -27,5 +28,11 @@ describe('AppIcon', () => {
 
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.get('[data-testid="component-icon"]')).toBeTruthy()
+  })
+
+  it('uses the custom AI Agent asset in compact and themed modes', () => {
+    const wrapper = mount(AppIcon, { props: { name: 'ai-agent', size: 32 } })
+
+    expect(wrapper.get('img').attributes('src')).toBe(aiAgentIconUrl)
   })
 })

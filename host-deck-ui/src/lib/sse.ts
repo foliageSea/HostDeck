@@ -86,6 +86,13 @@ export async function consumeServerSentEvents(
     }
     buffer += decoder.decode()
     drain(true)
+  } catch (error) {
+    try {
+      await reader.cancel(error)
+    } catch {
+      // Preserve the parsing or stream error that triggered cancellation.
+    }
+    throw error
   } finally {
     reader.releaseLock()
   }

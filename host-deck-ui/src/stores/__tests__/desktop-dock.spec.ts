@@ -1,6 +1,11 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { defaultDockAppIds, DOCK_APPS_STORAGE_KEY, useDesktopStore } from '@/stores/desktop'
+import {
+  defaultDockAppIds,
+  DOCK_AI_AGENT_MIGRATION_KEY,
+  DOCK_APPS_STORAGE_KEY,
+  useDesktopStore,
+} from '@/stores/desktop'
 
 describe('desktop dock preferences', () => {
   beforeEach(() => {
@@ -34,7 +39,21 @@ describe('desktop dock preferences', () => {
     )
     setActivePinia(createPinia())
 
-    expect(useDesktopStore().dockAppIds).toEqual(['settings'])
+    expect(useDesktopStore().dockAppIds).toEqual(['settings', 'ai-agent'])
+  })
+
+  it('migrates a saved dock by inserting AI Agent after OpenCode only once', () => {
+    window.localStorage.setItem(
+      DOCK_APPS_STORAGE_KEY,
+      JSON.stringify(['terminal', 'opencode', 'files']),
+    )
+
+    expect(useDesktopStore().dockAppIds).toEqual(['terminal', 'opencode', 'ai-agent', 'files'])
+    expect(window.localStorage.getItem(DOCK_AI_AGENT_MIGRATION_KEY)).toBe('done')
+
+    window.localStorage.setItem(DOCK_APPS_STORAGE_KEY, JSON.stringify(['terminal', 'opencode']))
+    setActivePinia(createPinia())
+    expect(useDesktopStore().dockAppIds).toEqual(['terminal', 'opencode'])
   })
 
   it('falls back to defaults when a non-empty stored list has no valid apps', () => {

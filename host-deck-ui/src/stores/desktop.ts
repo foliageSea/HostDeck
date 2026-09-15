@@ -7,6 +7,7 @@ import { useWindowSessionStore } from '@/stores/window-session'
 import type { AppIconKey, DesktopAppId } from '@/types/desktop'
 import { basename, normalize } from '@/utils/path'
 import DashboardView from '@/views/Dashboard/index.vue'
+import AiAgentView from '@/views/AiAgent/index.vue'
 import DockerCreateContainerView from '@/views/Docker/components/DockerCreateContainerView.vue'
 import DockerCreateComposeView from '@/views/Docker/components/DockerCreateComposeView.vue'
 import DockerComposeServicesView from '@/views/Docker/components/DockerComposeServicesView.vue'
@@ -40,12 +41,14 @@ const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'host-deck:desktop:pinned-directo
 const PINNED_PORT_LINKS_STORAGE_KEY = 'host-deck:desktop:pinned-port-links'
 const PINNED_PORT_LINK_POSITIONS_STORAGE_KEY = 'host-deck:desktop:pinned-port-link-positions'
 export const DOCK_APPS_STORAGE_KEY = 'host-deck:desktop:dock-apps'
+export const DOCK_AI_AGENT_MIGRATION_KEY = 'host-deck:desktop:dock-ai-agent-v1'
 
 export const defaultDockAppIds: DesktopAppId[] = [
   'terminal',
   'files',
   'docker',
   'opencode',
+  'ai-agent',
   'port-forward',
   'secure-browser',
   'operation-logs',
@@ -300,6 +303,7 @@ function loadDockAppIds() {
   try {
     const value: unknown = JSON.parse(window.localStorage.getItem(DOCK_APPS_STORAGE_KEY) ?? 'null')
     if (!Array.isArray(value)) {
+      window.localStorage.setItem(DOCK_AI_AGENT_MIGRATION_KEY, 'done')
       return [...defaultDockAppIds]
     }
 
@@ -311,6 +315,16 @@ function loadDockAppIds() {
         ),
       ),
     )
+    if (
+      appIds.length > 0 &&
+      !appIds.includes('ai-agent') &&
+      window.localStorage.getItem(DOCK_AI_AGENT_MIGRATION_KEY) !== 'done'
+    ) {
+      const opencodeIndex = appIds.indexOf('opencode')
+      appIds.splice(opencodeIndex < 0 ? appIds.length : opencodeIndex + 1, 0, 'ai-agent')
+      window.localStorage.setItem(DOCK_APPS_STORAGE_KEY, JSON.stringify(appIds))
+    }
+    window.localStorage.setItem(DOCK_AI_AGENT_MIGRATION_KEY, 'done')
     return value.length > 0 && appIds.length === 0 ? [...defaultDockAppIds] : appIds
   } catch {
     return [...defaultDockAppIds]
@@ -491,6 +505,18 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 640,
         title: 'OpenCode',
         width: 920,
+        showInLaunchpad: true,
+      },
+      'ai-agent': {
+        component: markRaw(AiAgentView),
+        height: 760,
+        icon: 'ai-agent',
+        id: 'ai-agent',
+        minHeight: 520,
+        minWidth: 620,
+        singleInstance: true,
+        title: 'AI Agent',
+        width: 1180,
         showInLaunchpad: true,
       },
       'docker-create-container': {

@@ -309,6 +309,62 @@ class DatabaseService {
       ''');
       _setVersion(9);
     }
+
+    // v9 -> v10: Persist AI agent configuration and target-bound chat history.
+    if (currentVersion < 10) {
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS ai_agent_settings (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          baseUrl TEXT NOT NULL,
+          model TEXT NOT NULL,
+          encryptedApiKey TEXT,
+          updatedAt INTEGER NOT NULL
+        )
+      ''');
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS ai_agent_conversations (
+          id TEXT PRIMARY KEY,
+          targetKey TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '新对话',
+          createdAt INTEGER NOT NULL,
+          updatedAt INTEGER NOT NULL
+        )
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_ai_agent_conversations_target_updated
+        ON ai_agent_conversations(targetKey, updatedAt DESC)
+      ''');
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS ai_agent_messages (
+          id TEXT PRIMARY KEY,
+          conversationId TEXT NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+          content TEXT NOT NULL,
+          createdAt INTEGER NOT NULL,
+          FOREIGN KEY(conversationId) REFERENCES ai_agent_conversations(id)
+            ON DELETE CASCADE
+        )
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_ai_agent_messages_conversation_created
+        ON ai_agent_messages(conversationId, createdAt, id)
+      ''');
+      _setVersion(10);
+    }
+
+    // v10 -> v11: Add human-readable AI conversation titles.
+    if (currentVersion < 11) {
+      final columns = _db
+          .select('PRAGMA table_info(ai_agent_conversations)')
+          .map((row) => row['name'] as String)
+          .toSet();
+      if (!columns.contains('title')) {
+        _db.execute(
+          "ALTER TABLE ai_agent_conversations ADD COLUMN title TEXT NOT NULL DEFAULT '新对话'",
+        );
+      }
+      _setVersion(11);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

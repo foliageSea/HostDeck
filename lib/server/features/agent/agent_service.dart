@@ -23,6 +23,7 @@ class AgentService {
       cwd: cwd,
       timeout: Duration(milliseconds: timeoutMs ?? 60000),
       stdin: stdin,
+      maxOutputBytes: maxOutputBytes,
     );
 
     final maxBytes = maxOutputBytes ?? 512 * 1024;
@@ -33,17 +34,30 @@ class AgentService {
       ...result.toJson(),
       'stdout': stdout.value,
       'stderr': stderr.value,
-      'truncated': stdout.truncated || stderr.truncated,
+      'truncated': result.truncated || stdout.truncated || stderr.truncated,
     };
   }
 
-  Future<String> readTextFile(SshSession session, String path) async {
+  Future<String> readTextFile(
+    SshSession session,
+    String path, {
+    int? maxBytes,
+  }) async {
     final stream = await _repository.readFileStream(session, path);
     final bytes = <int>[];
+    var truncated = false;
     await for (final chunk in stream) {
-      bytes.addAll(chunk);
+      if (maxBytes == null || bytes.length + chunk.length <= maxBytes) {
+        bytes.addAll(chunk);
+        continue;
+      }
+      final remaining = maxBytes - bytes.length;
+      if (remaining > 0) bytes.addAll(chunk.take(remaining));
+      truncated = true;
+      break;
     }
-    return utf8.decode(bytes, allowMalformed: true);
+    final content = utf8.decode(bytes, allowMalformed: true);
+    return truncated ? '$content\n[truncated]' : content;
   }
 
   Future<void> writeTextFile(SshSession session, String path, String content) {
@@ -59,6 +73,7 @@ class AgentService {
     required String patch,
     String? cwd,
     int? timeoutMs,
+    int? maxOutputBytes,
   }) async {
     final check = await exec(
       session,
@@ -66,6 +81,7 @@ class AgentService {
       cwd: cwd,
       stdin: patch,
       timeoutMs: timeoutMs,
+      maxOutputBytes: maxOutputBytes,
     );
 
     if (check['exitCode'] != 0) {
@@ -78,6 +94,7 @@ class AgentService {
       cwd: cwd,
       stdin: patch,
       timeoutMs: timeoutMs,
+      maxOutputBytes: maxOutputBytes,
     );
 
     return {

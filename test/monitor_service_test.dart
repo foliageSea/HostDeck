@@ -116,6 +116,7 @@ uptimeSeconds=1307520
     SshSession _,
     String command, {
     String? cwd,
+    int? maxOutputBytes,
     Duration? timeout,
     String? stdin,
   }) {

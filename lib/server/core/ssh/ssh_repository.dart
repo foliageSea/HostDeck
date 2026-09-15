@@ -11,12 +11,14 @@ class SshExecResult {
   final String stdout;
   final String stderr;
   final int durationMs;
+  final bool truncated;
 
   const SshExecResult({
     required this.exitCode,
     required this.stdout,
     required this.stderr,
     required this.durationMs,
+    this.truncated = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -24,7 +26,30 @@ class SshExecResult {
     'stdout': stdout,
     'stderr': stderr,
     'durationMs': durationMs,
+    'truncated': truncated,
   };
+}
+
+class _BoundedBytesBuilder {
+  final int? maxBytes;
+  final BytesBuilder _builder = BytesBuilder(copy: false);
+  bool truncated = false;
+
+  _BoundedBytesBuilder(this.maxBytes);
+
+  void add(List<int> data) {
+    if (truncated) return;
+    final limit = maxBytes;
+    if (limit == null) {
+      _builder.add(data);
+      return;
+    }
+    final remaining = limit - _builder.length;
+    if (remaining > 0) _builder.add(data.take(remaining).toList());
+    if (data.length > remaining) truncated = true;
+  }
+
+  Uint8List takeBytes() => _builder.takeBytes();
 }
 
 enum SshExecStreamSource { stdout, stderr }
@@ -91,6 +116,7 @@ class SshRepository {
     String? cwd,
     Duration? timeout,
     String? stdin,
+    int? maxOutputBytes,
   }) async {
     final stopwatch = Stopwatch()..start();
     final script = cwd == null || cwd.trim().isEmpty
@@ -110,18 +136,24 @@ class SshRepository {
             }
             await sshSession!.stdin.close();
 
-            final stdoutBuilder = BytesBuilder(copy: false);
-            final stderrBuilder = BytesBuilder(copy: false);
+            final stdoutBuilder = _BoundedBytesBuilder(maxOutputBytes);
+            final stderrBuilder = _BoundedBytesBuilder(maxOutputBytes);
             final stdoutDone = Completer<void>();
             final stderrDone = Completer<void>();
 
             sshSession!.stdout.listen(
-              stdoutBuilder.add,
+              (data) {
+                stdoutBuilder.add(data);
+                if (stdoutBuilder.truncated) sshSession?.close();
+              },
               onDone: stdoutDone.complete,
               onError: stdoutDone.completeError,
             );
             sshSession!.stderr.listen(
-              stderrBuilder.add,
+              (data) {
+                stderrBuilder.add(data);
+                if (stderrBuilder.truncated) sshSession?.close();
+              },
               onDone: stderrDone.complete,
               onError: stderrDone.completeError,
             );
@@ -141,6 +173,7 @@ class SshRepository {
                 allowMalformed: true,
               ),
               durationMs: stopwatch.elapsedMilliseconds,
+              truncated: stdoutBuilder.truncated || stderrBuilder.truncated,
             );
           })
           .timeout(

@@ -10,6 +10,13 @@ import 'package:host_deck/server/features/agent/agent_controller.dart';
 import 'package:host_deck/server/features/access/access_controller.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_controller.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_secret_store.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_tool_service.dart';
 import 'package:host_deck/server/features/auth/auth_controller.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_repository.dart';
@@ -111,6 +118,11 @@ class ServerContainer {
     });
     getIt.registerLazySingleton<SshRepository>(SshRepository.new);
     getIt.registerLazySingleton<SshService>(SshService.new);
+    getIt.registerSingletonAsync<AiAgentSecretStore>(() async {
+      final store = AiAgentSecretStore(dataDir: dataDir);
+      await store.init();
+      return store;
+    });
     getIt.registerLazySingleton<AccessAuthService>(
       () => AccessAuthService(
         password: adminPassword,
@@ -135,6 +147,18 @@ class ServerContainer {
     );
     getIt.registerLazySingleton<OperationLogService>(
       () => OperationLogService(getIt<OperationLogRepository>()),
+    );
+    getIt.registerLazySingleton<AiAgentRepository>(
+      () => AiAgentRepository(getIt<DatabaseService>()),
+    );
+    getIt.registerLazySingleton<AiAgentSettingsService>(
+      () => AiAgentSettingsService(
+        getIt<AiAgentRepository>(),
+        getIt<AiAgentSecretStore>(),
+      ),
+    );
+    getIt.registerLazySingleton<AiAgentModelFactory>(
+      LangChainOpenAiAgentModelFactory.new,
     );
     getIt.registerLazySingleton<MonitorHistoryService>(
       MonitorHistoryService.new,
@@ -210,6 +234,25 @@ class ServerContainer {
     getIt.registerLazySingleton<ProcessService>(
       () => ProcessService(getIt<SshRepository>()),
     );
+    getIt.registerLazySingleton<AiAgentToolService>(
+      () => AiAgentToolService(
+        getIt<SshService>(),
+        getIt<AgentService>(),
+        getIt<MonitorService>(),
+        getIt<ProcessService>(),
+        getIt<OperationLogService>(),
+      ),
+    );
+    getIt.registerLazySingleton<AiAgentRunManager>(
+      () => AiAgentRunManager(
+        getIt<AiAgentRepository>(),
+        getIt<AiAgentSettingsService>(),
+        getIt<AiAgentModelFactory>(),
+        getIt<AiAgentToolService>(),
+        getIt<SshService>(),
+      ),
+      dispose: (manager) => manager.dispose(),
+    );
     getIt.registerLazySingleton<PortForwardService>(
       () => PortForwardService(
         getIt<SshService>(),
@@ -246,6 +289,13 @@ class ServerContainer {
         agentController: AgentController(
           getIt<SshService>(),
           getIt<AgentService>(),
+        ),
+        aiAgentController: AiAgentController(
+          getIt<AiAgentRepository>(),
+          getIt<AiAgentSettingsService>(),
+          getIt<AiAgentModelFactory>(),
+          getIt<AiAgentRunManager>(),
+          getIt<SshService>(),
         ),
         systemController: SystemController(
           getIt<SshService>(),
@@ -323,7 +373,7 @@ class ServerContainer {
     await dockerSocketTunnelService.stopAll();
     await secureBrowserTunnelService.stopAll();
     await portForwardService.stopAll();
-    databaseService.close();
     await _getIt.reset(dispose: true);
+    databaseService.close();
   }
 }

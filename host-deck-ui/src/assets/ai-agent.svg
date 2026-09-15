@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="AI Agent">
+  <defs>
+    <linearGradient id="bg" x1="18" y1="12" x2="112" y2="118" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="0.5" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#6D28D9"/>
+    </linearGradient>
+    <linearGradient id="line" x1="36" y1="35" x2="94" y2="94" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DBEAFE" stop-opacity="0.78"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="116" height="116" rx="30" fill="url(#bg)"/>
+  <path d="M37 46 64 30l27 16v34L64 97 37 80V46Z" fill="none" stroke="url(#line)" stroke-width="8" stroke-linejoin="round"/>
+  <path d="m42 49 22 13 22-13M64 62v29" fill="none" stroke="url(#line)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="64" cy="62" r="8" fill="#FFFFFF"/>
+  <circle cx="37" cy="46" r="6" fill="#BAE6FD"/>
+  <circle cx="91" cy="46" r="6" fill="#E0E7FF"/>
+  <circle cx="64" cy="97" r="6" fill="#DDD6FE"/>
+</svg>

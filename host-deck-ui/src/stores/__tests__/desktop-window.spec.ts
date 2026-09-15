@@ -47,7 +47,7 @@ describe('desktop window management', () => {
     store.updateWindowSize(restrictedWindowId!, 1000, 800)
 
     expect(restrictedWindow).toMatchObject({
-      height: 600,
+      height: 720,
       isMaximized: false,
       isMinimized: false,
       width: 480,
@@ -55,6 +55,23 @@ describe('desktop window management', () => {
 
     expect(store.openWindow('settings')).toBe(restrictedWindowId)
     expect(store.windows.filter((window) => window.appId === 'settings')).toHaveLength(1)
+  })
+
+  it('registers AI Agent as a single-instance desktop application', () => {
+    const store = useDesktopStore()
+
+    expect(store.apps['ai-agent']).toMatchObject({
+      height: 760,
+      icon: 'ai-agent',
+      minHeight: 520,
+      minWidth: 620,
+      showInLaunchpad: true,
+      singleInstance: true,
+      title: 'AI Agent',
+      width: 1180,
+    })
+    const firstWindowId = store.openWindow('ai-agent')
+    expect(store.openWindow('ai-agent')).toBe(firstWindowId)
   })
 
   it('opens configured multi-instance applications in separate windows', () => {
