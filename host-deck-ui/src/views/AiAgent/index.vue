@@ -616,7 +616,7 @@ let resizeObserver: ResizeObserver | undefined
   min-height: 0;
   flex: 1;
   overflow: auto;
-  padding: 0 7px 12px;
+  padding: 0 2px 12px 7px;
 }
 
 .agent-history-group h2 {
@@ -864,6 +864,10 @@ let resizeObserver: ResizeObserver | undefined
 
 .agent-composer-input {
   background: transparent !important;
+}
+
+.agent-composer-input :deep(.n-input-wrapper) {
+  padding-inline: 0;
 }
 
 .agent-composer-input :deep(.n-input__border),
