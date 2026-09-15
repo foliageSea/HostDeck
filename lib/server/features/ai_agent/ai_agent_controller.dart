@@ -137,6 +137,34 @@ class AiAgentController {
     }
   }
 
+  Future<Response> updateConversation(Request request, String id) async {
+    try {
+      final data = await _readJson(request);
+      final targetKey = _targetKey(_requiredString(data, 'connectionId'));
+      final title = _requiredString(data, 'title').trim();
+      if (title.length > 100) {
+        return Result.fail(400, 'Title must not exceed 100 characters.');
+      }
+      final conversation = _repository.updateConversationTitle(
+        id,
+        targetKey,
+        title,
+      );
+      if (conversation == null) {
+        return Result.fail(404, 'Conversation not found.');
+      }
+      return Result.ok(conversation.toJson());
+    } on ArgumentError catch (error) {
+      return Result.fail(400, error.message?.toString() ?? 'Invalid request.');
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    } on StateError catch (error) {
+      return Result.fail(404, error.message);
+    } catch (_) {
+      return Result.fail(500, 'Unable to update conversation.');
+    }
+  }
+
   Response deleteConversation(Request request, String id) {
     try {
       final targetKey = _targetKey(request.url.queryParameters['connectionId']);

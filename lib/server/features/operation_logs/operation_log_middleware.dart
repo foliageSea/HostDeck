@@ -429,6 +429,12 @@ List<_OperationPolicy> _policies(
     'conversationCreate',
   ),
   _OperationPolicy(
+    'PUT',
+    r'api/ai-agent/conversations/([^/]+)',
+    'aiAgent',
+    'conversationUpdate',
+  ),
+  _OperationPolicy(
     'DELETE',
     r'api/ai-agent/conversations/([^/]+)',
     'aiAgent',

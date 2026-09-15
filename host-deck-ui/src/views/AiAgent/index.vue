@@ -6,6 +6,7 @@ import {
   Menu,
   MessageSquarePlus,
   PanelLeftClose,
+  Pencil,
   Search,
   Send,
   Settings,
@@ -51,6 +52,9 @@ const settingsOpen = ref(false)
 const query = ref('')
 const input = ref('')
 const messageScroller = ref<HTMLElement>()
+const editingConversationId = ref<string | null>(null)
+const editingTitle = ref('')
+const savingConversationId = ref<string | null>(null)
 
 const hostLabel = computed(() => {
   const host = sshStore.host.trim() || '当前主机'
@@ -130,6 +134,50 @@ async function openConversation(id: string) {
     closeSidebarOnNarrowScreen()
   } catch {
     // The store keeps the detail error visible in context.
+  }
+}
+
+function editConversation(conversation: AiAgentConversation) {
+  editingConversationId.value = conversation.id
+  editingTitle.value = conversation.title || '新对话'
+  void nextTick(() => {
+    document.querySelector<HTMLInputElement>('.agent-history-title-input')?.select()
+  })
+}
+
+function cancelEditingConversation() {
+  editingConversationId.value = null
+  editingTitle.value = ''
+}
+
+async function saveConversationTitle(conversation: AiAgentConversation) {
+  if (
+    editingConversationId.value !== conversation.id ||
+    savingConversationId.value === conversation.id
+  ) {
+    return
+  }
+  const connectionId = sshStore.connectionId
+  const title = editingTitle.value.trim()
+  if (!connectionId) return
+  if (!title) {
+    getUiApi().message.warning('对话标题不能为空。')
+    return
+  }
+  if (title === (conversation.title || '新对话')) {
+    cancelEditingConversation()
+    return
+  }
+  savingConversationId.value = conversation.id
+  try {
+    await agentStore.updateConversationTitle(conversation.id, title, connectionId)
+    cancelEditingConversation()
+  } catch (requestError) {
+    getUiApi().message.error(
+      requestError instanceof Error ? requestError.message : '修改对话标题失败。',
+    )
+  } finally {
+    savingConversationId.value = null
   }
 }
 
@@ -300,6 +348,7 @@ let resizeObserver: ResizeObserver | undefined
             :class="{ 'agent-history-row-active': selectedConversation?.id === conversation.id }"
           >
             <button
+              v-if="editingConversationId !== conversation.id"
               type="button"
               class="agent-history-open"
               :disabled="running"
@@ -307,7 +356,30 @@ let resizeObserver: ResizeObserver | undefined
             >
               <span>{{ conversation.title || '新对话' }}</span>
             </button>
+            <input
+              v-else
+              v-model="editingTitle"
+              class="agent-history-title-input"
+              type="text"
+              maxlength="100"
+              aria-label="对话标题"
+              :disabled="savingConversationId === conversation.id"
+              @blur="saveConversationTitle(conversation)"
+              @keydown.enter.prevent="($event.currentTarget as HTMLInputElement).blur()"
+              @keydown.esc.prevent="cancelEditingConversation"
+            />
             <button
+              v-if="editingConversationId !== conversation.id"
+              type="button"
+              class="agent-history-edit"
+              :disabled="running"
+              :aria-label="`修改 ${conversation.title || '新对话'} 的标题`"
+              @click="editConversation(conversation)"
+            >
+              <Pencil :size="13" />
+            </button>
+            <button
+              v-if="editingConversationId !== conversation.id"
               type="button"
               class="agent-history-delete"
               :disabled="running"
@@ -542,6 +614,7 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-icon-button,
+.agent-history-edit,
 .agent-history-delete,
 .agent-mobile-close {
   display: grid;
@@ -557,6 +630,7 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-icon-button:hover,
+.agent-history-edit:hover,
 .agent-history-delete:hover,
 .agent-mobile-close:hover {
   background: var(--agent-hover);
@@ -663,14 +737,35 @@ let resizeObserver: ResizeObserver | undefined
   white-space: nowrap;
 }
 
+.agent-history-title-input {
+  width: 0;
+  min-width: 0;
+  height: 26px;
+  flex: 1;
+  margin: 3px 4px 3px 7px;
+  padding: 0 5px;
+  border: 1px solid var(--app-primary-border);
+  border-radius: var(--app-radius-control);
+  outline: 0;
+  color: var(--agent-text);
+  background: var(--agent-elevated);
+  font-size: 11px;
+}
+
+.agent-history-edit,
 .agent-history-delete {
   width: 28px;
   height: 28px;
-  margin-right: 2px;
   opacity: 0;
 }
 
+.agent-history-delete {
+  margin-right: 2px;
+}
+
+.agent-history-row:hover .agent-history-edit,
 .agent-history-row:hover .agent-history-delete,
+.agent-history-edit:focus-visible,
 .agent-history-delete:focus-visible {
   opacity: 0.62;
 }

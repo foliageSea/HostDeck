@@ -57,6 +57,7 @@ const actionLabels: Record<string, string> = {
   connect: '连接',
   conversationCreate: '创建对话',
   conversationDelete: '删除对话',
+  conversationUpdate: '修改对话标题',
   composeCreate: '创建编排项目',
   composeDown: '下线编排项目',
   composeRestart: '重启编排项目',

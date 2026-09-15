@@ -15,6 +15,7 @@ const apiMocks = vi.hoisted(() => ({
   run: vi.fn(),
   saveSettings: vi.fn(),
   testSettings: vi.fn(),
+  updateConversation: vi.fn(),
 }))
 
 vi.mock('@/api/ai-agent', () => ({ aiAgentApi: apiMocks }))
@@ -35,6 +36,27 @@ describe('AI Agent store', () => {
     apiMocks.approve.mockResolvedValue(undefined)
     apiMocks.cancel.mockResolvedValue(undefined)
     apiMocks.reject.mockResolvedValue(undefined)
+    apiMocks.updateConversation.mockResolvedValue({
+      ...conversation,
+      title: 'Renamed conversation',
+    })
+  })
+
+  it('updates the title in both the conversation list and selected detail', async () => {
+    apiMocks.getConversation.mockResolvedValue({ conversation, messages: [] })
+    const store = useAiAgentStore()
+    await store.loadConversations('connection-1')
+    await store.selectConversation('conversation-1', 'connection-1')
+
+    await store.updateConversationTitle('conversation-1', 'Renamed conversation', 'connection-1')
+
+    expect(apiMocks.updateConversation).toHaveBeenCalledWith(
+      'conversation-1',
+      'connection-1',
+      'Renamed conversation',
+    )
+    expect(store.conversations[0]?.title).toBe('Renamed conversation')
+    expect(store.selectedConversation?.title).toBe('Renamed conversation')
   })
 
   it('applies incremental deltas and resolves an approval while the run stays open', async () => {

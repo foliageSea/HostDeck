@@ -170,6 +170,18 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     }
   }
 
+  async function updateConversationTitle(id: string, title: string, connectionId: string) {
+    const conversation = await aiAgentApi.updateConversation(id, connectionId, title)
+    if (currentConnectionId.value !== connectionId) return null
+    conversations.value = conversations.value.map((item) =>
+      item.id === conversation.id ? conversation : item,
+    )
+    if (selectedConversation.value?.id === conversation.id) {
+      selectedConversation.value = conversation
+    }
+    return conversation
+  }
+
   function upsertTool(event: Extract<AiAgentRunEvent, { callId: string }>) {
     const existing = toolCalls.value.find((tool) => tool.callId === event.callId)
     if (existing) {
@@ -364,6 +376,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     startRun,
     testSettings,
     toolCalls,
+    updateConversationTitle,
     usage,
   }
 })

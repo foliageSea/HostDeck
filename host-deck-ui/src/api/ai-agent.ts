@@ -220,6 +220,15 @@ export const aiAgentApi = {
     ).data
   },
 
+  async updateConversation(id: string, connectionId: string, title: string) {
+    return (
+      await http.put<AiAgentConversation>(`/api/ai-agent/conversations/${encodeURIComponent(id)}`, {
+        connectionId,
+        title,
+      })
+    ).data
+  },
+
   async deleteConversation(id: string, connectionId: string) {
     await http.delete(`/api/ai-agent/conversations/${encodeURIComponent(id)}`, {
       params: { connectionId },

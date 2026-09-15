@@ -100,6 +100,20 @@ class AiAgentRepository {
     return rows.isEmpty ? null : _conversationFromRow(rows.first);
   }
 
+  AiAgentConversation? updateConversationTitle(
+    String id,
+    String targetKey,
+    String title,
+  ) {
+    _database.db.execute(
+      '''UPDATE ai_agent_conversations SET title = ?
+         WHERE id = ? AND targetKey = ?''',
+      [title, id, targetKey],
+    );
+    if (_database.db.updatedRows == 0) return null;
+    return getConversation(id, targetKey);
+  }
+
   bool deleteConversation(String id, String targetKey) {
     _database.db.execute('BEGIN');
     try {

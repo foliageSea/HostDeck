@@ -50,6 +50,24 @@ void main() {
       repository.listConversations('server:7').single.title,
       'check status',
     );
+    expect(
+      repository.updateConversationTitle(
+        'conversation-1',
+        'server:8',
+        'Wrong target',
+      ),
+      isNull,
+    );
+    final renamed = repository.updateConversationTitle(
+      'conversation-1',
+      'server:7',
+      'Production status',
+    );
+    expect(renamed?.title, 'Production status');
+    expect(
+      repository.getConversation('conversation-1', 'server:7')?.title,
+      'Production status',
+    );
     expect(repository.getConversation('conversation-1', 'server:8'), isNull);
     expect(
       repository.listMessages('conversation-1').single.content,
