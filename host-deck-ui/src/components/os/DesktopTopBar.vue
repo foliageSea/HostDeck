@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, h, onMounted, onUnmounted, ref } from 'vue'
+import { useFullscreen } from '@vueuse/core'
 import {
   ApplicationWeb,
   Information,
   ListChecked,
   Logout,
+  Maximize,
+  Minimize,
   Moon,
   Settings,
   Sun,
@@ -24,6 +27,11 @@ const sshStore = useSshStore()
 const desktopStore = useDesktopStore()
 const uploadCenterStore = useUploadCenterStore()
 const aboutVisible = ref(false)
+const {
+  isFullscreen,
+  isSupported: isFullscreenSupported,
+  toggle: toggleFullscreen,
+} = useFullscreen()
 const appVersion = __APP_VERSION__
 const now = ref(new Date())
 const timeFormatter = new Intl.DateTimeFormat('zh-CN', {
@@ -33,6 +41,19 @@ const timeFormatter = new Intl.DateTimeFormat('zh-CN', {
 let clockTimer: number | null = null
 
 const currentTime = computed(() => timeFormatter.format(now.value))
+const fullscreenLabel = computed(() => {
+  if (!isFullscreenSupported.value) return '当前浏览器不支持网页全屏'
+  return isFullscreen.value ? '退出网页全屏' : '进入网页全屏'
+})
+
+async function handleFullscreenToggle() {
+  try {
+    await toggleFullscreen()
+  } catch {
+    getUiApi().message.error('切换网页全屏失败，请检查浏览器权限。')
+  }
+}
+
 function updateClock() {
   now.value = new Date()
   clockTimer = window.setTimeout(updateClock, 60_000 - (Date.now() % 60_000))
@@ -289,6 +310,25 @@ function disconnect() {
           任务中心
         </NTooltip>
       </NBadge>
+
+      <NTooltip placement="bottom">
+        <template #trigger>
+          <NButton
+            quaternary
+            circle
+            :disabled="!isFullscreenSupported"
+            :aria-label="fullscreenLabel"
+            @click="handleFullscreenToggle"
+          >
+            <template #icon>
+              <NIcon :size="16">
+                <component :is="isFullscreen ? Minimize : Maximize" />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        {{ fullscreenLabel }}
+      </NTooltip>
 
       <NButton quaternary circle @click="disconnect">
         <template #icon>

@@ -27,6 +27,10 @@ describe('DesktopTopBar', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    Reflect.deleteProperty(document, 'exitFullscreen')
+    Reflect.deleteProperty(document, 'fullScreen')
+    Reflect.deleteProperty(document, 'fullscreenElement')
+    Reflect.deleteProperty(document.documentElement, 'requestFullscreen')
   })
 
   it('updates the displayed time at the next minute', async () => {
@@ -63,6 +67,51 @@ describe('DesktopTopBar', () => {
 
     expect(desktopStore.windows.filter((window) => window.appId === 'task-center')).toHaveLength(1)
     expect(taskCenterWindow?.isMinimized).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('toggles browser fullscreen and updates its accessible label', async () => {
+    let fullscreenElement: Element | null = null
+    const requestFullscreen = vi.fn(async () => {
+      fullscreenElement = document.documentElement
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    const exitFullscreen = vi.fn(async () => {
+      fullscreenElement = null
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    Object.defineProperties(document, {
+      exitFullscreen: { configurable: true, value: exitFullscreen },
+      fullScreen: { configurable: true, get: () => fullscreenElement !== null },
+      fullscreenElement: { configurable: true, get: () => fullscreenElement },
+    })
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    })
+
+    const wrapper = shallowMount(DesktopTopBar, {
+      global: {
+        stubs: {
+          NButton: { template: '<button><slot name="icon" /><slot /></button>' },
+          NTooltip: { template: '<div><slot name="trigger" /><slot /></div>' },
+        },
+      },
+    })
+    await nextTick()
+
+    const enterButton = wrapper.get('[aria-label="进入网页全屏"]')
+    await enterButton.trigger('click')
+    await nextTick()
+
+    expect(requestFullscreen).toHaveBeenCalledOnce()
+    expect(wrapper.get('[aria-label="退出网页全屏"]')).toBeDefined()
+
+    await wrapper.get('[aria-label="退出网页全屏"]').trigger('click')
+    await nextTick()
+
+    expect(exitFullscreen).toHaveBeenCalledOnce()
+    expect(wrapper.get('[aria-label="进入网页全屏"]')).toBeDefined()
     wrapper.unmount()
   })
 })
