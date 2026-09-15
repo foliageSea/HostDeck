@@ -704,7 +704,8 @@ let resizeObserver: ResizeObserver | undefined
   display: flex;
   min-width: 0;
   align-items: center;
-  border-radius: 0;
+  border: 1px solid transparent;
+  border-radius: var(--app-radius-item);
 }
 
 .agent-history-row:hover,
@@ -713,7 +714,8 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-history-row-active {
-  box-shadow: inset 2px 0 var(--app-primary-color);
+  border-color: var(--app-primary-border);
+  background: var(--app-primary-soft);
 }
 
 .agent-history-open {
