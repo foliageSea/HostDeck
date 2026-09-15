@@ -47,8 +47,9 @@ class AiAgentModelResponse {
 abstract interface class AiAgentModel {
   Future<AiAgentModelResponse> invoke(
     List<AiAgentModelMessage> messages,
-    List<ToolSpec> tools,
-  );
+    List<ToolSpec> tools, {
+    void Function(String text)? onTextDelta,
+  });
 
   void close();
 }
@@ -83,14 +84,24 @@ class LangChainOpenAiAgentModel implements AiAgentModel {
   @override
   Future<AiAgentModelResponse> invoke(
     List<AiAgentModelMessage> messages,
-    List<ToolSpec> tools,
-  ) async {
-    final result = await _model
-        .invoke(
-          PromptValue.chat(messages.map(_toLangChainMessage).toList()),
-          options: ChatOpenAIOptions(tools: tools),
-        )
-        .timeout(const Duration(minutes: 2));
+    List<ToolSpec> tools, {
+    void Function(String text)? onTextDelta,
+  }) async {
+    ChatResult? result;
+    await for (final chunk
+        in _model
+            .stream(
+              PromptValue.chat(messages.map(_toLangChainMessage).toList()),
+              options: ChatOpenAIOptions(tools: tools),
+            )
+            .timeout(const Duration(minutes: 2))) {
+      result = result?.concat(chunk) ?? chunk;
+      final text = chunk.output.contentAsString;
+      if (text.isNotEmpty) onTextDelta?.call(text);
+    }
+    if (result == null) {
+      throw StateError('The model returned an empty response.');
+    }
     return AiAgentModelResponse(
       text: result.output.contentAsString,
       toolCalls: result.output.toolCalls

@@ -176,11 +176,37 @@ state uncertainty. Do not expose secrets.
       String? finalText;
       Map<String, dynamic>? usage;
       var toolCallCount = 0;
+      final assistantMessageId = _newId();
+      final emittedText = StringBuffer();
 
       for (var iteration = 0; iteration < maxToolIterations; iteration++) {
         _ensureActive(run);
-        final response = await model.invoke(messages, _toolService.specs);
+        final iterationText = StringBuffer();
+        final response = await model.invoke(
+          messages,
+          _toolService.specs,
+          onTextDelta: (text) {
+            _ensureActive(run);
+            iterationText.write(text);
+            emittedText.write(text);
+            run.emit('message-delta', {
+              'messageId': assistantMessageId,
+              'text': text,
+            });
+          },
+        );
         _ensureActive(run);
+        final streamedText = iterationText.toString();
+        if (response.text.startsWith(streamedText)) {
+          final remainder = response.text.substring(streamedText.length);
+          if (remainder.isNotEmpty) {
+            emittedText.write(remainder);
+            run.emit('message-delta', {
+              'messageId': assistantMessageId,
+              'text': remainder,
+            });
+          }
+        }
         usage = _addUsage(usage, response.usage);
         messages.add(
           AiAgentModelMessage(
@@ -275,19 +301,22 @@ state uncertainty. Do not expose secrets.
       }
 
       _ensureActive(run);
-      final text =
-          finalText ??
-          'The operation stopped after reaching the tool-call limit.';
+      if (finalText == null) {
+        const limitMessage =
+            'The operation stopped after reaching the tool-call limit.';
+        emittedText.write(limitMessage);
+        run.emit('message-delta', {
+          'messageId': assistantMessageId,
+          'text': limitMessage,
+        });
+      }
+      final text = emittedText.toString();
       final assistantMessage = _repository.addMessage(
-        id: _newId(),
+        id: assistantMessageId,
         conversationId: run.conversationId,
         role: 'assistant',
         content: text,
       );
-      run.emit('message-delta', {
-        'messageId': assistantMessage.id,
-        'text': text,
-      });
       if (usage != null) run.emit('usage', usage);
       run.emit('done', {
         'conversationId': run.conversationId,

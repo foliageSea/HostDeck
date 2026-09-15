@@ -112,10 +112,39 @@ void main() {
       AiAgentApprovalResult.notFound,
     );
   });
+
+  test('forwards model text deltas before the run completes', () async {
+    model.responses = const [AiAgentModelResponse(text: 'First second')];
+    model.textDeltas = const [
+      ['First ', 'second'],
+    ];
+    final run = manager.start(
+      conversationId: 'conversation-1',
+      connectionId: 'connection-1',
+      targetKey: 'server:7',
+      ownerId: 'browser:test',
+      input: 'stream a response',
+    );
+    final events = _collect(run.stream);
+
+    final firstDelta = await events.firstMessageDelta.future.timeout(
+      const Duration(seconds: 2),
+    );
+    expect(firstDelta, contains('"text":"First "'));
+
+    final body = await events.done.future.timeout(const Duration(seconds: 2));
+    expect(RegExp('event: message-delta').allMatches(body), hasLength(2));
+    expect(body, contains('"text":"second"'));
+    expect(
+      repository.listMessages('conversation-1').last.content,
+      'First second',
+    );
+  });
 }
 
 _CollectedEvents _collect(Stream<List<int>> stream) {
   final approvalRequired = Completer<void>();
+  final firstMessageDelta = Completer<String>();
   final done = Completer<String>();
   final buffer = StringBuffer();
   stream
@@ -127,18 +156,27 @@ _CollectedEvents _collect(Stream<List<int>> stream) {
               buffer.toString().contains('event: approval-required')) {
             approvalRequired.complete();
           }
+          if (!firstMessageDelta.isCompleted &&
+              buffer.toString().contains('event: message-delta')) {
+            firstMessageDelta.complete(buffer.toString());
+          }
         },
         onError: done.completeError,
         onDone: () => done.complete(buffer.toString()),
       );
-  return _CollectedEvents(approvalRequired, done);
+  return _CollectedEvents(approvalRequired, firstMessageDelta, done);
 }
 
 class _CollectedEvents {
   final Completer<void> approvalRequired;
+  final Completer<String> firstMessageDelta;
   final Completer<String> done;
 
-  const _CollectedEvents(this.approvalRequired, this.done);
+  const _CollectedEvents(
+    this.approvalRequired,
+    this.firstMessageDelta,
+    this.done,
+  );
 }
 
 class _FakeSshService extends SshService {
@@ -165,14 +203,26 @@ class _FakeModelFactory implements AiAgentModelFactory {
 
 class _FakeModel implements AiAgentModel {
   final List<List<AiAgentModelMessage>> inputs = [];
+  List<AiAgentModelResponse>? responses;
+  List<List<String>>? textDeltas;
   bool closed = false;
 
   @override
   Future<AiAgentModelResponse> invoke(
     List<AiAgentModelMessage> messages,
-    List<ToolSpec> _,
-  ) async {
+    List<ToolSpec> _, {
+    void Function(String text)? onTextDelta,
+  }) async {
     inputs.add(List.of(messages));
+    final responseIndex = inputs.length - 1;
+    final configuredResponses = responses;
+    if (configuredResponses != null) {
+      for (final text in textDeltas?[responseIndex] ?? const <String>[]) {
+        onTextDelta?.call(text);
+        await Future<void>.delayed(Duration.zero);
+      }
+      return configuredResponses[responseIndex];
+    }
     if (inputs.length == 1) {
       return const AiAgentModelResponse(
         text: '',
@@ -185,7 +235,9 @@ class _FakeModel implements AiAgentModel {
         ],
       );
     }
-    return const AiAgentModelResponse(text: 'Rejected safely');
+    const response = AiAgentModelResponse(text: 'Rejected safely');
+    onTextDelta?.call(response.text);
+    return response;
   }
 
   @override
