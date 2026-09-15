@@ -787,16 +787,16 @@ let resizeObserver: ResizeObserver | undefined
   gap: 10px;
   margin: 7px;
   padding: 7px 10px;
-  border: 0;
-  border-top: 1px solid var(--agent-border);
+  border: 1px solid var(--agent-border);
   border-radius: var(--app-radius-item);
   color: inherit;
-  background: transparent;
+  background: var(--agent-elevated);
   cursor: pointer;
 }
 
 .agent-settings-entry:hover {
-  background: var(--agent-hover);
+  border-color: var(--app-primary-border);
+  background: var(--app-primary-soft);
 }
 
 .agent-main {
