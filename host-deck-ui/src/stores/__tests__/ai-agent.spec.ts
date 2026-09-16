@@ -47,6 +47,32 @@ describe('AI Agent store', () => {
     })
   })
 
+  it('records elapsed time at completion and clears it for a new conversation', async () => {
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(100)
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        clock.mockReturnValue(1350)
+        onEvent({ conversationId: 'conversation-1', event: 'done', messageId: 'message-1' })
+        clock.mockReturnValue(2000)
+      },
+    )
+    try {
+      const store = useAiAgentStore()
+      await store.startRun('inspect host', 'connection-1')
+      expect(store.durationMs).toBe(1250)
+      await store.createConversation('connection-1')
+      expect(store.durationMs).toBeNull()
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
   it('updates the title in both the conversation list and selected detail', async () => {
     apiMocks.getConversation.mockResolvedValue({ conversation, messages: [] })
     const store = useAiAgentStore()

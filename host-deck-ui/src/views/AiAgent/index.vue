@@ -43,6 +43,7 @@ const sshStore = useSshStore()
 const {
   autoRun,
   conversations,
+  durationMs,
   error,
   loadingConversation,
   loadingConversations,
@@ -566,8 +567,11 @@ let resizeObserver: ResizeObserver | undefined
               @reject="resolveApproval($event, false)"
             />
           </div>
-          <div v-if="usage?.totalTokens" class="agent-usage">
-            本次使用 {{ usage.totalTokens.toLocaleString() }} tokens
+          <div v-if="usage?.totalTokens != null || durationMs != null" class="agent-usage">
+            <span v-if="usage?.totalTokens != null">
+              本次使用 {{ usage.totalTokens.toLocaleString() }} tokens
+            </span>
+            <span v-if="durationMs != null">执行耗时 {{ (durationMs / 1000).toFixed(1) }} 秒</span>
           </div>
         </div>
       </div>
@@ -1112,9 +1116,12 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-usage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
   margin-top: 18px;
   color: var(--agent-muted);
-  text-align: center;
+  text-align: left;
   font-size: 10px;
 }
 

@@ -54,6 +54,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const messages = ref<AiAgentMessage[]>([])
   const toolCalls = ref<AiAgentToolCall[]>([])
   const usage = ref<AiAgentUsage | null>(null)
+  const durationMs = ref<number | null>(null)
   const loadingSettings = ref(false)
   const loadingSkills = ref(false)
   const loadingMcpServers = ref(false)
@@ -70,6 +71,13 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   let skillsRequest = 0
   let runRequest = 0
   let runController: AbortController | null = null
+  let runStartedAt: number | null = null
+
+  function finishRunTiming() {
+    if (runStartedAt === null) return
+    durationMs.value = performance.now() - runStartedAt
+    runStartedAt = null
+  }
 
   const hasPendingApproval = computed(() => toolCalls.value.some((tool) => tool.approvalPending))
 
@@ -173,6 +181,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     messages.value = []
     toolCalls.value = []
     usage.value = null
+    durationMs.value = null
     error.value = null
     skillsError.value = null
     loadingSkills.value = false
@@ -217,6 +226,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     messages.value = []
     toolCalls.value = []
     usage.value = null
+    durationMs.value = null
     error.value = null
     detailRequest += 1
     return conversation
@@ -235,6 +245,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       messages.value = result.messages.slice(-MAX_MESSAGES)
       toolCalls.value = []
       usage.value = null
+      durationMs.value = null
     } catch (requestError) {
       if (request === detailRequest) error.value = errorMessage(requestError)
       throw requestError
@@ -253,6 +264,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       messages.value = []
       toolCalls.value = []
       usage.value = null
+      durationMs.value = null
       detailRequest += 1
     }
   }
@@ -328,6 +340,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       usage.value = event.usage
     } else if (event.event === 'done') {
       assistant.id = event.messageId
+      finishRunTiming()
     }
   }
 
@@ -354,6 +367,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       const streamedAssistant = messages.value.at(-1)!
       toolCalls.value = []
       usage.value = null
+      durationMs.value = null
+      runStartedAt = performance.now()
       error.value = null
       activeRunId.value = null
       await aiAgentApi.run(
@@ -379,6 +394,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       return false
     } finally {
       if (request === runRequest) {
+        finishRunTiming()
         if (!completed) finishPendingTools('error')
         running.value = false
         activeRunId.value = null
@@ -389,6 +405,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   }
 
   function abortRun() {
+    finishRunTiming()
     runRequest += 1
     runController?.abort()
     runController = null
@@ -403,6 +420,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     const controller = runController
     if (!controller) return
     const cancellation = runId ? aiAgentApi.cancel(runId) : Promise.resolve()
+    finishRunTiming()
     controller.abort()
     finishPendingTools('error')
     try {
@@ -453,6 +471,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     createConversation,
     currentConnectionId,
     deleteConversation,
+    durationMs,
     error,
     hasPendingApproval,
     loadConversations,
