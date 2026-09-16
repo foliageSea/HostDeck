@@ -787,8 +787,6 @@ function createChartOption(config: {
 .dashboard-tabs :deep(.n-tabs-pane-wrapper) {
   min-height: 0;
   overflow-y: auto;
-  scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
-  scrollbar-width: thin;
 }
 
 .dashboard-tabs :deep(.n-tabs-content) {

@@ -18,6 +18,10 @@
   --app-radius-item: 12px;
   --app-radius-control: 10px;
   --app-radius-button: 10px;
+  --app-scrollbar-size: 5px;
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  --app-scrollbar-track: transparent;
   --electron-titlebar-height: 38px;
 
   line-height: 1.5;
@@ -33,16 +37,66 @@
   color-scheme: dark;
   color: #e5e7eb;
   background: #020617;
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
   color: #0f172a;
   background: #e2e8f0;
+  --app-scrollbar-thumb: rgba(0, 0, 0, 0.25);
+  --app-scrollbar-thumb-hover: rgba(0, 0, 0, 0.4);
 }
 
 * {
   box-sizing: border-box;
+}
+
+*::-webkit-scrollbar {
+  width: var(--app-scrollbar-size);
+  height: var(--app-scrollbar-size);
+}
+
+*::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button:single-button,
+*::-webkit-scrollbar-button:vertical:decrement,
+*::-webkit-scrollbar-button:vertical:increment,
+*::-webkit-scrollbar-button:horizontal:decrement,
+*::-webkit-scrollbar-button:horizontal:increment {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+  width: 0;
+  height: 0;
+  border: 0;
+  background: transparent;
+  background-image: none;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: var(--app-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 5px;
+  background-color: transparent;
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background-color: var(--app-scrollbar-thumb);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--app-scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--app-scrollbar-thumb-hover);
 }
 
 html,
@@ -215,47 +269,22 @@ select {
 }
 
 .app-scrollbar {
-  scrollbar-width: thin;
   scrollbar-gutter: stable;
-  scrollbar-color: var(--app-scrollbar-thumb, rgba(148, 163, 184, 0.34)) transparent;
   overscroll-behavior: contain;
 }
 
-.app-scrollbar::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-.app-scrollbar-compact::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.app-scrollbar::-webkit-scrollbar-track,
-.app-scrollbar::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-.app-scrollbar::-webkit-scrollbar-thumb {
-  min-height: 36px;
-  border: 3px solid transparent;
-  border-radius: 999px;
-  background-clip: padding-box;
-  background-color: var(--app-scrollbar-thumb, rgba(148, 163, 184, 0.34));
-}
-
-.app-scrollbar:hover::-webkit-scrollbar-thumb {
-  background-color: var(--app-scrollbar-thumb-hover, rgba(96, 165, 250, 0.48));
+.app-scrollbar-compact {
+  --app-scrollbar-size: 5px;
 }
 
 .app-scrollbar-dark {
-  --app-scrollbar-thumb: rgba(148, 163, 184, 0.34);
-  --app-scrollbar-thumb-hover: rgba(96, 165, 250, 0.52);
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
 }
 
 .app-scrollbar-light {
-  --app-scrollbar-thumb: rgba(100, 116, 139, 0.26);
-  --app-scrollbar-thumb-hover: rgba(59, 130, 246, 0.42);
+  --app-scrollbar-thumb: rgba(0, 0, 0, 0.25);
+  --app-scrollbar-thumb-hover: rgba(0, 0, 0, 0.4);
 }
 
 .fade-enter-active,

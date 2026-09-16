@@ -122,11 +122,6 @@ watch(
 </template>
 
 <style scoped>
-.terminal-completion-list {
-  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
-  scrollbar-width: thin;
-}
-
 .terminal-completion-list::-webkit-scrollbar {
   width: 5px;
 }

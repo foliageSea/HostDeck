@@ -289,16 +289,6 @@ onBeforeUnmount(stopColumnResize)
 </template>
 
 <style scoped>
-.file-column-scroller {
-  scrollbar-color: transparent transparent;
-  scrollbar-width: thin;
-}
-
-.file-column-scroller:hover,
-.file-column-scroller:focus-within {
-  scrollbar-color: var(--app-scrollbar-thumb) transparent;
-}
-
 .file-column-scroller::-webkit-scrollbar {
   height: 8px;
 }
@@ -310,16 +300,6 @@ onBeforeUnmount(stopColumnResize)
 .file-column-scroller:hover::-webkit-scrollbar-thumb,
 .file-column-scroller:focus-within::-webkit-scrollbar-thumb {
   background-color: var(--app-scrollbar-thumb);
-}
-
-.file-column-list {
-  scrollbar-color: transparent transparent;
-  scrollbar-width: thin;
-}
-
-.file-column-list:hover,
-.file-column-list:focus-within {
-  scrollbar-color: var(--app-scrollbar-thumb) transparent;
 }
 
 .file-column-list::-webkit-scrollbar {

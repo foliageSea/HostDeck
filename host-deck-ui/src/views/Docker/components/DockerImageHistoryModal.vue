@@ -46,8 +46,6 @@ const settingsStore = useSettingsStore()
 }
 
 .history-table-shell :deep(.n-data-table-base-table-body) {
-  scrollbar-width: thin;
-  scrollbar-color: var(--app-scrollbar-thumb) transparent;
   overscroll-behavior: contain;
 }
 
