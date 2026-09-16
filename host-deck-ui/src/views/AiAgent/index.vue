@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import type { MentionOption } from 'naive-ui'
 import {
   Bot,
   Menu,
   MessageSquarePlus,
   PanelLeftClose,
   Pencil,
+  Puzzle,
   Search,
   Send,
   Settings,
@@ -17,7 +19,7 @@ import {
 } from '@lucide/vue'
 import type { AiAgentConversation } from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
-import { useAiAgentStore } from '@/stores/ai-agent'
+import { MAX_SELECTED_SKILLS, useAiAgentStore } from '@/stores/ai-agent'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import AiAgentMarkdown from './components/AiAgentMarkdown.vue'
@@ -41,7 +43,9 @@ const {
   messages,
   running,
   selectedConversation,
+  selectedSkillIds,
   settings,
+  skills,
   toolCalls,
   usage,
 } = storeToRefs(agentStore)
@@ -101,6 +105,24 @@ const canSend = computed(() =>
     input.value.trim() && sshStore.connectionId && settings.value?.hasApiKey && !running.value,
   ),
 )
+
+const skillMentionOptions = computed<MentionOption[]>(() =>
+  skills.value.map((skill) => ({
+    description: skill.description,
+    disabled:
+      selectedSkillIds.value.length >= MAX_SELECTED_SKILLS &&
+      !selectedSkillIds.value.includes(skill.id),
+    label: `${skill.name} · ${skill.source}`,
+    skillId: skill.id,
+    source: skill.source,
+    value: skill.name,
+  })),
+)
+
+const selectedSkills = computed(() => {
+  const selectedIds = new Set(selectedSkillIds.value)
+  return skills.value.filter((skill) => selectedIds.has(skill.id))
+})
 
 const pendingToolCalls = computed(() => toolCalls.value.filter((tool) => tool.approvalPending))
 const completedToolCalls = computed(() => toolCalls.value.filter((tool) => !tool.approvalPending))
@@ -225,9 +247,46 @@ async function send() {
 }
 
 function handleComposerKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return
+  if (event.defaultPrevented || event.key !== 'Enter' || event.shiftKey || event.isComposing) return
   event.preventDefault()
   void send()
+}
+
+function filterSkillMention(pattern: string, option: MentionOption) {
+  const keyword = pattern.toLocaleLowerCase()
+  return [option.value, option.label, option.description, option.source].some(
+    (value) => typeof value === 'string' && value.toLocaleLowerCase().includes(keyword),
+  )
+}
+
+function selectSkillMention(option: MentionOption) {
+  if (typeof option.skillId !== 'string') return
+  agentStore.setSelectedSkillIds([...selectedSkillIds.value, option.skillId])
+  if (typeof option.value === 'string') {
+    const skillName = option.value
+    void nextTick(() => removeMentionText(skillName))
+  }
+}
+
+function removeMentionText(skillName: string) {
+  const mention = `@${skillName}`
+  const index = input.value.lastIndexOf(mention)
+  if (index < 0) return
+  const mentionEnd = index + mention.length
+  const removeEnd = input.value[mentionEnd] === ' ' ? mentionEnd + 1 : mentionEnd
+  input.value = `${input.value.slice(0, index)}${input.value.slice(removeEnd)}`
+}
+
+function removeSelectedSkill(skillId: string) {
+  agentStore.setSelectedSkillIds(selectedSkillIds.value.filter((id) => id !== skillId))
+}
+
+function renderSkillMentionLabel(option: MentionOption) {
+  return h('div', { class: 'agent-skill-mention-option' }, [
+    h(Puzzle, { class: 'agent-skill-mention-icon', size: 14 }),
+    h('span', { class: 'agent-skill-mention-name' }, String(option.value ?? '')),
+    h('small', { class: 'agent-skill-mention-source' }, String(option.source ?? '')),
+  ])
 }
 
 async function stop() {
@@ -517,13 +576,32 @@ let resizeObserver: ResizeObserver | undefined
           配置 API Key 后开始对话
         </button>
         <div class="agent-composer" :class="{ 'agent-composer-running': running }">
-          <NInput
+          <div v-if="selectedSkills.length" class="agent-selected-skills" aria-label="已选 Skills">
+            <span v-for="skill in selectedSkills" :key="skill.id" class="agent-selected-skill">
+              <Puzzle :size="12" />
+              <span>{{ skill.name }}</span>
+              <button
+                type="button"
+                :aria-label="`移除 Skill ${skill.name}`"
+                :disabled="running"
+                @click="removeSelectedSkill(skill.id)"
+              >
+                <X :size="11" />
+              </button>
+            </span>
+          </div>
+          <NMention
             v-model:value="input"
             type="textarea"
+            :options="skillMentionOptions"
+            :filter="filterSkillMention"
+            :render-label="renderSkillMentionLabel"
             :autosize="{ minRows: 2, maxRows: 7 }"
             :disabled="!sshStore.connectionId"
-            placeholder="描述任务，Enter 发送，Shift+Enter 换行"
+            :loading="agentStore.loadingSkills"
+            placeholder="描述任务，输入 @ 选择 Skill"
             class="agent-composer-input"
+            @select="selectSkillMention"
             @keydown="handleComposerKeydown"
           />
           <div class="agent-composer-footer">
@@ -998,7 +1076,62 @@ let resizeObserver: ResizeObserver | undefined
   box-shadow: 0 12px 42px rgba(var(--app-primary-rgb), 0.12);
 }
 
+.agent-selected-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 9px 12px 0;
+}
+
+.agent-selected-skill {
+  display: inline-flex;
+  max-width: 100%;
+  height: 24px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 3px 0 7px;
+  border: 1px solid var(--app-primary-border);
+  border-radius: var(--app-radius-control);
+  color: var(--app-primary-color);
+  background: var(--app-primary-soft);
+  font-size: 10px;
+}
+
+.agent-selected-skill > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-selected-skill button {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--app-radius-control);
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.agent-selected-skill button:hover:not(:disabled) {
+  background: rgba(var(--app-primary-rgb), 0.13);
+}
+
+.agent-selected-skill button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .agent-composer-input {
+  background: transparent !important;
+}
+
+.agent-composer-input :deep(.n-input) {
   background: transparent !important;
 }
 
@@ -1017,6 +1150,38 @@ let resizeObserver: ResizeObserver | undefined
   caret-color: var(--app-primary-color);
   font-size: 12px;
   line-height: 1.65;
+}
+
+:global(.agent-skill-mention-option) {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+:global(.agent-skill-mention-icon) {
+  flex: 0 0 auto;
+  color: var(--app-primary-color);
+}
+
+:global(.agent-skill-mention-name) {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+:global(.agent-skill-mention-source) {
+  max-width: 38%;
+  overflow: hidden;
+  color: var(--n-option-text-color, #64748b);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  opacity: 0.58;
 }
 
 .agent-composer-footer {

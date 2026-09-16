@@ -58,7 +58,7 @@ describe('AiAgentSkillPicker', () => {
     expect(wrapper.text()).toContain('builtin')
     const checkboxes = wrapper.findAll('input[type="checkbox"]')
     await checkboxes[0]!.setValue(true)
-    await checkboxes[1]!.setValue(true)
+    await wrapper.findAll('.agent-skill-copy')[1]!.trigger('click')
     expect(store.selectedSkillIds).toEqual(['logs', 'services'])
     expect(wrapper.get('.agent-skill-trigger').text()).toContain('2')
 

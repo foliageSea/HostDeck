@@ -99,20 +99,25 @@ function skillDisabled(id: string) {
         <div v-else-if="filteredSkills.length === 0" class="agent-skill-state">
           {{ query ? '没有匹配的 Skill' : '当前主机没有可用 Skill' }}
         </div>
-        <label v-for="skill in filteredSkills" v-else :key="skill.id" class="agent-skill-option">
+        <div v-for="skill in filteredSkills" v-else :key="skill.id" class="agent-skill-option">
           <NCheckbox
             :checked="selectedSkillIds.includes(skill.id)"
             :disabled="skillDisabled(skill.id)"
             @update:checked="updateSkill(skill.id, $event)"
           />
-          <span class="agent-skill-copy">
+          <button
+            type="button"
+            class="agent-skill-copy"
+            :disabled="skillDisabled(skill.id)"
+            @click="store.toggleSkill(skill.id)"
+          >
             <span class="agent-skill-name-row">
               <strong>{{ skill.name }}</strong>
               <small>{{ skill.source }}</small>
             </span>
             <span class="agent-skill-description">{{ skill.description }}</span>
-          </span>
-        </label>
+          </button>
+        </div>
       </div>
     </div>
   </NPopover>
@@ -256,6 +261,17 @@ function skillDisabled(id: string) {
 
 .agent-skill-copy {
   flex: 1;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-skill-copy:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .agent-skill-name-row {
