@@ -60,6 +60,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const loadingConversations = ref(false)
   const loadingConversation = ref(false)
   const running = ref(false)
+  const autoRun = ref(false)
   const activeRunId = ref<string | null>(null)
   const error = ref<string | null>(null)
   const skillsError = ref<string | null>(null)
@@ -164,6 +165,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     if (currentConnectionId.value === connectionId) return false
     abortRun()
     currentConnectionId.value = connectionId
+    autoRun.value = false
     conversations.value = []
     skills.value = []
     selectedSkillIds.value = []
@@ -319,6 +321,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       event.event === 'tool-result'
     ) {
       upsertTool(event)
+      if (event.event === 'approval-required' && autoRun.value) {
+        void resolveApproval(event.callId, true).catch(() => undefined)
+      }
     } else if (event.event === 'usage') {
       usage.value = event.usage
     } else if (event.event === 'done') {
@@ -442,6 +447,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
 
   return {
     activeRunId,
+    autoRun,
     cancelRun,
     conversations,
     createConversation,

@@ -4,6 +4,10 @@ import { storeToRefs } from 'pinia'
 import type { MentionOption } from 'naive-ui'
 import {
   Bot,
+  Check,
+  ChevronDown,
+  Hand,
+  ShieldAlert,
   Menu,
   MessageSquarePlus,
   PanelLeftClose,
@@ -37,6 +41,7 @@ const agentStore = useAiAgentStore()
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const {
+  autoRun,
   conversations,
   error,
   loadingConversation,
@@ -55,6 +60,7 @@ const rootElement = ref<HTMLElement>()
 const compactLayout = ref(false)
 const sidebarOpen = ref(true)
 const settingsOpen = ref(false)
+const modeMenuOpen = ref(false)
 const settingsSection = ref<'mcp' | 'model'>('model')
 const query = ref('')
 const input = ref('')
@@ -133,6 +139,12 @@ const enabledMcpServers = computed(() => agentStore.mcpServers.filter((server) =
 function openSettings(section: 'mcp' | 'model' = 'model') {
   settingsSection.value = section
   settingsOpen.value = true
+}
+
+function selectRunMode(mode: boolean) {
+  if (running.value || !sshStore.connectionId) return
+  autoRun.value = mode
+  modeMenuOpen.value = false
 }
 
 function closeSidebarOnNarrowScreen() {
@@ -614,7 +626,7 @@ let resizeObserver: ResizeObserver | undefined
             @keydown="handleComposerKeydown"
           />
           <div class="agent-composer-footer">
-            <div class="flex min-w-0 items-center gap-2">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
               <span class="agent-composer-label truncate">{{ settings?.model || '选择模型' }}</span>
               <AiAgentSkillPicker :connection-id="sshStore.connectionId" :disabled="running" />
               <button
@@ -627,7 +639,57 @@ let resizeObserver: ResizeObserver | undefined
                 <PlugZap :size="12" />
                 MCP {{ enabledMcpServers.length }}
               </button>
-              <span class="agent-composer-label">按需审批</span>
+              <NPopover
+                v-model:show="modeMenuOpen"
+                trigger="click"
+                placement="top-start"
+                :show-arrow="false"
+                :disabled="running || !sshStore.connectionId"
+              >
+                <template #trigger>
+                  <button
+                    type="button"
+                    class="agent-mode-trigger"
+                    :class="{ 'agent-mode-auto': autoRun }"
+                    :disabled="running || !sshStore.connectionId"
+                    :aria-expanded="modeMenuOpen"
+                    aria-label="选择运行模式"
+                  >
+                    <ShieldAlert v-if="autoRun" :size="13" />
+                    <Hand v-else :size="13" />
+                    <span>{{ autoRun ? '自动运行' : '按需审批' }}</span>
+                    <ChevronDown :size="11" />
+                  </button>
+                </template>
+                <div class="agent-mode-menu">
+                  <div class="agent-mode-heading">运行权限</div>
+                  <button
+                    v-for="mode in [false, true]"
+                    :key="String(mode)"
+                    type="button"
+                    class="agent-mode-option"
+                    :class="{ 'agent-mode-auto': mode }"
+                    :aria-pressed="autoRun === mode"
+                    :disabled="running || !sshStore.connectionId"
+                    @click="selectRunMode(mode)"
+                  >
+                    <ShieldAlert v-if="mode" :size="16" />
+                    <Hand v-else :size="16" />
+                    <span class="agent-mode-copy">
+                      <strong>{{ mode ? '自动运行' : '按需审批' }}</strong>
+                      <span>{{
+                        mode
+                          ? '自动批准命令执行、文件读写及 MCP 调用'
+                          : '命令执行、文件读写及 MCP 调用前请求批准'
+                      }}</span>
+                    </span>
+                    <Check
+                      :size="16"
+                      :style="{ visibility: autoRun === mode ? 'visible' : 'hidden' }"
+                    />
+                  </button>
+                </div>
+              </NPopover>
             </div>
             <button
               v-if="running"
@@ -1241,6 +1303,86 @@ let resizeObserver: ResizeObserver | undefined
 .agent-mcp-entry:hover:not(:disabled) {
   color: var(--app-primary-color);
   background: var(--app-primary-soft);
+}
+
+.agent-mode-trigger {
+  display: inline-flex;
+  height: 25px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: var(--app-radius-control);
+  color: var(--agent-muted);
+  background: var(--agent-hover);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.agent-mode-trigger:hover:not(:disabled) {
+  background: var(--app-primary-soft);
+}
+
+.agent-mode-trigger:disabled,
+.agent-mode-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.agent-mode-menu {
+  width: min(320px, calc(100vw - 48px));
+}
+
+.agent-mode-heading {
+  padding: 2px 8px 8px;
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.agent-mode-option {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 16px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-mode-option:hover:not(:disabled) {
+  background: var(--app-primary-soft);
+}
+
+.agent-mode-copy {
+  display: grid;
+  gap: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.agent-mode-copy strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agent-mode-copy > span {
+  opacity: 0.65;
+}
+
+.agent-mode-auto {
+  color: #e7823b;
+}
+
+.agent-mode-trigger:focus-visible,
+.agent-mode-option:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
 }
 
 .agent-send-button {

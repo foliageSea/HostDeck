@@ -114,6 +114,76 @@ describe('AI Agent store', () => {
     expect(store.messages.at(-1)?.id).toBe('message-1')
   })
 
+  it.each([false, true])('handles tool approvals with autoRun=%s', async (autoRun) => {
+    let finishRun!: () => void
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        onEvent({ event: 'connected', runId: 'run-1' })
+        onEvent({
+          event: 'approval-required',
+          callId: 'call-1',
+          name: 'shell',
+          summary: 'Run uptime',
+          arguments: { command: 'uptime' },
+        })
+        await new Promise<void>((resolve) => (finishRun = resolve))
+      },
+    )
+    const store = useAiAgentStore()
+    store.resetForConnection('connection-1')
+    store.autoRun = autoRun
+    const run = store.startRun('inspect host', 'connection-1')
+    await vi.waitFor(() => expect(store.activeRunId).toBe('run-1'))
+    expect(apiMocks.approve).toHaveBeenCalledTimes(autoRun ? 1 : 0)
+    expect(store.toolCalls[0]?.approvalPending).toBe(!autoRun)
+    finishRun()
+    await run
+    store.resetForConnection('connection-2')
+    expect(store.autoRun).toBe(false)
+  })
+
+  it('restores manual approval when automatic approval fails', async () => {
+    let finishRun!: () => void
+    apiMocks.approve.mockRejectedValueOnce(new Error('Approval failed'))
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        onEvent({ event: 'connected', runId: 'run-1' })
+        onEvent({
+          event: 'approval-required',
+          callId: 'call-1',
+          name: 'shell',
+          summary: 'Run uptime',
+          arguments: {},
+        })
+        await new Promise<void>((resolve) => (finishRun = resolve))
+      },
+    )
+    const store = useAiAgentStore()
+    store.resetForConnection('connection-1')
+    store.autoRun = true
+    const run = store.startRun('inspect host', 'connection-1')
+    await vi.waitFor(() => expect(store.error).toBe('Approval failed'))
+    expect(store.toolCalls[0]).toMatchObject({
+      approvalPending: true,
+      submitting: false,
+      status: 'pending',
+    })
+    finishRun()
+    await run
+  })
+
   it('ignores stale conversation detail responses after the connection changes', async () => {
     let resolveDetail!: (value: { conversation: typeof conversation; messages: [] }) => void
     apiMocks.getConversation.mockReturnValue(
