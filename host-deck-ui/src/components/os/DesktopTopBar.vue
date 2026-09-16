@@ -275,7 +275,7 @@ function disconnect() {
       </NTooltip>
     </div>
 
-    <div class="flex min-w-0 items-center justify-end gap-[8px]">
+    <div class="flex min-w-0 items-center justify-end gap-[6px]">
       <div class="hidden grid-cols-2 gap-[2px] xl:grid">
         <div
           v-for="stat in performanceStats"
@@ -299,9 +299,9 @@ function disconnect() {
       >
         <NTooltip placement="bottom">
           <template #trigger>
-            <NButton quaternary circle aria-label="打开任务中心" @click="openTaskCenter">
+            <NButton size="small" quaternary circle aria-label="打开任务中心" @click="openTaskCenter">
               <template #icon>
-                <NIcon :size="16">
+                <NIcon :size="14">
                   <ListChecked />
                 </NIcon>
               </template>
@@ -314,6 +314,7 @@ function disconnect() {
       <NTooltip placement="bottom">
         <template #trigger>
           <NButton
+            size="small"
             quaternary
             circle
             :disabled="!isFullscreenSupported"
@@ -321,7 +322,7 @@ function disconnect() {
             @click="handleFullscreenToggle"
           >
             <template #icon>
-              <NIcon :size="16">
+              <NIcon :size="14">
                 <component :is="isFullscreen ? Minimize : Maximize" />
               </NIcon>
             </template>
@@ -330,16 +331,16 @@ function disconnect() {
         {{ fullscreenLabel }}
       </NTooltip>
 
-      <NButton quaternary circle @click="disconnect">
+      <NButton size="small" quaternary circle @click="disconnect">
         <template #icon>
-          <NIcon :size="16">
+          <NIcon :size="14">
             <Logout />
           </NIcon>
         </template>
       </NButton>
-      <NButton quaternary circle @click="settingsStore.toggleTheme">
+      <NButton size="small" quaternary circle @click="settingsStore.toggleTheme">
         <template #icon>
-          <NIcon :size="16">
+          <NIcon :size="14">
             <component :is="settingsStore.isDark ? Sun : Moon" />
           </NIcon>
         </template>
