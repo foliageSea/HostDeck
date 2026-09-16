@@ -229,6 +229,10 @@ export const aiAgentApi = {
     ).data
   },
 
+  async closeSession(connectionId: string) {
+    await http.delete('/api/ai-agent/session', { params: { connectionId } })
+  },
+
   async listMcpServers() {
     return (await http.get<AiAgentMcpServer[]>('/api/ai-agent/mcp-servers')).data
   },

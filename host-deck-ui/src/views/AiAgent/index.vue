@@ -22,7 +22,7 @@ import {
   Wrench,
   X,
 } from '@lucide/vue'
-import type { AiAgentConversation } from '@/api/ai-agent'
+import { aiAgentApi, type AiAgentConversation } from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
 import { MAX_SELECTED_SKILLS, useAiAgentStore } from '@/stores/ai-agent'
 import { useSettingsStore } from '@/stores/settings'
@@ -40,6 +40,7 @@ interface ConversationGroup {
 const agentStore = useAiAgentStore()
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
+const sessionConnectionIds = new Set<string>()
 const {
   autoRun,
   conversations,
@@ -344,7 +345,10 @@ function handleBeforeUnload() {
 watch(
   () => sshStore.connectionId,
   (connectionId) => {
-    if (connectionId) void loadForConnection(connectionId)
+    if (connectionId) {
+      sessionConnectionIds.add(connectionId)
+      void loadForConnection(connectionId)
+    }
     else agentStore.resetForConnection(null)
   },
   { immediate: true },
@@ -369,7 +373,15 @@ onMounted(() => {
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   window.removeEventListener('beforeunload', handleBeforeUnload)
-  void agentStore.cancelRun()
+  void (async () => {
+    try {
+      await agentStore.cancelRun()
+    } finally {
+      await Promise.allSettled(
+        [...sessionConnectionIds].map((connectionId) => aiAgentApi.closeSession(connectionId)),
+      )
+    }
+  })().catch(() => undefined)
 })
 
 let resizeObserver: ResizeObserver | undefined

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Plus, RefreshCw } from '@lucide/vue'
 import { NButton, NDataTable, NTag, type DataTableColumns } from 'naive-ui'
 import { cronTaskApi, type CronExecutionHistory, type CronTask, type CronTaskPayload } from '@/api/cron-task'
@@ -18,6 +18,7 @@ const editorVisible = ref(false)
 const historyVisible = ref(false)
 const editingId = ref<number | null>(null)
 const activeTask = ref<CronTask | null>(null)
+const sessionConnectionIds = new Set<string>()
 const form = reactive({ name: '', schedule: '0 2 * * *', command: '', enabled: true, templateType: null as CronTask['templateType'] })
 
 const connected = computed(() => Boolean(sshStore.isConnected && sshStore.connectionId && sshStore.serverId !== null))
@@ -104,6 +105,7 @@ function upsert(task: CronTask) {
 
 async function loadTasks() {
   if (!connected.value) return
+  sessionConnectionIds.add(connectionId.value)
   loading.value = true
   try {
     tasks.value = await cronTaskApi.list(serverId.value!, connectionId.value)
@@ -119,6 +121,7 @@ async function saveTask() {
     getUiApi().message.warning('请填写任务名称、计划和命令。')
     return
   }
+  sessionConnectionIds.add(connectionId.value)
   saving.value = true
   try {
     const next = editingId.value === null
@@ -135,6 +138,7 @@ async function saveTask() {
 }
 
 async function runTask(task: CronTask) {
+  sessionConnectionIds.add(connectionId.value)
   operatingId.value = task.id
   try {
     const result = await cronTaskApi.run(task.id, task.serverId, connectionId.value)
@@ -152,6 +156,7 @@ function removeTask(task: CronTask) {
   getUiApi().dialog.warning({
     title: '删除定时任务', content: `将从远端 crontab 移除“${task.name}”。`, positiveText: '删除', negativeText: '取消',
     onPositiveClick: async () => {
+      sessionConnectionIds.add(connectionId.value)
       operatingId.value = task.id
       try {
         await cronTaskApi.delete(task.id, task.serverId, connectionId.value)
@@ -174,6 +179,7 @@ async function openHistory(task: CronTask) {
 async function refreshHistory() {
   const task = activeTask.value
   if (!task) return
+  sessionConnectionIds.add(connectionId.value)
   operatingId.value = task.id
   try {
     await cronTaskApi.syncHistory(task.id, task.serverId, connectionId.value)
@@ -207,6 +213,12 @@ const taskColumns: DataTableColumns<CronTask> = [
 ]
 
 onMounted(() => void loadTasks())
+
+onBeforeUnmount(() => {
+  for (const id of sessionConnectionIds) {
+    void cronTaskApi.closeSession(id).catch(() => undefined)
+  }
+})
 </script>
 
 <template>

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:shelf/shelf.dart';
 
 import 'package:host_deck/server/core/http/result.dart';
+import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
@@ -22,6 +23,7 @@ class AiAgentController {
   final AiAgentSkillService _skillService;
   final AiAgentMcpRepository _mcpRepository;
   final AiAgentMcpClient _mcpClient;
+  final SharedSshSessionResolver _sessionResolver;
 
   AiAgentController(
     this._repository,
@@ -32,6 +34,7 @@ class AiAgentController {
     this._skillService,
     this._mcpRepository,
     this._mcpClient,
+    this._sessionResolver,
   );
 
   Response getSettings(Request _) => Result.ok(_settingsService.get().toJson());
@@ -90,6 +93,15 @@ class AiAgentController {
       return Result.fail(404, error.message);
     } catch (_) {
       return Result.fail(500, 'Unable to discover AI agent skills.');
+    }
+  }
+
+  Future<Response> closeSession(Request request) async {
+    try {
+      await _sessionResolver.closeFromRequest(request);
+      return Result.ok({'success': true});
+    } catch (error) {
+      return _sessionResolver.errorResponse(error);
     }
   }
 

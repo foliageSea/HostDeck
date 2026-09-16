@@ -5,6 +5,7 @@ import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
 void registerCronTaskRoutes(Router router, CronTaskController controller) {
   router.get('/api/cron-tasks', controller.list);
   router.post('/api/cron-tasks', controller.create);
+  router.delete('/api/cron-tasks/session', controller.closeSession);
   router.put('/api/cron-tasks/<id>', controller.update);
   router.delete('/api/cron-tasks/<id>', controller.delete);
   router.post('/api/cron-tasks/<id>/run', controller.runNow);

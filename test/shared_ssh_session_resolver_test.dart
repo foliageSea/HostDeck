@@ -50,17 +50,112 @@ void main() {
       SshSessionPurpose.docker,
     });
   });
+
+  test(
+    'reuses an in-flight session creation for the same connection',
+    () async {
+      final session = _FakeSshSession();
+      final creation = Completer<SshSession>();
+      final sshService = _FakeSshService(session, creation: creation);
+      final resolver = SharedSshSessionResolver(
+        sshService,
+        type: SharedSshSessionType.sftp,
+        purpose: SshSessionPurpose.aiAgent,
+      );
+
+      final first = resolver.createForConnection('connection-1');
+      final second = resolver.createForConnection('connection-1');
+      creation.complete(session);
+
+      expect(await first, same(session));
+      expect(await second, same(session));
+      expect(sshService.createCount, 1);
+    },
+  );
+
+  test(
+    'closes a pending session and treats repeated close as success',
+    () async {
+      final session = _FakeSshSession();
+      final creation = Completer<SshSession>();
+      final sshService = _FakeSshService(session, creation: creation);
+      final resolver = SharedSshSessionResolver(
+        sshService,
+        type: SharedSshSessionType.sftp,
+        purpose: SshSessionPurpose.aiAgent,
+      );
+      final request = Request(
+        'DELETE',
+        Uri.parse('http://localhost/session?connectionId=connection-1'),
+      );
+
+      final pendingSession = resolver.createForConnection('connection-1');
+      final pendingClose = resolver.closeFromRequest(request);
+      creation.complete(session);
+
+      await pendingSession;
+      await pendingClose;
+      await resolver.closeFromRequest(request);
+      expect(sshService.closedSessionIds, ['session-1']);
+    },
+  );
+
+  test(
+    'does not close a replacement created while closing pending work',
+    () async {
+      final firstSession = _FakeSshSession(id: 'session-1');
+      final secondSession = _FakeSshSession(id: 'session-2');
+      final firstCreation = Completer<SshSession>();
+      final sshService = _FakeSshService(
+        firstSession,
+        creation: firstCreation,
+        subsequentSession: secondSession,
+      );
+      final resolver = SharedSshSessionResolver(
+        sshService,
+        type: SharedSshSessionType.sftp,
+        purpose: SshSessionPurpose.aiAgent,
+      );
+      final request = Request(
+        'DELETE',
+        Uri.parse('http://localhost/session?connectionId=connection-1'),
+      );
+
+      final first = resolver.createForConnection('connection-1');
+      final close = resolver.closeFromRequest(request);
+      final replacement = resolver.createForConnection('connection-1');
+      firstCreation.complete(firstSession);
+
+      expect(await first, same(firstSession));
+      expect(await replacement, same(secondSession));
+      await close;
+      expect(sshService.closedSessionIds, ['session-1']);
+      expect(
+        await resolver.createForConnection('connection-1'),
+        same(secondSession),
+      );
+      expect(sshService.createCount, 2);
+    },
+  );
 }
 
 class _FakeSshService extends SshService {
   final SshSession session;
+  final SshSession? subsequentSession;
   final Set<SshSessionPurpose> purposes = {};
+  final Completer<SshSession>? creation;
+  final List<String> closedSessionIds = [];
   SshSessionPurpose? createdPurpose;
+  int createCount = 0;
 
-  _FakeSshService(this.session);
+  _FakeSshService(this.session, {this.creation, this.subsequentSession});
 
   @override
-  SshSession? getSession(String id) => id == session.id ? session : null;
+  SshSession? getSession(String id) {
+    if (id == session.id) return session;
+    if (id == subsequentSession?.id) return subsequentSession;
+    return null;
+  }
 
   @override
   bool addSessionPurpose(String id, SshSessionPurpose purpose) {
@@ -74,15 +169,26 @@ class _FakeSshService extends SshService {
     String connectionId, {
     required SshSessionPurpose purpose,
   }) async {
+    createCount += 1;
     createdPurpose = purpose;
     purposes.add(purpose);
-    return session;
+    if (createCount == 1 && creation != null) return creation!.future;
+    return subsequentSession ?? session;
+  }
+
+  @override
+  Future<void> closeSession(String id) async {
+    closedSessionIds.add(id);
   }
 }
 
 class _FakeSshSession implements SshSession {
+  final String _id;
+
+  _FakeSshSession({String id = 'session-1'}) : _id = id;
+
   @override
-  String get id => 'session-1';
+  String get id => _id;
   @override
   String get connectionId => 'connection-1';
   @override

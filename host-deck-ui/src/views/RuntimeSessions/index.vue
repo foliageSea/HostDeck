@@ -62,6 +62,7 @@ const purposeLabels: Record<RuntimeSessionPurpose, string> = {
   agent: 'Agent 操作',
   cronTask: '定时任务',
   processManagement: '进程管理',
+  aiAgent: 'AI Agent',
 }
 const clientRows = computed<RuntimeClientRow[]>(() => {
   const groupedSessions = new Map<string, RuntimeSessionSummary[]>()

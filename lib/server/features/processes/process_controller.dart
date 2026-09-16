@@ -45,6 +45,15 @@ class ProcessController {
     });
   }
 
+  Future<Response> closeSession(Request request) async {
+    try {
+      await _sessionResolver.closeFromRequest(request);
+      return Result.ok({'success': true});
+    } catch (error) {
+      return _sessionResolver.errorResponse(error);
+    }
+  }
+
   Future<Response> _withSession(
     Request request,
     Future<Response> Function(SshSession session) action,

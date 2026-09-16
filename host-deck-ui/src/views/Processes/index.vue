@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, ref } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { NButton, NTag, type DataTableColumns } from 'naive-ui'
 import { processApi, type ProcessInfo } from '@/api/process'
 import { getUiApi } from '@/lib/ui'
@@ -14,6 +14,7 @@ const killingPid = ref<number | null>(null)
 const keyword = ref('')
 const processes = ref<ProcessInfo[]>([])
 const refreshAt = ref<Date | null>(null)
+const sessionConnectionIds = new Set<string>()
 
 const hasConnection = computed(() => Boolean(sshStore.connectionId && sshStore.isConnected))
 const connectionText = computed(() => {
@@ -134,14 +135,16 @@ function formatRefreshAt(value: Date | null) {
 }
 
 async function fetchProcesses() {
-  if (!sshStore.connectionId) {
+  const connectionId = sshStore.connectionId
+  if (!connectionId) {
     getUiApi().message.warning('请先连接 SSH。')
     return
   }
 
   loading.value = true
+  sessionConnectionIds.add(connectionId)
   try {
-    processes.value = await processApi.list(sshStore.connectionId)
+    processes.value = await processApi.list(connectionId)
     refreshAt.value = new Date()
   } catch (error) {
     getUiApi().message.error(error instanceof Error ? error.message : '加载进程列表失败。')
@@ -162,9 +165,12 @@ function confirmKill(process: ProcessInfo) {
     positiveText: 'Kill',
     title: '结束进程',
     onPositiveClick: async () => {
+      const connectionId = sshStore.connectionId
+      if (!connectionId) return
+      sessionConnectionIds.add(connectionId)
       killingPid.value = process.pid
       try {
-        await processApi.kill(sshStore.connectionId as string, process.pid)
+        await processApi.kill(connectionId, process.pid)
         getUiApi().message.success('进程结束信号已发送。')
         await fetchProcesses()
       } catch (error) {
@@ -179,6 +185,12 @@ function confirmKill(process: ProcessInfo) {
 onMounted(() => {
   if (hasConnection.value) {
     void fetchProcesses()
+  }
+})
+
+onBeforeUnmount(() => {
+  for (const connectionId of sessionConnectionIds) {
+    void processApi.closeSession(connectionId).catch(() => undefined)
   }
 })
 </script>

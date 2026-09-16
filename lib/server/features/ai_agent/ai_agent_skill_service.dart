@@ -4,7 +4,6 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:yaml/yaml.dart';
 
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
-import 'package:host_deck/server/core/ssh/ssh_service.dart';
 
 class AiAgentSkill {
   final String id;
@@ -53,8 +52,8 @@ class AiAgentSkillService {
 
   final AiAgentSkillFileSystem _fileSystem;
 
-  AiAgentSkillService(SshService sshService)
-    : _fileSystem = SftpAiAgentSkillFileSystem(sshService);
+  AiAgentSkillService(SharedSshSessionResolver sessionResolver)
+    : _fileSystem = SftpAiAgentSkillFileSystem(sessionResolver);
 
   AiAgentSkillService.withFileSystem(this._fileSystem);
 
@@ -229,12 +228,7 @@ abstract interface class AiAgentSkillFileSystem {
 class SftpAiAgentSkillFileSystem implements AiAgentSkillFileSystem {
   final SharedSshSessionResolver _sessionResolver;
 
-  SftpAiAgentSkillFileSystem(SshService sshService)
-    : _sessionResolver = SharedSshSessionResolver(
-        sshService,
-        type: SharedSshSessionType.sftp,
-        purpose: SshSessionPurpose.aiAgent,
-      );
+  SftpAiAgentSkillFileSystem(this._sessionResolver);
 
   @override
   Future<String> home(String connectionId) async {

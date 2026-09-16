@@ -48,15 +48,30 @@ class SharedSshSessionResolver {
     final sessionId = request.url.queryParameters['sessionId'];
     final connectionId = request.url.queryParameters['connectionId'];
 
-    String? targetSessionId = sessionId;
-    if (targetSessionId == null && connectionId != null) {
-      targetSessionId = _sharedSessionIds.remove(connectionId);
+    if (sessionId != null && sessionId.isNotEmpty) {
+      _removeSharedSessionById(sessionId);
+      await _sshService.closeSession(sessionId);
+      return;
     }
 
-    if (targetSessionId == null) {
+    if (connectionId == null || connectionId.isEmpty) {
       throw ArgumentError('Missing connectionId or sessionId');
     }
 
+    String? targetSessionId = _sharedSessionIds.remove(connectionId);
+    final pendingSession = _pendingSharedSessions.remove(connectionId);
+    if (pendingSession != null) {
+      try {
+        targetSessionId = (await pendingSession).id;
+      } catch (_) {
+        return;
+      }
+      if (_sharedSessionIds[connectionId] == targetSessionId) {
+        _sharedSessionIds.remove(connectionId);
+      }
+    }
+
+    if (targetSessionId == null) return;
     _removeSharedSessionById(targetSessionId);
     await _sshService.closeSession(targetSessionId);
   }
@@ -89,13 +104,18 @@ class SharedSshSessionResolver {
       return pendingSession;
     }
 
-    final nextSession = _createSession(connectionId)
+    late final Future<SshSession> nextSession;
+    nextSession = _createSession(connectionId)
         .then((session) {
-          _sharedSessionIds[connectionId] = session.id;
+          if (identical(_pendingSharedSessions[connectionId], nextSession)) {
+            _sharedSessionIds[connectionId] = session.id;
+          }
           return session;
         })
         .whenComplete(() {
-          _pendingSharedSessions.remove(connectionId);
+          if (identical(_pendingSharedSessions[connectionId], nextSession)) {
+            _pendingSharedSessions.remove(connectionId);
+          }
         });
 
     _pendingSharedSessions[connectionId] = nextSession;

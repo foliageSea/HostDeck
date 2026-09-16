@@ -17,6 +17,7 @@ export type RuntimeSessionPurpose =
   | 'agent'
   | 'cronTask'
   | 'processManagement'
+  | 'aiAgent'
 
 export interface RuntimeSessionSummary {
   sessionId: string

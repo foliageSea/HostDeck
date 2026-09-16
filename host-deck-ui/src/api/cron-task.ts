@@ -75,4 +75,7 @@ export const cronTaskApi = {
     })
     return response.data
   },
+  async closeSession(connectionId: string) {
+    await http.delete('/api/cron-tasks/session', { params: { connectionId } })
+  },
 }

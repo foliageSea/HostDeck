@@ -30,4 +30,10 @@ export const processApi = {
     )
     return response.data
   },
+
+  async closeSession(connectionId: string) {
+    await http.delete('/api/processes/session', {
+      params: { connectionId },
+    })
+  },
 }

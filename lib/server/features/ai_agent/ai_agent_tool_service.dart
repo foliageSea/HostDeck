@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:langchain/langchain.dart';
 
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
-import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
@@ -54,16 +53,12 @@ class AiAgentToolService implements AiAgentToolExecutor {
   final SharedSshSessionResolver _sessionResolver;
 
   AiAgentToolService(
-    SshService sshService,
+    this._sessionResolver,
     this._agentService,
     this._monitorService,
     this._processService,
     this._operationLogService,
-  ) : _sessionResolver = SharedSshSessionResolver(
-        sshService,
-        type: SharedSshSessionType.sftp,
-        purpose: SshSessionPurpose.aiAgent,
-      );
+  );
 
   List<ToolSpec> get specs => const [
     ToolSpec(

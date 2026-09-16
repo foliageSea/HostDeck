@@ -17,6 +17,16 @@ describe('aiAgentApi skills', () => {
       params: { connectionId: 'connection-1' },
     })
   })
+
+  it('closes the shared session for the active connection', async () => {
+    const remove = vi.spyOn(http, 'delete').mockResolvedValue({ data: { success: true } })
+
+    await aiAgentApi.closeSession('connection-1')
+
+    expect(remove).toHaveBeenCalledWith('/api/ai-agent/session', {
+      params: { connectionId: 'connection-1' },
+    })
+  })
 })
 
 describe('aiAgentApi MCP servers', () => {

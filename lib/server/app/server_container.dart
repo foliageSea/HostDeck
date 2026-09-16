@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:host_deck/server/core/database/database_service.dart';
+import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/agent/agent_controller.dart';
@@ -243,9 +244,16 @@ class ServerContainer {
     getIt.registerLazySingleton<ProcessService>(
       () => ProcessService(getIt<SshRepository>()),
     );
+    getIt.registerLazySingleton<SharedSshSessionResolver>(
+      () => SharedSshSessionResolver(
+        getIt<SshService>(),
+        type: SharedSshSessionType.sftp,
+        purpose: SshSessionPurpose.aiAgent,
+      ),
+    );
     getIt.registerLazySingleton<AiAgentToolService>(
       () => AiAgentToolService(
-        getIt<SshService>(),
+        getIt<SharedSshSessionResolver>(),
         getIt<AgentService>(),
         getIt<MonitorService>(),
         getIt<ProcessService>(),
@@ -261,7 +269,7 @@ class ServerContainer {
       ),
     );
     getIt.registerLazySingleton<AiAgentSkillService>(
-      () => AiAgentSkillService(getIt<SshService>()),
+      () => AiAgentSkillService(getIt<SharedSshSessionResolver>()),
     );
     getIt.registerLazySingleton<AiAgentRunManager>(
       () => AiAgentRunManager(
@@ -319,6 +327,7 @@ class ServerContainer {
           getIt<AiAgentSkillService>(),
           getIt<AiAgentMcpRepository>(),
           getIt<AiAgentMcpClient>(),
+          getIt<SharedSshSessionResolver>(),
         ),
         systemController: SystemController(
           getIt<SshService>(),
