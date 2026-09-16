@@ -787,31 +787,11 @@ function createChartOption(config: {
 .dashboard-tabs :deep(.n-tabs-pane-wrapper) {
   min-height: 0;
   overflow-y: auto;
+  padding-right: 8px;
 }
 
 .dashboard-tabs :deep(.n-tabs-content) {
   min-height: 0;
-}
-
-.dashboard-tabs :deep(.n-tabs-pane-wrapper)::-webkit-scrollbar {
-  width: 10px;
-}
-
-.dashboard-tabs :deep(.n-tabs-pane-wrapper)::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.dashboard-tabs :deep(.n-tabs-pane-wrapper)::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(96, 165, 250, 0.7), rgba(129, 140, 248, 0.7));
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background-clip: padding-box;
-}
-
-.dashboard-tabs :deep(.n-tabs-pane-wrapper)::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(59, 130, 246, 0.82), rgba(99, 102, 241, 0.82));
-  border: 2px solid transparent;
-  background-clip: padding-box;
 }
 
 .stats-grid {
