@@ -27,9 +27,8 @@ describe('AiAgentToolCall', () => {
     await wrapper.get('.agent-tool-disclosure').trigger('click')
     expect(wrapper.get('pre').text()).toContain('rm old.log')
 
-    const buttons = wrapper.findAll('button')
-    await buttons.find((button) => button.text() === '批准')!.trigger('click')
-    await buttons.find((button) => button.text() === '拒绝')!.trigger('click')
+    await wrapper.get('[aria-label="允许一次"]').trigger('click')
+    await wrapper.get('[aria-label="拒绝权限申请"]').trigger('click')
 
     expect(wrapper.emitted('approve')).toEqual([['call-1']])
     expect(wrapper.emitted('reject')).toEqual([['call-1']])

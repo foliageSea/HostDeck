@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Check, ChevronDown, CircleAlert, LoaderCircle, ShieldQuestion, X } from '@lucide/vue'
+import { Check, ChevronDown, CircleAlert, Hand, LoaderCircle, X } from '@lucide/vue'
 import type { AiAgentToolCall } from '@/stores/ai-agent'
 
 const props = defineProps<{
@@ -29,56 +29,64 @@ const argumentsText = computed(() => {
 </script>
 
 <template>
-  <section class="agent-tool" :class="`agent-tool-${tool.status}`">
-    <div class="agent-tool-heading">
-      <span class="agent-tool-status" aria-hidden="true">
-        <LoaderCircle v-if="tool.status === 'running'" :size="15" class="agent-spin" />
-        <ShieldQuestion v-else-if="tool.status === 'pending'" :size="15" />
-        <Check v-else-if="tool.status === 'success'" :size="15" />
-        <X v-else-if="tool.status === 'rejected'" :size="15" />
-        <CircleAlert v-else :size="15" />
-      </span>
-      <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-2">
-          <strong class="truncate text-[13px]">{{ tool.name }}</strong>
-          <span class="agent-tool-label">{{ statusLabel }}</span>
-        </div>
-        <p class="m-0 mt-1 break-words text-[12px] opacity-75">{{ tool.summary }}</p>
+  <section
+    class="agent-tool"
+    :class="[`agent-tool-${tool.status}`, { 'agent-tool-approval': tool.approvalPending }]"
+    :aria-label="`${tool.name}: ${statusLabel}`"
+  >
+    <template v-if="tool.approvalPending">
+      <div class="agent-approval-kind">
+        <Hand :size="13" aria-hidden="true" />
+        <span>权限申请</span>
       </div>
-    </div>
+      <strong class="agent-approval-question">允许 AI Agent 使用 {{ tool.name }}？</strong>
+      <p class="agent-approval-summary">{{ tool.summary }}</p>
+      <pre v-if="expanded" class="agent-tool-arguments">{{ argumentsText }}</pre>
+      <div class="agent-approval-footer">
+        <button
+          type="button"
+          class="agent-tool-disclosure"
+          :aria-expanded="expanded"
+          @click="expanded = !expanded"
+        >
+          <ChevronDown :size="13" :class="{ 'rotate-180': expanded }" />
+          {{ expanded ? '收起参数' : '查看参数' }}
+        </button>
+        <div class="agent-tool-actions">
+          <NButton
+            size="small"
+            secondary
+            :disabled="tool.submitting"
+            aria-label="拒绝权限申请"
+            @click="emit('reject', tool.callId)"
+          >
+            拒绝
+            <kbd>Esc</kbd>
+          </NButton>
+          <NButton
+            size="small"
+            type="primary"
+            :loading="tool.submitting"
+            aria-label="允许一次"
+            @click="emit('approve', tool.callId)"
+          >
+            允许一次
+          </NButton>
+        </div>
+      </div>
+    </template>
 
-    <button
-      v-if="tool.approvalPending"
-      type="button"
-      class="agent-tool-disclosure"
-      :aria-expanded="expanded"
-      @click="expanded = !expanded"
-    >
-      <ChevronDown :size="14" :class="{ 'rotate-180': expanded }" />
-      {{ expanded ? '收起参数' : '查看参数' }}
-    </button>
-    <pre v-if="tool.approvalPending && expanded" class="agent-tool-arguments">{{
-      argumentsText
-    }}</pre>
-
-    <div v-if="tool.approvalPending" class="mt-3 flex justify-end gap-2">
-      <NButton
-        size="small"
-        secondary
-        type="error"
-        :disabled="tool.submitting"
-        @click="emit('reject', tool.callId)"
-      >
-        拒绝
-      </NButton>
-      <NButton
-        size="small"
-        type="primary"
-        :loading="tool.submitting"
-        @click="emit('approve', tool.callId)"
-      >
-        批准
-      </NButton>
+    <div v-else class="agent-tool-heading">
+      <span class="agent-tool-status" aria-hidden="true">
+        <LoaderCircle v-if="tool.status === 'running'" :size="13" class="agent-spin" />
+        <Check v-else-if="tool.status === 'success'" :size="13" />
+        <X v-else-if="tool.status === 'rejected'" :size="13" />
+        <CircleAlert v-else :size="13" />
+      </span>
+      <div class="agent-tool-copy">
+        <strong class="agent-tool-label">{{ statusLabel }}</strong>
+        <span class="agent-tool-summary">{{ tool.summary }}</span>
+      </div>
     </div>
   </section>
 </template>
@@ -86,59 +94,114 @@ const argumentsText = computed(() => {
 <style scoped>
 .agent-tool {
   width: min(100%, 680px);
-  margin: 10px 0;
-  padding: 11px 13px;
-  border: 1px solid var(--agent-border);
-  border-left: 3px solid var(--agent-muted);
+  margin: 6px 0;
+  padding: 4px 8px;
+  border: 0;
   border-radius: var(--app-radius-item);
-  background: var(--agent-tool-bg);
+  background: transparent;
 }
 
 .agent-tool-pending {
-  border-left-color: #d97706;
+  color: #d97706;
 }
 
 .agent-tool-running {
-  border-left-color: var(--app-primary-color);
+  color: var(--agent-muted);
 }
 
 .agent-tool-success {
-  border-left-color: #16a34a;
+  color: #16a34a;
 }
 
 .agent-tool-error,
 .agent-tool-rejected {
-  border-left-color: #dc2626;
+  color: #dc2626;
+}
+
+.agent-tool-approval {
+  padding: 12px 14px 10px;
+  border: 1px solid var(--agent-border);
+  color: var(--agent-text);
+  background: var(--agent-elevated);
+}
+
+.agent-approval-kind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--agent-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.agent-approval-question {
+  display: block;
+  margin-top: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.agent-approval-summary {
+  margin: 3px 0 0;
+  color: var(--agent-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.agent-approval-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .agent-tool-heading {
   display: flex;
-  align-items: flex-start;
-  gap: 9px;
+  align-items: center;
+  gap: 7px;
 }
 
 .agent-tool-status {
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   flex: 0 0 auto;
   place-items: center;
   border-radius: var(--app-radius-control);
-  background: var(--agent-hover);
+  color: currentColor;
+}
+
+.agent-tool-copy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  flex: 1;
+  gap: 7px;
+}
+
+.agent-tool-summary {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--agent-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
 }
 
 .agent-tool-label {
   flex: 0 0 auto;
-  font-size: 10px;
+  color: currentColor;
+  font-size: 11px;
+  font-weight: 500;
   letter-spacing: 0;
-  opacity: 0.58;
 }
 
 .agent-tool-disclosure {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin-top: 10px;
   padding: 0;
   border: 0;
   color: inherit;
@@ -149,10 +212,10 @@ const argumentsText = computed(() => {
 }
 
 .agent-tool-arguments {
-  max-height: 190px;
+  max-height: 120px;
   margin: 8px 0 0;
   overflow: auto;
-  padding: 10px;
+  padding: 6px 8px;
   border-radius: var(--app-radius-control);
   background: var(--agent-code-bg);
   white-space: pre-wrap;
@@ -161,6 +224,40 @@ const argumentsText = computed(() => {
   font:
     11px/1.55 'Maple Mono',
     monospace;
+}
+
+.agent-tool-actions {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.agent-tool-actions :deep(.n-button) {
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.agent-tool-actions kbd {
+  margin-left: 5px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: var(--agent-muted);
+  background: var(--agent-hover);
+  font: inherit;
+  font-size: 9px;
+}
+
+@media (max-width: 520px) {
+  .agent-approval-footer {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .agent-tool-actions {
+    margin-left: auto;
+  }
 }
 
 .agent-spin {

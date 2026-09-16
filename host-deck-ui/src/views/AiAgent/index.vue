@@ -102,6 +102,9 @@ const canSend = computed(() =>
   ),
 )
 
+const pendingToolCalls = computed(() => toolCalls.value.filter((tool) => tool.approvalPending))
+const completedToolCalls = computed(() => toolCalls.value.filter((tool) => !tool.approvalPending))
+
 function closeSidebarOnNarrowScreen() {
   if (compactLayout.value) sidebarOpen.value = false
 }
@@ -474,9 +477,9 @@ let resizeObserver: ResizeObserver | undefined
             </div>
           </article>
 
-          <div v-if="toolCalls.length" class="agent-tools">
+          <div v-if="completedToolCalls.length" class="agent-tools">
             <AiAgentToolCall
-              v-for="tool in toolCalls"
+              v-for="tool in completedToolCalls"
               :key="tool.callId"
               :tool="tool"
               @approve="resolveApproval($event, true)"
@@ -491,6 +494,20 @@ let resizeObserver: ResizeObserver | undefined
 
       <footer class="agent-composer-area">
         <div v-if="error" class="agent-error" role="alert">{{ error }}</div>
+        <div
+          v-if="pendingToolCalls.length"
+          class="agent-approvals app-scrollbar app-scrollbar-compact"
+          aria-label="权限申请"
+        >
+          <AiAgentToolCall
+            v-for="tool in pendingToolCalls"
+            :key="tool.callId"
+            :tool="tool"
+            class="agent-approval"
+            @approve="resolveApproval($event, true)"
+            @reject="resolveApproval($event, false)"
+          />
+        </div>
         <button
           v-if="settings && !settings.hasApiKey"
           type="button"
@@ -947,6 +964,22 @@ let resizeObserver: ResizeObserver | undefined
   flex: 0 0 auto;
   padding: 10px max(18px, calc((100% - 760px) / 2)) 12px;
   background: linear-gradient(180deg, transparent, var(--agent-bg) 22%);
+}
+
+.agent-approvals {
+  max-height: min(30vh, 240px);
+  margin-bottom: 5px;
+  overflow-y: auto;
+}
+
+.agent-approval {
+  width: 100%;
+  margin: 0 0 4px;
+  background: var(--agent-elevated);
+}
+
+.agent-approval:last-child {
+  margin-bottom: 0;
 }
 
 .agent-composer {
