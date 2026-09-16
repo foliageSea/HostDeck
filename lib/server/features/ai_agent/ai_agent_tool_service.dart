@@ -24,7 +24,7 @@ class AiAgentToolResult {
 }
 
 abstract interface class AiAgentToolExecutor {
-  List<ToolSpec> get specs;
+  Future<List<ToolSpec>> resolveSpecs();
 
   bool requiresApproval(String name);
 
@@ -65,7 +65,6 @@ class AiAgentToolService implements AiAgentToolExecutor {
         purpose: SshSessionPurpose.aiAgent,
       );
 
-  @override
   List<ToolSpec> get specs => const [
     ToolSpec(
       name: 'system_status',
@@ -141,6 +140,9 @@ class AiAgentToolService implements AiAgentToolExecutor {
       },
     ),
   ];
+
+  @override
+  Future<List<ToolSpec>> resolveSpecs() async => specs;
 
   @override
   bool requiresApproval(String name) => switch (name) {

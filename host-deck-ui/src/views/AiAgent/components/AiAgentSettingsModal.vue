@@ -3,9 +3,11 @@ import { computed, reactive, ref, watch } from 'vue'
 import { CheckCircle2, KeyRound, TriangleAlert } from '@lucide/vue'
 import { getUiApi } from '@/lib/ui'
 import { useAiAgentStore } from '@/stores/ai-agent'
+import AiAgentMcpSettings from './AiAgentMcpSettings.vue'
 
 const props = defineProps<{
   show: boolean
+  initialTab?: 'mcp' | 'model'
 }>()
 
 const emit = defineEmits<{
@@ -15,6 +17,7 @@ const emit = defineEmits<{
 const store = useAiAgentStore()
 const saving = ref(false)
 const testing = ref(false)
+const activeTab = ref<'mcp' | 'model'>('model')
 const form = reactive({ baseUrl: '', model: '', apiKey: '' })
 const usesPlainHttp = computed(() => /^http:\/\//i.test(form.baseUrl.trim()))
 
@@ -28,6 +31,7 @@ watch(
   () => props.show,
   async (show) => {
     if (!show) return
+    activeTab.value = props.initialTab ?? 'model'
     try {
       if (!store.settings) await store.loadSettings()
       syncForm()
@@ -112,52 +116,62 @@ function clearKey() {
     :bordered="false"
     @update:show="emit('update:show', $event)"
   >
-    <NForm label-placement="top">
-      <NFormItem label="Base URL">
-        <div class="w-full">
-          <NInput v-model:value="form.baseUrl" placeholder="https://api.openai.com/v1" />
-          <div
-            v-if="usesPlainHttp"
-            class="mt-2 flex items-start gap-1 text-[11px] leading-4 text-amber-500"
-          >
-            <TriangleAlert :size="13" class="mt-[1px] shrink-0" />
-            <span>HTTP 不加密 API Key 和对话数据，仅用于可信网络。</span>
-          </div>
-        </div>
-      </NFormItem>
-      <NFormItem label="模型">
-        <NInput v-model:value="form.model" placeholder="例如 gpt-5" />
-      </NFormItem>
-      <NFormItem label="API Key">
-        <div class="w-full">
-          <NInput
-            v-model:value="form.apiKey"
-            type="password"
-            show-password-on="click"
-            placeholder="留空以保留现有密钥"
-          />
-          <div class="mt-2 flex items-center justify-between gap-3 text-[11px]">
-            <span v-if="store.settings?.hasApiKey" class="flex items-center gap-1 text-green-600">
-              <CheckCircle2 :size="13" /> 已配置密钥
-            </span>
-            <span v-else class="flex items-center gap-1 opacity-55">
-              <KeyRound :size="13" /> 未配置密钥
-            </span>
-            <NButton
-              v-if="store.settings?.hasApiKey"
-              text
-              type="error"
-              size="tiny"
-              @click="clearKey"
-            >
-              清除密钥
-            </NButton>
-          </div>
-        </div>
-      </NFormItem>
-    </NForm>
+    <NTabs v-model:value="activeTab" type="line" animated>
+      <NTabPane name="model" tab="模型">
+        <NForm label-placement="top">
+          <NFormItem label="Base URL">
+            <div class="w-full">
+              <NInput v-model:value="form.baseUrl" placeholder="https://api.openai.com/v1" />
+              <div
+                v-if="usesPlainHttp"
+                class="mt-2 flex items-start gap-1 text-[11px] leading-4 text-amber-500"
+              >
+                <TriangleAlert :size="13" class="mt-[1px] shrink-0" />
+                <span>HTTP 不加密 API Key 和对话数据，仅用于可信网络。</span>
+              </div>
+            </div>
+          </NFormItem>
+          <NFormItem label="模型">
+            <NInput v-model:value="form.model" placeholder="例如 gpt-5" />
+          </NFormItem>
+          <NFormItem label="API Key">
+            <div class="w-full">
+              <NInput
+                v-model:value="form.apiKey"
+                type="password"
+                show-password-on="click"
+                placeholder="留空以保留现有密钥"
+              />
+              <div class="mt-2 flex items-center justify-between gap-3 text-[11px]">
+                <span
+                  v-if="store.settings?.hasApiKey"
+                  class="flex items-center gap-1 text-green-600"
+                >
+                  <CheckCircle2 :size="13" /> 已配置密钥
+                </span>
+                <span v-else class="flex items-center gap-1 opacity-55">
+                  <KeyRound :size="13" /> 未配置密钥
+                </span>
+                <NButton
+                  v-if="store.settings?.hasApiKey"
+                  text
+                  type="error"
+                  size="tiny"
+                  @click="clearKey"
+                >
+                  清除密钥
+                </NButton>
+              </div>
+            </div>
+          </NFormItem>
+        </NForm>
+      </NTabPane>
+      <NTabPane name="mcp" tab="MCP">
+        <AiAgentMcpSettings />
+      </NTabPane>
+    </NTabs>
     <template #footer>
-      <div class="flex justify-end gap-2">
+      <div v-if="activeTab === 'model'" class="flex justify-end gap-2">
         <NButton :loading="testing" :disabled="saving" secondary @click="test">测试连接</NButton>
         <NButton type="primary" :loading="saving" :disabled="testing" @click="save">保存</NButton>
       </div>

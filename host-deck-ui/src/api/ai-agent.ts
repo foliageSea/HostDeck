@@ -21,6 +21,22 @@ export interface AiAgentSkill {
   source: string
 }
 
+export interface AiAgentMcpServer {
+  id: number
+  name: string
+  url: string
+  enabled: boolean
+  hasHeaders: boolean
+}
+
+export interface AiAgentMcpServerInput {
+  name: string
+  url: string
+  enabled: boolean
+  headers?: Record<string, string>
+  clearHeaders?: boolean
+}
+
 export interface AiAgentConversation {
   id: string
   title?: string
@@ -210,6 +226,30 @@ export const aiAgentApi = {
       await http.get<AiAgentSkill[]>('/api/ai-agent/skills', {
         params: { connectionId },
       })
+    ).data
+  },
+
+  async listMcpServers() {
+    return (await http.get<AiAgentMcpServer[]>('/api/ai-agent/mcp-servers')).data
+  },
+
+  async createMcpServer(payload: AiAgentMcpServerInput) {
+    return (await http.post<AiAgentMcpServer>('/api/ai-agent/mcp-servers', payload)).data
+  },
+
+  async updateMcpServer(id: number, payload: AiAgentMcpServerInput) {
+    return (await http.put<AiAgentMcpServer>(`/api/ai-agent/mcp-servers/${id}`, payload)).data
+  },
+
+  async deleteMcpServer(id: number) {
+    await http.delete(`/api/ai-agent/mcp-servers/${id}`)
+  },
+
+  async testMcpServer(id: number) {
+    return (
+      await http.post<{ success: boolean; toolCount: number }>(
+        `/api/ai-agent/mcp-servers/${id}/test`,
+      )
     ).data
   },
 

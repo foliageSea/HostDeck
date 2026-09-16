@@ -287,7 +287,7 @@ class _FakeToolExecutor implements AiAgentToolExecutor {
   int executeCount = 0;
 
   @override
-  List<ToolSpec> get specs => const [];
+  Future<List<ToolSpec>> resolveSpecs() async => const [];
 
   @override
   bool requiresApproval(String name) => true;

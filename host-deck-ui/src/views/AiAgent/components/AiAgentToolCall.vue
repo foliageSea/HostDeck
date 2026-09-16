@@ -26,6 +26,7 @@ const argumentsText = computed(() => {
   if (typeof props.tool.arguments === 'string') return props.tool.arguments
   return JSON.stringify(props.tool.arguments ?? {}, null, 2)
 })
+const isMcpTool = computed(() => props.tool.name.startsWith('mcp_'))
 </script>
 
 <template>
@@ -37,9 +38,9 @@ const argumentsText = computed(() => {
     <template v-if="tool.approvalPending">
       <div class="agent-approval-kind">
         <Hand :size="13" aria-hidden="true" />
-        <span>权限申请</span>
+        <span>{{ isMcpTool ? 'MCP 权限申请' : '权限申请' }}</span>
       </div>
-      <strong class="agent-approval-question">允许 AI Agent 使用 {{ tool.name }}？</strong>
+      <strong class="agent-approval-question">允许 AI Agent 执行此工具？</strong>
       <p class="agent-approval-summary">{{ tool.summary }}</p>
       <pre v-if="expanded" class="agent-tool-arguments">{{ argumentsText }}</pre>
       <div class="agent-approval-footer">

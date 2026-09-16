@@ -365,6 +365,26 @@ class DatabaseService {
       }
       _setVersion(11);
     }
+
+    // v11 -> v12: Add Streamable HTTP MCP server configuration.
+    if (currentVersion < 12) {
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS ai_agent_mcp_servers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          url TEXT NOT NULL,
+          encryptedHeaders TEXT,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          createdAt INTEGER NOT NULL,
+          updatedAt INTEGER NOT NULL
+        )
+      ''');
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_ai_agent_mcp_servers_enabled_name
+        ON ai_agent_mcp_servers(enabled DESC, name COLLATE NOCASE)
+      ''');
+      _setVersion(12);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

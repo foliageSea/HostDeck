@@ -7,6 +7,7 @@ import 'package:host_deck/server/core/http/result.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_mcp_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
@@ -19,6 +20,8 @@ class AiAgentController {
   final AiAgentRunManager _runManager;
   final SshService _sshService;
   final AiAgentSkillService _skillService;
+  final AiAgentMcpRepository _mcpRepository;
+  final AiAgentMcpClient _mcpClient;
 
   AiAgentController(
     this._repository,
@@ -27,6 +30,8 @@ class AiAgentController {
     this._runManager,
     this._sshService,
     this._skillService,
+    this._mcpRepository,
+    this._mcpClient,
   );
 
   Response getSettings(Request _) => Result.ok(_settingsService.get().toJson());
@@ -85,6 +90,81 @@ class AiAgentController {
       return Result.fail(404, error.message);
     } catch (_) {
       return Result.fail(500, 'Unable to discover AI agent skills.');
+    }
+  }
+
+  Response listMcpServers(Request _) => Result.ok(
+    _mcpRepository.list().map((server) => server.toJson()).toList(),
+  );
+
+  Future<Response> createMcpServer(Request request) async {
+    try {
+      final data = await _readJson(request);
+      final server = _mcpRepository.create(
+        name: _mcpName(data),
+        url: _mcpUrl(data),
+        headers: _mcpHeaders(data) ?? const {},
+        enabled: _optionalBool(data, 'enabled') ?? true,
+      );
+      return Result.ok(server.toJson());
+    } on ArgumentError catch (error) {
+      return Result.fail(
+        400,
+        error.message?.toString() ?? 'Invalid MCP server.',
+      );
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    } catch (_) {
+      return Result.fail(500, 'Unable to create MCP server.');
+    }
+  }
+
+  Future<Response> updateMcpServer(Request request, String id) async {
+    try {
+      final serverId = int.tryParse(id);
+      if (serverId == null) return Result.fail(400, 'Invalid MCP server id.');
+      final data = await _readJson(request);
+      final server = _mcpRepository.update(
+        serverId,
+        name: _mcpName(data),
+        url: _mcpUrl(data),
+        headers: _mcpHeaders(data),
+        enabled: _optionalBool(data, 'enabled') ?? true,
+        clearHeaders: _optionalBool(data, 'clearHeaders') ?? false,
+      );
+      return server == null
+          ? Result.fail(404, 'MCP server not found.')
+          : Result.ok(server.toJson());
+    } on ArgumentError catch (error) {
+      return Result.fail(
+        400,
+        error.message?.toString() ?? 'Invalid MCP server.',
+      );
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    } catch (_) {
+      return Result.fail(500, 'Unable to update MCP server.');
+    }
+  }
+
+  Response deleteMcpServer(Request _, String id) {
+    final serverId = int.tryParse(id);
+    if (serverId == null) return Result.fail(400, 'Invalid MCP server id.');
+    return _mcpRepository.delete(serverId)
+        ? Result.ok({'success': true})
+        : Result.fail(404, 'MCP server not found.');
+  }
+
+  Future<Response> testMcpServer(Request request, String id) async {
+    try {
+      final serverId = int.tryParse(id);
+      if (serverId == null) return Result.fail(400, 'Invalid MCP server id.');
+      final server = _mcpRepository.get(serverId);
+      if (server == null) return Result.fail(404, 'MCP server not found.');
+      final tools = await _mcpClient.listTools(server);
+      return Result.ok({'success': true, 'toolCount': tools.length});
+    } catch (_) {
+      return Result.fail(502, 'Unable to connect to the MCP server.');
     }
   }
 
@@ -333,6 +413,69 @@ class AiAgentController {
     if (value is! bool) throw FormatException('$key must be a boolean.');
     return value;
   }
+
+  String _mcpName(Map<String, dynamic> data) {
+    final name = _requiredString(data, 'name').trim();
+    if (name.length > 60) {
+      throw const FormatException('MCP server name is too long.');
+    }
+    return name;
+  }
+
+  String _mcpUrl(Map<String, dynamic> data) {
+    final value = _requiredString(data, 'url').trim();
+    if (value.length > 2048) {
+      throw const FormatException('MCP server URL is too long.');
+    }
+    final uri = Uri.tryParse(value);
+    if (uri == null ||
+        !uri.hasAuthority ||
+        (uri.scheme != 'http' && uri.scheme != 'https') ||
+        uri.userInfo.isNotEmpty ||
+        uri.fragment.isNotEmpty) {
+      throw const FormatException(
+        'MCP server URL must be a valid HTTP or HTTPS URL.',
+      );
+    }
+    return uri.toString();
+  }
+
+  Map<String, String>? _mcpHeaders(Map<String, dynamic> data) {
+    if (!data.containsKey('headers')) return null;
+    final value = data['headers'];
+    if (value is! Map<String, dynamic> ||
+        value.length > 20 ||
+        value.entries.any(
+          (entry) =>
+              entry.key.trim().isEmpty ||
+              entry.key.length > 100 ||
+              !RegExp(
+                r'^[A-Za-z0-9!#$%&\x27*+.^_`|~-]+$',
+              ).hasMatch(entry.key) ||
+              _reservedMcpHeaders.contains(entry.key.toLowerCase()) ||
+              entry.value is! String ||
+              (entry.value as String).length > 4096 ||
+              (entry.value as String).contains(RegExp(r'[\r\n]')),
+        )) {
+      throw const FormatException(
+        'MCP headers must be a string-to-string object.',
+      );
+    }
+    return Map.unmodifiable(
+      value.map((key, value) => MapEntry(key.trim(), value as String)),
+    );
+  }
+
+  static const _reservedMcpHeaders = {
+    'accept',
+    'connection',
+    'content-length',
+    'content-type',
+    'host',
+    'mcp-protocol-version',
+    'mcp-session-id',
+    'transfer-encoding',
+  };
 
   List<String> _skillIds(Map<String, dynamic> data) {
     if (!data.containsKey('skillIds')) return const [];

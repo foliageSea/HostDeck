@@ -19,6 +19,48 @@ describe('aiAgentApi skills', () => {
   })
 })
 
+describe('aiAgentApi MCP servers', () => {
+  it('manages and tests Streamable HTTP servers', async () => {
+    const server = {
+      enabled: true,
+      hasHeaders: true,
+      id: 7,
+      name: 'GitHub',
+      url: 'https://mcp.example.com/mcp',
+    }
+    const get = vi.spyOn(http, 'get').mockResolvedValue({ data: [server] })
+    const post = vi
+      .spyOn(http, 'post')
+      .mockResolvedValueOnce({ data: server })
+      .mockResolvedValueOnce({ data: { success: true, toolCount: 4 } })
+    const put = vi.spyOn(http, 'put').mockResolvedValue({ data: { ...server, enabled: false } })
+    const remove = vi.spyOn(http, 'delete').mockResolvedValue({ data: undefined })
+    const payload = {
+      enabled: true,
+      headers: { Authorization: 'Bearer secret' },
+      name: 'GitHub',
+      url: 'https://mcp.example.com/mcp',
+    }
+
+    await expect(aiAgentApi.listMcpServers()).resolves.toEqual([server])
+    await expect(aiAgentApi.createMcpServer(payload)).resolves.toEqual(server)
+    await expect(
+      aiAgentApi.updateMcpServer(7, { ...payload, enabled: false }),
+    ).resolves.toMatchObject({ enabled: false })
+    await expect(aiAgentApi.testMcpServer(7)).resolves.toEqual({ success: true, toolCount: 4 })
+    await aiAgentApi.deleteMcpServer(7)
+
+    expect(get).toHaveBeenCalledWith('/api/ai-agent/mcp-servers')
+    expect(post).toHaveBeenNthCalledWith(1, '/api/ai-agent/mcp-servers', payload)
+    expect(put).toHaveBeenCalledWith('/api/ai-agent/mcp-servers/7', {
+      ...payload,
+      enabled: false,
+    })
+    expect(post).toHaveBeenNthCalledWith(2, '/api/ai-agent/mcp-servers/7/test')
+    expect(remove).toHaveBeenCalledWith('/api/ai-agent/mcp-servers/7')
+  })
+})
+
 describe('aiAgentApi.run', () => {
   it('consumes the complete run lifecycle with same-origin credentials', async () => {
     const fetchMock = vi

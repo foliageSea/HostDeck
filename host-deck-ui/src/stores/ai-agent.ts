@@ -4,6 +4,8 @@ import {
   aiAgentApi,
   type AiAgentConversation,
   type AiAgentMessage,
+  type AiAgentMcpServer,
+  type AiAgentMcpServerInput,
   type AiAgentRunEvent,
   type AiAgentSettings,
   type AiAgentSettingsUpdate,
@@ -44,6 +46,7 @@ function temporaryMessage(role: 'assistant' | 'user', content: string): AiAgentM
 export const useAiAgentStore = defineStore('ai-agent', () => {
   const settings = ref<AiAgentSettings | null>(null)
   const skills = ref<AiAgentSkill[]>([])
+  const mcpServers = ref<AiAgentMcpServer[]>([])
   const selectedSkillIds = ref<string[]>([])
   const conversations = ref<AiAgentConversation[]>([])
   const currentConnectionId = ref<string | null>(null)
@@ -53,6 +56,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const usage = ref<AiAgentUsage | null>(null)
   const loadingSettings = ref(false)
   const loadingSkills = ref(false)
+  const loadingMcpServers = ref(false)
   const loadingConversations = ref(false)
   const loadingConversation = ref(false)
   const running = ref(false)
@@ -104,6 +108,39 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     } finally {
       if (request === skillsRequest) loadingSkills.value = false
     }
+  }
+
+  async function loadMcpServers() {
+    loadingMcpServers.value = true
+    try {
+      mcpServers.value = await aiAgentApi.listMcpServers()
+      return mcpServers.value
+    } finally {
+      loadingMcpServers.value = false
+    }
+  }
+
+  async function createMcpServer(payload: AiAgentMcpServerInput) {
+    const server = await aiAgentApi.createMcpServer(payload)
+    mcpServers.value = [...mcpServers.value, server].sort((a, b) => a.name.localeCompare(b.name))
+    return server
+  }
+
+  async function updateMcpServer(id: number, payload: AiAgentMcpServerInput) {
+    const server = await aiAgentApi.updateMcpServer(id, payload)
+    mcpServers.value = mcpServers.value
+      .map((item) => (item.id === id ? server : item))
+      .sort((a, b) => a.name.localeCompare(b.name))
+    return server
+  }
+
+  async function deleteMcpServer(id: number) {
+    await aiAgentApi.deleteMcpServer(id)
+    mcpServers.value = mcpServers.value.filter((item) => item.id !== id)
+  }
+
+  async function testMcpServer(id: number) {
+    return aiAgentApi.testMcpServer(id)
   }
 
   function setSelectedSkillIds(ids: string[]) {
@@ -413,13 +450,16 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     error,
     hasPendingApproval,
     loadConversations,
+    loadMcpServers,
     loadSkills,
     loadSettings,
     loadingConversation,
     loadingConversations,
+    loadingMcpServers,
     loadingSettings,
     loadingSkills,
     messages,
+    mcpServers,
     resetForConnection,
     resolveApproval,
     running,
@@ -433,8 +473,12 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     skillsError,
     startRun,
     testSettings,
+    testMcpServer,
     toggleSkill,
     toolCalls,
+    createMcpServer,
+    deleteMcpServer,
+    updateMcpServer,
     updateConversationTitle,
     usage,
   }

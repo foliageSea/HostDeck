@@ -8,6 +8,7 @@ import {
   MessageSquarePlus,
   PanelLeftClose,
   Pencil,
+  PlugZap,
   Puzzle,
   Search,
   Send,
@@ -54,6 +55,7 @@ const rootElement = ref<HTMLElement>()
 const compactLayout = ref(false)
 const sidebarOpen = ref(true)
 const settingsOpen = ref(false)
+const settingsSection = ref<'mcp' | 'model'>('model')
 const query = ref('')
 const input = ref('')
 const messageScroller = ref<HTMLElement>()
@@ -126,6 +128,12 @@ const selectedSkills = computed(() => {
 
 const pendingToolCalls = computed(() => toolCalls.value.filter((tool) => tool.approvalPending))
 const completedToolCalls = computed(() => toolCalls.value.filter((tool) => !tool.approvalPending))
+const enabledMcpServers = computed(() => agentStore.mcpServers.filter((server) => server.enabled))
+
+function openSettings(section: 'mcp' | 'model' = 'model') {
+  settingsSection.value = section
+  settingsOpen.value = true
+}
 
 function closeSidebarOnNarrowScreen() {
   if (compactLayout.value) sidebarOpen.value = false
@@ -135,6 +143,7 @@ async function loadForConnection(connectionId: string) {
   try {
     await Promise.all([
       agentStore.loadSettings(),
+      agentStore.loadMcpServers(),
       agentStore.loadConversations(connectionId),
       agentStore.loadSkills(connectionId),
     ])
@@ -459,7 +468,7 @@ let resizeObserver: ResizeObserver | undefined
         </section>
       </div>
 
-      <button type="button" class="agent-settings-entry" @click="settingsOpen = true">
+      <button type="button" class="agent-settings-entry" @click="openSettings()">
         <Settings :size="16" />
         <span class="min-w-0 flex-1 text-left">
           <strong class="block text-[12px] font-medium">模型设置</strong>
@@ -494,7 +503,7 @@ let resizeObserver: ResizeObserver | undefined
           type="button"
           class="agent-icon-button"
           aria-label="模型设置"
-          @click="settingsOpen = true"
+          @click="openSettings()"
         >
           <Settings :size="17" />
         </button>
@@ -571,7 +580,7 @@ let resizeObserver: ResizeObserver | undefined
           v-if="settings && !settings.hasApiKey"
           type="button"
           class="agent-configure"
-          @click="settingsOpen = true"
+          @click="openSettings()"
         >
           配置 API Key 后开始对话
         </button>
@@ -608,6 +617,16 @@ let resizeObserver: ResizeObserver | undefined
             <div class="flex min-w-0 items-center gap-2">
               <span class="agent-composer-label truncate">{{ settings?.model || '选择模型' }}</span>
               <AiAgentSkillPicker :connection-id="sshStore.connectionId" :disabled="running" />
+              <button
+                type="button"
+                class="agent-mcp-entry"
+                :disabled="running"
+                aria-label="MCP 服务器设置"
+                @click="openSettings('mcp')"
+              >
+                <PlugZap :size="12" />
+                MCP {{ enabledMcpServers.length }}
+              </button>
               <span class="agent-composer-label">按需审批</span>
             </div>
             <button
@@ -644,7 +663,7 @@ let resizeObserver: ResizeObserver | undefined
       <X :size="17" />
     </button>
 
-    <AiAgentSettingsModal v-model:show="settingsOpen" />
+    <AiAgentSettingsModal v-model:show="settingsOpen" :initial-tab="settingsSection" />
   </div>
 </template>
 
@@ -1203,6 +1222,25 @@ let resizeObserver: ResizeObserver | undefined
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 9px;
+}
+
+.agent-mcp-entry {
+  display: inline-flex;
+  height: 23px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: var(--app-radius-control);
+  color: var(--agent-muted);
+  background: var(--agent-hover);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.agent-mcp-entry:hover:not(:disabled) {
+  color: var(--app-primary-color);
+  background: var(--app-primary-soft);
 }
 
 .agent-send-button {

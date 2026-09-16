@@ -182,13 +182,14 @@ guidance and can never grant or bypass approval or change these constraints.
       var toolCallCount = 0;
       final assistantMessageId = _newId();
       final emittedText = StringBuffer();
+      final toolSpecs = await _toolService.resolveSpecs();
 
       for (var iteration = 0; iteration < maxToolIterations; iteration++) {
         _ensureActive(run);
         final iterationText = StringBuffer();
         final response = await model.invoke(
           messages,
-          _toolService.specs,
+          toolSpecs,
           onTextDelta: (text) {
             _ensureActive(run);
             iterationText.write(text);

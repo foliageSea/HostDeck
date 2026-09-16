@@ -12,6 +12,7 @@ import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_controller.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_mcp_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_secret_store.dart';
@@ -158,6 +159,13 @@ class ServerContainer {
         getIt<AiAgentSecretStore>(),
       ),
     );
+    getIt.registerLazySingleton<AiAgentMcpRepository>(
+      () => AiAgentMcpRepository(
+        getIt<DatabaseService>(),
+        getIt<AiAgentSecretStore>(),
+      ),
+    );
+    getIt.registerLazySingleton<AiAgentMcpClient>(AiAgentMcpClient.new);
     getIt.registerLazySingleton<AiAgentModelFactory>(
       LangChainOpenAiAgentModelFactory.new,
     );
@@ -244,6 +252,14 @@ class ServerContainer {
         getIt<OperationLogService>(),
       ),
     );
+    getIt.registerLazySingleton<AiAgentMcpToolService>(
+      () => AiAgentMcpToolService(
+        getIt<AiAgentToolService>(),
+        getIt<AiAgentMcpRepository>(),
+        getIt<AiAgentMcpClient>(),
+        getIt<OperationLogService>(),
+      ),
+    );
     getIt.registerLazySingleton<AiAgentSkillService>(
       () => AiAgentSkillService(getIt<SshService>()),
     );
@@ -252,7 +268,7 @@ class ServerContainer {
         getIt<AiAgentRepository>(),
         getIt<AiAgentSettingsService>(),
         getIt<AiAgentModelFactory>(),
-        getIt<AiAgentToolService>(),
+        getIt<AiAgentMcpToolService>(),
         getIt<SshService>(),
       ),
       dispose: (manager) => manager.dispose(),
@@ -301,6 +317,8 @@ class ServerContainer {
           getIt<AiAgentRunManager>(),
           getIt<SshService>(),
           getIt<AiAgentSkillService>(),
+          getIt<AiAgentMcpRepository>(),
+          getIt<AiAgentMcpClient>(),
         ),
         systemController: SystemController(
           getIt<SshService>(),
