@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { CirclePlus, Pencil, PlugZap, Server, Trash2 } from '@lucide/vue'
 import type { AiAgentMcpServer, AiAgentMcpServerInput } from '@/api/ai-agent'
+import CodeEditor from '@/components/editor/CodeEditor.vue'
 import { getUiApi } from '@/lib/ui'
 import { useAiAgentStore } from '@/stores/ai-agent'
 import { parseMcpConfig } from './mcp-config'
@@ -12,8 +13,7 @@ const saving = ref(false)
 const testingId = ref<number | null>(null)
 const editingId = ref<number | null>(null)
 const clearHeaders = ref(false)
-const form = reactive({ enabled: true, headers: '', name: '', url: '' })
-const usesPlainHttp = computed(() => /^http:\/\//i.test(form.url.trim()))
+const form = reactive({ config: '', enabled: true, name: '' })
 
 onMounted(async () => {
   if (store.mcpServers.length === 0 && !store.loadingMcpServers) {
@@ -28,39 +28,50 @@ onMounted(async () => {
 function openEditor(server?: AiAgentMcpServer) {
   editingId.value = server?.id ?? null
   form.name = server?.name ?? ''
-  form.url = server?.url ?? ''
   form.enabled = server?.enabled ?? true
-  form.headers = ''
+  form.config = server
+    ? JSON.stringify(
+        {
+          type: 'streamable-http',
+          url: server.url,
+          headers: {},
+        },
+        null,
+        2,
+      )
+    : ''
   clearHeaders.value = false
   editorOpen.value = true
 }
 
 function parseConfigInput() {
-  const source = form.headers.trim()
-  if (!source) return undefined
+  const source = form.config.trim()
+  if (!source) throw new Error('请输入完整的 MCP 配置 JSON。')
   const parsed = parseMcpConfig(source)
-  if (parsed.url) form.url = parsed.url
   if (parsed.name && !form.name.trim()) form.name = parsed.name
-  return parsed.headers
+  return parsed
 }
 
 async function save() {
-  let headers: Record<string, string> | undefined
+  let parsed: ReturnType<typeof parseConfigInput>
   try {
-    headers = parseConfigInput()
+    parsed = parseConfigInput()
   } catch (error) {
     getUiApi().message.error(error instanceof Error ? error.message : 'MCP 配置格式无效。')
     return
   }
-  if (!form.name.trim() || !form.url.trim()) {
-    getUiApi().message.warning('请填写名称和 MCP URL。')
+  if (!form.name.trim() || !parsed.url?.trim()) {
+    getUiApi().message.warning('请填写名称，并在 JSON 中提供 MCP URL。')
     return
   }
   const payload: AiAgentMcpServerInput = {
     enabled: form.enabled,
     name: form.name.trim(),
-    url: form.url.trim(),
-    ...(headers ? { headers } : {}),
+    url: parsed.url.trim(),
+    ...(parsed.headers &&
+    (Object.keys(parsed.headers).length > 0 || editingId.value === null || clearHeaders.value)
+      ? { headers: parsed.headers }
+      : {}),
     ...(clearHeaders.value ? { clearHeaders: true } : {}),
   }
   saving.value = true
@@ -192,28 +203,11 @@ function remove(server: AiAgentMcpServer) {
         <NFormItem label="名称">
           <NInput v-model:value="form.name" maxlength="60" placeholder="例如 GitHub" />
         </NFormItem>
-        <NFormItem label="Streamable HTTP URL">
+        <NFormItem label="完整 MCP 配置 JSON">
           <div class="w-full">
-            <NInput v-model:value="form.url" placeholder="https://example.com/mcp" />
-            <div v-if="usesPlainHttp" class="mt-2 text-[11px] text-amber-500">
-              HTTP 不会加密 MCP 请求，仅用于可信网络。
-            </div>
-          </div>
-        </NFormItem>
-        <NFormItem label="请求头或完整 MCP 配置 JSON">
-          <div class="w-full">
-            <NInput
-              v-model:value="form.headers"
-              type="textarea"
-              :autosize="{ minRows: 3, maxRows: 6 }"
-              placeholder='{ "type": "sse", "url": "https://example.com/mcp", "headers": { "Authorization": "Bearer ..." } }'
-            />
+            <CodeEditor v-model="form.config" language="json" class="agent-mcp-json-editor" />
             <div class="mt-2 flex items-center justify-between gap-3 text-[11px] opacity-60">
-              <span>{{
-                editingId === null
-                  ? '支持完整配置或纯请求头，请求头将加密保存'
-                  : '留空以保留现有请求头'
-              }}</span>
+              <span>配置中的请求头将加密保存</span>
               <NCheckbox v-if="editingId !== null" v-model:checked="clearHeaders"
                 >清除现有请求头</NCheckbox
               >
@@ -240,6 +234,9 @@ function remove(server: AiAgentMcpServer) {
 <style scoped>
 .agent-mcp-settings {
   min-height: 300px;
+}
+.agent-mcp-json-editor {
+  height: 280px;
 }
 .agent-mcp-toolbar {
   display: flex;
