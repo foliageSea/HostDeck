@@ -6,6 +6,7 @@ void registerAiAgentRoutes(Router router, AiAgentController controller) {
   router.get('/api/ai-agent/settings', controller.getSettings);
   router.put('/api/ai-agent/settings', controller.updateSettings);
   router.post('/api/ai-agent/settings/test', controller.testSettings);
+  router.get('/api/ai-agent/skills', controller.listSkills);
   router.get('/api/ai-agent/conversations', controller.listConversations);
   router.post('/api/ai-agent/conversations', controller.createConversation);
   router.get('/api/ai-agent/conversations/<id>', controller.getConversation);

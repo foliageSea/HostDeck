@@ -16,6 +16,7 @@ import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_secret_store.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_skill_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_tool_service.dart';
 import 'package:host_deck/server/features/auth/auth_controller.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
@@ -243,6 +244,9 @@ class ServerContainer {
         getIt<OperationLogService>(),
       ),
     );
+    getIt.registerLazySingleton<AiAgentSkillService>(
+      () => AiAgentSkillService(getIt<SshService>()),
+    );
     getIt.registerLazySingleton<AiAgentRunManager>(
       () => AiAgentRunManager(
         getIt<AiAgentRepository>(),
@@ -296,6 +300,7 @@ class ServerContainer {
           getIt<AiAgentModelFactory>(),
           getIt<AiAgentRunManager>(),
           getIt<SshService>(),
+          getIt<AiAgentSkillService>(),
         ),
         systemController: SystemController(
           getIt<SshService>(),

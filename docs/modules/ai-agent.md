@@ -18,9 +18,19 @@ API 密钥不会通过 API 或日志返回。密钥使用安装本地随机 32 �
 - `POST /api/ai-agent/conversations`，JSON 为 `{ "connectionId": "..." }`
 - `GET /api/ai-agent/conversations/<id>?connectionId=...`
 - `DELETE /api/ai-agent/conversations/<id>?connectionId=...`
-- `POST /api/ai-agent/conversations/<id>/runs`，JSON 为 `{ "connectionId": "...", "input": "..." }`
+- `POST /api/ai-agent/conversations/<id>/runs`，JSON 为 `{ "connectionId": "...", "input": "...", "skillIds": ["opencode:example"] }`
 
 会话绑定服务端从 SSH 连接元数据计算的稳定目标：已保存服务器使用 `server:<id>`，临时连接使用 `username@host:port`。客户端提供的目标身份不会被信任。同一会话只允许一个活动 run，历史最多向模型加载最近 100 条消息。
+
+## Skills
+
+- `GET /api/ai-agent/skills?connectionId=...`：扫描远端用户 home 下的 OpenCode、Claude 和 Agents 全局 skill 目录，返回 `id`、`name`、`description`、`source`，不返回正文或路径。
+- 扫描优先级为 `~/.config/opencode/skills`、`~/.claude/skills`、`~/.agents/skills`，同名 skill 只保留优先级最高者。只扫描一层 `*/SKILL.md`；目录和文件都必须是普通目录/文件，不接受符号链接。
+- `SKILL.md` 最大 64 KiB，必须以 `---` 开始并包含可解析的 YAML frontmatter；`name` 和 `description` 必填，`name` 最长 64 字符且必须匹配目录名及 `^[a-z0-9]+(-[a-z0-9]+)*$`。一次最多发现 200 个 skill。
+- run 可选择最多 8 个 `skillIds`。服务端会在启动 run 前重新发现并读取，未知或已失效 ID 返回 400；选中正文总计最大 128 KiB。正文形成不可变快照后作为不可信指导注入 system prompt，前后均保留 HostDeck 安全和审批约束。
+- system prompt 会包含已选 skill 的远端目录，以便解析正文中的相对脚本或参考文件；读取这些附属文件仍必须走原有文件工具和审批流程。
+
+选择 skill 即授权将该 skill 正文披露给所配置的模型，不增加额外审批，也不能改变任何工具审批要求。
 
 ## 审批与取消
 
@@ -49,4 +59,4 @@ run 接口返回 `text/event-stream`，并发送代理刷新 padding。事件包
 
 ## 审计边界
 
-设置、会话 mutation、run、审批、拒绝和取消由操作日志中间件记录。每次工具执行额外记录 `aiAgent` 分类以及稳定目标身份。提示词、模型输出、命令和命令输出、文件路径和内容、patch、API 密钥不会写入操作日志。
+设置、skill 列表、会话 mutation、run、审批、拒绝和取消由操作日志中间件记录，其中 skill 列表动作记为 `skillsList`。每次工具执行额外记录 `aiAgent` 分类以及稳定目标身份。提示词、skill 正文和路径、模型输出、命令和命令输出、文件路径和内容、patch、API 密钥不会写入操作日志。

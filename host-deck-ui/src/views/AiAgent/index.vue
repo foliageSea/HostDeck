@@ -21,6 +21,7 @@ import { useAiAgentStore } from '@/stores/ai-agent'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import AiAgentMarkdown from './components/AiAgentMarkdown.vue'
+import AiAgentSkillPicker from './components/AiAgentSkillPicker.vue'
 import AiAgentSettingsModal from './components/AiAgentSettingsModal.vue'
 import AiAgentToolCall from './components/AiAgentToolCall.vue'
 
@@ -107,7 +108,11 @@ function closeSidebarOnNarrowScreen() {
 
 async function loadForConnection(connectionId: string) {
   try {
-    await Promise.all([agentStore.loadSettings(), agentStore.loadConversations(connectionId)])
+    await Promise.all([
+      agentStore.loadSettings(),
+      agentStore.loadConversations(connectionId),
+      agentStore.loadSkills(connectionId),
+    ])
   } catch {
     // The store exposes the actionable error in the workspace.
   }
@@ -507,6 +512,7 @@ let resizeObserver: ResizeObserver | undefined
           <div class="agent-composer-footer">
             <div class="flex min-w-0 items-center gap-2">
               <span class="agent-composer-label truncate">{{ settings?.model || '选择模型' }}</span>
+              <AiAgentSkillPicker :connection-id="sshStore.connectionId" :disabled="running" />
               <span class="agent-composer-label">按需审批</span>
             </div>
             <button
@@ -990,10 +996,14 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-composer-label {
+  min-width: 0;
+  overflow: hidden;
   padding: 3px 7px;
   border-radius: var(--app-radius-control);
   color: var(--agent-muted);
   background: var(--agent-hover);
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 9px;
 }
 

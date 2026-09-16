@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AiAgentRunEvent } from '@/api/ai-agent'
-import { useAiAgentStore } from '@/stores/ai-agent'
+import { MAX_SELECTED_SKILLS, useAiAgentStore } from '@/stores/ai-agent'
 
 const apiMocks = vi.hoisted(() => ({
   approve: vi.fn(),
@@ -11,6 +11,7 @@ const apiMocks = vi.hoisted(() => ({
   getConversation: vi.fn(),
   getSettings: vi.fn(),
   listConversations: vi.fn(),
+  listSkills: vi.fn(),
   reject: vi.fn(),
   run: vi.fn(),
   saveSettings: vi.fn(),
@@ -33,6 +34,10 @@ describe('AI Agent store', () => {
     vi.clearAllMocks()
     apiMocks.createConversation.mockResolvedValue(conversation)
     apiMocks.listConversations.mockResolvedValue([conversation])
+    apiMocks.listSkills.mockResolvedValue([
+      { description: 'Inspect logs', id: 'logs', name: 'Logs', source: 'workspace' },
+      { description: 'Review services', id: 'services', name: 'Services', source: 'builtin' },
+    ])
     apiMocks.approve.mockResolvedValue(undefined)
     apiMocks.cancel.mockResolvedValue(undefined)
     apiMocks.reject.mockResolvedValue(undefined)
@@ -67,6 +72,7 @@ describe('AI Agent store', () => {
         _conversationId: string,
         _connectionId: string,
         _input: string,
+        _skillIds: string[],
         onEvent: (event: AiAgentRunEvent) => void,
       ) => {
         onEvent({ event: 'connected', runId: 'run-1' })
@@ -135,6 +141,7 @@ describe('AI Agent store', () => {
         _conversationId: string,
         _connectionId: string,
         _input: string,
+        _skillIds: string[],
         onEvent: (event: AiAgentRunEvent) => void,
       ) => {
         emit = onEvent
@@ -181,6 +188,7 @@ describe('AI Agent store', () => {
         _conversationId: string,
         _connectionId: string,
         _input: string,
+        _skillIds: string[],
         onEvent: (event: AiAgentRunEvent) => void,
       ) => {
         onEvent({ event: 'connected', runId: 'run-1' })
@@ -195,13 +203,79 @@ describe('AI Agent store', () => {
       },
     )
     const store = useAiAgentStore()
+    store.resetForConnection('connection-1')
+    store.skills = [{ description: 'Inspect logs', id: 'logs', name: 'Logs', source: 'workspace' }]
+    store.toggleSkill('logs')
     void store.startRun('read file', 'connection-1')
     await vi.waitFor(() => expect(store.activeRunId).toBe('run-1'))
 
     await store.cancelRun()
     expect(store.running).toBe(false)
+    expect(store.selectedSkillIds).toEqual([])
     expect(store.toolCalls[0]).toMatchObject({ approvalPending: false, status: 'error' })
 
     finishRun()
+  })
+
+  it('loads skills, snapshots selections for a run, and clears them when it finishes', async () => {
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        onEvent({ conversationId: 'conversation-1', event: 'done', messageId: 'message-1' })
+      },
+    )
+    const store = useAiAgentStore()
+    await store.loadSkills('connection-1')
+    store.toggleSkill('logs')
+    store.toggleSkill('services')
+
+    await store.startRun('inspect host', 'connection-1')
+
+    expect(apiMocks.listSkills).toHaveBeenCalledWith('connection-1')
+    expect(apiMocks.run).toHaveBeenCalledWith(
+      'conversation-1',
+      'connection-1',
+      'inspect host',
+      ['logs', 'services'],
+      expect.any(Function),
+      expect.any(AbortSignal),
+    )
+    expect(store.selectedSkillIds).toEqual([])
+  })
+
+  it('clears skills when the connection changes and after a failed run', async () => {
+    const store = useAiAgentStore()
+    await store.loadSkills('connection-1')
+    store.toggleSkill('logs')
+    store.resetForConnection('connection-2')
+
+    expect(store.skills).toEqual([])
+    expect(store.selectedSkillIds).toEqual([])
+
+    await store.loadSkills('connection-2')
+    store.toggleSkill('logs')
+    apiMocks.run.mockRejectedValue(new Error('run failed'))
+    await expect(store.startRun('inspect host', 'connection-2')).rejects.toThrow('run failed')
+    expect(store.selectedSkillIds).toEqual([])
+  })
+
+  it('limits each run to eight selected skills', () => {
+    const store = useAiAgentStore()
+    store.skills = Array.from({ length: MAX_SELECTED_SKILLS + 1 }, (_, index) => ({
+      description: `Skill ${index}`,
+      id: `skill-${index}`,
+      name: `skill-${index}`,
+      source: 'opencode',
+    }))
+
+    store.setSelectedSkillIds(store.skills.map((skill) => skill.id))
+
+    expect(store.selectedSkillIds).toHaveLength(MAX_SELECTED_SKILLS)
+    expect(store.selectedSkillIds).not.toContain(`skill-${MAX_SELECTED_SKILLS}`)
   })
 })

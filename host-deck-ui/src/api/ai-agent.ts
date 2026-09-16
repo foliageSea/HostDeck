@@ -14,6 +14,13 @@ export interface AiAgentSettingsUpdate {
   clearApiKey?: boolean
 }
 
+export interface AiAgentSkill {
+  id: string
+  name: string
+  description: string
+  source: string
+}
+
 export interface AiAgentConversation {
   id: string
   title?: string
@@ -198,6 +205,14 @@ export const aiAgentApi = {
     return (await http.post<unknown>('/api/ai-agent/settings/test', payload ?? {})).data
   },
 
+  async listSkills(connectionId: string) {
+    return (
+      await http.get<AiAgentSkill[]>('/api/ai-agent/skills', {
+        params: { connectionId },
+      })
+    ).data
+  },
+
   async listConversations(connectionId: string) {
     return (
       await http.get<AiAgentConversation[]>('/api/ai-agent/conversations', {
@@ -239,13 +254,14 @@ export const aiAgentApi = {
     conversationId: string,
     connectionId: string,
     input: string,
+    skillIds: string[],
     onEvent: (event: AiAgentRunEvent) => void,
     signal?: AbortSignal,
   ) {
     const response = await fetch(
       `/api/ai-agent/conversations/${encodeURIComponent(conversationId)}/runs`,
       {
-        body: JSON.stringify({ connectionId, input }),
+        body: JSON.stringify({ connectionId, input, skillIds }),
         credentials: 'same-origin',
         headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
         method: 'POST',

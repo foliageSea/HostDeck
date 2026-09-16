@@ -7,12 +7,14 @@ import {
   type AiAgentRunEvent,
   type AiAgentSettings,
   type AiAgentSettingsUpdate,
+  type AiAgentSkill,
   type AiAgentUsage,
 } from '@/api/ai-agent'
 
 const MAX_CONVERSATIONS = 200
 const MAX_MESSAGES = 300
 const MAX_TOOL_CALLS = 100
+export const MAX_SELECTED_SKILLS = 8
 
 export type AiAgentToolStatus = 'pending' | 'running' | 'success' | 'error' | 'rejected'
 
@@ -41,6 +43,8 @@ function temporaryMessage(role: 'assistant' | 'user', content: string): AiAgentM
 
 export const useAiAgentStore = defineStore('ai-agent', () => {
   const settings = ref<AiAgentSettings | null>(null)
+  const skills = ref<AiAgentSkill[]>([])
+  const selectedSkillIds = ref<string[]>([])
   const conversations = ref<AiAgentConversation[]>([])
   const currentConnectionId = ref<string | null>(null)
   const selectedConversation = ref<AiAgentConversation | null>(null)
@@ -48,14 +52,17 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const toolCalls = ref<AiAgentToolCall[]>([])
   const usage = ref<AiAgentUsage | null>(null)
   const loadingSettings = ref(false)
+  const loadingSkills = ref(false)
   const loadingConversations = ref(false)
   const loadingConversation = ref(false)
   const running = ref(false)
   const activeRunId = ref<string | null>(null)
   const error = ref<string | null>(null)
+  const skillsError = ref<string | null>(null)
 
   let listRequest = 0
   let detailRequest = 0
+  let skillsRequest = 0
   let runRequest = 0
   let runController: AbortController | null = null
 
@@ -80,18 +87,59 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     return aiAgentApi.testSettings(payload)
   }
 
+  async function loadSkills(connectionId: string) {
+    resetForConnection(connectionId)
+    const request = ++skillsRequest
+    loadingSkills.value = true
+    skillsError.value = null
+    try {
+      const result = await aiAgentApi.listSkills(connectionId)
+      if (request !== skillsRequest || currentConnectionId.value !== connectionId) return
+      skills.value = result
+      const availableIds = new Set(result.map((skill) => skill.id))
+      selectedSkillIds.value = selectedSkillIds.value.filter((id) => availableIds.has(id))
+    } catch (requestError) {
+      if (request === skillsRequest) skillsError.value = errorMessage(requestError)
+      throw requestError
+    } finally {
+      if (request === skillsRequest) loadingSkills.value = false
+    }
+  }
+
+  function setSelectedSkillIds(ids: string[]) {
+    const availableIds = new Set(skills.value.map((skill) => skill.id))
+    selectedSkillIds.value = [...new Set(ids.filter((id) => availableIds.has(id)))].slice(
+      0,
+      MAX_SELECTED_SKILLS,
+    )
+  }
+
+  function toggleSkill(id: string) {
+    if (running.value || !skills.value.some((skill) => skill.id === id)) return
+    setSelectedSkillIds(
+      selectedSkillIds.value.includes(id)
+        ? selectedSkillIds.value.filter((selectedId) => selectedId !== id)
+        : [...selectedSkillIds.value, id],
+    )
+  }
+
   function resetForConnection(connectionId: string | null) {
     if (currentConnectionId.value === connectionId) return false
     abortRun()
     currentConnectionId.value = connectionId
     conversations.value = []
+    skills.value = []
+    selectedSkillIds.value = []
     selectedConversation.value = null
     messages.value = []
     toolCalls.value = []
     usage.value = null
     error.value = null
+    skillsError.value = null
+    loadingSkills.value = false
     listRequest += 1
     detailRequest += 1
+    skillsRequest += 1
     return true
   }
 
@@ -245,6 +293,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     const trimmedInput = input.trim()
     if (!trimmedInput || running.value) return false
     resetForConnection(connectionId)
+    const runSkillIds = [...selectedSkillIds.value]
     const request = ++runRequest
     const controller = new AbortController()
     runController = controller
@@ -269,6 +318,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         conversationId,
         connectionId,
         trimmedInput,
+        runSkillIds,
         (event) => {
           if (request === runRequest) applyRunEvent(event, streamedAssistant)
         },
@@ -291,6 +341,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         running.value = false
         activeRunId.value = null
         runController = null
+        selectedSkillIds.value = []
       }
     }
   }
@@ -301,6 +352,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     runController = null
     running.value = false
     activeRunId.value = null
+    selectedSkillIds.value = []
     finishPendingTools('error')
   }
 
@@ -361,20 +413,27 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     error,
     hasPendingApproval,
     loadConversations,
+    loadSkills,
     loadSettings,
     loadingConversation,
     loadingConversations,
     loadingSettings,
+    loadingSkills,
     messages,
     resetForConnection,
     resolveApproval,
     running,
     saveSettings,
+    selectedSkillIds,
     selectedConversation,
     selectConversation,
     settings,
+    setSelectedSkillIds,
+    skills,
+    skillsError,
     startRun,
     testSettings,
+    toggleSkill,
     toolCalls,
     updateConversationTitle,
     usage,

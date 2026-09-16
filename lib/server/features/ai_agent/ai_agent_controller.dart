@@ -10,6 +10,7 @@ import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_skill_service.dart';
 
 class AiAgentController {
   final AiAgentRepository _repository;
@@ -17,6 +18,7 @@ class AiAgentController {
   final AiAgentModelFactory _modelFactory;
   final AiAgentRunManager _runManager;
   final SshService _sshService;
+  final AiAgentSkillService _skillService;
 
   AiAgentController(
     this._repository,
@@ -24,6 +26,7 @@ class AiAgentController {
     this._modelFactory,
     this._runManager,
     this._sshService,
+    this._skillService,
   );
 
   Response getSettings(Request _) => Result.ok(_settingsService.get().toJson());
@@ -67,6 +70,21 @@ class AiAgentController {
       return Result.fail(502, 'Unable to connect to the configured model.');
     } finally {
       model?.close();
+    }
+  }
+
+  Future<Response> listSkills(Request request) async {
+    try {
+      final connectionId = request.url.queryParameters['connectionId'];
+      _targetKey(connectionId);
+      final skills = await _skillService.discover(connectionId!);
+      return Result.ok(skills.map((skill) => skill.toJson()).toList());
+    } on ArgumentError catch (error) {
+      return Result.fail(400, error.message?.toString() ?? 'Invalid request.');
+    } on StateError catch (error) {
+      return Result.fail(404, error.message);
+    } catch (_) {
+      return Result.fail(500, 'Unable to discover AI agent skills.');
     }
   }
 
@@ -188,6 +206,7 @@ class AiAgentController {
       final data = await _readJson(request);
       final connectionId = _requiredString(data, 'connectionId');
       final input = _requiredString(data, 'input');
+      final skillIds = _skillIds(data);
       if (utf8.encode(input).length > 32 * 1024) {
         return Result.fail(400, 'Input is too large.');
       }
@@ -195,12 +214,14 @@ class AiAgentController {
       if (_repository.getConversation(id, targetKey) == null) {
         return Result.fail(404, 'Conversation not found.');
       }
+      final skills = await _skillService.snapshot(connectionId, skillIds);
       final run = _runManager.start(
         conversationId: id,
         connectionId: connectionId,
         targetKey: targetKey,
         ownerId: _principalId(request),
         input: input,
+        skills: skills,
       );
       return Response.ok(
         run.stream,
@@ -311,6 +332,19 @@ class AiAgentController {
     final value = data[key];
     if (value is! bool) throw FormatException('$key must be a boolean.');
     return value;
+  }
+
+  List<String> _skillIds(Map<String, dynamic> data) {
+    if (!data.containsKey('skillIds')) return const [];
+    final value = data['skillIds'];
+    if (value is! List ||
+        value.any((item) => item is! String || item.isEmpty)) {
+      throw const FormatException('skillIds must be an array of strings.');
+    }
+    if (value.length > AiAgentSkillService.maxSelectedSkills) {
+      throw const FormatException('At most 8 skills may be selected.');
+    }
+    return List<String>.unmodifiable(value.cast<String>());
   }
 
   String _newId() {

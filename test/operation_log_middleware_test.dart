@@ -118,6 +118,42 @@ void main() {
       expect(log.toJson().toString(), isNot(contains('never-log-this')));
     });
 
+    test('audits skill listing without retaining content or paths', () async {
+      handler =
+          operationLogMiddleware(
+            OperationLogService(repository),
+            serverRepository,
+            portForwardRepository,
+          )(
+            (request) => Result.ok([
+              {
+                'id': 'opencode:deploy-safe',
+                'name': 'deploy-safe',
+                'description': 'Deployment guidance',
+                'source': 'opencode',
+              },
+            ]),
+          );
+
+      await handler(
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/api/ai-agent/skills?connectionId=connection-1',
+          ),
+        ),
+      );
+
+      final log = repository.list().single;
+      expect(log.category, 'aiAgent');
+      expect(log.action, 'skillsList');
+      expect(log.target, 'connection-1');
+      expect(log.connectionId, 'connection-1');
+      expect(log.detail, isNull);
+      expect(log.toJson().toString(), isNot(contains('Deployment guidance')));
+      expect(log.toJson().toString(), isNot(contains('/home/')));
+    });
+
     test('records an SSE operation only after its done event', () async {
       handler =
           operationLogMiddleware(

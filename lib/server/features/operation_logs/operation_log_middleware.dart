@@ -422,6 +422,7 @@ List<_OperationPolicy> _policies(
     'aiAgent',
     'settingsTest',
   ),
+  _OperationPolicy('GET', r'api/ai-agent/skills', 'aiAgent', 'skillsList'),
   _OperationPolicy(
     'POST',
     r'api/ai-agent/conversations',

@@ -1,11 +1,25 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { aiAgentApi, AiAgentStreamHttpError } from '@/api/ai-agent'
+import { http } from '@/lib/http'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
+
+describe('aiAgentApi skills', () => {
+  it('lists skills for the active connection', async () => {
+    const skills = [{ description: 'Inspect logs', id: 'logs', name: 'Logs', source: 'workspace' }]
+    const get = vi.spyOn(http, 'get').mockResolvedValue({ data: skills })
+
+    await expect(aiAgentApi.listSkills('connection-1')).resolves.toEqual(skills)
+    expect(get).toHaveBeenCalledWith('/api/ai-agent/skills', {
+      params: { connectionId: 'connection-1' },
+    })
+  })
+})
 
 describe('aiAgentApi.run', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it('consumes the complete run lifecycle with same-origin credentials', async () => {
     const fetchMock = vi
       .fn()
@@ -24,12 +38,14 @@ describe('aiAgentApi.run', () => {
     vi.stubGlobal('fetch', fetchMock)
     const events: unknown[] = []
 
-    await aiAgentApi.run('conversation-1', 'connection-1', 'hello', (event) => events.push(event))
+    await aiAgentApi.run('conversation-1', 'connection-1', 'hello', ['logs'], (event) =>
+      events.push(event),
+    )
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/ai-agent/conversations/conversation-1/runs',
       expect.objectContaining({
-        body: JSON.stringify({ connectionId: 'connection-1', input: 'hello' }),
+        body: JSON.stringify({ connectionId: 'connection-1', input: 'hello', skillIds: ['logs'] }),
         credentials: 'same-origin',
         method: 'POST',
       }),
@@ -67,10 +83,10 @@ describe('aiAgentApi.run', () => {
     )
 
     await expect(
-      aiAgentApi.run('conversation-1', 'connection-1', 'hello', () => undefined),
+      aiAgentApi.run('conversation-1', 'connection-1', 'hello', [], () => undefined),
     ).rejects.toThrow('无法解析')
     await expect(
-      aiAgentApi.run('conversation-1', 'connection-1', 'hello', () => undefined),
+      aiAgentApi.run('conversation-1', 'connection-1', 'hello', [], () => undefined),
     ).rejects.toThrow('意外中断')
   })
 
@@ -95,7 +111,7 @@ describe('aiAgentApi.run', () => {
     )
 
     await expect(
-      aiAgentApi.run('conversation-1', 'connection-1', 'hello', () => undefined),
+      aiAgentApi.run('conversation-1', 'connection-1', 'hello', [], () => undefined),
     ).rejects.toThrow('无法解析')
     expect(cancelled).toBe(true)
   })
@@ -112,7 +128,7 @@ describe('aiAgentApi.run', () => {
     )
 
     await expect(
-      aiAgentApi.run('conversation-1', 'connection-1', 'hello', () => undefined),
+      aiAgentApi.run('conversation-1', 'connection-1', 'hello', [], () => undefined),
     ).rejects.toThrow('API key is not configured.')
   })
 
@@ -125,12 +141,19 @@ describe('aiAgentApi.run', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(
-      aiAgentApi.run('conversation-1', 'connection-1', 'hello', () => undefined),
+      aiAgentApi.run('conversation-1', 'connection-1', 'hello', [], () => undefined),
     ).rejects.toEqual(expect.objectContaining<Partial<AiAgentStreamHttpError>>({ status: 422 }))
 
     controller.abort()
     await expect(
-      aiAgentApi.run('conversation-1', 'connection-1', 'hello', () => undefined, controller.signal),
+      aiAgentApi.run(
+        'conversation-1',
+        'connection-1',
+        'hello',
+        [],
+        () => undefined,
+        controller.signal,
+      ),
     ).rejects.toMatchObject({ name: 'AbortError' })
     expect(fetchMock.mock.calls[1]?.[1]).toEqual(
       expect.objectContaining({ signal: controller.signal }),
