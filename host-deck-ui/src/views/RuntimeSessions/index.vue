@@ -120,7 +120,7 @@ const flowNodes = computed<Node<RuntimeNodeData>[]>(() => {
   const contentHeight = Math.max(
     clientRows.value.reduce(
       (height, client, index) =>
-        height + Math.max(client.sessions.length * 140 - 16, 96) + (index > 0 ? 48 : 0),
+        height + Math.max(client.sessions.length * 112 - 16, 96) + (index > 0 ? 48 : 0),
       0,
     ),
     96,
@@ -142,7 +142,7 @@ const flowNodes = computed<Node<RuntimeNodeData>[]>(() => {
   })
 
   for (const client of clientRows.value) {
-    const sessionAreaHeight = Math.max(client.sessions.length * 140 - 16, 96)
+    const sessionAreaHeight = Math.max(client.sessions.length * 112 - 16, 96)
     nodes.push({
       id: `client:${client.connectionId}`,
       type: 'client',
@@ -164,7 +164,7 @@ const flowNodes = computed<Node<RuntimeNodeData>[]>(() => {
       nodes.push({
         id: `session:${session.sessionId}`,
         type: 'session',
-        position: { x: 776, y: groupTop + index * 140 },
+        position: { x: 776, y: groupTop + index * 112 },
         data: {
           connectionId: session.connectionId,
           isClosed: session.clientClosed,
@@ -552,6 +552,7 @@ onBeforeUnmount(() => {
 }
 
 .flow-node {
+  position: relative;
   box-sizing: border-box;
   width: 300px;
   height: 124px;
@@ -568,6 +569,10 @@ onBeforeUnmount(() => {
   width: 276px;
   height: 96px;
   border-left: 4px solid #2563eb;
+}
+
+.session-node {
+  height: 96px;
 }
 
 .backend-node {
@@ -663,7 +668,10 @@ onBeforeUnmount(() => {
 }
 
 .node-footer {
-  margin-top: 6px;
+  position: absolute;
+  right: 15px;
+  bottom: 13px;
+  left: 15px;
   color: #64748b;
   font-size: 10px;
 }
