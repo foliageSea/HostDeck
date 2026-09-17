@@ -63,6 +63,7 @@ const compactLayout = ref(false)
 const sidebarOpen = ref(true)
 const settingsOpen = ref(false)
 const modeMenuOpen = ref(false)
+const modelMenuOpen = ref(false)
 const settingsSection = ref<'mcp' | 'model'>('model')
 const query = ref('')
 const input = ref('')
@@ -141,6 +142,10 @@ const enabledMcpServers = computed(() => agentStore.mcpServers.filter((server) =
 const modelOptions = computed(() =>
   (settings.value?.models ?? []).map((model) => ({ label: model.name, value: model.id })),
 )
+const activeModelName = computed(() => {
+  const activeModel = settings.value?.models.find((model) => model.id === settings.value?.model)
+  return activeModel?.name || settings.value?.model || '选择模型'
+})
 
 function openSettings(section: 'mcp' | 'model' = 'model') {
   settingsSection.value = section
@@ -274,17 +279,23 @@ async function send() {
 }
 
 async function switchModel(model: string) {
-  if (model === settings.value?.model || switchingModel.value || running.value) return
+  if (model === settings.value?.model || switchingModel.value || running.value) return true
   switchingModel.value = true
   try {
     await agentStore.saveSettings({ model })
+    return true
   } catch (requestError) {
     getUiApi().message.error(
       requestError instanceof Error ? requestError.message : '切换模型失败。',
     )
+    return false
   } finally {
     switchingModel.value = false
   }
+}
+
+async function selectModel(model: string) {
+  if (await switchModel(model)) modelMenuOpen.value = false
 }
 
 function handleComposerKeydown(event: KeyboardEvent) {
@@ -665,16 +676,49 @@ let resizeObserver: ResizeObserver | undefined
           </NMention>
           <div class="agent-composer-footer">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <NSelect
-                :value="settings?.model ?? null"
-                :options="modelOptions"
-                size="tiny"
-                :loading="switchingModel"
+              <NPopover
+                v-model:show="modelMenuOpen"
+                trigger="click"
+                placement="top-start"
+                :show-arrow="false"
                 :disabled="running || !settings?.hasApiKey || modelOptions.length === 0"
-                placeholder="选择模型"
-                class="agent-model-select"
-                @update:value="switchModel"
-              />
+              >
+                <template #trigger>
+                  <button
+                    type="button"
+                    class="agent-mode-trigger agent-model-trigger"
+                    :disabled="running || !settings?.hasApiKey || modelOptions.length === 0"
+                    :aria-expanded="modelMenuOpen"
+                    aria-label="选择模型"
+                  >
+                    <Bot :size="13" />
+                    <span>{{ activeModelName }}</span>
+                    <ChevronDown :size="11" />
+                  </button>
+                </template>
+                <div class="agent-mode-menu agent-model-menu">
+                  <div class="agent-mode-heading">选择模型</div>
+                  <button
+                    v-for="model in modelOptions"
+                    :key="model.value"
+                    type="button"
+                    class="agent-mode-option"
+                    :aria-pressed="settings?.model === model.value"
+                    :disabled="switchingModel || running"
+                    @click="selectModel(model.value)"
+                  >
+                    <Bot :size="16" />
+                    <span class="agent-mode-copy">
+                      <strong>{{ model.label }}</strong>
+                      <span>{{ model.value }}</span>
+                    </span>
+                    <Check
+                      :size="16"
+                      :style="{ visibility: settings?.model === model.value ? 'visible' : 'hidden' }"
+                    />
+                  </button>
+                </div>
+              </NPopover>
               <AiAgentSkillPicker :connection-id="sshStore.connectionId" :disabled="running" />
               <button
                 type="button"
@@ -1340,16 +1384,18 @@ let resizeObserver: ResizeObserver | undefined
   padding: 4px 7px 7px 12px;
 }
 
- .agent-model-select {
-   width: min(160px, 38vw);
+ .agent-model-trigger {
+   max-width: min(180px, 42vw);
  }
 
- .agent-model-select :deep(.n-base-selection) {
-   min-height: 24px;
-   border: 0;
-   border-radius: var(--app-radius-control);
-   background: var(--agent-hover);
-   font-size: 10px;
+ .agent-model-trigger > span {
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+ }
+
+ .agent-model-menu {
+   width: min(360px, calc(100vw - 48px));
  }
 
 .agent-mcp-entry {
