@@ -22,6 +22,8 @@ const { fitView } = useVueFlow({ id: 'runtime-sessions' })
 
 interface RuntimeClientRow {
   connectionId: string
+  username?: string
+  host?: string
   isClosed: boolean
   sessionCount: number
   sessions: RuntimeSessionSummary[]
@@ -30,6 +32,7 @@ interface RuntimeClientRow {
 
 interface RuntimeNodeData {
   connectionId: string
+  sshTarget?: string
   isClosed: boolean
   sessionCount: number
   isSynthetic: boolean
@@ -73,12 +76,14 @@ const clientRows = computed<RuntimeClientRow[]>(() => {
     groupedSessions.set(session.connectionId, currentSessions)
   }
 
-  const rows = clients.value.map((client) => {
+  const rows: RuntimeClientRow[] = clients.value.map((client) => {
     const clientSessions = groupedSessions.get(client.connectionId) ?? []
     groupedSessions.delete(client.connectionId)
 
     return {
       connectionId: client.connectionId,
+      username: client.username,
+      host: client.host,
       isClosed: client.isClosed,
       sessionCount: clientSessions.length > 0 ? clientSessions.length : client.sessionCount,
       sessions: clientSessions,
@@ -144,6 +149,8 @@ const flowNodes = computed<Node<RuntimeNodeData>[]>(() => {
       position: { x: 378, y: groupTop + (sessionAreaHeight - 96) / 2 },
       data: {
         connectionId: client.connectionId,
+        sshTarget:
+          client.username && client.host ? `${client.username}@${client.host}` : undefined,
         isClosed: client.isClosed,
         sessionCount: client.sessionCount,
         isSynthetic: client.isSynthetic,
@@ -404,10 +411,12 @@ onBeforeUnmount(() => {
                 ><i aria-hidden="true"></i>{{ data.isClosed ? '已关闭' : '活跃' }}</span
               >
             </div>
-            <div class="node-id" :title="data.connectionId">{{ data.connectionId }}</div>
+            <div class="node-primary" :title="data.sshTarget ?? 'SSH 连接'">
+              {{ data.sshTarget ?? 'SSH 连接' }}
+            </div>
             <div class="node-footer">
+              <span class="secondary-id" :title="data.connectionId">ID {{ data.connectionId }}</span>
               <span>{{ data.sessionCount }} 个会话</span>
-              <span v-if="data.isSynthetic">仅 Session 快照</span>
             </div>
             <Handle type="source" :position="Position.Right" />
           </article>
@@ -420,7 +429,6 @@ onBeforeUnmount(() => {
               <span class="node-kind">Session</span>
               <span class="session-type">{{ data.type?.toUpperCase() }}</span>
             </div>
-            <div class="node-id" :title="data.sessionId">{{ data.sessionId }}</div>
             <div class="purpose-list">
               <span v-if="!data.purposes?.length" class="purpose-tag muted">未标注</span>
               <span v-for="purpose in data.purposes" :key="purpose" class="purpose-tag">
@@ -428,7 +436,7 @@ onBeforeUnmount(() => {
               </span>
             </div>
             <div class="node-footer">
-              <span>{{ data.hasShell ? 'Shell 已就绪' : '无 Shell' }}</span>
+              <span class="secondary-id" :title="data.sessionId">ID {{ data.sessionId }}</span>
               <span>{{ data.isClosed ? 'Client 已关闭' : 'Client 活跃' }}</span>
             </div>
           </article>
@@ -645,10 +653,28 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.node-primary {
+  margin-top: 6px;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .node-footer {
   margin-top: 6px;
   color: #64748b;
   font-size: 10px;
+}
+
+.secondary-id {
+  min-width: 0;
+  overflow: hidden;
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .is-dark .node-footer {
@@ -666,7 +692,7 @@ onBeforeUnmount(() => {
   height: 22px;
   align-items: center;
   gap: 5px;
-  margin-top: 5px;
+  margin-top: 7px;
   overflow: hidden;
 }
 
@@ -676,7 +702,8 @@ onBeforeUnmount(() => {
   border-radius: 4px;
   color: #1d4ed8;
   background: #dbeafe;
-  font-size: 10px;
+  font-size: 13px;
+  font-weight: 650;
   line-height: 18px;
 }
 

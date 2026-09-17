@@ -2,6 +2,9 @@ import { http } from '@/lib/http'
 
 export interface RuntimeClientSummary {
   connectionId: string
+  username?: string
+  host?: string
+  port?: number
   isClosed: boolean
   sessionCount: number
 }

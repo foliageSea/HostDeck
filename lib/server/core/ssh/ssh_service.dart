@@ -263,21 +263,22 @@ class SshService {
     }
 
     final clients =
-        _clients.entries
-            .map(
-              (entry) => {
-                'connectionId': entry.key,
-                'isClosed': entry.value.isClosed,
-                'sessionCount': sessionCounts[entry.key] ?? 0,
-                ...?_operationLimiters[entry.key]?.snapshot(),
-              },
-            )
-            .toList()
-          ..sort(
-            (left, right) => (left['connectionId'] as String).compareTo(
-              right['connectionId'] as String,
-            ),
-          );
+        _clients.entries.map((entry) {
+          final metadata = _connectionMetadata[entry.key];
+          return {
+            'connectionId': entry.key,
+            'username': metadata?.username,
+            'host': metadata?.host,
+            'port': metadata?.port,
+            'isClosed': entry.value.isClosed,
+            'sessionCount': sessionCounts[entry.key] ?? 0,
+            ...?_operationLimiters[entry.key]?.snapshot(),
+          };
+        }).toList()..sort(
+          (left, right) => (left['connectionId'] as String).compareTo(
+            right['connectionId'] as String,
+          ),
+        );
 
     final sessions =
         _sessions.values.map((session) {
