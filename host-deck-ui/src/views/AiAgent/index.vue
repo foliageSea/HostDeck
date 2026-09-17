@@ -640,7 +640,11 @@ let resizeObserver: ResizeObserver | undefined
             class="agent-composer-input"
             @select="selectSkillMention"
             @keydown="handleComposerKeydown"
-          />
+          >
+            <template #empty>
+              <div class="agent-skill-mention-empty">当前主机没有可用 Skill</div>
+            </template>
+          </NMention>
           <div class="agent-composer-footer">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
               <span class="agent-composer-label truncate">{{ settings?.model || '选择模型' }}</span>
@@ -1250,6 +1254,22 @@ let resizeObserver: ResizeObserver | undefined
   caret-color: var(--app-primary-color);
   font-size: 12px;
   line-height: 1.65;
+}
+
+:global(.n-mention-menu) {
+  width: min(320px, calc(100vw - 24px));
+}
+
+:global(.agent-skill-mention-empty) {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  color: var(--n-text-color-3, #64748b);
+  text-align: center;
+  overflow-wrap: anywhere;
+  font-size: 11px;
 }
 
 :global(.agent-skill-mention-option) {
