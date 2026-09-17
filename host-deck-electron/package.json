@@ -88,11 +88,6 @@
       "allowToChangeInstallationDirectory": true
     }
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron"
-    ]
-  },
   "dependencies": {
     "lucide-vue-next": "^1.0.0",
     "naive-ui": "^2.44.1"
