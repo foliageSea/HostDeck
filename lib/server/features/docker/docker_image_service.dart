@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:logging/logging.dart';
 
-import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
 import 'package:host_deck/server/features/docker/docker_image.dart';
@@ -23,7 +23,7 @@ class DockerImageService {
 
   DockerImageService(this._engineRepository, this._mapper);
 
-  Future<List<DockerImage>> listImages(SshSession session) async {
+  Future<List<DockerImage>> listImages(SshConnectionHandle session) async {
     try {
       final usedImageIds = await _getUsedImageIds(session);
       final images = await _engineRepository.requestJsonList(
@@ -41,7 +41,7 @@ class DockerImageService {
   }
 
   Future<void> removeImage(
-    SshSession session,
+    SshConnectionHandle session,
     String imageId, {
     bool force = false,
   }) async {
@@ -53,7 +53,7 @@ class DockerImageService {
     );
   }
 
-  Future<String> pullImage(SshSession session, String imageRef) async {
+  Future<String> pullImage(SshConnectionHandle session, String imageRef) async {
     final output = StringBuffer();
     await for (final event in pullImageStream(session, imageRef)) {
       if (event.event == 'progress') {
@@ -68,7 +68,7 @@ class DockerImageService {
   }
 
   Stream<DockerImagePullEvent> pullImageStream(
-    SshSession session,
+    SshConnectionHandle session,
     String imageRef,
   ) async* {
     final normalizedImage = imageRef.trim();
@@ -160,7 +160,7 @@ class DockerImageService {
   }
 
   Future<String> importImage(
-    SshSession session,
+    SshConnectionHandle session,
     Stream<List<int>> archive,
   ) async {
     return _engineRepository.requestText(
@@ -173,7 +173,7 @@ class DockerImageService {
   }
 
   Future<void> tagImage(
-    SshSession session,
+    SshConnectionHandle session,
     String sourceImage,
     String targetImage,
   ) async {
@@ -190,7 +190,7 @@ class DockerImageService {
   }
 
   Future<Stream<Uint8List>> exportImage(
-    SshSession session,
+    SshConnectionHandle session,
     String imageRef,
   ) async {
     final normalizedImageRef = imageRef.trim();
@@ -206,7 +206,7 @@ class DockerImageService {
   }
 
   Future<List<Map<String, dynamic>>> getImageHistory(
-    SshSession session,
+    SshConnectionHandle session,
     String imageId,
   ) async {
     final items = await _engineRepository.requestJsonList(
@@ -225,7 +225,7 @@ class DockerImageService {
   }
 
   Future<Map<String, dynamic>> getImageCreateDefaults(
-    SshSession session,
+    SshConnectionHandle session,
     String imageId,
   ) async {
     final detail = await _engineRepository.requestJsonObject(
@@ -237,7 +237,7 @@ class DockerImageService {
   }
 
   Future<List<Map<String, dynamic>>> getImageContainers(
-    SshSession session,
+    SshConnectionHandle session,
     String imageId,
   ) async {
     final filters = jsonEncode({
@@ -269,7 +269,7 @@ class DockerImageService {
   }
 
   Future<String> pruneImages(
-    SshSession session, {
+    SshConnectionHandle session, {
     bool includeUnused = false,
   }) async {
     final filters = includeUnused
@@ -285,7 +285,7 @@ class DockerImageService {
     );
   }
 
-  Future<Set<String>> _getUsedImageIds(SshSession session) async {
+  Future<Set<String>> _getUsedImageIds(SshConnectionHandle session) async {
     try {
       final containers = await _engineRepository.requestJsonList(
         session,

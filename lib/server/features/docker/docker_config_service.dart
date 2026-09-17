@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
-import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/features/docker/docker_registry_repository.dart';
 import 'package:host_deck/server/features/docker/docker_registry_setting.dart';
 
@@ -11,7 +11,9 @@ class DockerConfigService {
 
   DockerConfigService(this._sshRepository, this._registryRepository);
 
-  Future<Map<String, dynamic>> getConfiguration(SshSession session) async {
+  Future<Map<String, dynamic>> getConfiguration(
+    SshConnectionHandle session,
+  ) async {
     final daemon = await _readDaemonConfig(session);
     final targetKey = await _resolveTargetKey(session);
     final proxies = daemon['proxies'] is Map
@@ -42,7 +44,7 @@ class DockerConfigService {
   }
 
   Future<Map<String, dynamic>> updateDaemonConfig(
-    SshSession session,
+    SshConnectionHandle session,
     Map<String, dynamic> payload,
   ) async {
     final hasMirrors = payload.containsKey('mirrors');
@@ -135,7 +137,7 @@ fi''',
   }
 
   Future<List<Map<String, dynamic>>> updateRegistries(
-    SshSession session,
+    SshConnectionHandle session,
     dynamic payload,
   ) async {
     if (payload is! List) throw ArgumentError('registries must be a list');
@@ -194,7 +196,9 @@ fi''',
         .toList();
   }
 
-  Future<Map<String, dynamic>> _readDaemonConfig(SshSession session) async {
+  Future<Map<String, dynamic>> _readDaemonConfig(
+    SshConnectionHandle session,
+  ) async {
     final result = await _sshRepository.execWithResult(
       session,
       '''if [ ! -e /etc/docker/daemon.json ]; then
@@ -219,7 +223,7 @@ fi''',
     }
   }
 
-  Future<String> _resolveTargetKey(SshSession session) async {
+  Future<String> _resolveTargetKey(SshConnectionHandle session) async {
     final result = await _sshRepository.execWithResult(
       session,
       '''machine=\$(cat /etc/machine-id 2>/dev/null || hostname)

@@ -72,10 +72,6 @@ export interface DockerImageSummary {
   dangling: number
 }
 
-export interface DockerSessionResponse {
-  sessionId: string
-}
-
 export interface DockerContainerStats {
   id: string
   name: string
@@ -345,14 +341,9 @@ export interface DockerContainerInspect {
 }
 
 export const dockerApi = {
-  async createSession(connectionId: string) {
-    const response = await http.post<DockerSessionResponse>('/api/docker/session', { connectionId })
-    return response.data
-  },
-
-  async deleteSession(sessionId: string) {
-    const response = await http.delete('/api/docker/session', {
-      params: { sessionId },
+  async closeComposeSession(connectionId: string) {
+    const response = await http.delete('/api/docker/compose/session', {
+      params: { connectionId },
     })
     return response.data
   },

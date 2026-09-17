@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:logging/logging.dart';
 
-import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/features/docker/docker_container.dart';
 import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
@@ -37,7 +37,9 @@ class DockerContainerService {
     return _decodeDockerLogs(bytes);
   }
 
-  Future<List<DockerContainer>> listContainers(SshSession session) async {
+  Future<List<DockerContainer>> listContainers(
+    SshConnectionHandle session,
+  ) async {
     try {
       final containers = await _engineRepository.requestJsonList(
         session,
@@ -59,11 +61,14 @@ class DockerContainerService {
     }
   }
 
-  Future<bool> isDockerAvailable(SshSession session) async {
+  Future<bool> isDockerAvailable(SshConnectionHandle session) async {
     return _engineRepository.ping(session);
   }
 
-  Future<void> startContainer(SshSession session, String containerId) async {
+  Future<void> startContainer(
+    SshConnectionHandle session,
+    String containerId,
+  ) async {
     await _engineRepository.request(
       session,
       method: 'POST',
@@ -71,7 +76,10 @@ class DockerContainerService {
     );
   }
 
-  Future<void> stopContainer(SshSession session, String containerId) async {
+  Future<void> stopContainer(
+    SshConnectionHandle session,
+    String containerId,
+  ) async {
     await _engineRepository.request(
       session,
       method: 'POST',
@@ -79,7 +87,10 @@ class DockerContainerService {
     );
   }
 
-  Future<void> restartContainer(SshSession session, String containerId) async {
+  Future<void> restartContainer(
+    SshConnectionHandle session,
+    String containerId,
+  ) async {
     await _engineRepository.request(
       session,
       method: 'POST',
@@ -87,7 +98,10 @@ class DockerContainerService {
     );
   }
 
-  Future<void> pauseContainer(SshSession session, String containerId) async {
+  Future<void> pauseContainer(
+    SshConnectionHandle session,
+    String containerId,
+  ) async {
     await _engineRepository.request(
       session,
       method: 'POST',
@@ -95,7 +109,10 @@ class DockerContainerService {
     );
   }
 
-  Future<void> unpauseContainer(SshSession session, String containerId) async {
+  Future<void> unpauseContainer(
+    SshConnectionHandle session,
+    String containerId,
+  ) async {
     await _engineRepository.request(
       session,
       method: 'POST',
@@ -104,7 +121,7 @@ class DockerContainerService {
   }
 
   Future<void> renameContainer(
-    SshSession session,
+    SshConnectionHandle session,
     String containerId,
     String newName,
   ) async {
@@ -117,7 +134,7 @@ class DockerContainerService {
   }
 
   Future<void> removeContainer(
-    SshSession session,
+    SshConnectionHandle session,
     String containerId, {
     bool force = false,
   }) async {
@@ -130,7 +147,7 @@ class DockerContainerService {
   }
 
   Stream<DockerContainerLogEvent> getContainerLogs(
-    SshSession session,
+    SshConnectionHandle session,
     String containerId, {
     int tail = 100,
     bool timestamps = false,
@@ -234,7 +251,7 @@ class DockerContainerService {
   }
 
   Future<Map<String, dynamic>> createContainer(
-    SshSession session,
+    SshConnectionHandle session,
     Map<String, dynamic> payload,
   ) async {
     final image = payload['image']?.toString().trim() ?? '';
@@ -262,7 +279,7 @@ class DockerContainerService {
   }
 
   Future<Map<String, dynamic>> inspectContainer(
-    SshSession session,
+    SshConnectionHandle session,
     String containerId,
   ) async {
     return await _engineRepository.requestJsonObject(
@@ -273,7 +290,7 @@ class DockerContainerService {
   }
 
   Future<Map<String, dynamic>> getContainerStats(
-    SshSession session,
+    SshConnectionHandle session,
     String containerId,
   ) async {
     final json = await _engineRepository.requestJsonObject(
@@ -286,7 +303,7 @@ class DockerContainerService {
   }
 
   Stream<DockerContainerStatsEvent> streamContainerStats(
-    SshSession session,
+    SshConnectionHandle session,
     String containerId,
   ) async* {
     final source = await _engineRepository.requestByteStream(
@@ -339,7 +356,7 @@ class DockerContainerService {
   }
 
   Future<List<Map<String, dynamic>>> getContainerDiagnostics(
-    SshSession session,
+    SshConnectionHandle session,
     List<String> containerIds,
   ) async {
     final ids = _normalizeIds(containerIds);
@@ -371,7 +388,7 @@ class DockerContainerService {
   }
 
   Future<Map<String, dynamic>> recreateContainer(
-    SshSession session,
+    SshConnectionHandle session,
     String containerId,
   ) async {
     final inspect = await inspectContainer(session, containerId);
@@ -402,7 +419,7 @@ class DockerContainerService {
   }
 
   Future<Map<String, dynamic>> replaceContainer(
-    SshSession session,
+    SshConnectionHandle session,
     String containerId,
     Map<String, dynamic> payload,
   ) async {
@@ -467,7 +484,7 @@ class DockerContainerService {
   }
 
   Future<int> batchStartContainers(
-    SshSession session,
+    SshConnectionHandle session,
     List<String> containerIds,
   ) async {
     final ids = _normalizeIds(containerIds);
@@ -478,7 +495,7 @@ class DockerContainerService {
   }
 
   Future<int> batchStopContainers(
-    SshSession session,
+    SshConnectionHandle session,
     List<String> containerIds,
   ) async {
     final ids = _normalizeIds(containerIds);
@@ -488,7 +505,7 @@ class DockerContainerService {
     return ids.length;
   }
 
-  Future<int> removeStoppedContainers(SshSession session) async {
+  Future<int> removeStoppedContainers(SshConnectionHandle session) async {
     final filters = jsonEncode({
       'status': ['exited'],
     });

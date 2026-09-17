@@ -47,6 +47,7 @@ export function useDockerView(props: DockerViewProps) {
     parentId: props.windowId,
     resizable: false,
   } as const
+  let composeCleanupPromise: Promise<void> | null = null
 
   const activeTab = ref<DockerTabName>('overview')
   const loading = ref(false)
@@ -197,6 +198,23 @@ export function useDockerView(props: DockerViewProps) {
     }
 
     return connectionId
+  }
+
+  function cleanupComposeSession() {
+    if (composeCleanupPromise) {
+      return composeCleanupPromise
+    }
+    const connectionId = activeConnectionId.value
+    if (!connectionId) {
+      return Promise.resolve()
+    }
+    composeCleanupPromise = (async () => {
+      await outputStore.cancelTasksByConnection(connectionId)
+      await dockerApi.closeComposeSession(connectionId)
+    })().catch((error) => {
+      console.error('Failed to close Docker Compose session', error)
+    })
+    return composeCleanupPromise
   }
 
   function queueDockerRequest<T>(action: () => Promise<T>) {
@@ -1627,12 +1645,22 @@ export function useDockerView(props: DockerViewProps) {
 
   onMounted(() => {
     void loadTabData(activeTab.value)
+    if (props.windowId) {
+      desktopStore.setWindowBeforeClose(props.windowId, async () => {
+        await cleanupComposeSession()
+        return true
+      })
+    }
     window.addEventListener('docker:container-created', handleContainerCreated)
     window.addEventListener('docker:compose-created', handleComposeCreated)
     window.addEventListener('docker:image-pulled', handleImagePulled)
   })
 
   onBeforeUnmount(() => {
+    if (props.windowId) {
+      desktopStore.setWindowBeforeClose(props.windowId)
+    }
+    void cleanupComposeSession()
     window.removeEventListener('docker:container-created', handleContainerCreated)
     window.removeEventListener('docker:compose-created', handleComposeCreated)
     window.removeEventListener('docker:image-pulled', handleImagePulled)

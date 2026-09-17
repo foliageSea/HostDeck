@@ -3,8 +3,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'package:host_deck/server/features/docker/docker_controller.dart';
 
 void registerDockerRoutes(Router router, DockerController controller) {
-  router.post('/api/docker/session', controller.createSession);
-  router.delete('/api/docker/session', controller.closeSession);
+  router.delete('/api/docker/compose/session', controller.closeComposeSession);
   router.get('/api/docker/check', controller.checkDocker);
   router.get('/api/docker/configuration', controller.getConfiguration);
   router.put('/api/docker/configuration/daemon', controller.updateDaemonConfig);

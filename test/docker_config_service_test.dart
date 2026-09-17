@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/docker/docker_config_service.dart';
 import 'package:host_deck/server/features/docker/docker_registry_repository.dart';
@@ -175,7 +176,7 @@ class _FakeSshRepository extends SshRepository {
 
   @override
   Future<SshExecResult> execWithResult(
-    SshSession session,
+    SshOperationContext session,
     String command, {
     String? cwd,
     int? maxOutputBytes,

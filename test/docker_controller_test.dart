@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
@@ -97,6 +98,7 @@ void main() {
 
     expect(response.statusCode, 200);
     expect(response.context['shelf.io.buffer_output'], isFalse);
+    expect(sshService.sftpSessionCreations, 0);
     final iterator = StreamIterator<List<int>>(response.read());
     expect(await iterator.moveNext(), isTrue);
     expect(utf8.decode(iterator.current), startsWith(': '));
@@ -112,13 +114,9 @@ void main() {
     await iterator.cancel();
   });
 
-  test('opens image pull stream before SSH connection completes', () async {
+  test('opens image pull stream from the existing SSH connection', () async {
     final session = _FakeSshSession();
-    final sftpSession = Completer<SshSession>();
-    final sshService = _FakeSshService(
-      session,
-      sftpSession: sftpSession.future,
-    );
+    final sshService = _FakeSshService(session);
     final repository = DockerEngineRepository();
     addTearDown(repository.close);
     final mapper = DockerEngineMapper();
@@ -144,11 +142,11 @@ void main() {
     expect(response.statusCode, 200);
     expect(response.headers['connection'], 'keep-alive');
     expect(response.context['shelf.io.buffer_output'], isFalse);
+    expect(sshService.sftpSessionCreations, 0);
     final iterator = StreamIterator<List<int>>(response.read());
     expect(await iterator.moveNext(), isTrue);
     expect(utf8.decode(iterator.current), startsWith(': '));
 
-    sftpSession.complete(session);
     expect(await iterator.moveNext(), isTrue);
     expect(utf8.decode(iterator.current), contains('event: done'));
     await iterator.cancel();
@@ -181,7 +179,7 @@ void main() {
         'GET',
         Uri.parse(
           'http://localhost/api/docker/containers/logs'
-          '?sessionId=session-1&containerId=container-1',
+          '?connectionId=connection-1&containerId=container-1',
         ),
       ),
     );
@@ -229,7 +227,7 @@ void main() {
         'GET',
         Uri.parse(
           'http://localhost/api/docker/containers/container-1/stats/stream'
-          '?sessionId=session-1',
+          '?connectionId=connection-1',
         ),
       ),
       'container-1',
@@ -251,6 +249,41 @@ void main() {
     expect(initialChunk, endsWith('event: connected\ndata: {}\n\n'));
     await iterator.cancel();
   });
+
+  test('closes the shared compose session by connection id', () async {
+    final session = _FakeSshSession();
+    final sshService = _FakeSshService(session);
+    final repository = DockerEngineRepository();
+    addTearDown(repository.close);
+    final mapper = DockerEngineMapper();
+    final controller = DockerController(
+      sshService,
+      _FakeDockerContainerService(repository, mapper),
+      DockerImageService(repository, mapper),
+      DockerResourceService(repository, mapper),
+      _FakeDockerComposeService(),
+    );
+
+    await controller.checkCompose(
+      Request(
+        'GET',
+        Uri.parse(
+          'http://localhost/api/docker/compose/check?connectionId=connection-1',
+        ),
+      ),
+    );
+    final response = await controller.closeComposeSession(
+      Request(
+        'DELETE',
+        Uri.parse(
+          'http://localhost/api/docker/compose/session?connectionId=connection-1',
+        ),
+      ),
+    );
+
+    expect(response.statusCode, 200);
+    expect(sshService.closedSessionIds, ['session-1']);
+  });
 }
 
 class _FakeDockerContainerService extends DockerContainerService {
@@ -264,7 +297,7 @@ class _FakeDockerContainerService extends DockerContainerService {
 
   @override
   Stream<DockerContainerLogEvent> getContainerLogs(
-    SshSession session,
+    SshConnectionHandle session,
     String containerId, {
     int tail = 100,
     bool timestamps = false,
@@ -273,7 +306,7 @@ class _FakeDockerContainerService extends DockerContainerService {
 
   @override
   Stream<DockerContainerStatsEvent> streamContainerStats(
-    SshSession session,
+    SshConnectionHandle session,
     String containerId,
   ) => const Stream.empty();
 }
@@ -283,7 +316,7 @@ class _FakeDockerImageService extends DockerImageService {
 
   @override
   Stream<DockerImagePullEvent> pullImageStream(
-    SshSession session,
+    SshConnectionHandle session,
     String imageRef,
   ) => Stream.value(DockerImagePullEvent('done', {'image': imageRef}));
 }
@@ -291,9 +324,13 @@ class _FakeDockerImageService extends DockerImageService {
 class _FakeSshService extends SshService {
   final SshSession session;
   final Future<SshSession>? shellSession;
-  final Future<SshSession>? sftpSession;
+  final closedSessionIds = <String>[];
+  int sftpSessionCreations = 0;
 
-  _FakeSshService(this.session, {this.shellSession, this.sftpSession});
+  _FakeSshService(this.session, {this.shellSession});
+
+  @override
+  SshConnectionHandle? getConnectionHandle(String connectionId) => session;
 
   @override
   SshSession? getSession(String id) => id == session.id ? session : null;
@@ -308,11 +345,22 @@ class _FakeSshService extends SshService {
   Future<SshSession> createSftpSession(
     String connectionId, {
     required SshSessionPurpose purpose,
-  }) => sftpSession ?? Future.value(session);
+  }) {
+    sftpSessionCreations += 1;
+    return Future.value(session);
+  }
+
+  @override
+  Future<void> closeSession(String id) async {
+    closedSessionIds.add(id);
+  }
 }
 
 class _FakeDockerComposeService extends DockerComposeService {
   _FakeDockerComposeService() : super(SshRepository());
+
+  @override
+  Future<bool> isComposeAvailable(SshSession session) async => true;
 
   @override
   Stream<DockerComposeStreamEvent> createComposeProjectStream(

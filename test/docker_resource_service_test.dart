@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
@@ -129,7 +130,7 @@ class _FakeDockerEngineRepository extends DockerEngineRepository {
 
   @override
   Future<DockerEngineResponse> request(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
@@ -145,7 +146,7 @@ class _FakeDockerEngineRepository extends DockerEngineRepository {
 
   @override
   Future<List<dynamic>> requestJsonList(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
@@ -161,7 +162,7 @@ class _FakeDockerEngineRepository extends DockerEngineRepository {
 
   @override
   Future<Map<String, dynamic>> requestJsonObject(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,

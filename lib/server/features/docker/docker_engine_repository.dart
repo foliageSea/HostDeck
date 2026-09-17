@@ -3,10 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/features/docker/docker_socket_tunnel_service.dart';
 
-typedef DockerEngineEndpointProvider = Future<Uri> Function(SshSession session);
+typedef DockerEngineEndpointProvider =
+    Future<Uri> Function(SshConnectionHandle session);
 typedef DockerEngineHttpClientFactory = HttpClient Function();
 
 class DockerEngineHttpException implements Exception {
@@ -70,7 +71,7 @@ class DockerEngineRepository {
 
   void close() => _httpClient.close(force: true);
 
-  Future<bool> ping(SshSession session) async {
+  Future<bool> ping(SshConnectionHandle session) async {
     try {
       final body = await requestText(session, method: 'GET', path: '/_ping');
       return body.trim() == 'OK';
@@ -80,7 +81,7 @@ class DockerEngineRepository {
   }
 
   Future<String> requestText(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
@@ -99,7 +100,7 @@ class DockerEngineRepository {
   }
 
   Future<Uint8List> requestBytes(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
@@ -118,7 +119,7 @@ class DockerEngineRepository {
   }
 
   Future<dynamic> requestJson(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
@@ -137,7 +138,7 @@ class DockerEngineRepository {
   }
 
   Future<Map<String, dynamic>> requestJsonObject(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
@@ -159,7 +160,7 @@ class DockerEngineRepository {
   }
 
   Future<List<dynamic>> requestJsonList(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
@@ -181,7 +182,7 @@ class DockerEngineRepository {
   }
 
   Future<DockerEngineResponse> request(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
@@ -205,7 +206,7 @@ class DockerEngineRepository {
   }
 
   Future<Stream<Uint8List>> requestByteStream(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
@@ -232,7 +233,7 @@ class DockerEngineRepository {
   }
 
   Stream<DockerEngineStreamEvent> requestStream(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,
@@ -262,7 +263,7 @@ class DockerEngineRepository {
   }
 
   Future<HttpClientResponse> _send(
-    SshSession session, {
+    SshConnectionHandle session, {
     required String method,
     required String path,
     Map<String, String>? queryParameters,

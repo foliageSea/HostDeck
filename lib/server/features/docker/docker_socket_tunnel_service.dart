@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:logging/logging.dart';
 
-import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 
 abstract interface class DockerSocketTunnelChannel {
   Stream<Uint8List> get stream;
@@ -16,9 +16,9 @@ abstract interface class DockerSocketTunnelChannel {
 }
 
 typedef DockerSocketChannelFactory =
-    Future<DockerSocketTunnelChannel> Function(SshSession session);
+    Future<DockerSocketTunnelChannel> Function(SshConnectionHandle connection);
 typedef DockerSshDisconnectFutureProvider =
-    Future<void> Function(SshSession session);
+    Future<void> Function(SshConnectionHandle connection);
 
 class DockerSocketTunnelService {
   final String socketPath;
@@ -33,16 +33,16 @@ class DockerSocketTunnelService {
     DockerSshDisconnectFutureProvider? disconnectFutureProvider,
   }) : _channelFactory = channelFactory,
        _disconnectFutureProvider =
-           disconnectFutureProvider ?? ((session) => session.client.done);
+           disconnectFutureProvider ?? ((connection) => connection.client.done);
 
-  Future<Uri> endpoint(SshSession session) async {
-    final connectionId = session.connectionId;
+  Future<Uri> endpoint(SshConnectionHandle connection) async {
+    final connectionId = connection.connectionId;
     final existing = _tunnels[connectionId];
     if (existing != null) {
       return (await existing).endpoint;
     }
 
-    final future = _start(session);
+    final future = _start(connection);
     _tunnels[connectionId] = future;
     try {
       return (await future).endpoint;
@@ -96,31 +96,33 @@ class DockerSocketTunnelService {
     await Future.wait(connectionIds.map(stop));
   }
 
-  Future<_DockerSocketTunnel> _start(SshSession session) async {
+  Future<_DockerSocketTunnel> _start(SshConnectionHandle connection) async {
     final listener = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     late final _DockerSocketTunnel tunnel;
-    tunnel = _DockerSocketTunnel(listener, () => _openChannel(session));
+    tunnel = _DockerSocketTunnel(listener, () => _openChannel(connection));
     tunnel.start();
     _log.info(
-      'Created Docker SSH port forward for connection ${session.connectionId} '
+      'Created Docker SSH port forward for connection ${connection.connectionId} '
       'at ${tunnel.endpoint} to $socketPath.',
     );
 
     unawaited(
-      _disconnectFutureProvider(session).then(
-        (_) => stop(session.connectionId),
-        onError: (_) => stop(session.connectionId),
+      _disconnectFutureProvider(connection).then(
+        (_) => stop(connection.connectionId),
+        onError: (_) => stop(connection.connectionId),
       ),
     );
     return tunnel;
   }
 
-  Future<DockerSocketTunnelChannel> _openChannel(SshSession session) async {
+  Future<DockerSocketTunnelChannel> _openChannel(
+    SshConnectionHandle connection,
+  ) async {
     final factory = _channelFactory;
     if (factory != null) {
-      return factory(session);
+      return factory(connection);
     }
-    final channel = await session.client.forwardLocalUnix(socketPath);
+    final channel = await connection.client.forwardLocalUnix(socketPath);
     return _SshDockerSocketTunnelChannel(channel);
   }
 }

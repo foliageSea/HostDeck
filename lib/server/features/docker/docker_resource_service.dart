@@ -1,6 +1,6 @@
 import 'package:logging/logging.dart';
 
-import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/features/docker/docker_engine_mapper.dart';
 import 'package:host_deck/server/features/docker/docker_engine_repository.dart';
 import 'package:host_deck/server/features/docker/docker_network.dart';
@@ -15,7 +15,7 @@ class DockerResourceService {
 
   DockerResourceService(this._engineRepository, this._mapper);
 
-  Future<List<DockerNetwork>> listNetworks(SshSession session) async {
+  Future<List<DockerNetwork>> listNetworks(SshConnectionHandle session) async {
     try {
       final networks = await _engineRepository.requestJsonList(
         session,
@@ -52,7 +52,7 @@ class DockerResourceService {
     }
   }
 
-  Future<List<DockerVolume>> listVolumes(SshSession session) async {
+  Future<List<DockerVolume>> listVolumes(SshConnectionHandle session) async {
     try {
       final result = await _engineRepository.requestJsonObject(
         session,
@@ -69,7 +69,7 @@ class DockerResourceService {
   }
 
   Future<Map<String, dynamic>> inspectNetwork(
-    SshSession session,
+    SshConnectionHandle session,
     String networkId,
   ) async {
     return await _engineRepository.requestJsonObject(
@@ -80,7 +80,7 @@ class DockerResourceService {
   }
 
   Future<Map<String, dynamic>> inspectVolume(
-    SshSession session,
+    SshConnectionHandle session,
     String volumeName,
   ) async {
     return await _engineRepository.requestJsonObject(
@@ -91,7 +91,7 @@ class DockerResourceService {
   }
 
   Future<Map<String, dynamic>> createNetwork(
-    SshSession session,
+    SshConnectionHandle session,
     Map<String, dynamic> payload,
   ) async {
     final requestBody = _mapper.buildCreateNetworkRequest(payload);
@@ -109,7 +109,7 @@ class DockerResourceService {
   }
 
   Future<Map<String, dynamic>> createVolume(
-    SshSession session,
+    SshConnectionHandle session,
     Map<String, dynamic> payload,
   ) async {
     final requestBody = _mapper.buildCreateVolumeRequest(payload);
@@ -127,7 +127,10 @@ class DockerResourceService {
     };
   }
 
-  Future<void> removeNetwork(SshSession session, String networkId) async {
+  Future<void> removeNetwork(
+    SshConnectionHandle session,
+    String networkId,
+  ) async {
     final network = await inspectNetwork(session, networkId);
     final networkName = (network['Name'] ?? '').toString().trim().toLowerCase();
     if (_builtInNetworkNames.contains(networkName)) {
@@ -141,7 +144,10 @@ class DockerResourceService {
     );
   }
 
-  Future<void> removeVolume(SshSession session, String volumeName) async {
+  Future<void> removeVolume(
+    SshConnectionHandle session,
+    String volumeName,
+  ) async {
     await _engineRepository.request(
       session,
       method: 'DELETE',
@@ -150,7 +156,7 @@ class DockerResourceService {
   }
 
   Future<void> connectNetwork(
-    SshSession session,
+    SshConnectionHandle session,
     String networkId,
     String container,
   ) async {
@@ -163,7 +169,7 @@ class DockerResourceService {
   }
 
   Future<void> disconnectNetwork(
-    SshSession session,
+    SshConnectionHandle session,
     String networkId,
     String container, {
     bool force = false,
@@ -176,7 +182,7 @@ class DockerResourceService {
     );
   }
 
-  Future<List<String>> pruneNetworks(SshSession session) async {
+  Future<List<String>> pruneNetworks(SshConnectionHandle session) async {
     final result = await _engineRepository.requestJsonObject(
       session,
       method: 'POST',
@@ -189,7 +195,7 @@ class DockerResourceService {
         <String>[];
   }
 
-  Future<List<String>> pruneVolumes(SshSession session) async {
+  Future<List<String>> pruneVolumes(SshConnectionHandle session) async {
     final result = await _engineRepository.requestJsonObject(
       session,
       method: 'POST',
@@ -203,7 +209,7 @@ class DockerResourceService {
   }
 
   Future<Map<String, dynamic>> pruneBuildCache(
-    SshSession session, {
+    SshConnectionHandle session, {
     bool includeAll = false,
   }) async {
     final result = await _engineRepository.requestJsonObject(

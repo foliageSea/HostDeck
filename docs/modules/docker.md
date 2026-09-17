@@ -28,12 +28,11 @@ Docker 模块负责通过 SSH 连接访问远端 Docker Engine，提供容器、
 
 ## API 分组
 
-会话与可用性：
+连接与可用性：
 
-- `POST /api/docker/session`
-- `DELETE /api/docker/session`
 - `GET /api/docker/check`
 - `GET /api/docker/compose/check`
+- `DELETE /api/docker/compose/session`
 - `POST /api/docker/build-cache/prune`
 
 Compose：

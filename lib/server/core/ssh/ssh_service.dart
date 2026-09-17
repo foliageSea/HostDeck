@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:logging/logging.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 
@@ -227,6 +228,23 @@ class SshService {
   }
 
   SSHClient? getClient(String connectionId) => _clients[connectionId];
+
+  SshConnectionHandle? getConnectionHandle(String connectionId) {
+    final client = _clients[connectionId];
+    final operationLimiter = _operationLimiters[connectionId];
+    if (client == null || operationLimiter == null) {
+      return null;
+    }
+    if (client.isClosed) {
+      _disconnectInternal(connectionId);
+      return null;
+    }
+    return SshConnectionHandle(
+      connectionId: connectionId,
+      client: client,
+      operationLimiter: operationLimiter,
+    );
+  }
 
   void addDisconnectListener(
     FutureOr<void> Function(String connectionId) listener,

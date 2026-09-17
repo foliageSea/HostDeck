@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/files/file_item.dart';
 import 'package:host_deck/server/features/system/monitor_service.dart';
@@ -13,7 +14,10 @@ class MockSshRepository implements SshRepository {
   int _callCount = 0;
 
   @override
-  Future<Uint8List> execBytes(SshSession session, String command) async {
+  Future<Uint8List> execBytes(
+    SshOperationContext session,
+    String command,
+  ) async {
     return Uint8List.fromList((await exec(session, command)).codeUnits);
   }
 
@@ -22,7 +26,7 @@ class MockSshRepository implements SshRepository {
       throw UnimplementedError();
 
   @override
-  Future<String> exec(SshSession session, String command) async {
+  Future<String> exec(SshOperationContext session, String command) async {
     if (command.contains('grep Mem')) {
       return "Mem:           8000        4000         480          18        3627        3829";
     }
@@ -72,7 +76,7 @@ uptimeSeconds=1307520
       throw UnimplementedError();
   @override
   Future<void> writeFileStream(
-    SshSession session,
+    SshOperationContext session,
     String path,
     Stream<List<int>> content,
   ) => throw UnimplementedError();
@@ -113,7 +117,7 @@ uptimeSeconds=1307520
 
   @override
   Future<SshExecResult> execWithResult(
-    SshSession _,
+    SshOperationContext _,
     String command, {
     String? cwd,
     int? maxOutputBytes,

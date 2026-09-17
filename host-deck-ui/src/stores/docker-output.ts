@@ -25,6 +25,7 @@ const maxRetainedTasks = 20
 export const useDockerOutputStore = defineStore('docker-output', () => {
   const tasks = ref<DockerOutputTask[]>([])
   const controllers = new Map<string, AbortController>()
+  const executions = new Map<string, Promise<unknown>>()
 
   function findTask(taskId: string) {
     return tasks.value.find((task) => task.id === taskId) ?? null
@@ -79,10 +80,12 @@ export const useDockerOutputStore = defineStore('docker-output', () => {
     controllers.set(taskId, controller)
 
     try {
-      const result = await runner({
+      const execution = runner({
         append: (text) => appendOutput(taskId, text),
         signal: controller.signal,
       })
+      executions.set(taskId, execution)
+      const result = await execution
       task.status = 'success'
       task.finishedAt = Date.now()
       return result
@@ -100,6 +103,7 @@ export const useDockerOutputStore = defineStore('docker-output', () => {
       if (controllers.get(taskId) === controller) {
         controllers.delete(taskId)
       }
+      executions.delete(taskId)
       trimFinishedTasks()
     }
   }
@@ -112,9 +116,22 @@ export const useDockerOutputStore = defineStore('docker-output', () => {
     controllers.get(taskId)?.abort()
   }
 
+  async function cancelTasksByConnection(connectionId: string) {
+    const taskIds = tasks.value
+      .filter((task) => task.connectionId === connectionId && task.status === 'running')
+      .map((task) => task.id)
+    taskIds.forEach(cancelTask)
+    await Promise.allSettled(
+      taskIds
+        .map((taskId) => executions.get(taskId))
+        .filter((execution): execution is Promise<unknown> => execution !== undefined),
+    )
+  }
+
   return {
     appendOutput,
     cancelTask,
+    cancelTasksByConnection,
     createTask,
     findTask,
     runTask,

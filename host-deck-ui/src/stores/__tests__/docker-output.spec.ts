@@ -41,6 +41,30 @@ describe('docker output store', () => {
     expect(store.findTask(taskId)?.status).toBe('cancelled')
   })
 
+  it('cancels and waits for running tasks from one connection', async () => {
+    const store = useDockerOutputStore()
+    const firstTaskId = store.createTask('connection-1', '启动编排')
+    const secondTaskId = store.createTask('connection-2', '停止编排')
+    const runUntilAborted = (taskId: string) =>
+      store.runTask(
+        taskId,
+        ({ signal }) =>
+          new Promise((_resolve, reject) => {
+            signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+          }),
+      )
+    const firstRun = runUntilAborted(firstTaskId)
+    const secondRun = runUntilAborted(secondTaskId)
+
+    await store.cancelTasksByConnection('connection-1')
+
+    await expect(firstRun).rejects.toMatchObject({ name: 'AbortError' })
+    expect(store.findTask(firstTaskId)?.status).toBe('cancelled')
+    expect(store.findTask(secondTaskId)?.status).toBe('running')
+    store.cancelTask(secondTaskId)
+    await expect(secondRun).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
   it('limits retained output size', () => {
     const store = useDockerOutputStore()
     const taskId = store.createTask('connection-1', '拉取镜像')

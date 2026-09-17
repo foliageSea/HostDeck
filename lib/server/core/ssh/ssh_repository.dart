@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
 
+import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/files/file_item.dart';
 
@@ -76,7 +77,7 @@ class SshRepository {
   }
 
   Future<void> _runCheckedShellCommand(
-    SshSession session,
+    SshOperationContext session,
     String command,
   ) async {
     final result = await session.runOperation(
@@ -98,12 +99,15 @@ class SshRepository {
     }
   }
 
-  Future<String> exec(SshSession session, String command) async {
+  Future<String> exec(SshOperationContext session, String command) async {
     final result = await execBytes(session, command);
     return utf8.decode(result);
   }
 
-  Future<Uint8List> execBytes(SshSession session, String command) async {
+  Future<Uint8List> execBytes(
+    SshOperationContext session,
+    String command,
+  ) async {
     final result = await session.runOperation(
       () => session.client.run(command),
     );
@@ -111,7 +115,7 @@ class SshRepository {
   }
 
   Future<SshExecResult> execWithResult(
-    SshSession session,
+    SshOperationContext session,
     String command, {
     String? cwd,
     Duration? timeout,
@@ -535,7 +539,7 @@ extension SshRepositoryStreaming on SshRepository {
   }
 
   Stream<SshExecStreamEvent> execStream(
-    SshSession session,
+    SshOperationContext session,
     String command, {
     Duration timeout = const Duration(minutes: 10),
   }) async* {

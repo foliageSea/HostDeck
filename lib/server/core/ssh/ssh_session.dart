@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'package:dartssh2/dartssh2.dart';
 
+import 'ssh_connection_handle.dart';
 import 'ssh_operation_limiter.dart';
 
-class SshSession {
+class SshSession implements SshConnectionHandle {
   final String id;
+  @override
   final String connectionId;
+  @override
   final SSHClient client;
   final SSHSession? shell;
+  @override
   final SshOperationLimiter operationLimiter;
   final StreamController<String> _outputController;
   SftpClient? _sftpClient;
@@ -17,10 +21,12 @@ class SshSession {
   Stream<String> get output => _outputController.stream;
   StreamController<String> get outputController => _outputController;
 
+  @override
   Future<SshOperationPermit> acquireOperation() {
     return operationLimiter.acquire();
   }
 
+  @override
   Future<T> runOperation<T>(FutureOr<T> Function() action) {
     return operationLimiter.run(action);
   }
