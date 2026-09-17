@@ -100,6 +100,10 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     return aiAgentApi.testSettings(payload)
   }
 
+  async function loadModels() {
+    return aiAgentApi.listModels()
+  }
+
   async function loadSkills(connectionId: string) {
     resetForConnection(connectionId)
     const request = ++skillsRequest
@@ -349,6 +353,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     if (!trimmedInput || running.value) return false
     resetForConnection(connectionId)
     const runSkillIds = [...selectedSkillIds.value]
+    const model = settings.value?.model
     const request = ++runRequest
     const controller = new AbortController()
     runController = controller
@@ -371,16 +376,29 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       runStartedAt = performance.now()
       error.value = null
       activeRunId.value = null
-      await aiAgentApi.run(
-        conversationId,
-        connectionId,
-        trimmedInput,
-        runSkillIds,
-        (event) => {
-          if (request === runRequest) applyRunEvent(event, streamedAssistant)
-        },
-        controller.signal,
-      )
+      const onEvent = (event: AiAgentRunEvent) => {
+        if (request === runRequest) applyRunEvent(event, streamedAssistant)
+      }
+      if (model) {
+        await aiAgentApi.run(
+          conversationId,
+          connectionId,
+          trimmedInput,
+          runSkillIds,
+          onEvent,
+          controller.signal,
+          model,
+        )
+      } else {
+        await aiAgentApi.run(
+          conversationId,
+          connectionId,
+          trimmedInput,
+          runSkillIds,
+          onEvent,
+          controller.signal,
+        )
+      }
       completed = true
       if (request === runRequest) {
         void loadConversations(connectionId).catch(() => undefined)
@@ -476,6 +494,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     hasPendingApproval,
     loadConversations,
     loadMcpServers,
+    loadModels,
     loadSkills,
     loadSettings,
     loadingConversation,

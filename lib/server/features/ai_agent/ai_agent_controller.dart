@@ -8,6 +8,7 @@ import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_mcp_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
@@ -45,6 +46,7 @@ class AiAgentController {
       final settings = _settingsService.update(
         baseUrl: _optionalConfigString(data, 'baseUrl'),
         model: _optionalConfigString(data, 'model'),
+        models: _optionalModelConfigs(data, 'models'),
         apiKey: _optionalConfigString(data, 'apiKey'),
         clearApiKey: _optionalBool(data, 'clearApiKey') ?? false,
       );
@@ -53,6 +55,18 @@ class AiAgentController {
       return Result.fail(400, error.message);
     } catch (_) {
       return Result.fail(500, 'Unable to update AI agent settings.');
+    }
+  }
+
+  Future<Response> listModels(Request _) async {
+    try {
+      return Result.ok(await _settingsService.listModels());
+    } on StateError catch (error) {
+      return Result.fail(400, error.message);
+    } on FormatException catch (error) {
+      return Result.fail(502, error.message);
+    } catch (_) {
+      return Result.fail(502, 'Unable to fetch the configured model list.');
     }
   }
 
@@ -299,6 +313,7 @@ class AiAgentController {
       final connectionId = _requiredString(data, 'connectionId');
       final input = _requiredString(data, 'input');
       final skillIds = _skillIds(data);
+      final model = _optionalConfigString(data, 'model');
       if (utf8.encode(input).length > 32 * 1024) {
         return Result.fail(400, 'Input is too large.');
       }
@@ -313,6 +328,7 @@ class AiAgentController {
         targetKey: targetKey,
         ownerId: _principalId(request),
         input: input,
+        model: model,
         skills: skills,
       );
       return Response.ok(
@@ -424,6 +440,32 @@ class AiAgentController {
     final value = data[key];
     if (value is! bool) throw FormatException('$key must be a boolean.');
     return value;
+  }
+
+  List<AiAgentModelConfig>? _optionalModelConfigs(
+    Map<String, dynamic> data,
+    String key,
+  ) {
+    if (!data.containsKey(key)) return null;
+    final value = data[key];
+    if (value is! List ||
+        value.any(
+          (item) =>
+              item is! Map || item['id'] is! String || item['name'] is! String,
+        )) {
+      throw FormatException('$key must be an array of model configurations.');
+    }
+    return List<AiAgentModelConfig>.unmodifiable(
+      value
+          .cast<Map>()
+          .map(
+            (item) => AiAgentModelConfig(
+              id: item['id'] as String,
+              name: item['name'] as String,
+            ),
+          )
+          .toList(),
+    );
   }
 
   String _mcpName(Map<String, dynamic> data) {

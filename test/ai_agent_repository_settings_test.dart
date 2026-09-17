@@ -29,12 +29,12 @@ void main() {
     await dataDirectory.delete(recursive: true);
   });
 
-  test('migration v12 and target-bound conversation CRUD', () {
+  test('migration v13 and target-bound conversation CRUD', () {
     expect(
       database.db
           .select('SELECT version FROM schema_version')
           .single['version'],
-      12,
+      13,
     );
 
     repository.createConversation('conversation-1', 'server:7');
@@ -92,6 +92,10 @@ void main() {
       expect(saved.toJson(), {
         'baseUrl': 'https://models.example.test/v1',
         'model': 'ops-model',
+        'models': [
+          {'id': 'gpt-4o-mini', 'name': 'gpt-4o-mini'},
+          {'id': 'ops-model', 'name': 'ops-model'},
+        ],
         'hasApiKey': true,
       });
       expect(saved.toJson().containsKey('apiKey'), isFalse);
@@ -123,6 +127,11 @@ void main() {
       );
 
       settingsService.update(model: 'new-model', apiKey: '');
+      expect(settingsService.get().models.map((model) => model.id), [
+        'gpt-4o-mini',
+        'new-model',
+        'ops-model',
+      ]);
       expect(settingsService.resolve().apiKey, 'first-secret');
 
       settingsService.update(apiKey: 'second-secret');

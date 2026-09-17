@@ -6,6 +6,7 @@ void registerAiAgentRoutes(Router router, AiAgentController controller) {
   router.get('/api/ai-agent/settings', controller.getSettings);
   router.put('/api/ai-agent/settings', controller.updateSettings);
   router.post('/api/ai-agent/settings/test', controller.testSettings);
+  router.get('/api/ai-agent/models', controller.listModels);
   router.get('/api/ai-agent/skills', controller.listSkills);
   router.delete('/api/ai-agent/session', controller.closeSession);
   router.get('/api/ai-agent/mcp-servers', controller.listMcpServers);

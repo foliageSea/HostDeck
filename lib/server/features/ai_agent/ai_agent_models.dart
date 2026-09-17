@@ -1,20 +1,32 @@
+class AiAgentModelConfig {
+  final String id;
+  final String name;
+
+  const AiAgentModelConfig({required this.id, required this.name});
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+}
+
 class AiAgentSettings {
   static const defaultBaseUrl = 'https://api.openai.com/v1';
   static const defaultModel = 'gpt-4o-mini';
 
   final String baseUrl;
   final String model;
+  final List<AiAgentModelConfig> models;
   final bool hasApiKey;
 
   const AiAgentSettings({
     required this.baseUrl,
     required this.model,
+    required this.models,
     required this.hasApiKey,
   });
 
   Map<String, dynamic> toJson() => {
     'baseUrl': baseUrl,
     'model': model,
+    'models': models.map((model) => model.toJson()).toList(),
     'hasApiKey': hasApiKey,
   };
 }

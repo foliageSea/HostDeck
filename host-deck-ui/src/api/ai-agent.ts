@@ -1,15 +1,22 @@
 import { handleAccessUnauthorized, http } from '@/lib/http'
 import { consumeServerSentEvents } from '@/lib/sse'
 
+export interface AiAgentModelConfig {
+  id: string
+  name: string
+}
+
 export interface AiAgentSettings {
   baseUrl: string
   model: string
+  models: AiAgentModelConfig[]
   hasApiKey: boolean
 }
 
 export interface AiAgentSettingsUpdate {
   baseUrl?: string
   model?: string
+  models?: AiAgentModelConfig[]
   apiKey?: string
   clearApiKey?: boolean
 }
@@ -221,6 +228,10 @@ export const aiAgentApi = {
     return (await http.post<unknown>('/api/ai-agent/settings/test', payload ?? {})).data
   },
 
+  async listModels() {
+    return (await http.get<string[]>('/api/ai-agent/models')).data
+  },
+
   async listSkills(connectionId: string) {
     return (
       await http.get<AiAgentSkill[]>('/api/ai-agent/skills', {
@@ -301,11 +312,12 @@ export const aiAgentApi = {
     skillIds: string[],
     onEvent: (event: AiAgentRunEvent) => void,
     signal?: AbortSignal,
+    model?: string,
   ) {
     const response = await fetch(
       `/api/ai-agent/conversations/${encodeURIComponent(conversationId)}/runs`,
       {
-        body: JSON.stringify({ connectionId, input, skillIds }),
+          body: JSON.stringify({ connectionId, input, ...(model ? { model } : {}), skillIds }),
         credentials: 'same-origin',
         headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
         method: 'POST',

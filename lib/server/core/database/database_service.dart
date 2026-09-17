@@ -385,6 +385,20 @@ class DatabaseService {
       ''');
       _setVersion(12);
     }
+
+    // v12 -> v13: Store the set of AI models available for quick switching.
+    if (currentVersion < 13) {
+      final columns = _db
+          .select('PRAGMA table_info(ai_agent_settings)')
+          .map((row) => row['name'] as String)
+          .toSet();
+      if (!columns.contains('models')) {
+        _db.execute(
+          "ALTER TABLE ai_agent_settings ADD COLUMN models TEXT NOT NULL DEFAULT '[]'",
+        );
+      }
+      _setVersion(13);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

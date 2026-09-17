@@ -90,14 +90,25 @@ describe('aiAgentApi.run', () => {
     vi.stubGlobal('fetch', fetchMock)
     const events: unknown[] = []
 
-    await aiAgentApi.run('conversation-1', 'connection-1', 'hello', ['logs'], (event) =>
-      events.push(event),
+    await aiAgentApi.run(
+      'conversation-1',
+      'connection-1',
+      'hello',
+      ['logs'],
+      (event) => events.push(event),
+      undefined,
+      'gpt-5',
     )
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/ai-agent/conversations/conversation-1/runs',
       expect.objectContaining({
-        body: JSON.stringify({ connectionId: 'connection-1', input: 'hello', skillIds: ['logs'] }),
+        body: JSON.stringify({
+          connectionId: 'connection-1',
+          input: 'hello',
+          model: 'gpt-5',
+          skillIds: ['logs'],
+        }),
         credentials: 'same-origin',
         method: 'POST',
       }),

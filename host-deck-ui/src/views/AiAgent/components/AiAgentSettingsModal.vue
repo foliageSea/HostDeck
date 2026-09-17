@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { CheckCircle2, KeyRound, TriangleAlert } from '@lucide/vue'
+import { CheckCircle2, KeyRound, Plus, RefreshCw, Trash2, TriangleAlert } from '@lucide/vue'
+import type { AiAgentModelConfig } from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
 import { useAiAgentStore } from '@/stores/ai-agent'
 import AiAgentMcpSettings from './AiAgentMcpSettings.vue'
@@ -17,13 +18,30 @@ const emit = defineEmits<{
 const store = useAiAgentStore()
 const saving = ref(false)
 const testing = ref(false)
+const loadingModels = ref(false)
 const activeTab = ref<'mcp' | 'model'>('model')
-const form = reactive({ baseUrl: '', model: '', apiKey: '' })
+const form = reactive({ baseUrl: '', model: '', models: [] as AiAgentModelConfig[], apiKey: '' })
+const availableModels = ref<string[]>([])
 const usesPlainHttp = computed(() => /^http:\/\//i.test(form.baseUrl.trim()))
+const modelOptions = computed(() =>
+  availableModels.value.map((model) => ({
+    label: model,
+    value: model,
+  })),
+)
+const selectedModelOptions = computed(() =>
+  form.models
+    .filter((model) => model.id.trim())
+    .map((model) => ({ label: model.name.trim() || model.id, value: model.id })),
+)
 
 function syncForm() {
   form.baseUrl = store.settings?.baseUrl ?? ''
   form.model = store.settings?.model ?? ''
+  form.models = (store.settings?.models ?? []).map((model) => ({ ...model }))
+  if (form.model && !form.models.some((item) => item.id === form.model)) {
+    form.models.push({ id: form.model, name: form.model })
+  }
   form.apiKey = ''
 }
 
@@ -47,13 +65,53 @@ function payload() {
   return {
     baseUrl: form.baseUrl.trim(),
     model: form.model.trim(),
+    models: form.models.map((model) => ({ id: model.id.trim(), name: model.name.trim() })),
     ...(apiKey ? { apiKey } : {}),
+  }
+}
+
+function addModel() {
+  form.models.push({ id: '', name: '' })
+}
+
+function updateModelId(index: number, id: string) {
+  const configuredModel = form.models[index]
+  if (!configuredModel) return
+  const previousId = configuredModel.id
+  configuredModel.id = id
+  if (!configuredModel.name || configuredModel.name === previousId) configuredModel.name = id
+  if (!form.model || form.model === previousId) form.model = id
+}
+
+function removeModel(index: number) {
+  const [removed] = form.models.splice(index, 1)
+  if (removed?.id === form.model) form.model = form.models[0]?.id ?? ''
+}
+
+async function fetchModels() {
+  loadingModels.value = true
+  try {
+    availableModels.value = await store.loadModels()
+    getUiApi().message.success(`已获取 ${availableModels.value.length} 个模型。`)
+  } catch (error) {
+    getUiApi().message.error(error instanceof Error ? error.message : '获取模型列表失败。')
+  } finally {
+    loadingModels.value = false
   }
 }
 
 async function save() {
   if (!form.baseUrl.trim() || !form.model.trim()) {
     getUiApi().message.warning('请填写 Base URL 和模型。')
+    return
+  }
+  if (form.models.some((model) => !model.id.trim() || !model.name.trim())) {
+    getUiApi().message.warning('请完整填写每个模型的 ID 和显示名称。')
+    return
+  }
+  const modelIds = form.models.map((model) => model.id.trim())
+  if (new Set(modelIds).size !== modelIds.length) {
+    getUiApi().message.warning('模型 ID 不能重复。')
     return
   }
   saving.value = true
@@ -131,8 +189,53 @@ function clearKey() {
               </div>
             </div>
           </NFormItem>
-          <NFormItem label="模型">
-            <NInput v-model:value="form.model" placeholder="例如 gpt-5" />
+          <div class="model-config-form-section">
+            <div class="model-config-panel">
+              <div class="model-config-titlebar">
+                <span>模型配置</span>
+                <div class="model-config-actions">
+                  <NButton
+                    size="small"
+                    :loading="loadingModels"
+                    :disabled="saving || testing || !store.settings?.hasApiKey"
+                    @click="fetchModels"
+                  >
+                    <RefreshCw :size="14" /> 获取模型列表
+                  </NButton>
+                  <NButton size="small" @click="addModel">
+                    <Plus :size="14" /> 添加模型
+                  </NButton>
+                </div>
+              </div>
+              <div class="model-config-headings">
+                <span>模型 ID</span>
+                <span>显示名称</span>
+              </div>
+              <div class="model-config-list app-scrollbar app-scrollbar-compact">
+                <div v-for="(configuredModel, index) in form.models" :key="index" class="model-config-item">
+                  <NSelect
+                    :value="configuredModel.id || null"
+                    :options="modelOptions"
+                    filterable
+                    tag
+                    placeholder="选择或手动输入模型 ID"
+                    @update:value="updateModelId(index, $event)"
+                  />
+                  <NInput v-model:value="configuredModel.name" placeholder="显示名称" />
+                  <NButton quaternary circle type="error" :aria-label="`移除模型 ${configuredModel.name || configuredModel.id}`" @click="removeModel(index)">
+                    <Trash2 :size="15" />
+                  </NButton>
+                </div>
+                <div v-if="form.models.length === 0" class="model-config-empty">尚未添加模型</div>
+              </div>
+            </div>
+          </div>
+          <NFormItem label="当前模型">
+            <NSelect
+              v-model:value="form.model"
+              :options="selectedModelOptions"
+              placeholder="请先添加模型"
+            />
           </NFormItem>
           <NFormItem label="API Key">
             <div class="w-full">
@@ -182,5 +285,72 @@ function clearKey() {
 <style>
 .agent-settings-modal {
   width: min(520px, calc(100vw - 28px));
+}
+
+.model-config-panel {
+  display: grid;
+  width: 100%;
+  gap: 8px;
+}
+
+.model-config-form-section {
+  margin-top: -8px;
+  margin-bottom: 18px;
+}
+
+.model-config-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.model-config-titlebar {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.model-config-headings,
+.model-config-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr) 32px;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-config-list {
+  display: grid;
+  max-height: 224px;
+  gap: 8px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.model-config-headings {
+  padding: 0 4px;
+  color: var(--n-text-color-3);
+  font-size: 11px;
+}
+
+.model-config-empty {
+  padding: 18px 0;
+  color: var(--n-text-color-3);
+  text-align: center;
+  font-size: 12px;
+}
+
+@media (max-width: 420px) {
+  .model-config-headings,
+  .model-config-item {
+    grid-template-columns: minmax(0, 1fr) 32px;
+  }
+
+  .model-config-headings span:nth-child(2),
+  .model-config-item > :nth-child(2) {
+    display: none;
+  }
 }
 </style>

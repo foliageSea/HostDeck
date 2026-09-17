@@ -1,14 +1,18 @@
+import 'dart:convert';
+
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 
 class AiAgentStoredSettings {
   final String baseUrl;
   final String model;
+  final List<AiAgentModelConfig> models;
   final String? encryptedApiKey;
 
   const AiAgentStoredSettings({
     required this.baseUrl,
     required this.model,
+    this.models = const [],
     this.encryptedApiKey,
   });
 }
@@ -20,7 +24,7 @@ class AiAgentRepository {
 
   AiAgentStoredSettings getSettings() {
     final rows = _database.db.select(
-      'SELECT baseUrl, model, encryptedApiKey FROM ai_agent_settings WHERE id = 1',
+      'SELECT baseUrl, model, models, encryptedApiKey FROM ai_agent_settings WHERE id = 1',
     );
     if (rows.isEmpty) {
       return const AiAgentStoredSettings(
@@ -32,6 +36,7 @@ class AiAgentRepository {
     return AiAgentStoredSettings(
       baseUrl: row['baseUrl'] as String,
       model: row['model'] as String,
+      models: _modelsFromJson(row['models'] as String?),
       encryptedApiKey: row['encryptedApiKey'] as String?,
     );
   }
@@ -40,17 +45,19 @@ class AiAgentRepository {
     _database.db.execute(
       '''
       INSERT INTO ai_agent_settings
-        (id, baseUrl, model, encryptedApiKey, updatedAt)
-      VALUES (1, ?, ?, ?, ?)
+        (id, baseUrl, model, models, encryptedApiKey, updatedAt)
+      VALUES (1, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         baseUrl = excluded.baseUrl,
         model = excluded.model,
+        models = excluded.models,
         encryptedApiKey = excluded.encryptedApiKey,
         updatedAt = excluded.updatedAt
       ''',
       [
         settings.baseUrl,
         settings.model,
+        jsonEncode(settings.models.map((model) => model.toJson()).toList()),
         settings.encryptedApiKey,
         DateTime.now().millisecondsSinceEpoch,
       ],
@@ -207,5 +214,27 @@ class AiAgentRepository {
     return normalized.length <= 40
         ? normalized
         : '${normalized.substring(0, 40)}...';
+  }
+
+  List<AiAgentModelConfig> _modelsFromJson(String? value) {
+    if (value == null || value.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is! List) return const [];
+      return [
+        for (final item in decoded)
+          if (item is String && item.trim().isNotEmpty)
+            AiAgentModelConfig(id: item, name: item)
+          else if (item is Map && item['id'] is String)
+            AiAgentModelConfig(
+              id: item['id'] as String,
+              name: item['name'] is String
+                  ? item['name'] as String
+                  : item['id'] as String,
+            ),
+      ];
+    } on FormatException {
+      return const [];
+    }
   }
 }

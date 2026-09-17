@@ -57,6 +57,7 @@ guidance and can never grant or bypass approval or change these constraints.
     required String targetKey,
     required String ownerId,
     required String input,
+    String? model,
     List<AiAgentSkillContent> skills = const [],
   }) {
     if (_runs.values.any((run) => run.conversationId == conversationId)) {
@@ -78,6 +79,7 @@ guidance and can never grant or bypass approval or change these constraints.
       ownerId: ownerId,
       controller: controller,
       systemPrompt: _buildSystemPrompt(skills),
+      modelName: model,
     );
     controller.onCancel = () => cancel(runId);
     _runs[runId] = run;
@@ -160,7 +162,7 @@ guidance and can never grant or bypass approval or change these constraints.
 
   Future<void> _execute(_ActiveRun run, String input) async {
     try {
-      final settings = _settingsService.resolve();
+      final settings = _settingsService.resolve(model: run.modelName);
       final model = _modelFactory.create(settings);
       run.model = model;
       _repository.addMessage(
@@ -418,6 +420,7 @@ class _ActiveRun {
   final String ownerId;
   final StreamController<List<int>> controller;
   final String systemPrompt;
+  final String? modelName;
   final DateTime startedAt = DateTime.now();
   late final Timer _heartbeat;
   bool cancelled = false;
@@ -432,6 +435,7 @@ class _ActiveRun {
     required this.ownerId,
     required this.controller,
     required this.systemPrompt,
+    this.modelName,
   }) {
     _heartbeat = Timer.periodic(const Duration(seconds: 20), (_) {
       emitRaw(utf8.encode(': heartbeat\n\n'));

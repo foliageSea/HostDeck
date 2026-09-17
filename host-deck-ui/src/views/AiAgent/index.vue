@@ -70,6 +70,7 @@ const messageScroller = ref<HTMLElement>()
 const editingConversationId = ref<string | null>(null)
 const editingTitle = ref('')
 const savingConversationId = ref<string | null>(null)
+const switchingModel = ref(false)
 
 const hostLabel = computed(() => {
   const host = sshStore.host.trim() || '当前主机'
@@ -137,6 +138,9 @@ const selectedSkills = computed(() => {
 const pendingToolCalls = computed(() => toolCalls.value.filter((tool) => tool.approvalPending))
 const completedToolCalls = computed(() => toolCalls.value.filter((tool) => !tool.approvalPending))
 const enabledMcpServers = computed(() => agentStore.mcpServers.filter((server) => server.enabled))
+const modelOptions = computed(() =>
+  (settings.value?.models ?? []).map((model) => ({ label: model.name, value: model.id })),
+)
 
 function openSettings(section: 'mcp' | 'model' = 'model') {
   settingsSection.value = section
@@ -266,6 +270,20 @@ async function send() {
     await agentStore.startRun(value, connectionId)
   } catch {
     // Keep the failed prompt in history and show the store error above the composer.
+  }
+}
+
+async function switchModel(model: string) {
+  if (model === settings.value?.model || switchingModel.value || running.value) return
+  switchingModel.value = true
+  try {
+    await agentStore.saveSettings({ model })
+  } catch (requestError) {
+    getUiApi().message.error(
+      requestError instanceof Error ? requestError.message : '切换模型失败。',
+    )
+  } finally {
+    switchingModel.value = false
   }
 }
 
@@ -647,7 +665,16 @@ let resizeObserver: ResizeObserver | undefined
           </NMention>
           <div class="agent-composer-footer">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <span class="agent-composer-label truncate">{{ settings?.model || '选择模型' }}</span>
+              <NSelect
+                :value="settings?.model ?? null"
+                :options="modelOptions"
+                size="tiny"
+                :loading="switchingModel"
+                :disabled="running || !settings?.hasApiKey || modelOptions.length === 0"
+                placeholder="选择模型"
+                class="agent-model-select"
+                @update:value="switchModel"
+              />
               <AiAgentSkillPicker :connection-id="sshStore.connectionId" :disabled="running" />
               <button
                 type="button"
@@ -1313,17 +1340,17 @@ let resizeObserver: ResizeObserver | undefined
   padding: 4px 7px 7px 12px;
 }
 
-.agent-composer-label {
-  min-width: 0;
-  overflow: hidden;
-  padding: 3px 7px;
-  border-radius: var(--app-radius-control);
-  color: var(--agent-muted);
-  background: var(--agent-hover);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 9px;
-}
+ .agent-model-select {
+   width: min(160px, 38vw);
+ }
+
+ .agent-model-select :deep(.n-base-selection) {
+   min-height: 24px;
+   border: 0;
+   border-radius: var(--app-radius-control);
+   background: var(--agent-hover);
+   font-size: 10px;
+ }
 
 .agent-mcp-entry {
   display: inline-flex;
