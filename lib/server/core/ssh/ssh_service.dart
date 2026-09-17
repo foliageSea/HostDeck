@@ -7,6 +7,15 @@ import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 
+typedef SshSocketConnector = Future<SSHSocket> Function(String host, int port);
+typedef SshClientFactory =
+    SSHClient Function(
+      SSHSocket socket, {
+      required String username,
+      String? password,
+      String? privateKey,
+    });
+
 class SshSessionLimitExceeded implements Exception {
   final int maxSessions;
 
@@ -60,8 +69,32 @@ class SshService {
   final List<FutureOr<void> Function(String connectionId)>
   _disconnectListeners = [];
   final Map<String, int> _pendingSessionCreations = {};
+  final SshSocketConnector _socketConnector;
+  final SshClientFactory _clientFactory;
 
   final logger = Logger('SshService');
+
+  SshService({
+    SshSocketConnector socketConnector = SSHSocket.connect,
+    SshClientFactory clientFactory = _createClient,
+  }) : _socketConnector = socketConnector,
+       _clientFactory = clientFactory;
+
+  static SSHClient _createClient(
+    SSHSocket socket, {
+    required String username,
+    String? password,
+    String? privateKey,
+  }) {
+    return SSHClient(
+      socket,
+      username: username,
+      onPasswordRequest: password != null ? () => password : null,
+      identities: privateKey != null && privateKey.trim().isNotEmpty
+          ? [...SSHKeyPair.fromPem(privateKey)]
+          : [],
+    );
+  }
 
   Future<String> connect({
     required String host,
@@ -71,18 +104,20 @@ class SshService {
     String? password,
     String? privateKey,
   }) async {
-    final socket = await SSHSocket.connect(host, port);
-
-    final client = SSHClient(
+    final socket = await _socketConnector(host, port);
+    final client = _clientFactory(
       socket,
       username: username,
-      onPasswordRequest: password != null ? () => password : null,
-      identities: privateKey != null && privateKey.trim().isNotEmpty
-          ? [...SSHKeyPair.fromPem(privateKey)]
-          : [],
+      password: password,
+      privateKey: privateKey,
     );
 
-    await client.authenticated;
+    try {
+      await client.authenticated;
+    } catch (_) {
+      client.close();
+      rethrow;
+    }
 
     final connectionId = _generateId();
     _clients[connectionId] = client;
@@ -348,6 +383,11 @@ class SshService {
   }
 
   void _disconnectInternal(String connectionId) {
+    final client = _clients.remove(connectionId);
+    if (client == null) {
+      return;
+    }
+
     final sessionsToRemove = _sessions.values
         .where((s) => s.connectionId == connectionId)
         .toList();
@@ -357,7 +397,6 @@ class SshService {
       _sessions.remove(session.id);
       _sessionPurposes.remove(session.id);
     }
-    _clients.remove(connectionId);
     _connectionServerIds.remove(connectionId);
     _connectionMetadata.remove(connectionId);
     _operationLimiters.remove(connectionId);

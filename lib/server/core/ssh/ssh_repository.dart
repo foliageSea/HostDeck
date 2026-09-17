@@ -345,7 +345,7 @@ class SshRepository {
   Future<void> copy(SshSession session, String source, String target) async {
     // 使用 cp -r 命令进行复制，这比 SFTP 读写更高效
     final cmd = 'cp -r ${_shellQuote(source)} ${_shellQuote(target)}';
-    await session.runOperation(() => session.client.run(cmd));
+    await _runCheckedShellCommand(session, cmd);
   }
 
   Future<void> extract(
@@ -412,14 +412,7 @@ class SshRepository {
     // 使用 rm -rf 命令通过 SSH 执行进行递归删除，更可靠且支持非空目录
     // 使用单引号包裹路径以避免 Shell 扩展，并转义路径中已有的单引号
     final cmd = 'rm -rf ${_shellQuote(path)}';
-    final result = await session.runOperation(() => session.client.run(cmd));
-    if (result.isNotEmpty) {
-      final output = utf8.decode(result);
-      // rm -rf 成功时通常没有输出，如果有输出通常表示错误
-      if (output.trim().isNotEmpty) {
-        throw Exception(output.trim());
-      }
-    }
+    await _runCheckedShellCommand(session, cmd);
   }
 
   void resize(SshSession session, int width, int height) {
