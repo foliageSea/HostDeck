@@ -76,7 +76,7 @@
 
 - Flutter SDK
 - FVM（推荐，用于锁定 Flutter/Dart 工具链）
-- Node.js 20+
+- Node.js 22
 - pnpm
 
 先安装依赖：

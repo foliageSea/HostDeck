@@ -5,7 +5,7 @@
 ## 前置要求
 
 - Flutter SDK
-- Node.js 20+
+- Node.js 22
 - pnpm
 
 安装依赖：

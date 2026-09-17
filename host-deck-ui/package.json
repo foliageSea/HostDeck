@@ -4,6 +4,9 @@
   "version": "0.3.1",
   "license": "GPL-3.0-only",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite",
     "sync:version": "node scripts/sync-version.mjs",
