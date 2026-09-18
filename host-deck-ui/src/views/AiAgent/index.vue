@@ -24,7 +24,12 @@ import {
   Wrench,
   X,
 } from '@lucide/vue'
-import { aiAgentApi, type AiAgentConversation, type AiAgentImageAttachment } from '@/api/ai-agent'
+import {
+  aiAgentApi,
+  type AiAgentConversation,
+  type AiAgentImageAttachment,
+  type AiAgentRunStep,
+} from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
 import { MAX_SELECTED_SKILLS, useAiAgentStore } from '@/stores/ai-agent'
 import { useSettingsStore } from '@/stores/settings'
@@ -64,6 +69,7 @@ const {
   skills,
   streamingMessageId,
   toolCalls,
+  runSteps,
   usage,
 } = storeToRefs(agentStore)
 
@@ -150,8 +156,49 @@ const selectedSkills = computed(() => {
   return skills.value.filter((skill) => selectedIds.has(skill.id))
 })
 
-const pendingToolCalls = computed(() => toolCalls.value.filter((tool) => tool.approvalPending))
-const completedToolCalls = computed(() => toolCalls.value.filter((tool) => !tool.approvalPending))
+const timelineEntries = computed(() => {
+  if (runSteps.value.length === 0) {
+    return messages.value.map((message) => ({ kind: 'message' as const, message }))
+  }
+  const currentAssistantIds = new Set(
+    runSteps.value.filter((step) => step.type === 'model' && step.messageId).map((step) => step.messageId),
+  )
+  const latestMessage = messages.value.at(-1)
+  if (runSteps.value.some((step) => step.type === 'model') && latestMessage?.role === 'assistant') {
+    currentAssistantIds.add(latestMessage.id)
+  }
+  const entries: Array<
+    | { kind: 'message'; message: (typeof messages.value)[number] }
+    | { kind: 'step'; step: AiAgentRunStep }
+  > = messages.value
+    .filter((message) => !currentAssistantIds.has(message.id))
+    .map((message) => ({ kind: 'message' as const, message }))
+  let renderedModelStep = false
+  for (const step of [...runSteps.value].sort((a, b) => a.sequence - b.sequence)) {
+    if (step.type === 'model') {
+      if (renderedModelStep) continue
+      renderedModelStep = true
+    }
+    entries.push({ kind: 'step', step })
+  }
+  return entries
+})
+
+function messageForStep(step: AiAgentRunStep) {
+  return messages.value.find((message) => message.id === step.messageId)
+}
+
+function toolForStep(step: AiAgentRunStep) {
+  return toolCalls.value.find((tool) => tool.callId === step.callId)
+}
+
+const currentPhase = computed(() => {
+  if (!running.value) return '已完成'
+  if (toolCalls.value.some((tool) => tool.approvalPending)) return '等待授权'
+  if (toolCalls.value.some((tool) => tool.status === 'running')) return '执行工具'
+  return runSteps.value.some((step) => step.type === 'tool') ? '整理结果' : '分析中'
+})
+
 const enabledMcpServers = computed(() => agentStore.mcpServers.filter((server) => server.enabled))
 const modelOptions = computed(() =>
   (settings.value?.models ?? []).map((model) => ({ label: model.name, value: model.id })),
@@ -630,58 +677,68 @@ let resizeObserver: ResizeObserver | undefined
           <h1>{{ runMode === 'agent' ? '我们要维护什么？' : '今天想聊些什么？' }}</h1>
         </div>
         <div v-else class="agent-transcript">
-          <article
-            v-for="message in messages"
-            :key="message.id"
-            class="agent-message"
-            :class="`agent-message-${message.role}`"
-          >
-            <div v-if="message.role !== 'user'" class="agent-message-role">
-              <Bot v-if="message.role === 'assistant'" :size="14" />
-              <Wrench v-else :size="14" />
-              {{ message.role === 'assistant' ? 'Agent' : message.role }}
-            </div>
-            <AiAgentMarkdown
-              v-if="message.content && message.role === 'assistant'"
-              :content="message.content"
-            />
-            <div
-              v-if="message.role === 'user' && message.attachments?.length"
-              class="agent-message-images"
+          <div v-if="running" class="agent-run-phase" aria-live="polite">
+            <span class="agent-run-phase-dot" />
+            {{ currentPhase }}
+          </div>
+          <template v-for="entry in timelineEntries" :key="entry.kind === 'message' ? entry.message.id : entry.step.stepId">
+            <article
+              v-if="entry.kind === 'message'"
+              class="agent-message"
+              :class="`agent-message-${entry.message.role}`"
             >
-              <NImage
-                v-for="(attachment, index) in message.attachments"
-                :key="`${message.id}-${index}`"
-                :src="imageAttachmentSrc(attachment)"
-                :alt="attachment.name || '上传的图片'"
-                object-fit="cover"
-                lazy
+              <div v-if="entry.message.role !== 'user'" class="agent-message-role">
+                <Bot v-if="entry.message.role === 'assistant'" :size="14" />
+                <Wrench v-else :size="14" />
+                {{ entry.message.role === 'assistant' ? 'Agent' : entry.message.role }}
+              </div>
+              <AiAgentMarkdown
+                v-if="entry.message.content && entry.message.role === 'assistant'"
+                :content="entry.message.content"
+              />
+              <div
+                v-if="entry.message.role === 'user' && entry.message.attachments?.length"
+                class="agent-message-images"
+              >
+                <NImage
+                  v-for="(attachment, index) in entry.message.attachments"
+                  :key="`${entry.message.id}-${index}`"
+                  :src="imageAttachmentSrc(attachment)"
+                  :alt="attachment.name || '上传的图片'"
+                  object-fit="cover"
+                  lazy
+                />
+              </div>
+              <div
+                v-if="entry.message.content && entry.message.role !== 'assistant'"
+                class="agent-message-content"
+              >
+                {{ entry.message.content }}
+              </div>
+              <div
+                v-else-if="entry.message.role === 'assistant' && entry.message.id === streamingMessageId"
+                class="agent-thinking"
+                aria-label="Agent 正在思考"
+              >
+                <span /><span /><span />
+              </div>
+            </article>
+            <div v-else-if="entry.step.type === 'model'" class="agent-message agent-message-assistant">
+              <div class="agent-message-role"><Bot :size="14" /> Agent</div>
+              <AiAgentMarkdown
+                v-if="messageForStep(entry.step)?.content"
+                :content="messageForStep(entry.step)?.content ?? ''"
+              />
+              <div v-else class="agent-thinking" aria-label="Agent 正在思考"><span /><span /><span /></div>
+            </div>
+            <div v-else-if="(entry.step.type === 'tool' || entry.step.type === 'approval') && toolForStep(entry.step)" class="agent-tools">
+              <AiAgentToolCall
+                :tool="toolForStep(entry.step)!"
+                @approve="resolveApproval($event, true)"
+                @reject="resolveApproval($event, false)"
               />
             </div>
-            <div
-              v-if="message.content && message.role !== 'assistant'"
-              class="agent-message-content"
-            >
-              {{ message.content }}
-            </div>
-            <div
-              v-else-if="message.role === 'assistant' && message.id === streamingMessageId"
-              class="agent-thinking"
-              aria-label="Agent 正在思考"
-            >
-              <span /><span /><span />
-            </div>
-          </article>
-
-          <div v-if="completedToolCalls.length" class="agent-tools">
-            <AiAgentToolCall
-              v-for="tool in completedToolCalls"
-              :key="tool.callId"
-              :tool="tool"
-              @approve="resolveApproval($event, true)"
-              @reject="resolveApproval($event, false)"
-            />
-          </div>
+          </template>
           <div v-if="usage?.totalTokens != null || durationMs != null" class="agent-usage">
             <span v-if="usage?.totalTokens != null">
               本次使用 {{ usage.totalTokens.toLocaleString() }} tokens
@@ -693,20 +750,6 @@ let resizeObserver: ResizeObserver | undefined
 
       <footer class="agent-composer-area">
         <div v-if="error" class="agent-error" role="alert">{{ error }}</div>
-        <div
-          v-if="pendingToolCalls.length"
-          class="agent-approvals app-scrollbar app-scrollbar-compact"
-          aria-label="权限申请"
-        >
-          <AiAgentToolCall
-            v-for="tool in pendingToolCalls"
-            :key="tool.callId"
-            :tool="tool"
-            class="agent-approval"
-            @approve="resolveApproval($event, true)"
-            @reject="resolveApproval($event, false)"
-          />
-        </div>
         <button
           v-if="settings && !settings.hasApiKey"
           type="button"
@@ -1296,6 +1339,23 @@ let resizeObserver: ResizeObserver | undefined
   width: min(760px, calc(100% - 48px));
   margin: 0 auto;
   padding: 28px 0 36px;
+}
+
+.agent-run-phase {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 16px;
+  color: var(--agent-muted);
+  font-size: 11px;
+}
+
+.agent-run-phase-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--app-primary);
+  box-shadow: 0 0 0 3px var(--app-primary-soft);
 }
 
 .agent-message {

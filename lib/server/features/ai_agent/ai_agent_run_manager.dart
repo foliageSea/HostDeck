@@ -212,6 +212,14 @@ inspected or changed the host. Do not expose secrets.
 
       for (var iteration = 0; iteration < maxToolIterations; iteration++) {
         _ensureActive(run);
+        final modelStepId = _newId();
+        run.emit(
+          'model-start',
+          {'messageId': assistantMessageId},
+          stepId: modelStepId,
+          type: 'model',
+          status: 'running',
+        );
         final iterationText = StringBuffer();
         final response = await model.invoke(
           messages,
@@ -220,10 +228,13 @@ inspected or changed the host. Do not expose secrets.
             _ensureActive(run);
             iterationText.write(text);
             emittedText.write(text);
-            run.emit('message-delta', {
-              'messageId': assistantMessageId,
-              'text': text,
-            });
+            run.emit(
+              'message-delta',
+              {'messageId': assistantMessageId, 'text': text},
+              stepId: modelStepId,
+              type: 'model',
+              status: 'running',
+            );
           },
         );
         _ensureActive(run);
@@ -232,10 +243,13 @@ inspected or changed the host. Do not expose secrets.
           final remainder = response.text.substring(streamedText.length);
           if (remainder.isNotEmpty) {
             emittedText.write(remainder);
-            run.emit('message-delta', {
-              'messageId': assistantMessageId,
-              'text': remainder,
-            });
+            run.emit(
+              'message-delta',
+              {'messageId': assistantMessageId, 'text': remainder},
+              stepId: modelStepId,
+              type: 'model',
+              status: 'running',
+            );
           }
         }
         usage = _addUsage(usage, response.usage);
@@ -245,6 +259,13 @@ inspected or changed the host. Do not expose secrets.
             content: response.text,
             toolCalls: response.toolCalls,
           ),
+        );
+        run.emit(
+          'model-end',
+          {'messageId': assistantMessageId},
+          stepId: modelStepId,
+          type: 'model',
+          status: 'success',
         );
         if (run.mode == AiAgentRunMode.chat || response.toolCalls.isEmpty) {
           finalText = response.text;
@@ -262,11 +283,20 @@ inspected or changed the host. Do not expose secrets.
             call.name,
             call.arguments,
           );
-          run.emit('tool-start', {
-            'callId': call.id,
-            'name': call.name,
-            'summary': summary,
-          });
+          final toolStepId = _newId();
+          run.emit(
+            'tool-start',
+            {
+              'callId': call.id,
+              'name': call.name,
+              'summary': summary,
+              'arguments': normalizedArguments,
+            },
+            stepId: toolStepId,
+            parentStepId: modelStepId,
+            type: 'tool',
+            status: 'running',
+          );
           AiAgentToolResult result;
           if (_toolService.requiresApproval(call.name)) {
             final approval = _PendingApproval(
@@ -275,12 +305,20 @@ inspected or changed the host. Do not expose secrets.
               expiresAt: DateTime.now().add(approvalLifetime),
             );
             run.pendingApproval = approval;
-            run.emit('approval-required', {
-              'callId': call.id,
-              'name': call.name,
-              'summary': summary,
-              'arguments': approval.arguments,
-            });
+            final approvalStepId = _newId();
+            run.emit(
+              'approval-required',
+              {
+                'callId': call.id,
+                'name': call.name,
+                'summary': summary,
+                'arguments': approval.arguments,
+              },
+              stepId: approvalStepId,
+              parentStepId: toolStepId,
+              type: 'approval',
+              status: 'waiting-approval',
+            );
             final approved = await approval.future.timeout(
               approvalLifetime,
               onTimeout: () {
@@ -315,12 +353,19 @@ inspected or changed the host. Do not expose secrets.
             );
           }
           _ensureActive(run);
-          run.emit('tool-result', {
-            'callId': call.id,
-            'name': call.name,
-            'success': result.success,
-            'summary': result.summary,
-          });
+          run.emit(
+            'tool-result',
+            {
+              'callId': call.id,
+              'name': call.name,
+              'success': result.success,
+              'summary': result.summary,
+            },
+            stepId: toolStepId,
+            parentStepId: modelStepId,
+            type: 'tool',
+            status: result.success ? 'success' : 'failed',
+          );
           messages.add(
             AiAgentModelMessage(
               role: 'tool',
@@ -336,10 +381,12 @@ inspected or changed the host. Do not expose secrets.
         const limitMessage =
             'The operation stopped after reaching the tool-call limit.';
         emittedText.write(limitMessage);
-        run.emit('message-delta', {
-          'messageId': assistantMessageId,
-          'text': limitMessage,
-        });
+        run.emit(
+          'message-delta',
+          {'messageId': assistantMessageId, 'text': limitMessage},
+          type: 'summary',
+          status: 'success',
+        );
       }
       final text = emittedText.toString();
       final assistantMessage = _repository.addMessage(
@@ -472,8 +519,31 @@ class _ActiveRun {
     });
   }
 
-  void emit(String event, Object? data) {
-    emitRaw(encodeServerSentEvent(event, data));
+  void emit(
+    String event,
+    Object? data, {
+    String? stepId,
+    String? parentStepId,
+    String? type,
+    String? status,
+  }) {
+    final payload = <String, dynamic>{
+      if (data is Map<String, dynamic>) ...data,
+      'runId': id,
+      'sequence': ++_sequence,
+      if (stepId != null) 'stepId': stepId,
+      if (parentStepId != null) 'parentStepId': parentStepId,
+      if (type != null) 'type': type,
+      if (status != null) 'status': status,
+      'startedAt': DateTime.now().millisecondsSinceEpoch,
+      if (status == 'success' ||
+          status == 'failed' ||
+          status == 'rejected' ||
+          status == 'cancelled' ||
+          status == 'expired')
+        'completedAt': DateTime.now().millisecondsSinceEpoch,
+    };
+    emitRaw(encodeServerSentEvent(event, payload));
   }
 
   void emitRaw(List<int> data) {
@@ -484,6 +554,8 @@ class _ActiveRun {
     _heartbeat.cancel();
     if (!controller.isClosed) await controller.close();
   }
+
+  int _sequence = 0;
 }
 
 class _PendingApproval {

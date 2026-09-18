@@ -106,3 +106,80 @@ class AiAgentMessage {
     'createdAt': createdAt,
   };
 }
+
+enum AiAgentRunStepType { model, tool, approval, message, error, summary }
+
+enum AiAgentRunStepStatus {
+  queued,
+  running,
+  waitingApproval,
+  success,
+  failed,
+  rejected,
+  cancelled,
+  expired,
+}
+
+class AiAgentRunStep {
+  final String runId;
+  final String stepId;
+  final String? parentStepId;
+  final int sequence;
+  final AiAgentRunStepType type;
+  final AiAgentRunStepStatus status;
+  final int startedAt;
+  final int? completedAt;
+
+  const AiAgentRunStep({
+    required this.runId,
+    required this.stepId,
+    this.parentStepId,
+    required this.sequence,
+    required this.type,
+    required this.status,
+    required this.startedAt,
+    this.completedAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'runId': runId,
+    'stepId': stepId,
+    if (parentStepId != null) 'parentStepId': parentStepId,
+    'sequence': sequence,
+    'type': type.name,
+    'status': status.name == 'waitingApproval'
+        ? 'waiting-approval'
+        : status.name,
+    'startedAt': startedAt,
+    if (completedAt != null) 'completedAt': completedAt,
+  };
+}
+
+class AiAgentToolCallRecord {
+  final String callId;
+  final String stepId;
+  final String name;
+  final Map<String, dynamic> arguments;
+  final String summary;
+  final AiAgentRunStepStatus status;
+
+  const AiAgentToolCallRecord({
+    required this.callId,
+    required this.stepId,
+    required this.name,
+    required this.arguments,
+    required this.summary,
+    required this.status,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'callId': callId,
+    'stepId': stepId,
+    'name': name,
+    'arguments': arguments,
+    'summary': summary,
+    'status': status.name == 'waitingApproval'
+        ? 'waiting-approval'
+        : status.name,
+  };
+}

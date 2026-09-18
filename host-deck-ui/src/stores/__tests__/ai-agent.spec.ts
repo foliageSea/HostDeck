@@ -177,6 +177,63 @@ describe('AI Agent store', () => {
     await run
   })
 
+  it('orders run steps and ignores late events from an older run', async () => {
+    let emit!: (event: AiAgentRunEvent) => void
+    let finishRun!: () => void
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        emit = onEvent
+        onEvent({ event: 'connected', runId: 'run-1', sequence: 1 })
+        onEvent({
+          event: 'model-start',
+          messageId: 'message-1',
+          runId: 'run-1',
+          sequence: 2,
+          startedAt: 1,
+          status: 'running',
+          stepId: 'model-1',
+          type: 'model',
+        })
+        onEvent({
+          event: 'message-delta',
+          messageId: 'message-1',
+          runId: 'run-1',
+          sequence: 4,
+          stepId: 'model-1',
+          status: 'running',
+          text: 'new',
+          type: 'model',
+        })
+        onEvent({
+          event: 'message-delta',
+          messageId: 'message-1',
+          runId: 'run-1',
+          sequence: 3,
+          stepId: 'model-1',
+          status: 'running',
+          text: 'late',
+          type: 'model',
+        })
+        await new Promise<void>((resolve) => (finishRun = resolve))
+      },
+    )
+    const store = useAiAgentStore()
+    const run = store.startRun('inspect host', 'connection-1')
+    await vi.waitFor(() => expect(store.activeRunId).toBe('run-1'))
+
+    emit({ event: 'message-delta', messageId: 'old-message', runId: 'old-run', sequence: 99, text: 'old' })
+    expect(store.messages.at(-1)?.content).toBe('new')
+    expect(store.runSteps.map((step) => step.stepId)).toEqual(['model-1'])
+    finishRun()
+    await run
+  })
+
   it.each([false, true])('handles tool approvals with autoRun=%s', async (autoRun) => {
     let finishRun!: () => void
     apiMocks.run.mockImplementation(

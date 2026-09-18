@@ -82,27 +82,76 @@ export interface AiAgentUsage {
 
 export type AiAgentRunMode = 'chat' | 'agent'
 
+export type AiAgentRunStepType = 'model' | 'tool' | 'approval' | 'message' | 'error' | 'summary'
+export type AiAgentRunStepStatus =
+  | 'queued'
+  | 'running'
+  | 'waiting-approval'
+  | 'success'
+  | 'failed'
+  | 'rejected'
+  | 'cancelled'
+  | 'expired'
+
+export interface AiAgentRunStep {
+  runId: string
+  stepId: string
+  parentStepId?: string
+  sequence: number
+  type: AiAgentRunStepType
+  status: AiAgentRunStepStatus
+  startedAt: number | string
+  completedAt?: number | string
+  messageId?: string
+  callId?: string
+  name?: string
+  summary?: string
+  arguments?: unknown
+}
+
+export interface AiAgentToolCallRecord {
+  callId: string
+  stepId: string
+  name: string
+  arguments?: unknown
+  summary: string
+  status: AiAgentRunStepStatus
+}
+
+interface AiAgentRunEventMeta {
+  runId?: string
+  sequence?: number
+  stepId?: string
+  parentStepId?: string
+  type?: AiAgentRunStepType
+  status?: AiAgentRunStepStatus
+  startedAt?: number | string
+  completedAt?: number | string
+}
+
 export type AiAgentRunEvent =
-  | { event: 'connected'; runId: string }
-  | { event: 'message-delta'; messageId: string; text: string }
-  | { event: 'tool-start'; callId: string; name: string; summary: string }
-  | {
+  | ({ event: 'connected'; runId: string } & AiAgentRunEventMeta)
+  | ({ event: 'model-start'; messageId: string } & AiAgentRunEventMeta)
+  | ({ event: 'model-end'; messageId: string } & AiAgentRunEventMeta)
+  | ({ event: 'message-delta'; messageId: string; text: string } & AiAgentRunEventMeta)
+  | ({ event: 'tool-start'; callId: string; name: string; summary: string; arguments?: unknown } & AiAgentRunEventMeta)
+  | ({
       event: 'approval-required'
       callId: string
       name: string
       summary: string
       arguments: unknown
-    }
-  | {
+    } & AiAgentRunEventMeta)
+  | ({
       event: 'tool-result'
       callId: string
       name: string
       success: boolean
       summary: string
-    }
-  | { event: 'usage'; usage: AiAgentUsage }
-  | { event: 'done'; conversationId: string; messageId: string }
-  | { event: 'error'; message: string }
+    } & AiAgentRunEventMeta)
+  | ({ event: 'usage'; usage: AiAgentUsage } & AiAgentRunEventMeta)
+  | ({ event: 'done'; conversationId: string; messageId: string } & AiAgentRunEventMeta)
+  | ({ event: 'error'; message: string } & AiAgentRunEventMeta)
 
 export class AiAgentStreamHttpError extends Error {
   readonly status: number
@@ -126,10 +175,28 @@ function requiredString(data: Record<string, unknown>, key: string) {
   return value
 }
 
+function meta(data: Record<string, unknown>): AiAgentRunEventMeta {
+  const result: AiAgentRunEventMeta = {}
+  for (const key of ['runId', 'stepId', 'parentStepId'] as const) {
+    const value = data[key]
+    if (typeof value === 'string') result[key] = value
+  }
+  for (const key of ['startedAt', 'completedAt'] as const) {
+    const value = data[key]
+    if (typeof value === 'string' || typeof value === 'number') result[key] = value
+  }
+  if (typeof data.sequence === 'number') result.sequence = data.sequence
+  if (typeof data.type === 'string') result.type = data.type as AiAgentRunStepType
+  if (typeof data.status === 'string') result.status = data.status as AiAgentRunStepStatus
+  return result
+}
+
 function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
   if (
     ![
       'connected',
+      'model-start',
+      'model-end',
       'message-delta',
       'tool-start',
       'approval-required',
@@ -153,22 +220,30 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
 
   switch (event) {
     case 'connected':
-      return { event, runId: requiredString(data, 'runId') }
+      return { ...meta(data), event, runId: requiredString(data, 'runId') }
+    case 'model-start':
+      return { ...meta(data), event, messageId: requiredString(data, 'messageId') }
+    case 'model-end':
+      return { ...meta(data), event, messageId: requiredString(data, 'messageId') }
     case 'message-delta':
       return {
+        ...meta(data),
         event,
         messageId: requiredString(data, 'messageId'),
         text: requiredString(data, 'text'),
       }
     case 'tool-start':
       return {
+        ...meta(data),
         event,
         callId: requiredString(data, 'callId'),
         name: requiredString(data, 'name'),
         summary: requiredString(data, 'summary'),
+        ...(data.arguments !== undefined ? { arguments: data.arguments } : {}),
       }
     case 'approval-required':
       return {
+        ...meta(data),
         event,
         arguments: data.arguments,
         callId: requiredString(data, 'callId'),
@@ -180,6 +255,7 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
         throw new Error('AI Agent 事件缺少字段 success。')
       }
       return {
+        ...meta(data),
         event,
         callId: requiredString(data, 'callId'),
         name: requiredString(data, 'name'),
@@ -192,6 +268,7 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
         typeof usage[key] === 'number' ? (usage[key] as number) : undefined
       return {
         event,
+        ...meta(data),
         usage: {
           inputTokens: readTokenCount('inputTokens') ?? readTokenCount('promptTokens'),
           outputTokens: readTokenCount('outputTokens') ?? readTokenCount('responseTokens'),
@@ -204,11 +281,12 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
     case 'done':
       return {
         event,
+        ...meta(data),
         conversationId: requiredString(data, 'conversationId'),
         messageId: requiredString(data, 'messageId'),
       }
     case 'error':
-      return { event, message: requiredString(data, 'message') }
+      return { ...meta(data), event, message: requiredString(data, 'message') }
     default:
       return null
   }

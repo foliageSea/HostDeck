@@ -8,6 +8,7 @@ import {
   type AiAgentMcpServer,
   type AiAgentMcpServerInput,
   type AiAgentRunEvent,
+  type AiAgentRunStep,
   type AiAgentRunMode,
   type AiAgentSettings,
   type AiAgentSettingsUpdate,
@@ -60,6 +61,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const selectedConversation = ref<AiAgentConversation | null>(null)
   const messages = ref<AiAgentMessage[]>([])
   const toolCalls = ref<AiAgentToolCall[]>([])
+  const runSteps = ref<AiAgentRunStep[]>([])
   const usage = ref<AiAgentUsage | null>(null)
   const durationMs = ref<number | null>(null)
   const loadingSettings = ref(false)
@@ -81,6 +83,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   let runRequest = 0
   let runController: AbortController | null = null
   let runStartedAt: number | null = null
+  let lastEventSequence = 0
 
   function finishRunTiming() {
     if (runStartedAt === null) return
@@ -200,6 +203,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     selectedConversation.value = null
     messages.value = []
     toolCalls.value = []
+    runSteps.value = []
     usage.value = null
     durationMs.value = null
     streamingMessageId.value = null
@@ -246,6 +250,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     selectedConversation.value = conversation
     messages.value = []
     toolCalls.value = []
+    runSteps.value = []
     usage.value = null
     durationMs.value = null
     streamingMessageId.value = null
@@ -266,6 +271,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       selectedConversation.value = result.conversation
       messages.value = result.messages.slice(-MAX_MESSAGES)
       toolCalls.value = []
+      runSteps.value = []
       usage.value = null
       durationMs.value = null
       streamingMessageId.value = null
@@ -305,6 +311,29 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     return conversation
   }
 
+  function upsertRunStep(event: AiAgentRunEvent) {
+    if (!event.stepId || event.sequence == null || !event.type || !event.status) return
+    const existing = runSteps.value.find((step) => step.stepId === event.stepId)
+    const step: AiAgentRunStep = {
+      completedAt: event.completedAt,
+      messageId: 'messageId' in event ? event.messageId : existing?.messageId,
+      name: 'name' in event ? event.name : existing?.name,
+      parentStepId: event.parentStepId ?? existing?.parentStepId,
+      runId: event.runId ?? activeRunId.value ?? '',
+      sequence: existing?.sequence ?? event.sequence,
+      startedAt: existing?.startedAt ?? event.startedAt ?? Date.now(),
+      status: event.status,
+      stepId: event.stepId,
+      summary: 'summary' in event ? event.summary : existing?.summary,
+      type: event.type,
+      callId: 'callId' in event ? event.callId : existing?.callId,
+      arguments: 'arguments' in event ? event.arguments : existing?.arguments,
+    }
+    runSteps.value = existing
+      ? runSteps.value.map((item) => (item.stepId === step.stepId ? step : item))
+      : [...runSteps.value, step].sort((a, b) => a.sequence - b.sequence)
+  }
+
   function upsertTool(event: Extract<AiAgentRunEvent, { callId: string }>) {
     const existing = toolCalls.value.find((tool) => tool.callId === event.callId)
     if (existing) {
@@ -323,12 +352,13 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
             : 'error'
       } else {
         existing.status = 'running'
+        if ('arguments' in event) existing.arguments = event.arguments
       }
       return
     }
     const nextTool: AiAgentToolCall = {
       approvalPending: event.event === 'approval-required',
-      arguments: event.event === 'approval-required' ? event.arguments : undefined,
+      arguments: 'arguments' in event ? event.arguments : undefined,
       callId: event.callId,
       name: event.name,
       status:
@@ -346,9 +376,18 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   }
 
   function applyRunEvent(event: AiAgentRunEvent, assistant: AiAgentMessage) {
+    if (event.event !== 'connected') {
+      if (event.runId && activeRunId.value && event.runId !== activeRunId.value) return
+      if (event.sequence != null && event.sequence <= lastEventSequence) return
+      if (event.sequence != null) lastEventSequence = event.sequence
+    }
     if (event.event === 'connected') {
       activeRunId.value = event.runId
+      lastEventSequence = event.sequence ?? 0
+    } else if (event.event === 'model-start' || event.event === 'model-end') {
+      upsertRunStep(event)
     } else if (event.event === 'message-delta') {
+      upsertRunStep(event)
       assistant.id = event.messageId
       streamingMessageId.value = event.messageId
       assistant.content += event.text
@@ -357,6 +396,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       event.event === 'approval-required' ||
       event.event === 'tool-result'
     ) {
+      upsertRunStep(event)
       upsertTool(event)
       if (event.event === 'approval-required' && autoRun.value) {
         void resolveApproval(event.callId, true).catch(() => undefined)
@@ -398,11 +438,13 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       const streamedAssistant = messages.value.at(-1)!
       streamingMessageId.value = streamedAssistant.id
       toolCalls.value = []
+      runSteps.value = []
       usage.value = null
       durationMs.value = null
       runStartedAt = performance.now()
       error.value = null
       activeRunId.value = null
+      lastEventSequence = 0
       const onEvent = (event: AiAgentRunEvent) => {
         if (request === runRequest) applyRunEvent(event, streamedAssistant)
       }
@@ -461,6 +503,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         running.value = false
         streamingMessageId.value = null
         activeRunId.value = null
+        lastEventSequence = 0
         runController = null
         selectedSkillIds.value = []
       }
@@ -475,6 +518,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     running.value = false
     streamingMessageId.value = null
     activeRunId.value = null
+    lastEventSequence = 0
     selectedSkillIds.value = []
     finishPendingTools('error')
   }
@@ -569,6 +613,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     testMcpServer,
     toggleSkill,
     toolCalls,
+    runSteps,
     createMcpServer,
     deleteMcpServer,
     updateMcpServer,
