@@ -80,6 +80,8 @@ export interface AiAgentUsage {
   totalTokens?: number
 }
 
+export type AiAgentRunMode = 'chat' | 'agent'
+
 export type AiAgentRunEvent =
   | { event: 'connected'; runId: string }
   | { event: 'message-delta'; messageId: string; text: string }
@@ -321,6 +323,7 @@ export const aiAgentApi = {
     signal?: AbortSignal,
     model?: string,
     attachments: AiAgentImageAttachment[] = [],
+    mode: AiAgentRunMode = 'agent',
   ) {
     const response = await fetch(
       `/api/ai-agent/conversations/${encodeURIComponent(conversationId)}/runs`,
@@ -328,6 +331,7 @@ export const aiAgentApi = {
         body: JSON.stringify({
           connectionId,
           input,
+          mode,
           ...(model ? { model } : {}),
           skillIds,
           ...(attachments.length ? { attachments } : {}),

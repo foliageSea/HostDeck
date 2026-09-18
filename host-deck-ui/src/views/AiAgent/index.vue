@@ -10,6 +10,7 @@ import {
   ImagePlus,
   ShieldAlert,
   Menu,
+  MessageCircle,
   MessageSquarePlus,
   PanelLeftClose,
   Pencil,
@@ -56,6 +57,7 @@ const {
   loadingConversations,
   messages,
   running,
+  runMode,
   selectedConversation,
   selectedSkillIds,
   settings,
@@ -168,6 +170,11 @@ function selectRunMode(mode: boolean) {
   if (running.value || !sshStore.connectionId) return
   autoRun.value = mode
   modeMenuOpen.value = false
+}
+
+function selectAiMode(mode: 'chat' | 'agent') {
+  if (!sshStore.connectionId || running.value) return
+  agentStore.setRunMode(mode)
 }
 
 function closeSidebarOnNarrowScreen() {
@@ -620,7 +627,7 @@ let resizeObserver: ResizeObserver | undefined
         </div>
         <div v-else-if="messages.length === 0 && toolCalls.length === 0" class="agent-empty-state">
           <div class="agent-empty-mark"><Bot :size="27" /></div>
-          <h1>我们要维护什么？</h1>
+          <h1>{{ runMode === 'agent' ? '我们要维护什么？' : '今天想聊些什么？' }}</h1>
         </div>
         <div v-else class="agent-transcript">
           <article
@@ -713,7 +720,11 @@ let resizeObserver: ResizeObserver | undefined
           :class="{ 'agent-composer-running': running }"
           @paste="handlePaste"
         >
-          <div v-if="selectedSkills.length" class="agent-selected-skills" aria-label="已选 Skills">
+          <div
+            v-if="runMode === 'agent' && selectedSkills.length"
+            class="agent-selected-skills"
+            aria-label="已选 Skills"
+          >
             <span v-for="skill in selectedSkills" :key="skill.id" class="agent-selected-skill">
               <Puzzle :size="12" />
               <span>{{ skill.name }}</span>
@@ -751,13 +762,13 @@ let resizeObserver: ResizeObserver | undefined
           <NMention
             v-model:value="input"
             type="textarea"
-            :options="skillMentionOptions"
+            :options="runMode === 'agent' ? skillMentionOptions : []"
             :filter="filterSkillMention"
             :render-label="renderSkillMentionLabel"
             :autosize="{ minRows: 2, maxRows: 7 }"
             :disabled="!sshStore.connectionId"
-            :loading="agentStore.loadingSkills"
-            placeholder="描述任务，输入 @ 选择 Skill"
+            :loading="runMode === 'agent' && agentStore.loadingSkills"
+            :placeholder="runMode === 'agent' ? '描述任务，输入 @ 选择 Skill' : '输入消息'"
             class="agent-composer-input"
             @select="selectSkillMention"
             @keydown="handleComposerKeydown"
@@ -787,6 +798,30 @@ let resizeObserver: ResizeObserver | undefined
               >
                 <ImagePlus :size="14" />
               </button>
+              <div class="agent-ai-mode" role="group" aria-label="对话模式">
+                <button
+                  type="button"
+                  :class="{ 'agent-ai-mode-active': runMode === 'chat' }"
+                  :aria-pressed="runMode === 'chat'"
+                  :disabled="running || !sshStore.connectionId"
+                  title="Chat 模式不会访问主机或调用工具"
+                  @click="selectAiMode('chat')"
+                >
+                  <MessageCircle :size="12" />
+                  Chat
+                </button>
+                <button
+                  type="button"
+                  :class="{ 'agent-ai-mode-active': runMode === 'agent' }"
+                  :aria-pressed="runMode === 'agent'"
+                  :disabled="running || !sshStore.connectionId"
+                  title="Agent 模式可使用主机工具、Skills 和 MCP"
+                  @click="selectAiMode('agent')"
+                >
+                  <Bot :size="12" />
+                  Agent
+                </button>
+              </div>
               <NPopover
                 v-model:show="modelMenuOpen"
                 trigger="click"
@@ -832,8 +867,13 @@ let resizeObserver: ResizeObserver | undefined
                   </button>
                 </div>
               </NPopover>
-              <AiAgentSkillPicker :connection-id="sshStore.connectionId" :disabled="running" />
+              <AiAgentSkillPicker
+                v-if="runMode === 'agent'"
+                :connection-id="sshStore.connectionId"
+                :disabled="running"
+              />
               <button
+                v-if="runMode === 'agent'"
                 type="button"
                 class="agent-mcp-entry"
                 :disabled="running"
@@ -844,6 +884,7 @@ let resizeObserver: ResizeObserver | undefined
                 MCP {{ enabledMcpServers.length }}
               </button>
               <NPopover
+                v-if="runMode === 'agent'"
                 v-model:show="modeMenuOpen"
                 trigger="click"
                 placement="top-start"
@@ -1594,6 +1635,48 @@ let resizeObserver: ResizeObserver | undefined
 .agent-attachment-button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.agent-ai-mode {
+  display: inline-grid;
+  height: 25px;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(2, auto);
+  padding: 2px;
+  border: 1px solid var(--agent-border);
+  border-radius: var(--app-radius-control);
+  background: var(--agent-hover);
+}
+
+.agent-ai-mode button {
+  display: inline-flex;
+  min-width: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: calc(var(--app-radius-control) - 2px);
+  color: var(--agent-muted);
+  background: transparent;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.agent-ai-mode button.agent-ai-mode-active {
+  color: var(--agent-text);
+  background: var(--agent-elevated);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.agent-ai-mode button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.agent-ai-mode button:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 1px;
 }
 
 .agent-model-trigger {

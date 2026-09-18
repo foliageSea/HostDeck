@@ -213,6 +213,38 @@ void main() {
       '图片对话',
     );
   });
+
+  test('chat mode invokes the model without host tools', () async {
+    model.responses = const [AiAgentModelResponse(text: 'Chat response')];
+    final run = manager.start(
+      conversationId: 'conversation-1',
+      connectionId: 'connection-1',
+      targetKey: 'server:7',
+      ownerId: 'browser:test',
+      input: 'Explain load average',
+      mode: AiAgentRunMode.chat,
+      skills: const [
+        AiAgentSkillContent(
+          name: 'ignored',
+          directory: '/tmp/ignored',
+          content: 'Use host tools.',
+        ),
+      ],
+    );
+
+    final body = await _collect(
+      run.stream,
+    ).done.future.timeout(const Duration(seconds: 2));
+
+    expect(body, isNot(contains('event: tool-start')));
+    expect(model.toolInputs.single, isEmpty);
+    expect(model.inputs.single.first.content, contains('cannot access'));
+    expect(
+      model.inputs.single.first.content,
+      isNot(contains('Use host tools.')),
+    );
+    expect(tools.resolveCount, 0);
+  });
 }
 
 _CollectedEvents _collect(Stream<List<int>> stream) {
@@ -276,6 +308,7 @@ class _FakeModelFactory implements AiAgentModelFactory {
 
 class _FakeModel implements AiAgentModel {
   final List<List<AiAgentModelMessage>> inputs = [];
+  final List<List<ToolSpec>> toolInputs = [];
   List<AiAgentModelResponse>? responses;
   List<List<String>>? textDeltas;
   bool closed = false;
@@ -283,10 +316,11 @@ class _FakeModel implements AiAgentModel {
   @override
   Future<AiAgentModelResponse> invoke(
     List<AiAgentModelMessage> messages,
-    List<ToolSpec> _, {
+    List<ToolSpec> tools, {
     void Function(String text)? onTextDelta,
   }) async {
     inputs.add(List.of(messages));
+    toolInputs.add(List.of(tools));
     final responseIndex = inputs.length - 1;
     final configuredResponses = responses;
     if (configuredResponses != null) {
@@ -319,9 +353,13 @@ class _FakeModel implements AiAgentModel {
 
 class _FakeToolExecutor implements AiAgentToolExecutor {
   int executeCount = 0;
+  int resolveCount = 0;
 
   @override
-  Future<List<ToolSpec>> resolveSpecs() async => const [];
+  Future<List<ToolSpec>> resolveSpecs() async {
+    resolveCount++;
+    return const [];
+  }
 
   @override
   bool requiresApproval(String name) => true;

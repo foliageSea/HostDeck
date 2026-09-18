@@ -8,6 +8,7 @@ import {
   type AiAgentMcpServer,
   type AiAgentMcpServerInput,
   type AiAgentRunEvent,
+  type AiAgentRunMode,
   type AiAgentSettings,
   type AiAgentSettingsUpdate,
   type AiAgentSkill,
@@ -69,6 +70,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const running = ref(false)
   const streamingMessageId = ref<string | null>(null)
   const autoRun = ref(false)
+  const runMode = ref<AiAgentRunMode>('agent')
   const activeRunId = ref<string | null>(null)
   const error = ref<string | null>(null)
   const skillsError = ref<string | null>(null)
@@ -180,11 +182,18 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     )
   }
 
+  function setRunMode(mode: AiAgentRunMode) {
+    if (running.value) return
+    runMode.value = mode
+    if (mode === 'chat') selectedSkillIds.value = []
+  }
+
   function resetForConnection(connectionId: string | null) {
     if (currentConnectionId.value === connectionId) return false
     abortRun()
     currentConnectionId.value = connectionId
     autoRun.value = false
+    runMode.value = 'agent'
     conversations.value = []
     skills.value = []
     selectedSkillIds.value = []
@@ -369,6 +378,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     if ((!trimmedInput && attachments.length === 0) || running.value) return false
     resetForConnection(connectionId)
     const runSkillIds = [...selectedSkillIds.value]
+    const activeMode = runMode.value
     const model = settings.value?.model
     const request = ++runRequest
     const controller = new AbortController()
@@ -406,6 +416,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
           controller.signal,
           model,
           attachments,
+          activeMode,
         )
       } else if (attachments.length) {
         await aiAgentApi.run(
@@ -417,6 +428,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
           controller.signal,
           undefined,
           attachments,
+          activeMode,
         )
       } else {
         await aiAgentApi.run(
@@ -426,6 +438,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
           runSkillIds,
           onEvent,
           controller.signal,
+          undefined,
+          [],
+          activeMode,
         )
       }
       completed = true
@@ -538,12 +553,14 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     resetForConnection,
     resolveApproval,
     running,
+    runMode,
     saveSettings,
     selectedSkillIds,
     selectedConversation,
     selectConversation,
     settings,
     setSelectedSkillIds,
+    setRunMode,
     skills,
     skillsError,
     startRun,

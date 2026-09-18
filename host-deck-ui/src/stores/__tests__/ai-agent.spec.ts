@@ -377,6 +377,9 @@ describe('AI Agent store', () => {
       ['logs', 'services'],
       expect.any(Function),
       expect.any(AbortSignal),
+      undefined,
+      [],
+      'agent',
     )
     expect(store.selectedSkillIds).toEqual([])
   })
@@ -412,6 +415,40 @@ describe('AI Agent store', () => {
       expect.any(AbortSignal),
       undefined,
       [attachment],
+      'agent',
+    )
+  })
+
+  it('clears selected skills and sends chat mode without agent capabilities', async () => {
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        onEvent({ conversationId: 'conversation-1', event: 'done', messageId: 'message-1' })
+      },
+    )
+    const store = useAiAgentStore()
+    await store.loadSkills('connection-1')
+    store.toggleSkill('logs')
+
+    store.setRunMode('chat')
+    await store.startRun('explain load average', 'connection-1')
+
+    expect(store.selectedSkillIds).toEqual([])
+    expect(apiMocks.run).toHaveBeenCalledWith(
+      'conversation-1',
+      'connection-1',
+      'explain load average',
+      [],
+      expect.any(Function),
+      expect.any(AbortSignal),
+      undefined,
+      [],
+      'chat',
     )
   })
 

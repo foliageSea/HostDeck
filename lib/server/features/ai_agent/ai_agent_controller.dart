@@ -327,6 +327,7 @@ class AiAgentController {
         return Result.fail(400, 'Input or an image is required.');
       }
       final skillIds = _skillIds(data);
+      final mode = _runMode(data);
       final model = _optionalConfigString(data, 'model');
       if (utf8.encode(input).length > 32 * 1024) {
         return Result.fail(400, 'Input is too large.');
@@ -335,7 +336,9 @@ class AiAgentController {
       if (_repository.getConversation(id, targetKey) == null) {
         return Result.fail(404, 'Conversation not found.');
       }
-      final skills = await _skillService.snapshot(connectionId, skillIds);
+      final skills = mode == AiAgentRunMode.agent
+          ? await _skillService.snapshot(connectionId, skillIds)
+          : const <AiAgentSkillContent>[];
       final run = _runManager.start(
         conversationId: id,
         connectionId: connectionId,
@@ -344,6 +347,7 @@ class AiAgentController {
         input: input,
         attachments: attachments,
         model: model,
+        mode: mode,
         skills: skills,
       );
       return Response.ok(
@@ -557,6 +561,15 @@ class AiAgentController {
       throw const FormatException('At most 8 skills may be selected.');
     }
     return List<String>.unmodifiable(value.cast<String>());
+  }
+
+  AiAgentRunMode _runMode(Map<String, dynamic> data) {
+    final value = data['mode'];
+    return switch (value) {
+      null || 'agent' => AiAgentRunMode.agent,
+      'chat' => AiAgentRunMode.chat,
+      _ => throw const FormatException('mode must be chat or agent.'),
+    };
   }
 
   List<AiAgentImageAttachment> _imageAttachments(Map<String, dynamic> data) {

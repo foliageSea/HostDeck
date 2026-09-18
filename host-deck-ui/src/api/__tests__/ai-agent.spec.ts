@@ -107,6 +107,7 @@ describe('aiAgentApi.run', () => {
         body: JSON.stringify({
           connectionId: 'connection-1',
           input: 'hello',
+          mode: 'agent',
           model: 'gpt-5',
           skillIds: ['logs'],
           attachments: [{ data: 'aGVsbG8=', mimeType: 'image/png', name: 'screen.png' }],
