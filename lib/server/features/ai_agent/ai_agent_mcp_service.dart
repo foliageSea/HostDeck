@@ -176,11 +176,19 @@ class AiAgentMcpClient {
         'arguments': arguments,
       });
       final isError = result['isError'] == true;
-      final content = _limitToolOutput(_toolContent(result));
+      final rawContent = _toolContent(result);
+      final content = _limitToolOutput(rawContent);
       return AiAgentToolResult(
         success: !isError,
         content: content,
         summary: '${server.name}: $name ${isError ? 'failed' : 'completed'}',
+        details: {
+          'mcpServer': server.name,
+          'mcpTool': name,
+          'truncated': content.length < rawContent.length,
+          if (result['structuredContent'] != null)
+            'structured': result['structuredContent'],
+        },
       );
     } finally {
       session.client.close(force: true);

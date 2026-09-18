@@ -81,7 +81,7 @@ describe('aiAgentApi.run', () => {
             'event: message-delta\ndata: {"messageId":"message-1","text":"hello"}\n\n' +
             'event: tool-start\ndata: {"callId":"call-1","name":"shell","summary":"Inspect files"}\n\n' +
             'event: approval-required\ndata: {"callId":"call-1","name":"shell","summary":"Remove file","arguments":{"command":"rm old"}}\n\n' +
-            'event: tool-result\ndata: {"callId":"call-1","name":"shell","success":true,"summary":"Done"}\n\n' +
+             'event: tool-result\ndata: {"callId":"call-1","name":"shell","success":true,"summary":"Done","content":"ok","exitCode":0,"durationMs":12,"truncated":false}\n\n' +
             'event: usage\ndata: {"inputTokens":10,"outputTokens":5,"totalTokens":15}\n\n' +
             'event: done\ndata: {"conversationId":"conversation-1","messageId":"message-1"}\n\n',
           { headers: { 'Content-Type': 'text/event-stream' } },
@@ -121,6 +121,9 @@ describe('aiAgentApi.run', () => {
       arguments: { command: 'rm old' },
       callId: 'call-1',
       event: 'approval-required',
+    })
+    expect(events[4]).toMatchObject({
+      result: { content: 'ok', durationMs: 12, exitCode: 0, truncated: false },
     })
     expect(events.at(-1)).toEqual({
       conversationId: 'conversation-1',

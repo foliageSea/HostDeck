@@ -9,6 +9,7 @@ import {
   type AiAgentMcpServerInput,
   type AiAgentRunEvent,
   type AiAgentRunStep,
+  type AiAgentToolResult,
   type AiAgentRunMode,
   type AiAgentSettings,
   type AiAgentSettingsUpdate,
@@ -29,6 +30,7 @@ export interface AiAgentToolCall {
   summary: string
   status: AiAgentToolStatus
   arguments?: unknown
+  result?: AiAgentToolResult
   approvalPending: boolean
   submitting: boolean
 }
@@ -345,6 +347,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         existing.status = 'pending'
       } else if (event.event === 'tool-result') {
         existing.approvalPending = false
+        existing.result = event.result
         existing.status = event.success
           ? 'success'
           : existing.status === 'rejected'
@@ -371,6 +374,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
             : 'running',
       submitting: false,
       summary: event.summary,
+      result: event.event === 'tool-result' ? event.result : undefined,
     }
     toolCalls.value = [...toolCalls.value, nextTool].slice(-MAX_TOOL_CALLS)
   }

@@ -9,17 +9,33 @@ import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 import 'package:host_deck/server/features/processes/process_service.dart';
 import 'package:host_deck/server/features/system/monitor_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 
 class AiAgentToolResult {
   final bool success;
   final String content;
   final String summary;
+  final Map<String, dynamic> details;
 
   const AiAgentToolResult({
     required this.success,
     required this.content,
     required this.summary,
+    this.details = const {},
   });
+
+  AiAgentToolResult withDetails(Map<String, dynamic> extra) =>
+      AiAgentToolResult(
+        success: success,
+        content: content,
+        summary: summary,
+        details: {...details, ...extra},
+      );
+
+  Map<String, dynamic> toEventData() => {
+    'content': sanitizeAiAgentText(content),
+    ...sanitizeAiAgentValue(details) as Map<String, dynamic>,
+  };
 }
 
 abstract interface class AiAgentToolExecutor {
@@ -211,6 +227,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
         }.contains(name)
         ? name
         : 'unknownTool';
+    final stopwatch = Stopwatch()..start();
     try {
       final session = await _sessionResolver.createForConnection(connectionId);
       final Object output = await switch (name) {
@@ -247,7 +264,14 @@ class AiAgentToolService implements AiAgentToolExecutor {
         ),
         _ => throw ArgumentError('Unknown tool.'),
       }.timeout(toolTimeout);
-      final content = _limit(jsonEncode(output));
+      final elapsed = stopwatch.elapsedMilliseconds;
+      final outputMap = output is Map<String, dynamic> ? output : null;
+      final limited = _limitValue(jsonEncode(output));
+      final displayContent = outputMap?['stdout'] is String
+          ? outputMap!['stdout'] as String
+          : outputMap?['content'] is String
+          ? outputMap!['content'] as String
+          : limited.value;
       final succeeded = _didSucceed(name, output);
       if (succeeded) {
         _operationLogService.success(
@@ -267,8 +291,15 @@ class AiAgentToolService implements AiAgentToolExecutor {
       }
       return AiAgentToolResult(
         success: succeeded,
-        content: content,
+        content: displayContent,
         summary: '${summary(name)} ${succeeded ? 'completed' : 'failed'}',
+        details: _details(
+          name,
+          normalizedArguments,
+          outputMap,
+          elapsed,
+          limited.truncated || displayContent.endsWith('[truncated]'),
+        ),
       );
     } catch (_) {
       _operationLogService.failure(
@@ -341,9 +372,51 @@ class AiAgentToolService implements AiAgentToolExecutor {
     };
   }
 
-  String _limit(String value) {
+  _LimitedResult _limitValue(String value) {
     final bytes = utf8.encode(value);
-    if (bytes.length <= maxOutputBytes) return value;
-    return '${utf8.decode(bytes.take(maxOutputBytes).toList(), allowMalformed: true)}\n[truncated]';
+    if (bytes.length <= maxOutputBytes) return _LimitedResult(value, false);
+    return _LimitedResult(
+      '${utf8.decode(bytes.take(maxOutputBytes).toList(), allowMalformed: true)}\n[truncated]',
+      true,
+    );
   }
+
+  Map<String, dynamic> _details(
+    String name,
+    Map<String, dynamic> arguments,
+    Map<String, dynamic>? output,
+    int durationMs,
+    bool truncated,
+  ) {
+    final result = <String, dynamic>{
+      'durationMs': durationMs,
+      'truncated': truncated || output?['truncated'] == true,
+    };
+    if (output != null) {
+      for (final key in ['exitCode', 'stderr', 'stdout']) {
+        if (output.containsKey(key)) result[key] = output[key];
+      }
+      result['structured'] = output;
+    }
+    final path = arguments['path'];
+    if (path is String) result['path'] = path;
+    if (name == 'file_read') result['operation'] = 'read';
+    if (name == 'file_write') {
+      result['operation'] = 'write';
+      result['changed'] = output?['success'] == true;
+    }
+    if (name == 'apply_patch') {
+      result['operation'] = 'patch';
+      result['diff'] = arguments['patch'];
+      result['changed'] = output?['applied'] == true;
+    }
+    return result;
+  }
+}
+
+class _LimitedResult {
+  final String value;
+  final bool truncated;
+
+  const _LimitedResult(this.value, this.truncated);
 }

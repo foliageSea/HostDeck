@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Check, ChevronDown, CircleAlert, Hand, LoaderCircle, X } from '@lucide/vue'
+import { Check, ChevronDown, CircleAlert, Clipboard, Hand, LoaderCircle, X } from '@lucide/vue'
 import type { AiAgentToolCall } from '@/stores/ai-agent'
 
 const props = defineProps<{
@@ -13,6 +13,8 @@ const emit = defineEmits<{
 }>()
 
 const expanded = ref(false)
+const outputQuery = ref('')
+const copied = ref(false)
 
 const statusLabel = computed(() => {
   if (props.tool.status === 'pending') return '等待批准'
@@ -27,6 +29,31 @@ const argumentsText = computed(() => {
   return JSON.stringify(props.tool.arguments ?? {}, null, 2)
 })
 const isMcpTool = computed(() => props.tool.name.startsWith('mcp_'))
+const outputText = computed(() => {
+  const result = props.tool.result
+  if (!result) return ''
+  const sections = [result.content]
+  if (result.stderr) sections.push(`stderr:\n${result.stderr}`)
+  if (result.structured !== undefined) {
+    sections.push(`structured:\n${JSON.stringify(result.structured, null, 2)}`)
+  }
+  return sections.filter(Boolean).join('\n\n')
+})
+const filteredOutput = computed(() => {
+  const query = outputQuery.value.trim().toLocaleLowerCase()
+  if (!query) return outputText.value
+  return outputText.value
+    .split('\n')
+    .filter((line) => line.toLocaleLowerCase().includes(query))
+    .join('\n')
+})
+
+async function copyOutput() {
+  if (!outputText.value || !navigator.clipboard) return
+  await navigator.clipboard.writeText(outputText.value)
+  copied.value = true
+  window.setTimeout(() => (copied.value = false), 1200)
+}
 </script>
 
 <template>
@@ -89,6 +116,47 @@ const isMcpTool = computed(() => props.tool.name.startsWith('mcp_'))
         <span class="agent-tool-summary">{{ tool.summary }}</span>
       </div>
     </div>
+    <div v-if="!tool.approvalPending && (tool.arguments !== undefined || tool.result)" class="agent-tool-details">
+      <button
+        type="button"
+        class="agent-tool-disclosure"
+        :aria-expanded="expanded"
+        @click="expanded = !expanded"
+      >
+        <ChevronDown :size="13" :class="{ 'rotate-180': expanded }" />
+        {{ expanded ? '收起详情' : '查看参数与结果' }}
+      </button>
+      <button
+        v-if="expanded && tool.result"
+        type="button"
+        class="agent-tool-copy-action"
+        :aria-label="copied ? '已复制工具结果' : '复制工具结果'"
+        @click="copyOutput"
+      >
+        <Check v-if="copied" :size="13" />
+        <Clipboard v-else :size="13" />
+        {{ copied ? '已复制' : '复制结果' }}
+      </button>
+    </div>
+    <template v-if="expanded && !tool.approvalPending">
+      <pre v-if="tool.arguments !== undefined" class="agent-tool-arguments">参数\n{{ argumentsText }}</pre>
+      <div v-if="tool.result" class="agent-tool-result">
+        <div class="agent-tool-result-meta">
+          <span v-if="tool.result.exitCode != null">退出码 {{ tool.result.exitCode }}</span>
+          <span v-if="tool.result.durationMs != null">{{ tool.result.durationMs }} ms</span>
+          <span v-if="tool.result.truncated">已截断</span>
+          <span v-if="tool.result.changed != null">{{ tool.result.changed ? '已修改' : '未修改' }}</span>
+        </div>
+        <input
+          v-model="outputQuery"
+          class="agent-tool-search"
+          type="search"
+          placeholder="搜索工具输出"
+          aria-label="搜索工具输出"
+        />
+        <pre class="agent-tool-arguments">{{ filteredOutput }}</pre>
+      </div>
+    </template>
   </section>
 </template>
 
@@ -174,7 +242,7 @@ const isMcpTool = computed(() => props.tool.name.startsWith('mcp_'))
   color: currentColor;
 }
 
-.agent-tool-copy {
+.agent-tool-copy-action {
   display: flex;
   min-width: 0;
   align-items: baseline;
@@ -225,6 +293,53 @@ const isMcpTool = computed(() => props.tool.name.startsWith('mcp_'))
   font:
     11px/1.55 'Maple Mono',
     monospace;
+}
+
+.agent-tool-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.agent-tool-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.agent-tool-result {
+  min-width: 0;
+}
+
+.agent-tool-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 5px;
+  color: var(--agent-muted);
+  font-size: 10px;
+}
+
+.agent-tool-search {
+  box-sizing: border-box;
+  width: 100%;
+  height: 25px;
+  margin-bottom: 5px;
+  padding: 0 7px;
+  border: 1px solid var(--agent-border);
+  border-radius: var(--app-radius-control);
+  outline: 0;
+  color: var(--agent-text);
+  background: var(--agent-elevated);
+  font-size: 11px;
 }
 
 .agent-tool-actions {

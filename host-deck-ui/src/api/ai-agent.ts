@@ -118,6 +118,21 @@ export interface AiAgentToolCallRecord {
   status: AiAgentRunStepStatus
 }
 
+export interface AiAgentToolResult {
+  content: string
+  exitCode?: number
+  stderr?: string
+  durationMs?: number
+  truncated?: boolean
+  path?: string
+  operation?: 'read' | 'write' | 'patch' | string
+  diff?: string
+  changed?: boolean
+  structured?: unknown
+  mcpServer?: string
+  mcpTool?: string
+}
+
 interface AiAgentRunEventMeta {
   runId?: string
   sequence?: number
@@ -148,6 +163,7 @@ export type AiAgentRunEvent =
       name: string
       success: boolean
       summary: string
+      result?: AiAgentToolResult
     } & AiAgentRunEventMeta)
   | ({ event: 'usage'; usage: AiAgentUsage } & AiAgentRunEventMeta)
   | ({ event: 'done'; conversationId: string; messageId: string } & AiAgentRunEventMeta)
@@ -261,6 +277,24 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
         name: requiredString(data, 'name'),
         success: data.success,
         summary: requiredString(data, 'summary'),
+        ...(data.content !== undefined
+          ? {
+              result: {
+                content: typeof data.content === 'string' ? data.content : JSON.stringify(data.content),
+                ...(typeof data.exitCode === 'number' ? { exitCode: data.exitCode } : {}),
+                ...(typeof data.stderr === 'string' ? { stderr: data.stderr } : {}),
+                ...(typeof data.durationMs === 'number' ? { durationMs: data.durationMs } : {}),
+                ...(typeof data.truncated === 'boolean' ? { truncated: data.truncated } : {}),
+                ...(typeof data.path === 'string' ? { path: data.path } : {}),
+                ...(typeof data.operation === 'string' ? { operation: data.operation } : {}),
+                ...(typeof data.diff === 'string' ? { diff: data.diff } : {}),
+                ...(typeof data.changed === 'boolean' ? { changed: data.changed } : {}),
+                ...(data.structured !== undefined ? { structured: data.structured } : {}),
+                ...(typeof data.mcpServer === 'string' ? { mcpServer: data.mcpServer } : {}),
+                ...(typeof data.mcpTool === 'string' ? { mcpTool: data.mcpTool } : {}),
+              },
+            }
+          : {}),
       }
     case 'usage': {
       const usage = asRecord(data.usage) ?? data

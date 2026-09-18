@@ -183,3 +183,35 @@ class AiAgentToolCallRecord {
         : status.name,
   };
 }
+
+final _sensitiveKey = RegExp(
+  r'(password|passwd|token|secret|api[_-]?key|authorization|private[_-]?key|cookie)',
+  caseSensitive: false,
+);
+final _sensitiveText = RegExp(
+  r'(bearer\s+)[^\s,;]+|((?:password|passwd|token|secret|api[_-]?key|authorization)\s*[:=]\s*)(?:bearer\s+)?[^\s,;]+',
+  caseSensitive: false,
+);
+
+String sanitizeAiAgentText(String value) => value.replaceAllMapped(
+  _sensitiveText,
+  (match) => match.group(1) ?? '${match.group(2)}[redacted]',
+);
+
+Object? sanitizeAiAgentValue(Object? value, {String? key}) {
+  if (key != null && _sensitiveKey.hasMatch(key)) return '[redacted]';
+  if (value is String) return sanitizeAiAgentText(value);
+  if (value is Map) {
+    return <String, dynamic>{
+      for (final entry in value.entries)
+        entry.key.toString(): sanitizeAiAgentValue(
+          entry.value,
+          key: entry.key.toString(),
+        ),
+    };
+  }
+  if (value is List) {
+    return value.map((item) => sanitizeAiAgentValue(item)).toList();
+  }
+  return value;
+}

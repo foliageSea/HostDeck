@@ -45,6 +45,22 @@ void main() {
     );
   });
 
+  test(
+    'sanitizes sensitive tool event fields before they leave the server',
+    () {
+      final value =
+          sanitizeAiAgentValue({
+                'token': 'top-secret',
+                'nested': {'password': 'secret'},
+                'command': 'curl -H "Authorization: Bearer top-secret"',
+              })
+              as Map<String, dynamic>;
+      expect(value['token'], '[redacted]');
+      expect(value['nested'], {'password': '[redacted]'});
+      expect(value['command'], isNot(contains('top-secret')));
+    },
+  );
+
   tearDown(() async {
     await manager.dispose();
     database.close();
@@ -385,6 +401,7 @@ class _FakeToolExecutor implements AiAgentToolExecutor {
       success: true,
       content: 'executed',
       summary: 'executed',
+      details: {'durationMs': 4, 'exitCode': 0, 'truncated': false},
     );
   }
 }
