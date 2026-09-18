@@ -67,6 +67,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const loadingConversations = ref(false)
   const loadingConversation = ref(false)
   const running = ref(false)
+  const streamingMessageId = ref<string | null>(null)
   const autoRun = ref(false)
   const activeRunId = ref<string | null>(null)
   const error = ref<string | null>(null)
@@ -192,6 +193,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     toolCalls.value = []
     usage.value = null
     durationMs.value = null
+    streamingMessageId.value = null
     error.value = null
     skillsError.value = null
     loadingSkills.value = false
@@ -237,6 +239,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     toolCalls.value = []
     usage.value = null
     durationMs.value = null
+    streamingMessageId.value = null
     error.value = null
     detailRequest += 1
     return conversation
@@ -256,6 +259,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       toolCalls.value = []
       usage.value = null
       durationMs.value = null
+      streamingMessageId.value = null
     } catch (requestError) {
       if (request === detailRequest) error.value = errorMessage(requestError)
       throw requestError
@@ -275,6 +279,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       toolCalls.value = []
       usage.value = null
       durationMs.value = null
+      streamingMessageId.value = null
       detailRequest += 1
     }
   }
@@ -336,6 +341,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       activeRunId.value = event.runId
     } else if (event.event === 'message-delta') {
       assistant.id = event.messageId
+      streamingMessageId.value = event.messageId
       assistant.content += event.text
     } else if (
       event.event === 'tool-start' ||
@@ -380,6 +386,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       const assistantMessage = temporaryMessage('assistant', '')
       messages.value = [...messages.value, userMessage, assistantMessage].slice(-MAX_MESSAGES)
       const streamedAssistant = messages.value.at(-1)!
+      streamingMessageId.value = streamedAssistant.id
       toolCalls.value = []
       usage.value = null
       durationMs.value = null
@@ -437,6 +444,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         finishRunTiming()
         if (!completed) finishPendingTools('error')
         running.value = false
+        streamingMessageId.value = null
         activeRunId.value = null
         runController = null
         selectedSkillIds.value = []
@@ -450,6 +458,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     runController?.abort()
     runController = null
     running.value = false
+    streamingMessageId.value = null
     activeRunId.value = null
     selectedSkillIds.value = []
     finishPendingTools('error')
@@ -538,6 +547,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     skills,
     skillsError,
     startRun,
+    streamingMessageId,
     testSettings,
     testMcpServer,
     toggleSkill,

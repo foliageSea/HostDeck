@@ -120,6 +120,7 @@ describe('AI Agent store', () => {
     const activeRun = store.startRun('inspect host', 'connection-1')
     await vi.waitFor(() => expect(store.activeRunId).toBe('run-1'))
 
+    expect(store.streamingMessageId).toBe('message-1')
     expect(store.messages.map((message) => message.content)).toEqual([
       'inspect host',
       'First second',
@@ -137,7 +138,43 @@ describe('AI Agent store', () => {
     releaseRun()
     await activeRun
     expect(store.running).toBe(false)
+    expect(store.streamingMessageId).toBeNull()
     expect(store.messages.at(-1)?.id).toBe('message-1')
+  })
+
+  it('tracks only the current assistant message while streaming', async () => {
+    let finishRun!: () => void
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        onEvent({ event: 'connected', runId: 'run-1' })
+        await new Promise<void>((resolve) => (finishRun = resolve))
+      },
+    )
+    const store = useAiAgentStore()
+    store.resetForConnection('connection-1')
+    store.selectedConversation = conversation
+    store.messages = [
+      {
+        attachments: [],
+        content: '',
+        createdAt: 1,
+        id: 'historical-empty-assistant',
+        role: 'assistant',
+      },
+    ]
+
+    const run = store.startRun('inspect host', 'connection-1')
+    await vi.waitFor(() => expect(store.running).toBe(true))
+
+    expect(store.streamingMessageId).not.toBe('historical-empty-assistant')
+    finishRun()
+    await run
   })
 
   it.each([false, true])('handles tool approvals with autoRun=%s', async (autoRun) => {

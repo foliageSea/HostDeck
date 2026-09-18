@@ -60,6 +60,7 @@ const {
   selectedSkillIds,
   settings,
   skills,
+  streamingMessageId,
   toolCalls,
   usage,
 } = storeToRefs(agentStore)
@@ -657,7 +658,7 @@ let resizeObserver: ResizeObserver | undefined
               {{ message.content }}
             </div>
             <div
-              v-else-if="message.role === 'assistant' && running"
+              v-else-if="message.role === 'assistant' && message.id === streamingMessageId"
               class="agent-thinking"
               aria-label="Agent 正在思考"
             >
