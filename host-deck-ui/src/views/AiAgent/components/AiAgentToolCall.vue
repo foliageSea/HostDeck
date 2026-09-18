@@ -59,7 +59,14 @@ async function copyOutput() {
 <template>
   <section
     class="agent-tool"
-    :class="[`agent-tool-${tool.status}`, { 'agent-tool-approval': tool.approvalPending }]"
+    :class="[
+      `agent-tool-${tool.status}`,
+      {
+        'agent-tool-approval': tool.approvalPending,
+        'agent-tool-card': !tool.approvalPending,
+        'agent-tool-expanded': expanded && !tool.approvalPending,
+      },
+    ]"
     :aria-label="`${tool.name}: ${statusLabel}`"
   >
     <template v-if="tool.approvalPending">
@@ -170,6 +177,13 @@ async function copyOutput() {
   background: transparent;
 }
 
+.agent-tool-card {
+  padding: 10px 14px;
+  border: 1px solid var(--agent-border);
+  background: var(--agent-elevated);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
 .agent-tool-pending {
   color: #d97706;
 }
@@ -192,6 +206,10 @@ async function copyOutput() {
   border: 1px solid var(--agent-border);
   color: var(--agent-text);
   background: var(--agent-elevated);
+}
+
+.agent-tool-expanded {
+  padding-bottom: 14px;
 }
 
 .agent-approval-kind {

@@ -1440,7 +1440,7 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-tools {
-  margin-top: -12px;
+  margin: 0 0 12px;
 }
 
 .agent-usage {
