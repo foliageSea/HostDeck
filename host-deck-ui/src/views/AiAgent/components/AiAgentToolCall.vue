@@ -144,7 +144,8 @@ async function copyOutput() {
       </button>
     </div>
     <template v-if="expanded && !tool.approvalPending">
-      <pre v-if="tool.arguments !== undefined" class="agent-tool-arguments">参数\n{{ argumentsText }}</pre>
+      <pre v-if="tool.arguments !== undefined" class="agent-tool-arguments">参数
+{{ argumentsText }}</pre>
       <div v-if="tool.result" class="agent-tool-result">
         <div class="agent-tool-result-meta">
           <span v-if="tool.result.exitCode != null">退出码 {{ tool.result.exitCode }}</span>
