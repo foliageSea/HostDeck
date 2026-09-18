@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_secret_store.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
@@ -29,12 +31,12 @@ void main() {
     await dataDirectory.delete(recursive: true);
   });
 
-  test('migration v14 and target-bound conversation CRUD', () {
+  test('migration v15 and target-bound conversation CRUD', () {
     expect(
       database.db
           .select('SELECT version FROM schema_version')
           .single['version'],
-      14,
+      15,
     );
 
     repository.createConversation('conversation-1', 'server:7');
@@ -79,6 +81,54 @@ void main() {
     );
     expect(repository.deleteConversation('conversation-1', 'server:7'), isTrue);
     expect(repository.listMessages('conversation-1'), isEmpty);
+  });
+
+  test('persists tool-call metadata, sanitizes and truncates tool output', () {
+    repository.createConversation('conversation-1', 'server:7');
+    repository.addMessage(
+      id: 'message-user',
+      conversationId: 'conversation-1',
+      role: 'user',
+      content: 'inspect host',
+    );
+    repository.addMessage(
+      id: 'message-assistant',
+      conversationId: 'conversation-1',
+      role: 'assistant',
+      content: '',
+      toolCalls: const [
+        AiAgentMessageToolCall(
+          id: 'call-1',
+          name: 'shell_execute',
+          arguments: {'command': 'docker ps'},
+        ),
+      ],
+    );
+    repository.addMessage(
+      id: 'message-tool',
+      conversationId: 'conversation-1',
+      role: 'tool',
+      content:
+          'password=hunter2\n${'x' * (AiAgentRepository.maxToolContentBytes + 512)}',
+      toolCallId: 'call-1',
+    );
+
+    final messages = repository.listMessages('conversation-1');
+    expect(messages.map((message) => message.id), [
+      'message-user',
+      'message-assistant',
+      'message-tool',
+    ]);
+    expect(messages[1].toolCalls.single.id, 'call-1');
+    expect(messages[1].toolCalls.single.arguments, {'command': 'docker ps'});
+    expect(messages[2].toolCallId, 'call-1');
+    expect(messages[2].content, contains('password=[redacted]'));
+    expect(messages[2].content, isNot(contains('hunter2')));
+    expect(messages[2].content, endsWith('[truncated]'));
+    expect(
+      utf8.encode(messages[2].content).length,
+      lessThanOrEqualTo(AiAgentRepository.maxToolContentBytes + 64),
+    );
   });
 
   test(

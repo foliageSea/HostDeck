@@ -413,6 +413,38 @@ class DatabaseService {
       }
       _setVersion(14);
     }
+
+    // v14 -> v15: Persist AI agent tool-call messages with metadata.
+    if (currentVersion < 15) {
+      _db.execute('''
+        CREATE TABLE ai_agent_messages_v15 (
+          id TEXT PRIMARY KEY,
+          conversationId TEXT NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'tool')),
+          content TEXT NOT NULL,
+          attachments TEXT NOT NULL DEFAULT '[]',
+          metadata TEXT NOT NULL DEFAULT '{}',
+          createdAt INTEGER NOT NULL,
+          FOREIGN KEY(conversationId) REFERENCES ai_agent_conversations(id)
+            ON DELETE CASCADE
+        )
+      ''');
+      _db.execute('''
+        INSERT INTO ai_agent_messages_v15
+          (id, conversationId, role, content, attachments, createdAt)
+        SELECT id, conversationId, role, content, attachments, createdAt
+        FROM ai_agent_messages
+      ''');
+      _db.execute('DROP TABLE ai_agent_messages');
+      _db.execute(
+        'ALTER TABLE ai_agent_messages_v15 RENAME TO ai_agent_messages',
+      );
+      _db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_ai_agent_messages_conversation_created
+        ON ai_agent_messages(conversationId, createdAt, id)
+      ''');
+      _setVersion(15);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

@@ -193,13 +193,7 @@ inspected or changed the host. Do not expose secrets.
       final history = _repository.listMessages(run.conversationId);
       final messages = <AiAgentModelMessage>[
         AiAgentModelMessage(role: 'system', content: run.systemPrompt),
-        ...history.map(
-          (message) => AiAgentModelMessage(
-            role: message.role,
-            content: message.content,
-            attachments: message.attachments,
-          ),
-        ),
+        ..._historyContext(history),
       ];
       String? finalText;
       Map<String, dynamic>? usage;
@@ -271,6 +265,21 @@ inspected or changed the host. Do not expose secrets.
           finalText = response.text;
           break;
         }
+
+        _repository.addMessage(
+          id: _newId(),
+          conversationId: run.conversationId,
+          role: 'assistant',
+          content: response.text,
+          toolCalls: [
+            for (final call in response.toolCalls)
+              AiAgentMessageToolCall(
+                id: call.id,
+                name: call.name,
+                arguments: _persistableArguments(call.arguments),
+              ),
+          ],
+        );
 
         for (final call in response.toolCalls) {
           _ensureActive(run);
@@ -374,6 +383,13 @@ inspected or changed the host. Do not expose secrets.
               toolCallId: call.id,
             ),
           );
+          _repository.addMessage(
+            id: _newId(),
+            conversationId: run.conversationId,
+            role: 'tool',
+            content: result.content,
+            toolCallId: call.id,
+          );
         }
       }
 
@@ -446,6 +462,78 @@ inspected or changed the host. Do not expose secrets.
       }
     }
     return result;
+  }
+
+  /// Rebuilds model context from persisted history. Tool messages are only
+  /// included when the assistant message that declared the call is also
+  /// present, so truncated or cancelled runs never produce orphan tool
+  /// messages that the model API would reject.
+  Iterable<AiAgentModelMessage> _historyContext(
+    List<AiAgentMessage> history,
+  ) sync* {
+    final resolvedCallIds = <String>{};
+    for (var i = 0; i < history.length; i++) {
+      final message = history[i];
+      if (message.role != 'tool' || message.toolCallId == null) continue;
+      for (var j = i - 1; j >= 0; j--) {
+        final candidate = history[j];
+        if (candidate.role == 'user') break;
+        if (candidate.role == 'assistant' &&
+            candidate.toolCalls.any((call) => call.id == message.toolCallId)) {
+          resolvedCallIds.add(message.toolCallId!);
+          break;
+        }
+      }
+    }
+    for (final message in history) {
+      final modelMessage = _modelMessage(message, resolvedCallIds);
+      if (modelMessage != null) yield modelMessage;
+    }
+  }
+
+  AiAgentModelMessage? _modelMessage(
+    AiAgentMessage message,
+    Set<String> resolvedCallIds,
+  ) {
+    switch (message.role) {
+      case 'user':
+        return AiAgentModelMessage(
+          role: message.role,
+          content: message.content,
+          attachments: message.attachments,
+        );
+      case 'assistant':
+        return AiAgentModelMessage(
+          role: message.role,
+          content: message.content,
+          toolCalls: [
+            for (final call in message.toolCalls)
+              if (resolvedCallIds.contains(call.id))
+                AiAgentToolCall(
+                  id: call.id,
+                  name: call.name,
+                  arguments: call.arguments,
+                ),
+          ],
+        );
+      case 'tool':
+        if (message.toolCallId == null ||
+            !resolvedCallIds.contains(message.toolCallId)) {
+          return null;
+        }
+        return AiAgentModelMessage(
+          role: message.role,
+          content: message.content,
+          toolCallId: message.toolCallId,
+        );
+      default:
+        return null;
+    }
+  }
+
+  Map<String, dynamic> _persistableArguments(Map<String, dynamic> arguments) {
+    final sanitized = sanitizeAiAgentValue(arguments);
+    return sanitized is Map<String, dynamic> ? sanitized : <String, dynamic>{};
   }
 
   String _buildSystemPrompt(

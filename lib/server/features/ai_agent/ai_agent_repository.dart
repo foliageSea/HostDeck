@@ -18,7 +18,10 @@ class AiAgentStoredSettings {
 }
 
 class AiAgentRepository {
+  static const maxToolContentBytes = 32 * 1024;
+
   final DatabaseService _database;
+  int _lastMessageTimestamp = 0;
 
   AiAgentRepository(this._database);
 
@@ -150,20 +153,26 @@ class AiAgentRepository {
     required String role,
     required String content,
     List<AiAgentImageAttachment> attachments = const [],
+    List<AiAgentMessageToolCall> toolCalls = const [],
+    String? toolCallId,
   }) {
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final now = _nextMessageTimestamp();
+    final storedContent = role == 'tool'
+        ? _persistableToolContent(content)
+        : content;
     _database.db.execute(
       '''INSERT INTO ai_agent_messages
-         (id, conversationId, role, content, attachments, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?)''',
+         (id, conversationId, role, content, attachments, metadata, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?)''',
       [
         id,
         conversationId,
         role,
-        content,
+        storedContent,
         jsonEncode(
           attachments.map((attachment) => attachment.toJson()).toList(),
         ),
+        _metadataJson(toolCalls: toolCalls, toolCallId: toolCallId),
         now,
       ],
     );
@@ -185,34 +194,101 @@ class AiAgentRepository {
       id: id,
       conversationId: conversationId,
       role: role,
-      content: content,
+      content: storedContent,
       attachments: attachments,
+      toolCallId: toolCallId,
+      toolCalls: toolCalls,
       createdAt: now,
     );
+  }
+
+  int _nextMessageTimestamp() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final next = now > _lastMessageTimestamp ? now : _lastMessageTimestamp + 1;
+    _lastMessageTimestamp = next;
+    return next;
+  }
+
+  String _persistableToolContent(String content) {
+    final sanitized = sanitizeAiAgentText(content);
+    final bytes = utf8.encode(sanitized);
+    if (bytes.length <= maxToolContentBytes) return sanitized;
+    var end = maxToolContentBytes;
+    while (end > 0 && (bytes[end] & 0xC0) == 0x80) {
+      end--;
+    }
+    return '${utf8.decode(bytes.sublist(0, end), allowMalformed: true)}\n[truncated]';
+  }
+
+  String _metadataJson({
+    List<AiAgentMessageToolCall> toolCalls = const [],
+    String? toolCallId,
+  }) {
+    if (toolCalls.isEmpty && toolCallId == null) return '{}';
+    return jsonEncode({
+      'toolCallId': ?toolCallId,
+      if (toolCalls.isNotEmpty)
+        'toolCalls': toolCalls.map((call) => call.toJson()).toList(),
+    });
   }
 
   List<AiAgentMessage> listMessages(String conversationId, {int limit = 100}) {
     final safeLimit = limit.clamp(1, 200);
     final rows = _database.db.select(
-      '''SELECT id, conversationId, role, content, attachments, createdAt FROM (
-           SELECT id, conversationId, role, content, attachments, createdAt
+      '''SELECT id, conversationId, role, content, attachments, metadata, createdAt FROM (
+           SELECT id, conversationId, role, content, attachments, metadata, createdAt
            FROM ai_agent_messages WHERE conversationId = ?
            ORDER BY createdAt DESC, id DESC LIMIT ?
          ) ORDER BY createdAt, id''',
       [conversationId, safeLimit],
     );
-    return rows
-        .map(
-          (row) => AiAgentMessage(
-            id: row['id'] as String,
-            conversationId: row['conversationId'] as String,
-            role: row['role'] as String,
-            content: row['content'] as String,
-            attachments: _attachmentsFromJson(row['attachments'] as String?),
-            createdAt: row['createdAt'] as int,
+    return rows.map(_messageFromRow).toList();
+  }
+
+  AiAgentMessage _messageFromRow(dynamic row) {
+    final metadata = _metadataFromJson(row['metadata'] as String?);
+    return AiAgentMessage(
+      id: row['id'] as String,
+      conversationId: row['conversationId'] as String,
+      role: row['role'] as String,
+      content: row['content'] as String,
+      attachments: _attachmentsFromJson(row['attachments'] as String?),
+      toolCallId: metadata['toolCallId'] as String?,
+      toolCalls: _toolCallsFromMetadata(metadata),
+      createdAt: row['createdAt'] as int,
+    );
+  }
+
+  Map<String, dynamic> _metadataFromJson(String? raw) {
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : const {};
+    } on FormatException {
+      return const {};
+    }
+  }
+
+  List<AiAgentMessageToolCall> _toolCallsFromMetadata(
+    Map<String, dynamic> metadata,
+  ) {
+    final raw = metadata['toolCalls'];
+    if (raw is! List) return const [];
+    return List.unmodifiable([
+      for (final item in raw)
+        if (item is Map<String, dynamic> &&
+            item['id'] is String &&
+            item['name'] is String)
+          AiAgentMessageToolCall(
+            id: item['id'] as String,
+            name: item['name'] as String,
+            arguments: item['arguments'] is Map<String, dynamic>
+                ? Map<String, dynamic>.unmodifiable(
+                    item['arguments'] as Map<String, dynamic>,
+                  )
+                : const {},
           ),
-        )
-        .toList();
+    ]);
   }
 
   AiAgentConversation _conversationFromRow(dynamic row) => AiAgentConversation(

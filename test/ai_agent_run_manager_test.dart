@@ -102,7 +102,12 @@ void main() {
         model.inputs.last.last.content,
         'The user rejected this tool call.',
       );
-      expect(repository.listMessages('conversation-1'), hasLength(2));
+      expect(
+        repository
+            .listMessages('conversation-1')
+            .map((message) => message.role),
+        ['user', 'assistant', 'tool', 'assistant'],
+      );
     },
   );
 
@@ -124,7 +129,10 @@ void main() {
     expect(body, contains('Run cancelled.'));
     expect(tools.executeCount, 0);
     expect(model.closed, isTrue);
-    expect(repository.listMessages('conversation-1'), hasLength(1));
+    expect(
+      repository.listMessages('conversation-1').map((message) => message.role),
+      ['user', 'assistant'],
+    );
     expect(
       manager.approve(run.runId, 'call-1', 'browser:test'),
       AiAgentApprovalResult.notFound,
@@ -261,6 +269,79 @@ void main() {
     );
     expect(tools.resolveCount, 0);
   });
+
+  test(
+    'persists tool calls and restores them into follow-up context',
+    () async {
+      model.responses = const [
+        AiAgentModelResponse(
+          text: '',
+          toolCalls: [
+            AiAgentToolCall(
+              id: 'call-1',
+              name: 'shell_execute',
+              arguments: {'command': 'uptime'},
+            ),
+          ],
+        ),
+        AiAgentModelResponse(text: 'First run done'),
+        AiAgentModelResponse(text: 'Second run answer'),
+      ];
+      final firstRun = manager.start(
+        conversationId: 'conversation-1',
+        connectionId: 'connection-1',
+        targetKey: 'server:7',
+        ownerId: 'browser:test',
+        input: 'check uptime',
+      );
+      final events = _collect(firstRun.stream);
+      await events.approvalRequired.future.timeout(const Duration(seconds: 2));
+      expect(
+        manager.approve(firstRun.runId, 'call-1', 'browser:test'),
+        AiAgentApprovalResult.accepted,
+      );
+      await events.done.future.timeout(const Duration(seconds: 2));
+
+      final stored = repository.listMessages('conversation-1');
+      expect(stored.map((message) => message.role), [
+        'user',
+        'assistant',
+        'tool',
+        'assistant',
+      ]);
+      expect(stored[1].toolCalls.single.id, 'call-1');
+      expect(stored[1].toolCalls.single.arguments, {'command': 'uptime'});
+      expect(stored[2].toolCallId, 'call-1');
+      expect(stored[2].content, 'executed');
+
+      final secondRun = manager.start(
+        conversationId: 'conversation-1',
+        connectionId: 'connection-1',
+        targetKey: 'server:7',
+        ownerId: 'browser:test',
+        input: 'summarize again',
+      );
+      await _collect(
+        secondRun.stream,
+      ).done.future.timeout(const Duration(seconds: 2));
+
+      final context = model.inputs[2];
+      expect(context.first.role, 'system');
+      final restoredAssistant = context
+          .where((message) => message.toolCalls.isNotEmpty)
+          .single;
+      expect(restoredAssistant.role, 'assistant');
+      expect(restoredAssistant.toolCalls.single.id, 'call-1');
+      expect(restoredAssistant.toolCalls.single.name, 'shell_execute');
+      final restoredTool = context
+          .where((message) => message.role == 'tool')
+          .single;
+      expect(restoredTool.toolCallId, 'call-1');
+      expect(restoredTool.content, 'executed');
+      expect(context.last.role, 'user');
+      expect(context.last.content, 'summarize again');
+    },
+  );
 }
 
 _CollectedEvents _collect(Stream<List<int>> stream) {
