@@ -259,11 +259,6 @@ class AiAgentController {
         'conversation': conversation.toJson(),
         'messages': _repository
             .listMessages(id)
-            .where(
-              (message) =>
-                  message.role == 'user' ||
-                  (message.role == 'assistant' && message.toolCalls.isEmpty),
-            )
             .map((message) => message.toJson())
             .toList(),
       });

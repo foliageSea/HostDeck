@@ -322,6 +322,95 @@ describe('AI Agent store', () => {
     expect(store.selectedConversation).toBeNull()
   })
 
+  it('restores tool call context when opening a conversation', async () => {
+    apiMocks.getConversation.mockResolvedValue({
+      conversation,
+      messages: [
+        { attachments: [], content: 'inspect host', createdAt: 1, id: 'm-user-1', role: 'user' },
+        {
+          attachments: [],
+          content: 'Checking.',
+          createdAt: 2,
+          id: 'm-assistant-1',
+          role: 'assistant',
+          toolCalls: [
+            {
+              arguments: { command: 'uptime' },
+              id: 'call-1',
+              name: 'shell_execute',
+              summary: 'Execute a remote shell command',
+            },
+            { arguments: { path: '/etc/hosts' }, id: 'call-2', name: 'file_read' },
+          ],
+        },
+        {
+          attachments: [],
+          content: 'up 2 days',
+          createdAt: 3,
+          id: 'm-tool-1',
+          role: 'tool',
+          toolCallId: 'call-1',
+          toolStatus: 'success',
+        },
+        {
+          attachments: [],
+          content: 'read failed',
+          createdAt: 4,
+          id: 'm-tool-2',
+          role: 'tool',
+          toolCallId: 'call-2',
+          toolStatus: 'failed',
+        },
+        { attachments: [], content: 'Checking.Done.', createdAt: 5, id: 'm-final-1', role: 'assistant' },
+        { attachments: [], content: 'clean up', createdAt: 6, id: 'm-user-2', role: 'user' },
+        {
+          attachments: [],
+          content: 'Working on it.',
+          createdAt: 7,
+          id: 'm-assistant-2',
+          role: 'assistant',
+          toolCalls: [{ id: 'call-3', name: 'mcp_3_search', summary: 'Docs: search' }],
+        },
+      ],
+    })
+    const store = useAiAgentStore()
+    await store.loadConversations('connection-1')
+    await store.selectConversation('conversation-1', 'connection-1')
+
+    expect(store.messages.map((message) => message.id)).toEqual([
+      'm-user-1',
+      'm-final-1',
+      'm-user-2',
+      'm-assistant-2',
+    ])
+    expect(store.toolCalls).toMatchObject([
+      {
+        arguments: { command: 'uptime' },
+        callId: 'call-1',
+        result: { content: 'up 2 days' },
+        status: 'success',
+        summary: 'Execute a remote shell command',
+      },
+      {
+        arguments: { path: '/etc/hosts' },
+        callId: 'call-2',
+        result: { content: 'read failed' },
+        status: 'error',
+        summary: 'Read a remote file',
+      },
+      {
+        callId: 'call-3',
+        name: 'mcp_3_search',
+        result: undefined,
+        status: 'error',
+        summary: 'Docs: search',
+      },
+    ])
+    expect(store.toolCalls.every((tool) => !tool.approvalPending)).toBe(true)
+    expect(store.runSteps.map((step) => step.callId)).toEqual(['call-1', 'call-2', 'call-3'])
+    expect(store.runSteps.every((step) => step.restored && step.type === 'tool')).toBe(true)
+  })
+
   it('does not overwrite a completed tool when approval responds late', async () => {
     let emit!: (event: AiAgentRunEvent) => void
     let finishRun!: () => void

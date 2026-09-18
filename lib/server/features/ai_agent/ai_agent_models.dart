@@ -83,17 +83,20 @@ class AiAgentMessageToolCall {
   final String id;
   final String name;
   final Map<String, dynamic> arguments;
+  final String? summary;
 
   const AiAgentMessageToolCall({
     required this.id,
     required this.name,
     this.arguments = const {},
+    this.summary,
   });
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'arguments': arguments,
+    if (summary != null) 'summary': summary,
   };
 }
 
@@ -105,6 +108,7 @@ class AiAgentMessage {
   final List<AiAgentImageAttachment> attachments;
   final String? toolCallId;
   final List<AiAgentMessageToolCall> toolCalls;
+  final String? toolStatus;
   final int createdAt;
 
   const AiAgentMessage({
@@ -115,6 +119,7 @@ class AiAgentMessage {
     this.attachments = const [],
     this.toolCallId,
     this.toolCalls = const [],
+    this.toolStatus,
     required this.createdAt,
   });
 
@@ -128,6 +133,7 @@ class AiAgentMessage {
     if (toolCallId != null) 'toolCallId': toolCallId,
     if (toolCalls.isNotEmpty)
       'toolCalls': toolCalls.map((call) => call.toJson()).toList(),
+    if (toolStatus != null) 'toolStatus': toolStatus,
     'createdAt': createdAt,
   };
 }

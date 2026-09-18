@@ -277,6 +277,7 @@ inspected or changed the host. Do not expose secrets.
                 id: call.id,
                 name: call.name,
                 arguments: _persistableArguments(call.arguments),
+                summary: _toolService.summary(call.name),
               ),
           ],
         );
@@ -307,6 +308,7 @@ inspected or changed the host. Do not expose secrets.
             status: 'running',
           );
           AiAgentToolResult result;
+          var rejected = false;
           if (_toolService.requiresApproval(call.name)) {
             final approval = _PendingApproval(
               callId: call.id,
@@ -340,6 +342,7 @@ inspected or changed the host. Do not expose secrets.
             }
             _ensureActive(run);
             if (!approved) {
+              rejected = true;
               result = AiAgentToolResult(
                 success: false,
                 content: 'The user rejected this tool call.',
@@ -389,6 +392,11 @@ inspected or changed the host. Do not expose secrets.
             role: 'tool',
             content: result.content,
             toolCallId: call.id,
+            toolStatus: rejected
+                ? 'rejected'
+                : result.success
+                ? 'success'
+                : 'failed',
           );
         }
       }

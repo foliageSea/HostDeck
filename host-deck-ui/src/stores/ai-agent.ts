@@ -35,6 +35,104 @@ export interface AiAgentToolCall {
   submitting: boolean
 }
 
+const TOOL_SUMMARIES: Record<string, string> = {
+  apply_patch: 'Apply a remote patch',
+  file_read: 'Read a remote file',
+  file_write: 'Write a remote file',
+  process_list: 'Read process list',
+  shell_execute: 'Execute a remote shell command',
+  system_status: 'Read system status',
+}
+
+function restoredToolSummary(name: string) {
+  return TOOL_SUMMARIES[name] ?? name
+}
+
+function restoredToolStatus(
+  toolStatus: AiAgentMessage['toolStatus'],
+  hasResult: boolean,
+): AiAgentToolStatus {
+  if (toolStatus === 'rejected') return 'rejected'
+  if (toolStatus === 'failed') return 'error'
+  if (toolStatus === 'success') return 'success'
+  return hasResult ? 'success' : 'error'
+}
+
+function restoredStepStatus(status: AiAgentToolStatus) {
+  if (status === 'rejected') return 'rejected' as const
+  if (status === 'success') return 'success' as const
+  return 'failed' as const
+}
+
+function restoreConversation(loaded: AiAgentMessage[]) {
+  const toolResults = new Map<string, { content: string; status?: AiAgentMessage['toolStatus'] }>()
+  for (const message of loaded) {
+    if (message.role === 'tool' && message.toolCallId) {
+      toolResults.set(message.toolCallId, {
+        content: message.content,
+        status: message.toolStatus,
+      })
+    }
+  }
+
+  const messages: AiAgentMessage[] = []
+  const steps: AiAgentRunStep[] = []
+  const tools: AiAgentToolCall[] = []
+  const segments: AiAgentMessage[][] = []
+  for (const message of loaded) {
+    if (message.role === 'user' || segments.length === 0) segments.push([])
+    segments.at(-1)!.push(message)
+  }
+
+  let sequence = 0
+  for (const segment of segments) {
+    const last = segment.at(-1)
+    const completed =
+      last !== undefined && last.role === 'assistant' && !(last.toolCalls?.length ?? 0)
+    for (const message of segment) {
+      if (message.role === 'user') {
+        messages.push(message)
+        continue
+      }
+      if (message.role !== 'assistant') continue
+      const calls = message.toolCalls ?? []
+      if (calls.length === 0) {
+        messages.push(message)
+        continue
+      }
+      if (!completed && message.content) messages.push(message)
+      for (const call of calls) {
+        const result = toolResults.get(call.id)
+        const status = restoredToolStatus(result?.status, result !== undefined)
+        steps.push({
+          arguments: call.arguments,
+          callId: call.id,
+          name: call.name,
+          restored: true,
+          runId: '',
+          sequence: sequence++,
+          startedAt: message.createdAt,
+          status: restoredStepStatus(status),
+          stepId: `restored-${call.id}`,
+          type: 'tool',
+        })
+        tools.push({
+          arguments: call.arguments,
+          approvalPending: false,
+          callId: call.id,
+          name: call.name,
+          result: result ? { content: result.content } : undefined,
+          status,
+          submitting: false,
+          summary: call.summary ?? restoredToolSummary(call.name),
+        })
+      }
+    }
+  }
+
+  return { messages, steps, tools }
+}
+
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : '请求失败，请稍后重试。'
 }
@@ -270,10 +368,11 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     try {
       const result = await aiAgentApi.getConversation(id, connectionId)
       if (request !== detailRequest || currentConnectionId.value !== connectionId) return
+      const restored = restoreConversation(result.messages)
       selectedConversation.value = result.conversation
-      messages.value = result.messages.slice(-MAX_MESSAGES)
-      toolCalls.value = []
-      runSteps.value = []
+      messages.value = restored.messages.slice(-MAX_MESSAGES)
+      toolCalls.value = restored.tools.slice(-MAX_TOOL_CALLS)
+      runSteps.value = restored.steps.slice(-MAX_TOOL_CALLS)
       usage.value = null
       durationMs.value = null
       streamingMessageId.value = null

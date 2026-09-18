@@ -59,11 +59,21 @@ export interface AiAgentImageAttachment {
   data: string
 }
 
+export interface AiAgentMessageToolCall {
+  id: string
+  name: string
+  arguments?: unknown
+  summary?: string
+}
+
 export interface AiAgentMessage {
   id: string
   role: AiAgentMessageRole
   content: string
   attachments: AiAgentImageAttachment[]
+  toolCallId?: string
+  toolCalls?: AiAgentMessageToolCall[]
+  toolStatus?: 'success' | 'failed' | 'rejected'
   createdAt: number | string
 }
 
@@ -108,6 +118,7 @@ export interface AiAgentRunStep {
   summary?: string
   arguments?: unknown
   content?: string
+  restored?: boolean
 }
 
 export interface AiAgentToolCallRecord {

@@ -43,6 +43,7 @@ import {
   imageAttachmentSrc,
   MAX_IMAGE_ATTACHMENTS,
 } from './components/image-attachments'
+import { buildTimelineEntries } from './components/timeline'
 
 interface ConversationGroup {
   label: string
@@ -156,40 +157,7 @@ const selectedSkills = computed(() => {
   return skills.value.filter((skill) => selectedIds.has(skill.id))
 })
 
-const timelineEntries = computed(() => {
-  if (runSteps.value.length === 0) {
-    return messages.value.map((message) => ({ kind: 'message' as const, message }))
-  }
-  const currentAssistantIds = new Set(
-    runSteps.value.filter((step) => step.type === 'model' && step.messageId).map((step) => step.messageId),
-  )
-  const latestMessage = messages.value.at(-1)
-  if (runSteps.value.some((step) => step.type === 'model') && latestMessage?.role === 'assistant') {
-    currentAssistantIds.add(latestMessage.id)
-  }
-  const entries: Array<
-    | { kind: 'message'; message: (typeof messages.value)[number] }
-    | { kind: 'step'; step: AiAgentRunStep }
-  > = messages.value
-    .filter((message) => !currentAssistantIds.has(message.id))
-    .map((message) => ({ kind: 'message' as const, message }))
-  const sortedSteps = [...runSteps.value].sort((a, b) => a.sequence - b.sequence)
-  const modelSteps = sortedSteps.filter((step) => step.type === 'model')
-  const firstModelStepId = modelSteps.at(0)?.stepId
-  const lastModelStepId = modelSteps.at(-1)?.stepId
-  for (const step of sortedSteps) {
-    if (
-      step.type === 'model' &&
-      !step.content &&
-      step.stepId !== firstModelStepId &&
-      step.stepId !== lastModelStepId
-    ) {
-      continue
-    }
-    entries.push({ kind: 'step', step })
-  }
-  return entries
-})
+const timelineEntries = computed(() => buildTimelineEntries(messages.value, runSteps.value))
 
 function toolForStep(step: AiAgentRunStep) {
   return toolCalls.value.find((tool) => tool.callId === step.callId)

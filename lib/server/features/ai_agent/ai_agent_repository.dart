@@ -155,6 +155,7 @@ class AiAgentRepository {
     List<AiAgentImageAttachment> attachments = const [],
     List<AiAgentMessageToolCall> toolCalls = const [],
     String? toolCallId,
+    String? toolStatus,
   }) {
     final now = _nextMessageTimestamp();
     final storedContent = role == 'tool'
@@ -172,7 +173,11 @@ class AiAgentRepository {
         jsonEncode(
           attachments.map((attachment) => attachment.toJson()).toList(),
         ),
-        _metadataJson(toolCalls: toolCalls, toolCallId: toolCallId),
+        _metadataJson(
+          toolCalls: toolCalls,
+          toolCallId: toolCallId,
+          toolStatus: toolStatus,
+        ),
         now,
       ],
     );
@@ -198,6 +203,7 @@ class AiAgentRepository {
       attachments: attachments,
       toolCallId: toolCallId,
       toolCalls: toolCalls,
+      toolStatus: toolStatus,
       createdAt: now,
     );
   }
@@ -223,10 +229,14 @@ class AiAgentRepository {
   String _metadataJson({
     List<AiAgentMessageToolCall> toolCalls = const [],
     String? toolCallId,
+    String? toolStatus,
   }) {
-    if (toolCalls.isEmpty && toolCallId == null) return '{}';
+    if (toolCalls.isEmpty && toolCallId == null && toolStatus == null) {
+      return '{}';
+    }
     return jsonEncode({
       'toolCallId': ?toolCallId,
+      'toolStatus': ?toolStatus,
       if (toolCalls.isNotEmpty)
         'toolCalls': toolCalls.map((call) => call.toJson()).toList(),
     });
@@ -255,6 +265,7 @@ class AiAgentRepository {
       attachments: _attachmentsFromJson(row['attachments'] as String?),
       toolCallId: metadata['toolCallId'] as String?,
       toolCalls: _toolCallsFromMetadata(metadata),
+      toolStatus: metadata['toolStatus'] as String?,
       createdAt: row['createdAt'] as int,
     );
   }
@@ -287,6 +298,9 @@ class AiAgentRepository {
                     item['arguments'] as Map<String, dynamic>,
                   )
                 : const {},
+            summary: item['summary'] is String
+                ? item['summary'] as String
+                : null,
           ),
     ]);
   }

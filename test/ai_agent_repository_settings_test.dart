@@ -101,6 +101,7 @@ void main() {
           id: 'call-1',
           name: 'shell_execute',
           arguments: {'command': 'docker ps'},
+          summary: 'Execute a remote shell command',
         ),
       ],
     );
@@ -111,6 +112,7 @@ void main() {
       content:
           'password=hunter2\n${'x' * (AiAgentRepository.maxToolContentBytes + 512)}',
       toolCallId: 'call-1',
+      toolStatus: 'failed',
     );
 
     final messages = repository.listMessages('conversation-1');
@@ -121,7 +123,12 @@ void main() {
     ]);
     expect(messages[1].toolCalls.single.id, 'call-1');
     expect(messages[1].toolCalls.single.arguments, {'command': 'docker ps'});
+    expect(
+      messages[1].toolCalls.single.summary,
+      'Execute a remote shell command',
+    );
     expect(messages[2].toolCallId, 'call-1');
+    expect(messages[2].toolStatus, 'failed');
     expect(messages[2].content, contains('password=[redacted]'));
     expect(messages[2].content, isNot(contains('hunter2')));
     expect(messages[2].content, endsWith('[truncated]'));
@@ -129,6 +136,61 @@ void main() {
       utf8.encode(messages[2].content).length,
       lessThanOrEqualTo(AiAgentRepository.maxToolContentBytes + 64),
     );
+  });
+
+  test('serializes restored tool context for the conversation detail API', () {
+    repository.createConversation('conversation-1', 'server:7');
+    repository.addMessage(
+      id: 'message-user',
+      conversationId: 'conversation-1',
+      role: 'user',
+      content: 'inspect host',
+    );
+    repository.addMessage(
+      id: 'message-assistant',
+      conversationId: 'conversation-1',
+      role: 'assistant',
+      content: 'Checking.',
+      toolCalls: const [
+        AiAgentMessageToolCall(
+          id: 'call-1',
+          name: 'shell_execute',
+          arguments: {'command': 'uptime'},
+          summary: 'Execute a remote shell command',
+        ),
+      ],
+    );
+    repository.addMessage(
+      id: 'message-tool',
+      conversationId: 'conversation-1',
+      role: 'tool',
+      content: 'executed',
+      toolCallId: 'call-1',
+      toolStatus: 'success',
+    );
+    repository.addMessage(
+      id: 'message-final',
+      conversationId: 'conversation-1',
+      role: 'assistant',
+      content: 'All good.',
+    );
+
+    final json = repository
+        .listMessages('conversation-1')
+        .map((message) => message.toJson())
+        .toList();
+    expect(json[1]['toolCalls'], [
+      {
+        'id': 'call-1',
+        'name': 'shell_execute',
+        'arguments': {'command': 'uptime'},
+        'summary': 'Execute a remote shell command',
+      },
+    ]);
+    expect(json[2]['toolCallId'], 'call-1');
+    expect(json[2]['toolStatus'], 'success');
+    expect(json[3].containsKey('toolCalls'), isFalse);
+    expect(json[3].containsKey('toolStatus'), isFalse);
   });
 
   test(

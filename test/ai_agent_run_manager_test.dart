@@ -102,12 +102,15 @@ void main() {
         model.inputs.last.last.content,
         'The user rejected this tool call.',
       );
-      expect(
-        repository
-            .listMessages('conversation-1')
-            .map((message) => message.role),
-        ['user', 'assistant', 'tool', 'assistant'],
-      );
+      final storedMessages = repository.listMessages('conversation-1');
+      expect(storedMessages.map((message) => message.role), [
+        'user',
+        'assistant',
+        'tool',
+        'assistant',
+      ]);
+      expect(storedMessages[2].toolStatus, 'rejected');
+      expect(storedMessages[2].toolCalls, isEmpty);
     },
   );
 
@@ -311,8 +314,10 @@ void main() {
       ]);
       expect(stored[1].toolCalls.single.id, 'call-1');
       expect(stored[1].toolCalls.single.arguments, {'command': 'uptime'});
+      expect(stored[1].toolCalls.single.summary, 'Sensitive operation');
       expect(stored[2].toolCallId, 'call-1');
       expect(stored[2].content, 'executed');
+      expect(stored[2].toolStatus, 'success');
 
       final secondRun = manager.start(
         conversationId: 'conversation-1',
