@@ -244,10 +244,21 @@ async function copyOutput() {
 
 .agent-tool-copy-action {
   display: flex;
-  min-width: 0;
-  align-items: baseline;
-  flex: 1;
-  gap: 7px;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  opacity: 0.66;
+  cursor: pointer;
+}
+
+.agent-tool-copy-action:hover {
+  opacity: 1;
 }
 
 .agent-tool-summary {

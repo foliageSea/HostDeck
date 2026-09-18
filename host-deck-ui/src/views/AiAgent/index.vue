@@ -175,9 +175,17 @@ const timelineEntries = computed(() => {
     .map((message) => ({ kind: 'message' as const, message }))
   const sortedSteps = [...runSteps.value].sort((a, b) => a.sequence - b.sequence)
   const modelSteps = sortedSteps.filter((step) => step.type === 'model')
+  const firstModelStepId = modelSteps.at(0)?.stepId
   const lastModelStepId = modelSteps.at(-1)?.stepId
   for (const step of sortedSteps) {
-    if (step.type === 'model' && !step.content && step.stepId !== lastModelStepId) continue
+    if (
+      step.type === 'model' &&
+      !step.content &&
+      step.stepId !== firstModelStepId &&
+      step.stepId !== lastModelStepId
+    ) {
+      continue
+    }
     entries.push({ kind: 'step', step })
   }
   return entries
@@ -724,7 +732,9 @@ let resizeObserver: ResizeObserver | undefined
                 v-if="entry.step.content"
                 :content="entry.step.content"
               />
-              <div v-else class="agent-thinking" aria-label="Agent 正在思考"><span /><span /><span /></div>
+              <div v-else-if="running" class="agent-thinking" aria-label="Agent 正在思考">
+                <span /><span /><span />
+              </div>
             </div>
             <div v-else-if="(entry.step.type === 'tool' || entry.step.type === 'approval') && toolForStep(entry.step)" class="agent-tools">
               <AiAgentToolCall
