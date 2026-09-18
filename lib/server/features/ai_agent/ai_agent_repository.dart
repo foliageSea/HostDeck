@@ -149,13 +149,23 @@ class AiAgentRepository {
     required String conversationId,
     required String role,
     required String content,
+    List<AiAgentImageAttachment> attachments = const [],
   }) {
     final now = DateTime.now().millisecondsSinceEpoch;
     _database.db.execute(
       '''INSERT INTO ai_agent_messages
-         (id, conversationId, role, content, createdAt)
-         VALUES (?, ?, ?, ?, ?)''',
-      [id, conversationId, role, content, now],
+         (id, conversationId, role, content, attachments, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?)''',
+      [
+        id,
+        conversationId,
+        role,
+        content,
+        jsonEncode(
+          attachments.map((attachment) => attachment.toJson()).toList(),
+        ),
+        now,
+      ],
     );
     _database.db.execute(
       'UPDATE ai_agent_conversations SET updatedAt = ? WHERE id = ?',
@@ -165,7 +175,10 @@ class AiAgentRepository {
       _database.db.execute(
         '''UPDATE ai_agent_conversations SET title = ?
            WHERE id = ? AND title = '新对话' ''',
-        [_titleFromContent(content), conversationId],
+        [
+          _titleFromContent(content, hasAttachments: attachments.isNotEmpty),
+          conversationId,
+        ],
       );
     }
     return AiAgentMessage(
@@ -173,6 +186,7 @@ class AiAgentRepository {
       conversationId: conversationId,
       role: role,
       content: content,
+      attachments: attachments,
       createdAt: now,
     );
   }
@@ -180,8 +194,8 @@ class AiAgentRepository {
   List<AiAgentMessage> listMessages(String conversationId, {int limit = 100}) {
     final safeLimit = limit.clamp(1, 200);
     final rows = _database.db.select(
-      '''SELECT id, conversationId, role, content, createdAt FROM (
-           SELECT id, conversationId, role, content, createdAt
+      '''SELECT id, conversationId, role, content, attachments, createdAt FROM (
+           SELECT id, conversationId, role, content, attachments, createdAt
            FROM ai_agent_messages WHERE conversationId = ?
            ORDER BY createdAt DESC, id DESC LIMIT ?
          ) ORDER BY createdAt, id''',
@@ -194,6 +208,7 @@ class AiAgentRepository {
             conversationId: row['conversationId'] as String,
             role: row['role'] as String,
             content: row['content'] as String,
+            attachments: _attachmentsFromJson(row['attachments'] as String?),
             createdAt: row['createdAt'] as int,
           ),
         )
@@ -208,9 +223,9 @@ class AiAgentRepository {
     updatedAt: row['updatedAt'] as int,
   );
 
-  String _titleFromContent(String content) {
+  String _titleFromContent(String content, {bool hasAttachments = false}) {
     final normalized = content.trim().replaceAll(RegExp(r'\s+'), ' ');
-    if (normalized.isEmpty) return '新对话';
+    if (normalized.isEmpty) return hasAttachments ? '图片对话' : '新对话';
     return normalized.length <= 40
         ? normalized
         : '${normalized.substring(0, 40)}...';
@@ -233,6 +248,21 @@ class AiAgentRepository {
                   : item['id'] as String,
             ),
       ];
+    } on FormatException {
+      return const [];
+    }
+  }
+
+  List<AiAgentImageAttachment> _attachmentsFromJson(String? value) {
+    if (value == null || value.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is! List) return const [];
+      return List.unmodifiable(
+        decoded.whereType<Map<String, dynamic>>().map(
+          AiAgentImageAttachment.fromJson,
+        ),
+      );
     } on FormatException {
       return const [];
     }

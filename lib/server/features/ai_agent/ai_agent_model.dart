@@ -5,6 +5,7 @@ import 'package:langchain/langchain.dart';
 import 'package:langchain_openai/langchain_openai.dart';
 
 import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 
 class AiAgentToolCall {
   final String id;
@@ -21,12 +22,14 @@ class AiAgentToolCall {
 class AiAgentModelMessage {
   final String role;
   final String content;
+  final List<AiAgentImageAttachment> attachments;
   final String? toolCallId;
   final List<AiAgentToolCall> toolCalls;
 
   const AiAgentModelMessage({
     required this.role,
     required this.content,
+    this.attachments = const [],
     this.toolCallId,
     this.toolCalls = const [],
   });
@@ -124,7 +127,20 @@ class LangChainOpenAiAgentModel implements AiAgentModel {
   ChatMessage _toLangChainMessage(AiAgentModelMessage message) {
     return switch (message.role) {
       'system' => ChatMessage.system(message.content),
-      'user' => ChatMessage.humanText(message.content),
+      'user' =>
+        message.attachments.isEmpty
+            ? ChatMessage.humanText(message.content)
+            : ChatMessage.human(
+                ChatMessageContent.multiModal([
+                  if (message.content.isNotEmpty)
+                    ChatMessageContent.text(message.content),
+                  for (final attachment in message.attachments)
+                    ChatMessageContent.image(
+                      data: attachment.data,
+                      mimeType: attachment.mimeType,
+                    ),
+                ]),
+              ),
       'assistant' => ChatMessage.aiText(
         message.content,
         toolCalls: message.toolCalls

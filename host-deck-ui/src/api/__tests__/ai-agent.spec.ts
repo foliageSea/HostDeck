@@ -98,6 +98,7 @@ describe('aiAgentApi.run', () => {
       (event) => events.push(event),
       undefined,
       'gpt-5',
+      [{ data: 'aGVsbG8=', mimeType: 'image/png', name: 'screen.png' }],
     )
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -108,6 +109,7 @@ describe('aiAgentApi.run', () => {
           input: 'hello',
           model: 'gpt-5',
           skillIds: ['logs'],
+          attachments: [{ data: 'aGVsbG8=', mimeType: 'image/png', name: 'screen.png' }],
         }),
         credentials: 'same-origin',
         method: 'POST',

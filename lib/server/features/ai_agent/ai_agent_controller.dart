@@ -16,6 +16,16 @@ import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dar
 import 'package:host_deck/server/features/ai_agent/ai_agent_skill_service.dart';
 
 class AiAgentController {
+  static const _maxImageCount = 4;
+  static const _maxImageBytes = 8 * 1024 * 1024;
+  static const _maxTotalImageBytes = 20 * 1024 * 1024;
+  static const _imageMimeTypes = {
+    'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+  };
+
   final AiAgentRepository _repository;
   final AiAgentSettingsService _settingsService;
   final AiAgentModelFactory _modelFactory;
@@ -311,7 +321,11 @@ class AiAgentController {
     try {
       final data = await _readJson(request);
       final connectionId = _requiredString(data, 'connectionId');
-      final input = _requiredString(data, 'input');
+      final input = _optionalConfigString(data, 'input')?.trim() ?? '';
+      final attachments = _imageAttachments(data);
+      if (input.isEmpty && attachments.isEmpty) {
+        return Result.fail(400, 'Input or an image is required.');
+      }
       final skillIds = _skillIds(data);
       final model = _optionalConfigString(data, 'model');
       if (utf8.encode(input).length > 32 * 1024) {
@@ -328,6 +342,7 @@ class AiAgentController {
         targetKey: targetKey,
         ownerId: _principalId(request),
         input: input,
+        attachments: attachments,
         model: model,
         skills: skills,
       );
@@ -542,6 +557,53 @@ class AiAgentController {
       throw const FormatException('At most 8 skills may be selected.');
     }
     return List<String>.unmodifiable(value.cast<String>());
+  }
+
+  List<AiAgentImageAttachment> _imageAttachments(Map<String, dynamic> data) {
+    if (!data.containsKey('attachments')) return const [];
+    final value = data['attachments'];
+    if (value is! List || value.length > _maxImageCount) {
+      throw const FormatException('At most 4 images may be attached.');
+    }
+    var totalBytes = 0;
+    final attachments = <AiAgentImageAttachment>[];
+    for (final item in value) {
+      if (item is! Map<String, dynamic> ||
+          item['mimeType'] is! String ||
+          item['data'] is! String) {
+        throw const FormatException('Invalid image attachment.');
+      }
+      final mimeType = (item['mimeType'] as String).toLowerCase();
+      if (!_imageMimeTypes.contains(mimeType)) {
+        throw const FormatException('Unsupported image type.');
+      }
+      late final List<int> bytes;
+      try {
+        bytes = base64Decode(item['data'] as String);
+      } on FormatException {
+        throw const FormatException('Invalid image data.');
+      }
+      if (bytes.isEmpty || bytes.length > _maxImageBytes) {
+        throw const FormatException('Each image must not exceed 8 MiB.');
+      }
+      totalBytes += bytes.length;
+      if (totalBytes > _maxTotalImageBytes) {
+        throw const FormatException('Attached images must not exceed 20 MiB.');
+      }
+      final rawName = item['name'];
+      final name = rawName is String ? rawName.trim() : '';
+      if (name.length > 255) {
+        throw const FormatException('Image name is too long.');
+      }
+      attachments.add(
+        AiAgentImageAttachment(
+          name: name,
+          mimeType: mimeType,
+          data: item['data'] as String,
+        ),
+      );
+    }
+    return List.unmodifiable(attachments);
   }
 
   String _newId() {

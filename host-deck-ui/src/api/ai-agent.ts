@@ -53,10 +53,17 @@ export interface AiAgentConversation {
 
 export type AiAgentMessageRole = 'assistant' | 'system' | 'tool' | 'user'
 
+export interface AiAgentImageAttachment {
+  name: string
+  mimeType: string
+  data: string
+}
+
 export interface AiAgentMessage {
   id: string
   role: AiAgentMessageRole
   content: string
+  attachments: AiAgentImageAttachment[]
   createdAt: number | string
 }
 
@@ -313,11 +320,18 @@ export const aiAgentApi = {
     onEvent: (event: AiAgentRunEvent) => void,
     signal?: AbortSignal,
     model?: string,
+    attachments: AiAgentImageAttachment[] = [],
   ) {
     const response = await fetch(
       `/api/ai-agent/conversations/${encodeURIComponent(conversationId)}/runs`,
       {
-          body: JSON.stringify({ connectionId, input, ...(model ? { model } : {}), skillIds }),
+        body: JSON.stringify({
+          connectionId,
+          input,
+          ...(model ? { model } : {}),
+          skillIds,
+          ...(attachments.length ? { attachments } : {}),
+        }),
         credentials: 'same-origin',
         headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
         method: 'POST',

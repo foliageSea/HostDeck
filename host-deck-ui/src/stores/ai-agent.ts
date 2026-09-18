@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import {
   aiAgentApi,
   type AiAgentConversation,
+  type AiAgentImageAttachment,
   type AiAgentMessage,
   type AiAgentMcpServer,
   type AiAgentMcpServerInput,
@@ -34,8 +35,13 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : '请求失败，请稍后重试。'
 }
 
-function temporaryMessage(role: 'assistant' | 'user', content: string): AiAgentMessage {
+function temporaryMessage(
+  role: 'assistant' | 'user',
+  content: string,
+  attachments: AiAgentImageAttachment[] = [],
+): AiAgentMessage {
   return {
+    attachments,
     content,
     createdAt: Date.now(),
     id: `local-${role}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -348,9 +354,13 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     }
   }
 
-  async function startRun(input: string, connectionId: string) {
+  async function startRun(
+    input: string,
+    connectionId: string,
+    attachments: AiAgentImageAttachment[] = [],
+  ) {
     const trimmedInput = input.trim()
-    if (!trimmedInput || running.value) return false
+    if ((!trimmedInput && attachments.length === 0) || running.value) return false
     resetForConnection(connectionId)
     const runSkillIds = [...selectedSkillIds.value]
     const model = settings.value?.model
@@ -366,7 +376,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         if (!created) return false
       }
       const conversationId = selectedConversation.value!.id
-      const userMessage = temporaryMessage('user', trimmedInput)
+      const userMessage = temporaryMessage('user', trimmedInput, attachments)
       const assistantMessage = temporaryMessage('assistant', '')
       messages.value = [...messages.value, userMessage, assistantMessage].slice(-MAX_MESSAGES)
       const streamedAssistant = messages.value.at(-1)!
@@ -388,6 +398,18 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
           onEvent,
           controller.signal,
           model,
+          attachments,
+        )
+      } else if (attachments.length) {
+        await aiAgentApi.run(
+          conversationId,
+          connectionId,
+          trimmedInput,
+          runSkillIds,
+          onEvent,
+          controller.signal,
+          undefined,
+          attachments,
         )
       } else {
         await aiAgentApi.run(

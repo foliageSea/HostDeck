@@ -7,6 +7,7 @@ import {
   Check,
   ChevronDown,
   Hand,
+  ImagePlus,
   ShieldAlert,
   Menu,
   MessageSquarePlus,
@@ -22,7 +23,7 @@ import {
   Wrench,
   X,
 } from '@lucide/vue'
-import { aiAgentApi, type AiAgentConversation } from '@/api/ai-agent'
+import { aiAgentApi, type AiAgentConversation, type AiAgentImageAttachment } from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
 import { MAX_SELECTED_SKILLS, useAiAgentStore } from '@/stores/ai-agent'
 import { useSettingsStore } from '@/stores/settings'
@@ -31,6 +32,11 @@ import AiAgentMarkdown from './components/AiAgentMarkdown.vue'
 import AiAgentSkillPicker from './components/AiAgentSkillPicker.vue'
 import AiAgentSettingsModal from './components/AiAgentSettingsModal.vue'
 import AiAgentToolCall from './components/AiAgentToolCall.vue'
+import {
+  filesToImageAttachments,
+  imageAttachmentSrc,
+  MAX_IMAGE_ATTACHMENTS,
+} from './components/image-attachments'
 
 interface ConversationGroup {
   label: string
@@ -67,6 +73,8 @@ const modelMenuOpen = ref(false)
 const settingsSection = ref<'mcp' | 'model'>('model')
 const query = ref('')
 const input = ref('')
+const imageInput = ref<HTMLInputElement>()
+const imageAttachments = ref<AiAgentImageAttachment[]>([])
 const messageScroller = ref<HTMLElement>()
 const editingConversationId = ref<string | null>(null)
 const editingTitle = ref('')
@@ -114,7 +122,10 @@ const conversationGroups = computed<ConversationGroup[]>(() => {
 
 const canSend = computed(() =>
   Boolean(
-    input.value.trim() && sshStore.connectionId && settings.value?.hasApiKey && !running.value,
+    (input.value.trim() || imageAttachments.value.length > 0) &&
+    sshStore.connectionId &&
+    settings.value?.hasApiKey &&
+    !running.value,
   ),
 )
 
@@ -180,6 +191,8 @@ async function newConversation() {
   if (!connectionId || running.value) return
   try {
     await agentStore.createConversation(connectionId)
+    input.value = ''
+    imageAttachments.value = []
     closeSidebarOnNarrowScreen()
   } catch (requestError) {
     getUiApi().message.error(
@@ -193,6 +206,8 @@ async function openConversation(id: string) {
   if (!connectionId || loadingConversation.value) return
   try {
     await agentStore.selectConversation(id, connectionId)
+    input.value = ''
+    imageAttachments.value = []
     closeSidebarOnNarrowScreen()
   } catch {
     // The store keeps the detail error visible in context.
@@ -269,13 +284,47 @@ function removeConversation(conversation: AiAgentConversation) {
 async function send() {
   const connectionId = sshStore.connectionId
   const value = input.value.trim()
-  if (!connectionId || !value || running.value) return
+  const attachments = [...imageAttachments.value]
+  if (!connectionId || (!value && attachments.length === 0) || running.value) return
   input.value = ''
+  imageAttachments.value = []
   try {
-    await agentStore.startRun(value, connectionId)
+    await agentStore.startRun(value, connectionId, attachments)
   } catch {
     // Keep the failed prompt in history and show the store error above the composer.
   }
+}
+
+async function addImageFiles(files: File[]) {
+  if (running.value || files.length === 0) return
+  try {
+    const result = await filesToImageAttachments(files, imageAttachments.value)
+    imageAttachments.value = result.attachments
+    if (result.rejected.length) getUiApi().message.warning(result.rejected.join('；'))
+  } catch (readError) {
+    getUiApi().message.error(readError instanceof Error ? readError.message : '读取图片失败。')
+  }
+}
+
+function selectImages(event: Event) {
+  const target = event.currentTarget as HTMLInputElement
+  void addImageFiles(Array.from(target.files ?? []))
+  target.value = ''
+}
+
+function handlePaste(event: ClipboardEvent) {
+  const imageFiles = Array.from(event.clipboardData?.items ?? [])
+    .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => file !== null)
+  if (imageFiles.length === 0) return
+  event.preventDefault()
+  void addImageFiles(imageFiles)
+}
+
+function removeImage(index: number) {
+  if (running.value) return
+  imageAttachments.value = imageAttachments.value.filter((_, itemIndex) => itemIndex !== index)
 }
 
 async function switchModel(model: string) {
@@ -375,10 +424,11 @@ watch(
   () => sshStore.connectionId,
   (connectionId) => {
     if (connectionId) {
+      input.value = ''
+      imageAttachments.value = []
       sessionConnectionIds.add(connectionId)
       void loadForConnection(connectionId)
-    }
-    else agentStore.resetForConnection(null)
+    } else agentStore.resetForConnection(null)
   },
   { immediate: true },
 )
@@ -587,7 +637,23 @@ let resizeObserver: ResizeObserver | undefined
               v-if="message.content && message.role === 'assistant'"
               :content="message.content"
             />
-            <div v-else-if="message.content" class="agent-message-content">
+            <div
+              v-if="message.role === 'user' && message.attachments?.length"
+              class="agent-message-images"
+            >
+              <NImage
+                v-for="(attachment, index) in message.attachments"
+                :key="`${message.id}-${index}`"
+                :src="imageAttachmentSrc(attachment)"
+                :alt="attachment.name || '上传的图片'"
+                object-fit="cover"
+                lazy
+              />
+            </div>
+            <div
+              v-if="message.content && message.role !== 'assistant'"
+              class="agent-message-content"
+            >
               {{ message.content }}
             </div>
             <div
@@ -641,7 +707,11 @@ let resizeObserver: ResizeObserver | undefined
         >
           配置 API Key 后开始对话
         </button>
-        <div class="agent-composer" :class="{ 'agent-composer-running': running }">
+        <div
+          class="agent-composer"
+          :class="{ 'agent-composer-running': running }"
+          @paste="handlePaste"
+        >
           <div v-if="selectedSkills.length" class="agent-selected-skills" aria-label="已选 Skills">
             <span v-for="skill in selectedSkills" :key="skill.id" class="agent-selected-skill">
               <Puzzle :size="12" />
@@ -655,6 +725,27 @@ let resizeObserver: ResizeObserver | undefined
                 <X :size="11" />
               </button>
             </span>
+          </div>
+          <div v-if="imageAttachments.length" class="agent-image-previews" aria-label="待发送图片">
+            <div
+              v-for="(attachment, index) in imageAttachments"
+              :key="`${attachment.name}-${index}`"
+              class="agent-image-preview"
+            >
+              <NImage
+                :src="imageAttachmentSrc(attachment)"
+                :alt="attachment.name || '待发送图片'"
+                object-fit="cover"
+              />
+              <button
+                type="button"
+                :aria-label="`移除图片 ${attachment.name || index + 1}`"
+                :disabled="running"
+                @click="removeImage(index)"
+              >
+                <X :size="12" />
+              </button>
+            </div>
           </div>
           <NMention
             v-model:value="input"
@@ -676,6 +767,25 @@ let resizeObserver: ResizeObserver | undefined
           </NMention>
           <div class="agent-composer-footer">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <input
+                ref="imageInput"
+                class="agent-image-input"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                multiple
+                tabindex="-1"
+                @change="selectImages"
+              />
+              <button
+                type="button"
+                class="agent-attachment-button"
+                :disabled="running || imageAttachments.length >= MAX_IMAGE_ATTACHMENTS"
+                aria-label="添加图片"
+                title="添加图片"
+                @click="imageInput?.click()"
+              >
+                <ImagePlus :size="14" />
+              </button>
               <NPopover
                 v-model:show="modelMenuOpen"
                 trigger="click"
@@ -714,7 +824,9 @@ let resizeObserver: ResizeObserver | undefined
                     </span>
                     <Check
                       :size="16"
-                      :style="{ visibility: settings?.model === model.value ? 'visible' : 'hidden' }"
+                      :style="{
+                        visibility: settings?.model === model.value ? 'visible' : 'hidden',
+                      }"
                     />
                   </button>
                 </div>
@@ -1176,6 +1288,28 @@ let resizeObserver: ResizeObserver | undefined
   line-height: 1.78;
 }
 
+.agent-message-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.agent-message-images :deep(.n-image) {
+  width: 68px;
+  height: 68px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--agent-border);
+  border-radius: var(--app-radius-item);
+  cursor: zoom-in;
+}
+
+.agent-message-images :deep(img) {
+  width: 100%;
+  height: 100%;
+}
+
 .agent-thinking {
   display: flex;
   gap: 4px;
@@ -1256,6 +1390,50 @@ let resizeObserver: ResizeObserver | undefined
   flex-wrap: wrap;
   gap: 5px;
   padding: 9px 12px 0;
+}
+
+.agent-image-previews {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 10px 12px 0;
+}
+
+.agent-image-preview {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  flex: 0 0 auto;
+}
+
+.agent-image-preview :deep(.n-image) {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--agent-border);
+  border-radius: var(--app-radius-item);
+  cursor: zoom-in;
+}
+
+.agent-image-preview :deep(img) {
+  width: 100%;
+  height: 100%;
+}
+
+.agent-image-preview button {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: white;
+  background: rgba(15, 23, 42, 0.78);
+  cursor: pointer;
 }
 
 .agent-selected-skill {
@@ -1384,19 +1562,52 @@ let resizeObserver: ResizeObserver | undefined
   padding: 4px 7px 7px 12px;
 }
 
- .agent-model-trigger {
-   max-width: min(180px, 42vw);
- }
+.agent-image-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
 
- .agent-model-trigger > span {
-   overflow: hidden;
-   text-overflow: ellipsis;
-   white-space: nowrap;
- }
+.agent-attachment-button {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--app-radius-control);
+  color: var(--agent-muted);
+  background: var(--agent-hover);
+  cursor: pointer;
+}
 
- .agent-model-menu {
-   width: min(360px, calc(100vw - 48px));
- }
+.agent-attachment-button:hover:not(:disabled) {
+  color: var(--app-primary-color);
+  background: var(--app-primary-soft);
+}
+
+.agent-attachment-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.agent-model-trigger {
+  max-width: min(180px, 42vw);
+}
+
+.agent-model-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-model-menu {
+  width: min(360px, calc(100vw - 48px));
+}
 
 .agent-mcp-entry {
   display: inline-flex;

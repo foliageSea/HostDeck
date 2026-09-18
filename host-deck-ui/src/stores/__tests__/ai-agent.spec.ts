@@ -344,6 +344,40 @@ describe('AI Agent store', () => {
     expect(store.selectedSkillIds).toEqual([])
   })
 
+  it('sends and renders an image-only user message', async () => {
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        onEvent({ conversationId: 'conversation-1', event: 'done', messageId: 'message-1' })
+      },
+    )
+    const attachment = { data: 'aGVsbG8=', mimeType: 'image/png', name: 'screen.png' }
+    const store = useAiAgentStore()
+
+    await store.startRun('', 'connection-1', [attachment])
+
+    expect(store.messages[0]).toMatchObject({
+      attachments: [attachment],
+      content: '',
+      role: 'user',
+    })
+    expect(apiMocks.run).toHaveBeenCalledWith(
+      'conversation-1',
+      'connection-1',
+      '',
+      [],
+      expect.any(Function),
+      expect.any(AbortSignal),
+      undefined,
+      [attachment],
+    )
+  })
+
   it('clears skills when the connection changes and after a failed run', async () => {
     const store = useAiAgentStore()
     await store.loadSkills('connection-1')

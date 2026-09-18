@@ -8,6 +8,7 @@ import 'package:langchain/langchain.dart';
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_secret_store.dart';
@@ -177,6 +178,39 @@ void main() {
         systemPrompt.indexOf('--- END SKILL deploy-safe ---'),
       ),
       contains('approval is still'),
+    );
+  });
+
+  test('forwards persisted image attachments to the model', () async {
+    model.responses = const [
+      AiAgentModelResponse(text: 'The image is readable.'),
+    ];
+    const attachment = AiAgentImageAttachment(
+      name: 'screen.png',
+      mimeType: 'image/png',
+      data: 'aGVsbG8=',
+    );
+    final run = manager.start(
+      conversationId: 'conversation-1',
+      connectionId: 'connection-1',
+      targetKey: 'server:7',
+      ownerId: 'browser:test',
+      input: '',
+      attachments: const [attachment],
+    );
+
+    await _collect(run.stream).done.future.timeout(const Duration(seconds: 2));
+
+    expect(
+      model.inputs.single[1].attachments.single.toJson(),
+      attachment.toJson(),
+    );
+    final stored = repository.listMessages('conversation-1').first;
+    expect(stored.content, isEmpty);
+    expect(stored.attachments.single.toJson(), attachment.toJson());
+    expect(
+      repository.getConversation('conversation-1', 'server:7')?.title,
+      '图片对话',
     );
   });
 }

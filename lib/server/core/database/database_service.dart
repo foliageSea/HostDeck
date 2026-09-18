@@ -399,6 +399,20 @@ class DatabaseService {
       }
       _setVersion(13);
     }
+
+    // v13 -> v14: Persist image attachments for multimodal AI messages.
+    if (currentVersion < 14) {
+      final columns = _db
+          .select('PRAGMA table_info(ai_agent_messages)')
+          .map((row) => row['name'] as String)
+          .toSet();
+      if (!columns.contains('attachments')) {
+        _db.execute(
+          "ALTER TABLE ai_agent_messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'",
+        );
+      }
+      _setVersion(14);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

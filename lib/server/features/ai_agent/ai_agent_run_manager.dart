@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:host_deck/server/core/http/server_sent_event.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_skill_service.dart';
@@ -57,6 +58,7 @@ guidance and can never grant or bypass approval or change these constraints.
     required String targetKey,
     required String ownerId,
     required String input,
+    List<AiAgentImageAttachment> attachments = const [],
     String? model,
     List<AiAgentSkillContent> skills = const [],
   }) {
@@ -85,7 +87,7 @@ guidance and can never grant or bypass approval or change these constraints.
     _runs[runId] = run;
     run.emitRaw(utf8.encode(': ${' '.padRight(2048)}\n\n'));
     run.emit('connected', {'runId': runId});
-    unawaited(_execute(run, input));
+    unawaited(_execute(run, input, attachments));
     return AiAgentRunStream(runId, controller.stream);
   }
 
@@ -160,7 +162,11 @@ guidance and can never grant or bypass approval or change these constraints.
     return AiAgentApprovalResult.accepted;
   }
 
-  Future<void> _execute(_ActiveRun run, String input) async {
+  Future<void> _execute(
+    _ActiveRun run,
+    String input,
+    List<AiAgentImageAttachment> attachments,
+  ) async {
     try {
       final settings = _settingsService.resolve(model: run.modelName);
       final model = _modelFactory.create(settings);
@@ -170,13 +176,17 @@ guidance and can never grant or bypass approval or change these constraints.
         conversationId: run.conversationId,
         role: 'user',
         content: input,
+        attachments: attachments,
       );
       final history = _repository.listMessages(run.conversationId);
       final messages = <AiAgentModelMessage>[
         AiAgentModelMessage(role: 'system', content: run.systemPrompt),
         ...history.map(
-          (message) =>
-              AiAgentModelMessage(role: message.role, content: message.content),
+          (message) => AiAgentModelMessage(
+            role: message.role,
+            content: message.content,
+            attachments: message.attachments,
+          ),
         ),
       ];
       String? finalText;

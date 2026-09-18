@@ -54,11 +54,37 @@ class AiAgentConversation {
   };
 }
 
+class AiAgentImageAttachment {
+  final String name;
+  final String mimeType;
+  final String data;
+
+  const AiAgentImageAttachment({
+    required this.name,
+    required this.mimeType,
+    required this.data,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'mimeType': mimeType,
+    'data': data,
+  };
+
+  factory AiAgentImageAttachment.fromJson(Map<String, dynamic> json) =>
+      AiAgentImageAttachment(
+        name: json['name'] as String? ?? '',
+        mimeType: json['mimeType'] as String,
+        data: json['data'] as String,
+      );
+}
+
 class AiAgentMessage {
   final String id;
   final String conversationId;
   final String role;
   final String content;
+  final List<AiAgentImageAttachment> attachments;
   final int createdAt;
 
   const AiAgentMessage({
@@ -66,6 +92,7 @@ class AiAgentMessage {
     required this.conversationId,
     required this.role,
     required this.content,
+    this.attachments = const [],
     required this.createdAt,
   });
 
@@ -73,6 +100,9 @@ class AiAgentMessage {
     'id': id,
     'role': role,
     'content': content,
+    'attachments': attachments
+        .map((attachment) => attachment.toJson())
+        .toList(),
     'createdAt': createdAt,
   };
 }
