@@ -229,7 +229,7 @@ describe('AI Agent store', () => {
 
     emit({ event: 'message-delta', messageId: 'old-message', runId: 'old-run', sequence: 99, text: 'old' })
     expect(store.messages.at(-1)?.content).toBe('new')
-    expect(store.runSteps.map((step) => step.stepId)).toEqual(['model-1'])
+    expect(store.runSteps).toMatchObject([{ content: 'new', stepId: 'model-1' }])
     finishRun()
     await run
   })

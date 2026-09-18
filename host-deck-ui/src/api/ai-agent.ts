@@ -107,6 +107,7 @@ export interface AiAgentRunStep {
   name?: string
   summary?: string
   arguments?: unknown
+  content?: string
 }
 
 export interface AiAgentToolCallRecord {

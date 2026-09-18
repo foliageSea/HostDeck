@@ -173,20 +173,15 @@ const timelineEntries = computed(() => {
   > = messages.value
     .filter((message) => !currentAssistantIds.has(message.id))
     .map((message) => ({ kind: 'message' as const, message }))
-  let renderedModelStep = false
-  for (const step of [...runSteps.value].sort((a, b) => a.sequence - b.sequence)) {
-    if (step.type === 'model') {
-      if (renderedModelStep) continue
-      renderedModelStep = true
-    }
+  const sortedSteps = [...runSteps.value].sort((a, b) => a.sequence - b.sequence)
+  const modelSteps = sortedSteps.filter((step) => step.type === 'model')
+  const lastModelStepId = modelSteps.at(-1)?.stepId
+  for (const step of sortedSteps) {
+    if (step.type === 'model' && !step.content && step.stepId !== lastModelStepId) continue
     entries.push({ kind: 'step', step })
   }
   return entries
 })
-
-function messageForStep(step: AiAgentRunStep) {
-  return messages.value.find((message) => message.id === step.messageId)
-}
 
 function toolForStep(step: AiAgentRunStep) {
   return toolCalls.value.find((tool) => tool.callId === step.callId)
@@ -726,8 +721,8 @@ let resizeObserver: ResizeObserver | undefined
             <div v-else-if="entry.step.type === 'model'" class="agent-message agent-message-assistant">
               <div class="agent-message-role"><Bot :size="14" /> Agent</div>
               <AiAgentMarkdown
-                v-if="messageForStep(entry.step)?.content"
-                :content="messageForStep(entry.step)?.content ?? ''"
+                v-if="entry.step.content"
+                :content="entry.step.content"
               />
               <div v-else class="agent-thinking" aria-label="Agent 正在思考"><span /><span /><span /></div>
             </div>

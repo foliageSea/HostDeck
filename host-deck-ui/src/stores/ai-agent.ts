@@ -316,6 +316,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   function upsertRunStep(event: AiAgentRunEvent) {
     if (!event.stepId || event.sequence == null || !event.type || !event.status) return
     const existing = runSteps.value.find((step) => step.stepId === event.stepId)
+    const content = existing?.content ?? ('text' in event ? event.text : undefined)
     const step: AiAgentRunStep = {
       completedAt: event.completedAt,
       messageId: 'messageId' in event ? event.messageId : existing?.messageId,
@@ -330,6 +331,10 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       type: event.type,
       callId: 'callId' in event ? event.callId : existing?.callId,
       arguments: 'arguments' in event ? event.arguments : existing?.arguments,
+      content:
+        existing?.content !== undefined && 'text' in event
+          ? `${existing.content}${event.text}`
+          : content,
     }
     runSteps.value = existing
       ? runSteps.value.map((item) => (item.stepId === step.stepId ? step : item))
