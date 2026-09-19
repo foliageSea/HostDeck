@@ -28,7 +28,7 @@ const approval = {
 }
 
 describe('AiAgentToolCall', () => {
-  it('shows tool arguments and results in a modal', async () => {
+  it('opens tool arguments and results when clicking the tool call', async () => {
     const wrapper = mount(AiAgentToolCall, {
       props: { tool: completed },
       global: {
@@ -43,7 +43,7 @@ describe('AiAgentToolCall', () => {
     })
 
     expect(wrapper.find('pre').exists()).toBe(false)
-    await wrapper.get('.agent-tool-disclosure').trigger('click')
+    await wrapper.get('.agent-tool-heading').trigger('click')
     const outputBlocks = wrapper.findAll('pre')
     expect(outputBlocks[0]?.text()).toContain('uptime')
     expect(outputBlocks[1]?.text()).toContain('up 2 days')
@@ -65,7 +65,7 @@ describe('AiAgentToolCall', () => {
     })
 
     expect(wrapper.find('pre').exists()).toBe(false)
-    await wrapper.get('.agent-tool-disclosure').trigger('click')
+    await wrapper.get('.agent-approval-detail').trigger('click')
     expect(wrapper.get('pre').text()).toContain('rm old.log')
 
     await wrapper.get('[aria-label="允许一次"]').trigger('click')

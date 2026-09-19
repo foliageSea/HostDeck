@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Check, CircleAlert, Clipboard, Eye, Hand, LoaderCircle, X } from '@lucide/vue'
+import { Check, CircleAlert, Clipboard, Hand, LoaderCircle, X } from '@lucide/vue'
 import type { AiAgentToolCall } from '@/stores/ai-agent'
 
 const props = defineProps<{
@@ -74,23 +74,21 @@ async function copyOutput() {
     :aria-label="`${tool.name}: ${statusLabel}`"
   >
     <template v-if="tool.approvalPending">
-      <div class="agent-approval-kind">
-        <Hand :size="13" aria-hidden="true" />
-        <span>{{ isMcpTool ? 'MCP 权限申请' : '权限申请' }}</span>
-      </div>
-      <strong class="agent-approval-question">允许 AI Agent 执行此工具？</strong>
-      <p class="agent-approval-summary">{{ tool.summary }}</p>
+      <button
+        type="button"
+        class="agent-approval-detail"
+        aria-haspopup="dialog"
+        :aria-expanded="modalVisible"
+        @click="openModal"
+      >
+        <span class="agent-approval-kind">
+          <Hand :size="13" aria-hidden="true" />
+          <span>{{ isMcpTool ? 'MCP 权限申请' : '权限申请' }}</span>
+        </span>
+        <strong class="agent-approval-question">允许 AI Agent 执行此工具？</strong>
+        <span class="agent-approval-summary">{{ tool.summary }}</span>
+      </button>
       <div class="agent-approval-footer">
-        <button
-          type="button"
-          class="agent-tool-disclosure"
-          aria-haspopup="dialog"
-          :aria-expanded="modalVisible"
-          @click="openModal"
-        >
-          <Eye :size="13" />
-          查看参数
-        </button>
         <div class="agent-tool-actions">
           <NButton
             size="small"
@@ -116,30 +114,24 @@ async function copyOutput() {
     </template>
 
     <template v-else>
-      <div class="agent-tool-heading">
+      <button
+        type="button"
+        class="agent-tool-heading"
+        aria-haspopup="dialog"
+        :aria-expanded="modalVisible"
+        @click="openModal"
+      >
         <span class="agent-tool-status" aria-hidden="true">
           <LoaderCircle v-if="tool.status === 'running'" :size="13" class="agent-spin" />
           <Check v-else-if="tool.status === 'success'" :size="13" />
           <X v-else-if="tool.status === 'rejected'" :size="13" />
           <CircleAlert v-else :size="13" />
         </span>
-        <div class="agent-tool-copy">
+        <span class="agent-tool-copy">
           <strong class="agent-tool-label">{{ statusLabel }}</strong>
           <span class="agent-tool-summary">{{ tool.summary }}</span>
-        </div>
-      </div>
-      <div v-if="tool.arguments !== undefined || tool.result" class="agent-tool-details">
-        <button
-          type="button"
-          class="agent-tool-disclosure"
-          aria-haspopup="dialog"
-          :aria-expanded="modalVisible"
-          @click="openModal"
-        >
-          <Eye :size="13" />
-          查看参数与结果
-        </button>
-      </div>
+        </span>
+      </button>
     </template>
 
     <NModal
@@ -201,9 +193,10 @@ async function copyOutput() {
 .agent-tool {
   width: min(100%, 680px);
   margin: 6px 0;
-  padding: 4px 8px;
+  padding: 0;
   border: 0;
   border-radius: var(--app-radius-item);
+  overflow: hidden;
   background: transparent;
 }
 
@@ -240,6 +233,18 @@ async function copyOutput() {
   font-weight: 600;
 }
 
+.agent-approval-detail {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .agent-approval-question {
   display: block;
   margin-top: 7px;
@@ -249,6 +254,7 @@ async function copyOutput() {
 }
 
 .agent-approval-summary {
+  display: block;
   margin: 3px 0 0;
   color: var(--agent-muted);
   font-size: 11px;
@@ -258,7 +264,7 @@ async function copyOutput() {
 .agent-approval-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   margin-top: 10px;
 }
@@ -266,7 +272,19 @@ async function copyOutput() {
 .agent-tool-heading {
   display: flex;
   align-items: center;
+  width: 100%;
   gap: 7px;
+  padding: 4px 8px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-tool-heading:hover {
+  background: var(--agent-hover);
 }
 
 .agent-tool-status {
@@ -315,23 +333,6 @@ async function copyOutput() {
   letter-spacing: 0;
 }
 
-.agent-tool-disclosure {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0;
-  border: 0;
-  color: inherit;
-  background: transparent;
-  font-size: 11px;
-  opacity: 0.66;
-  cursor: pointer;
-}
-
-.agent-tool-disclosure:hover {
-  opacity: 1;
-}
-
 .agent-tool-arguments {
   max-height: 360px;
   margin: 8px 0 0;
@@ -347,24 +348,16 @@ async function copyOutput() {
     monospace;
 }
 
-.agent-tool-details {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 6px;
-}
-
 .agent-tool-copy {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
   padding: 0;
   border: 0;
   color: inherit;
   background: transparent;
   font-size: 11px;
-  cursor: pointer;
 }
 
 .agent-tool-result-meta {
