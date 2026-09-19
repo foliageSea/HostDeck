@@ -705,6 +705,7 @@ let resizeObserver: ResizeObserver | undefined
               </div>
             </div>
             <div v-else-if="(entry.step.type === 'tool' || entry.step.type === 'approval') && toolForStep(entry.step)" class="agent-tools">
+              <div class="agent-message-role"><Bot :size="14" /> Agent</div>
               <AiAgentToolCall
                 :tool="toolForStep(entry.step)!"
                 @approve="resolveApproval($event, true)"
