@@ -6,6 +6,7 @@ import {
   Bot,
   Check,
   ChevronDown,
+  Clipboard,
   Hand,
   ImagePlus,
   ShieldAlert,
@@ -432,6 +433,15 @@ async function stop() {
   }
 }
 
+async function copyMessage(content: string) {
+  try {
+    await navigator.clipboard.writeText(content)
+    getUiApi().message.success('已复制对话内容。')
+  } catch {
+    getUiApi().message.error('复制失败，请检查剪贴板权限。')
+  }
+}
+
 async function resolveApproval(callId: string, approved: boolean) {
   try {
     await agentStore.resolveApproval(callId, approved)
@@ -672,25 +682,41 @@ let resizeObserver: ResizeObserver | undefined
                 <Wrench v-else :size="14" />
                 {{ entry.message.role === 'assistant' ? 'Agent' : entry.message.role }}
               </div>
+              <div v-if="entry.message.role === 'user'" class="agent-message-user-bubble">
+                <div v-if="entry.message.content" class="agent-message-content">
+                  {{ entry.message.content }}
+                </div>
+                <div v-if="entry.message.attachments?.length" class="agent-message-images">
+                  <NImage
+                    v-for="(attachment, index) in entry.message.attachments"
+                    :key="`${entry.message.id}-${index}`"
+                    :src="imageAttachmentSrc(attachment)"
+                    :alt="attachment.name || '上传的图片'"
+                    object-fit="cover"
+                    lazy
+                  />
+                </div>
+                <button
+                  v-if="entry.message.content"
+                  type="button"
+                  class="agent-message-copy"
+                  aria-label="复制对话内容"
+                  title="复制对话内容"
+                  @click="copyMessage(entry.message.content)"
+                >
+                  <Clipboard :size="13" />
+                </button>
+              </div>
               <AiAgentMarkdown
                 v-if="entry.message.content && entry.message.role === 'assistant'"
                 :content="entry.message.content"
               />
               <div
-                v-if="entry.message.role === 'user' && entry.message.attachments?.length"
-                class="agent-message-images"
-              >
-                <NImage
-                  v-for="(attachment, index) in entry.message.attachments"
-                  :key="`${entry.message.id}-${index}`"
-                  :src="imageAttachmentSrc(attachment)"
-                  :alt="attachment.name || '上传的图片'"
-                  object-fit="cover"
-                  lazy
-                />
-              </div>
-              <div
-                v-if="entry.message.content && entry.message.role !== 'assistant'"
+                v-if="
+                  entry.message.content &&
+                  entry.message.role !== 'assistant' &&
+                  entry.message.role !== 'user'
+                "
                 class="agent-message-content"
               >
                 {{ entry.message.content }}
@@ -704,6 +730,20 @@ let resizeObserver: ResizeObserver | undefined
               >
                 <span /><span /><span />
               </div>
+              <button
+                v-if="
+                  entry.message.content &&
+                  entry.message.role !== 'tool' &&
+                  entry.message.role !== 'user'
+                "
+                type="button"
+                class="agent-message-copy"
+                aria-label="复制对话内容"
+                title="复制对话内容"
+                @click="copyMessage(entry.message.content)"
+              >
+                <Clipboard :size="13" />
+              </button>
             </article>
             <div
               v-else-if="entry.step.type === 'model'"
@@ -1355,6 +1395,13 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-message-user {
+  width: 100%;
+  margin-left: 0;
+}
+
+.agent-message-user-bubble {
+  display: flex;
+  flex-direction: column;
   width: fit-content;
   max-width: min(82%, 620px);
   margin-left: auto;
@@ -1379,6 +1426,27 @@ let resizeObserver: ResizeObserver | undefined
   overflow-wrap: anywhere;
   font-size: 13px;
   line-height: 1.78;
+}
+
+.agent-message-copy {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: var(--app-radius-item);
+  background: transparent;
+  color: var(--agent-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+}
+
+.agent-message-copy:hover {
+  background: var(--agent-elevated);
+  color: var(--agent-foreground);
 }
 
 .agent-message-images {
