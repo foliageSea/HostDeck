@@ -57,19 +57,16 @@ export function buildTimelineEntries(
     }))
 
   const sortedSteps = [...runSteps].sort((a, b) => a.sequence - b.sequence)
-  const modelSteps = sortedSteps.filter((step) => step.type === 'model')
-  const firstModelStepId = modelSteps.at(0)?.stepId
-  const lastModelStepId = modelSteps.at(-1)?.stepId
   const stepEntries = sortedSteps
-    .filter(
-      (step) =>
-        !(
-          step.type === 'model' &&
-          !step.content &&
-          step.stepId !== firstModelStepId &&
-          step.stepId !== lastModelStepId
-        ),
-    )
+    .filter((step, index) => {
+      if (step.type !== 'model' || step.content) return true
+      // A tool follows this empty model step, so the tool call itself replaces
+      // the pre-tool thinking placeholder to avoid a duplicate Agent loading.
+      const hasLaterToolStep = sortedSteps
+        .slice(index + 1)
+        .some(({ type }) => type === 'tool' || type === 'approval')
+      return !hasLaterToolStep
+    })
     .map((step) => ({
       entry: { kind: 'step' as const, step },
       timestamp: entryTimestamp(step.startedAt),

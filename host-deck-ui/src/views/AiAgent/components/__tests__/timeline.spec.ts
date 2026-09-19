@@ -41,6 +41,30 @@ function liveStep(stepId: string, sequence: number): AiAgentRunStep {
 }
 
 describe('buildTimelineEntries', () => {
+  it('hides the pre-tool empty model placeholder but keeps later thinking', () => {
+    const emptyModelStep = (stepId: string, sequence: number): AiAgentRunStep => ({
+      messageId: 'assistant-1',
+      runId: 'run-1',
+      sequence,
+      startedAt: sequence * 10,
+      status: 'running',
+      stepId,
+      type: 'model',
+    })
+    const steps = [
+      emptyModelStep('model-before-tool', 0),
+      restoredToolStep('call-1', 1, 10),
+      emptyModelStep('model-after-tool', 2),
+    ]
+
+    const entries = buildTimelineEntries([], steps)
+
+    expect(entries.map((entry) => (entry.kind === 'step' ? entry.step.stepId : entry.message.id))).toEqual([
+      'restored-call-1',
+      'model-after-tool',
+    ])
+  })
+
   it('returns plain messages when there are no steps', () => {
     const entries = buildTimelineEntries(
       [message('user-1', 'user', 1, { content: 'hi' })],
