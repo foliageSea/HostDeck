@@ -682,19 +682,21 @@ let resizeObserver: ResizeObserver | undefined
                 <Wrench v-else :size="14" />
                 {{ entry.message.role === 'assistant' ? 'Agent' : entry.message.role }}
               </div>
-              <div v-if="entry.message.role === 'user'" class="agent-message-user-bubble">
-                <div v-if="entry.message.content" class="agent-message-content">
-                  {{ entry.message.content }}
-                </div>
-                <div v-if="entry.message.attachments?.length" class="agent-message-images">
-                  <NImage
-                    v-for="(attachment, index) in entry.message.attachments"
-                    :key="`${entry.message.id}-${index}`"
-                    :src="imageAttachmentSrc(attachment)"
-                    :alt="attachment.name || '上传的图片'"
-                    object-fit="cover"
-                    lazy
-                  />
+              <div v-if="entry.message.role === 'user'" class="agent-message-user-wrap">
+                <div class="agent-message-user-bubble">
+                  <div v-if="entry.message.content" class="agent-message-content">
+                    {{ entry.message.content }}
+                  </div>
+                  <div v-if="entry.message.attachments?.length" class="agent-message-images">
+                    <NImage
+                      v-for="(attachment, index) in entry.message.attachments"
+                      :key="`${entry.message.id}-${index}`"
+                      :src="imageAttachmentSrc(attachment)"
+                      :alt="attachment.name || '上传的图片'"
+                      object-fit="cover"
+                      lazy
+                    />
+                  </div>
                 </div>
                 <button
                   v-if="entry.message.content"
@@ -1399,12 +1401,13 @@ let resizeObserver: ResizeObserver | undefined
   margin-left: 0;
 }
 
-.agent-message-user-bubble {
-  display: flex;
-  flex-direction: column;
+.agent-message-user-wrap {
   width: fit-content;
   max-width: min(82%, 620px);
   margin-left: auto;
+}
+
+.agent-message-user-bubble {
   padding: 10px 13px;
   border-radius: var(--app-radius-surface) var(--app-radius-surface) 0 var(--app-radius-surface);
   background: var(--app-primary-soft);
