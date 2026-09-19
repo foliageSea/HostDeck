@@ -1402,6 +1402,8 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-message-user-wrap {
+  display: flex;
+  flex-direction: column;
   width: fit-content;
   max-width: min(82%, 620px);
   margin-left: auto;
@@ -1433,7 +1435,6 @@ let resizeObserver: ResizeObserver | undefined
 
 .agent-message-copy {
   display: inline-flex;
-  align-self: flex-start;
   align-items: center;
   gap: 5px;
   margin-top: 8px;
@@ -1445,6 +1446,10 @@ let resizeObserver: ResizeObserver | undefined
   cursor: pointer;
   font: inherit;
   font-size: 10px;
+}
+
+.agent-message-user-wrap .agent-message-copy {
+  align-self: flex-end;
 }
 
 .agent-message-copy:hover {
