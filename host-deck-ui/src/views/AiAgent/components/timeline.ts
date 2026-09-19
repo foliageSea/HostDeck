@@ -57,8 +57,19 @@ export function buildTimelineEntries(
     }))
 
   const sortedSteps = [...runSteps].sort((a, b) => a.sequence - b.sequence)
+  const toolStepCallIds = new Set(
+    sortedSteps
+      .filter((step) => step.type === 'tool' && step.callId)
+      .map((step) => step.callId),
+  )
   const stepEntries = sortedSteps
     .filter((step, index) => {
+      // The backend emits both a tool step and an approval step for a tool
+      // requiring approval. They reference the same call, so render only the
+      // tool step; its card switches to the approval state dynamically.
+      if (step.type === 'approval' && step.callId && toolStepCallIds.has(step.callId)) {
+        return false
+      }
       if (step.type !== 'model' || step.content) return true
       // A tool follows this empty model step, so the tool call itself replaces
       // the pre-tool thinking placeholder to avoid a duplicate Agent loading.

@@ -41,6 +41,40 @@ function liveStep(stepId: string, sequence: number): AiAgentRunStep {
 }
 
 describe('buildTimelineEntries', () => {
+  it('renders an approval step and its tool step as one call', () => {
+    const steps = [
+      {
+        callId: 'call-1',
+        name: 'shell_execute',
+        runId: 'run-1',
+        sequence: 1,
+        startedAt: 10,
+        status: 'running',
+        stepId: 'tool-1',
+        type: 'tool',
+      },
+      {
+        arguments: { command: 'uptime' },
+        callId: 'call-1',
+        name: 'shell_execute',
+        runId: 'run-1',
+        sequence: 2,
+        startedAt: 11,
+        status: 'waiting-approval',
+        stepId: 'approval-1',
+        type: 'approval',
+      },
+    ] satisfies AiAgentRunStep[]
+
+    const entries = buildTimelineEntries([], steps)
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({
+      kind: 'step',
+      step: { callId: 'call-1', stepId: 'tool-1', type: 'tool' },
+    })
+  })
+
   it('hides the pre-tool empty model placeholder but keeps later thinking', () => {
     const emptyModelStep = (stepId: string, sequence: number): AiAgentRunStep => ({
       messageId: 'assistant-1',
