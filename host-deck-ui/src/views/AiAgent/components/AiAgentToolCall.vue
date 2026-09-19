@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Check, ChevronDown, CircleAlert, Clipboard, Hand, LoaderCircle, X } from '@lucide/vue'
+import { Check, CircleAlert, Clipboard, Eye, Hand, LoaderCircle, X } from '@lucide/vue'
 import type { AiAgentToolCall } from '@/stores/ai-agent'
 
 const props = defineProps<{
@@ -12,7 +12,7 @@ const emit = defineEmits<{
   reject: [callId: string]
 }>()
 
-const expanded = ref(false)
+const modalVisible = ref(false)
 const outputQuery = ref('')
 const copied = ref(false)
 
@@ -48,6 +48,12 @@ const filteredOutput = computed(() => {
     .join('\n')
 })
 
+function openModal() {
+  outputQuery.value = ''
+  copied.value = false
+  modalVisible.value = true
+}
+
 async function copyOutput() {
   if (!outputText.value || !navigator.clipboard) return
   await navigator.clipboard.writeText(outputText.value)
@@ -74,16 +80,16 @@ async function copyOutput() {
       </div>
       <strong class="agent-approval-question">允许 AI Agent 执行此工具？</strong>
       <p class="agent-approval-summary">{{ tool.summary }}</p>
-      <pre v-if="expanded" class="agent-tool-arguments">{{ argumentsText }}</pre>
       <div class="agent-approval-footer">
         <button
           type="button"
           class="agent-tool-disclosure"
-          :aria-expanded="expanded"
-          @click="expanded = !expanded"
+          aria-haspopup="dialog"
+          :aria-expanded="modalVisible"
+          @click="openModal"
         >
-          <ChevronDown :size="13" :class="{ 'rotate-180': expanded }" />
-          {{ expanded ? '收起参数' : '查看参数' }}
+          <Eye :size="13" />
+          查看参数
         </button>
         <div class="agent-tool-actions">
           <NButton
@@ -109,60 +115,85 @@ async function copyOutput() {
       </div>
     </template>
 
-    <div v-else class="agent-tool-heading">
-      <span class="agent-tool-status" aria-hidden="true">
-        <LoaderCircle v-if="tool.status === 'running'" :size="13" class="agent-spin" />
-        <Check v-else-if="tool.status === 'success'" :size="13" />
-        <X v-else-if="tool.status === 'rejected'" :size="13" />
-        <CircleAlert v-else :size="13" />
-      </span>
-      <div class="agent-tool-copy">
-        <strong class="agent-tool-label">{{ statusLabel }}</strong>
-        <span class="agent-tool-summary">{{ tool.summary }}</span>
-      </div>
-    </div>
-    <div v-if="!tool.approvalPending && (tool.arguments !== undefined || tool.result)" class="agent-tool-details">
-      <button
-        type="button"
-        class="agent-tool-disclosure"
-        :aria-expanded="expanded"
-        @click="expanded = !expanded"
-      >
-        <ChevronDown :size="13" :class="{ 'rotate-180': expanded }" />
-        {{ expanded ? '收起详情' : '查看参数与结果' }}
-      </button>
-      <button
-        v-if="expanded && tool.result"
-        type="button"
-        class="agent-tool-copy-action"
-        :aria-label="copied ? '已复制工具结果' : '复制工具结果'"
-        @click="copyOutput"
-      >
-        <Check v-if="copied" :size="13" />
-        <Clipboard v-else :size="13" />
-        {{ copied ? '已复制' : '复制结果' }}
-      </button>
-    </div>
-    <template v-if="expanded && !tool.approvalPending">
-      <pre v-if="tool.arguments !== undefined" class="agent-tool-arguments">参数
-{{ argumentsText }}</pre>
-      <div v-if="tool.result" class="agent-tool-result">
-        <div class="agent-tool-result-meta">
-          <span v-if="tool.result.exitCode != null">退出码 {{ tool.result.exitCode }}</span>
-          <span v-if="tool.result.durationMs != null">{{ tool.result.durationMs }} ms</span>
-          <span v-if="tool.result.truncated">已截断</span>
-          <span v-if="tool.result.changed != null">{{ tool.result.changed ? '已修改' : '未修改' }}</span>
+    <template v-else>
+      <div class="agent-tool-heading">
+        <span class="agent-tool-status" aria-hidden="true">
+          <LoaderCircle v-if="tool.status === 'running'" :size="13" class="agent-spin" />
+          <Check v-else-if="tool.status === 'success'" :size="13" />
+          <X v-else-if="tool.status === 'rejected'" :size="13" />
+          <CircleAlert v-else :size="13" />
+        </span>
+        <div class="agent-tool-copy">
+          <strong class="agent-tool-label">{{ statusLabel }}</strong>
+          <span class="agent-tool-summary">{{ tool.summary }}</span>
         </div>
-        <input
-          v-model="outputQuery"
-          class="agent-tool-search"
-          type="search"
-          placeholder="搜索工具输出"
-          aria-label="搜索工具输出"
-        />
-        <pre class="agent-tool-arguments">{{ filteredOutput }}</pre>
+      </div>
+      <div v-if="tool.arguments !== undefined || tool.result" class="agent-tool-details">
+        <button
+          type="button"
+          class="agent-tool-disclosure"
+          aria-haspopup="dialog"
+          :aria-expanded="modalVisible"
+          @click="openModal"
+        >
+          <Eye :size="13" />
+          查看参数与结果
+        </button>
       </div>
     </template>
+
+    <NModal
+      v-model:show="modalVisible"
+      preset="card"
+      title="工具调用详情"
+      style="width: min(640px, calc(100vw - 32px))"
+    >
+      <div class="agent-tool-modal-body app-scrollbar">
+        <header class="agent-tool-modal-header">
+          <strong>{{ tool.name }}</strong>
+          <span>{{ statusLabel }}</span>
+        </header>
+        <p class="agent-tool-modal-summary">{{ tool.summary }}</p>
+
+        <section v-if="tool.arguments !== undefined" class="agent-tool-modal-section">
+          <h3>参数</h3>
+          <pre class="agent-tool-arguments">{{ argumentsText }}</pre>
+        </section>
+
+        <section v-if="tool.result" class="agent-tool-modal-section">
+          <div class="agent-tool-result-heading">
+            <h3>结果</h3>
+            <button
+              type="button"
+              class="agent-tool-copy-action"
+              :aria-label="copied ? '已复制工具结果' : '复制工具结果'"
+              @click="copyOutput"
+            >
+              <Check v-if="copied" :size="13" />
+              <Clipboard v-else :size="13" />
+              {{ copied ? '已复制' : '复制结果' }}
+            </button>
+          </div>
+          <div class="agent-tool-result-meta">
+            <span v-if="tool.result.exitCode != null">退出码 {{ tool.result.exitCode }}</span>
+            <span v-if="tool.result.durationMs != null">{{ tool.result.durationMs }} ms</span>
+            <span v-if="tool.result.truncated">已截断</span>
+            <span v-if="tool.result.changed != null">
+              {{ tool.result.changed ? '已修改' : '未修改' }}
+            </span>
+          </div>
+          <input
+            v-model="outputQuery"
+            class="agent-tool-search"
+            type="search"
+            placeholder="搜索工具输出"
+            aria-label="搜索工具输出"
+          />
+          <pre class="agent-tool-arguments">{{ filteredOutput }}</pre>
+        </section>
+        <p v-else class="agent-tool-modal-empty">暂无结果</p>
+      </div>
+    </NModal>
   </section>
 </template>
 
@@ -297,11 +328,15 @@ async function copyOutput() {
   cursor: pointer;
 }
 
+.agent-tool-disclosure:hover {
+  opacity: 1;
+}
+
 .agent-tool-arguments {
-  max-height: 120px;
+  max-height: 360px;
   margin: 8px 0 0;
   overflow: auto;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: var(--app-radius-control);
   background: var(--agent-code-bg);
   white-space: pre-wrap;
@@ -330,10 +365,6 @@ async function copyOutput() {
   background: transparent;
   font-size: 11px;
   cursor: pointer;
-}
-
-.agent-tool-result {
-  min-width: 0;
 }
 
 .agent-tool-result-meta {
@@ -380,6 +411,66 @@ async function copyOutput() {
   background: var(--agent-hover);
   font: inherit;
   font-size: 9px;
+}
+
+.agent-tool-modal-body {
+  max-height: min(65vh, 620px);
+  overflow: auto;
+  padding-right: 2px;
+  color: var(--agent-text);
+}
+
+.agent-tool-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.agent-tool-modal-header strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.agent-tool-modal-header span {
+  flex: 0 0 auto;
+  color: var(--agent-muted);
+  font-size: 11px;
+}
+
+.agent-tool-modal-summary {
+  margin: 4px 0 0;
+  color: var(--agent-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.agent-tool-modal-section {
+  margin-top: 14px;
+}
+
+.agent-tool-modal-section h3,
+.agent-tool-result-heading h3 {
+  margin: 0;
+  color: var(--agent-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.agent-tool-result-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-tool-modal-empty {
+  margin: 14px 0 0;
+  color: var(--agent-muted);
+  font-size: 11px;
 }
 
 @media (max-width: 520px) {

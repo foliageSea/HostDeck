@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import {
   aiAgentApi,
@@ -21,6 +21,8 @@ const MAX_CONVERSATIONS = 200
 const MAX_MESSAGES = 300
 const MAX_TOOL_CALLS = 100
 export const MAX_SELECTED_SKILLS = 8
+
+const AUTO_RUN_STORAGE_KEY = 'host-deck-ui.aiAgent.autoRun'
 
 export type AiAgentToolStatus = 'pending' | 'running' | 'success' | 'error' | 'rejected'
 
@@ -151,6 +153,22 @@ function temporaryMessage(
   }
 }
 
+function readStoredAutoRun() {
+  try {
+    return window.localStorage.getItem(AUTO_RUN_STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function persistAutoRun(value: boolean) {
+  try {
+    window.localStorage.setItem(AUTO_RUN_STORAGE_KEY, String(value))
+  } catch {
+    // Ignore storage failures; the in-memory preference still works.
+  }
+}
+
 export const useAiAgentStore = defineStore('ai-agent', () => {
   const settings = ref<AiAgentSettings | null>(null)
   const skills = ref<AiAgentSkill[]>([])
@@ -171,7 +189,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const loadingConversation = ref(false)
   const running = ref(false)
   const streamingMessageId = ref<string | null>(null)
-  const autoRun = ref(false)
+  const autoRun = ref(readStoredAutoRun())
+
+  watch(autoRun, persistAutoRun)
   const runMode = ref<AiAgentRunMode>('agent')
   const activeRunId = ref<string | null>(null)
   const error = ref<string | null>(null)
@@ -206,6 +226,13 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   async function saveSettings(payload: AiAgentSettingsUpdate) {
     settings.value = await aiAgentApi.saveSettings(payload)
     return settings.value
+  }
+
+  function setAutoRun(mode: boolean) {
+    if (running.value) return false
+    autoRun.value = mode
+    persistAutoRun(mode)
+    return true
   }
 
   async function testSettings(payload?: AiAgentSettingsUpdate) {
@@ -295,7 +322,6 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     if (currentConnectionId.value === connectionId) return false
     abortRun()
     currentConnectionId.value = connectionId
-    autoRun.value = false
     runMode.value = 'agent'
     conversations.value = []
     skills.value = []
@@ -710,6 +736,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     selectedSkillIds,
     selectedConversation,
     selectConversation,
+    setAutoRun,
     settings,
     setSelectedSkillIds,
     setRunMode,

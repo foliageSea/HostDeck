@@ -31,6 +31,7 @@ const conversation = {
 describe('AI Agent store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    window.localStorage.clear()
     vi.clearAllMocks()
     apiMocks.createConversation.mockResolvedValue(conversation)
     apiMocks.listConversations.mockResolvedValue([conversation])
@@ -227,7 +228,13 @@ describe('AI Agent store', () => {
     const run = store.startRun('inspect host', 'connection-1')
     await vi.waitFor(() => expect(store.activeRunId).toBe('run-1'))
 
-    emit({ event: 'message-delta', messageId: 'old-message', runId: 'old-run', sequence: 99, text: 'old' })
+    emit({
+      event: 'message-delta',
+      messageId: 'old-message',
+      runId: 'old-run',
+      sequence: 99,
+      text: 'old',
+    })
     expect(store.messages.at(-1)?.content).toBe('new')
     expect(store.runSteps).toMatchObject([{ content: 'new', stepId: 'model-1' }])
     finishRun()
@@ -265,6 +272,27 @@ describe('AI Agent store', () => {
     finishRun()
     await run
     store.resetForConnection('connection-2')
+    expect(store.autoRun).toBe(autoRun)
+  })
+
+  it('hydrates and persists the run permission preference', () => {
+    window.localStorage.setItem('host-deck-ui.aiAgent.autoRun', 'true')
+
+    const store = useAiAgentStore()
+    expect(store.autoRun).toBe(true)
+
+    expect(store.setAutoRun(false)).toBe(true)
+    expect(store.autoRun).toBe(false)
+    expect(window.localStorage.getItem('host-deck-ui.aiAgent.autoRun')).toBe('false')
+
+    store.resetForConnection('connection-2')
+    expect(store.autoRun).toBe(false)
+  })
+
+  it('defaults the run permission preference when storage is unavailable', () => {
+    window.localStorage.setItem('host-deck-ui.aiAgent.autoRun', 'invalid')
+
+    const store = useAiAgentStore()
     expect(store.autoRun).toBe(false)
   })
 
@@ -361,7 +389,13 @@ describe('AI Agent store', () => {
           toolCallId: 'call-2',
           toolStatus: 'failed',
         },
-        { attachments: [], content: 'Checking.Done.', createdAt: 5, id: 'm-final-1', role: 'assistant' },
+        {
+          attachments: [],
+          content: 'Checking.Done.',
+          createdAt: 5,
+          id: 'm-final-1',
+          role: 'assistant',
+        },
         { attachments: [], content: 'clean up', createdAt: 6, id: 'm-user-2', role: 'user' },
         {
           attachments: [],

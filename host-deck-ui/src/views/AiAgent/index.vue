@@ -186,7 +186,7 @@ function openSettings(section: 'mcp' | 'model' = 'model') {
 
 function selectRunMode(mode: boolean) {
   if (running.value || !sshStore.connectionId) return
-  autoRun.value = mode
+  agentStore.setAutoRun(mode)
   modeMenuOpen.value = false
 }
 
@@ -652,7 +652,10 @@ let resizeObserver: ResizeObserver | undefined
             <span class="agent-run-phase-dot" />
             {{ currentPhase }}
           </div>
-          <template v-for="entry in timelineEntries" :key="entry.kind === 'message' ? entry.message.id : entry.step.stepId">
+          <template
+            v-for="entry in timelineEntries"
+            :key="entry.kind === 'message' ? entry.message.id : entry.step.stepId"
+          >
             <article
               v-if="entry.kind === 'message'"
               class="agent-message"
@@ -687,24 +690,32 @@ let resizeObserver: ResizeObserver | undefined
                 {{ entry.message.content }}
               </div>
               <div
-                v-else-if="entry.message.role === 'assistant' && entry.message.id === streamingMessageId"
+                v-else-if="
+                  entry.message.role === 'assistant' && entry.message.id === streamingMessageId
+                "
                 class="agent-thinking"
                 aria-label="Agent 正在思考"
               >
                 <span /><span /><span />
               </div>
             </article>
-            <div v-else-if="entry.step.type === 'model'" class="agent-message agent-message-assistant">
+            <div
+              v-else-if="entry.step.type === 'model'"
+              class="agent-message agent-message-assistant"
+            >
               <div class="agent-message-role"><Bot :size="14" /> Agent</div>
-              <AiAgentMarkdown
-                v-if="entry.step.content"
-                :content="entry.step.content"
-              />
+              <AiAgentMarkdown v-if="entry.step.content" :content="entry.step.content" />
               <div v-else-if="running" class="agent-thinking" aria-label="Agent 正在思考">
                 <span /><span /><span />
               </div>
             </div>
-            <div v-else-if="(entry.step.type === 'tool' || entry.step.type === 'approval') && toolForStep(entry.step)" class="agent-tools">
+            <div
+              v-else-if="
+                (entry.step.type === 'tool' || entry.step.type === 'approval') &&
+                toolForStep(entry.step)
+              "
+              class="agent-tools"
+            >
               <div class="agent-message-role"><Bot :size="14" /> Agent</div>
               <AiAgentToolCall
                 :tool="toolForStep(entry.step)!"
