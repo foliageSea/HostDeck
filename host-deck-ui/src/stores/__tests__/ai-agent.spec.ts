@@ -74,6 +74,35 @@ describe('AI Agent store', () => {
     }
   })
 
+  it('does not reload the currently selected conversation', async () => {
+    const store = useAiAgentStore()
+    store.resetForConnection('connection-1')
+    store.selectedConversation = conversation
+
+    await store.selectConversation('conversation-1', 'connection-1')
+
+    expect(apiMocks.getConversation).not.toHaveBeenCalled()
+  })
+
+  it('does not request another conversation while one is loading', async () => {
+    let resolveConversation!: (value: { conversation: typeof conversation; messages: [] }) => void
+    apiMocks.getConversation.mockReturnValue(
+      new Promise((resolve) => {
+        resolveConversation = resolve
+      }),
+    )
+    const store = useAiAgentStore()
+
+    const firstRequest = store.selectConversation('conversation-1', 'connection-1')
+    await store.selectConversation('conversation-2', 'connection-1')
+
+    expect(apiMocks.getConversation).toHaveBeenCalledTimes(1)
+    expect(apiMocks.getConversation).toHaveBeenCalledWith('conversation-1', 'connection-1')
+
+    resolveConversation({ conversation, messages: [] })
+    await firstRequest
+  })
+
   it('updates the title in both the conversation list and selected detail', async () => {
     apiMocks.getConversation.mockResolvedValue({ conversation, messages: [] })
     const store = useAiAgentStore()

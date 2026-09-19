@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { CheckCircle2, KeyRound, Plus, RefreshCw, Trash2, TriangleAlert } from '@lucide/vue'
-import type { AiAgentModelConfig } from '@/api/ai-agent'
+import type { AiAgentModelConfig, AiAgentSettingsUpdate } from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
 import { useAiAgentStore } from '@/stores/ai-agent'
 import AiAgentMcpSettings from './AiAgentMcpSettings.vue'
@@ -70,6 +70,29 @@ function payload() {
   }
 }
 
+function isSettingsUnchanged(payload: AiAgentSettingsUpdate) {
+  const current = store.settings
+  if (!current || payload.apiKey || payload.clearApiKey) return false
+
+  const currentModels = current.models.map((model) => ({
+    id: model.id.trim(),
+    name: model.name.trim(),
+  }))
+  if (current.model && !currentModels.some((model) => model.id === current.model)) {
+    currentModels.push({ id: current.model, name: current.model })
+  }
+
+  return (
+    payload.baseUrl === current.baseUrl &&
+    payload.model === current.model &&
+    payload.models?.length === currentModels.length &&
+    payload.models.every((model, index) => {
+      const savedModel = currentModels[index]
+      return model.id === savedModel?.id && model.name === savedModel?.name
+    })
+  )
+}
+
 function addModel() {
   form.models.push({ id: '', name: '' })
 }
@@ -101,6 +124,7 @@ async function fetchModels() {
 }
 
 async function save() {
+  if (saving.value || testing.value) return
   if (!form.baseUrl.trim() || !form.model.trim()) {
     getUiApi().message.warning('请填写 Base URL 和模型。')
     return
@@ -114,9 +138,16 @@ async function save() {
     getUiApi().message.warning('模型 ID 不能重复。')
     return
   }
+  const nextPayload = payload()
+  if (isSettingsUnchanged(nextPayload)) {
+    form.apiKey = ''
+    emit('update:show', false)
+    return
+  }
+
   saving.value = true
   try {
-    await store.saveSettings(payload())
+    await store.saveSettings(nextPayload)
     syncForm()
     getUiApi().message.success('AI Agent 设置已保存。')
     emit('update:show', false)

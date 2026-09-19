@@ -388,6 +388,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   async function selectConversation(id: string, connectionId: string) {
     resetForConnection(connectionId)
     if (running.value) return
+    if (selectedConversation.value?.id === id) return
+    if (loadingConversation.value) return
     const request = ++detailRequest
     loadingConversation.value = true
     error.value = null

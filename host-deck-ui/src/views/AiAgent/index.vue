@@ -229,7 +229,13 @@ async function newConversation() {
 
 async function openConversation(id: string) {
   const connectionId = sshStore.connectionId
-  if (!connectionId || loadingConversation.value) return
+  if (
+    !connectionId ||
+    loadingConversation.value ||
+    selectedConversation.value?.id === id
+  ) {
+    return
+  }
   try {
     await agentStore.selectConversation(id, connectionId)
     input.value = ''
