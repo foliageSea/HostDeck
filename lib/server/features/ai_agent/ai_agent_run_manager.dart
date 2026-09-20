@@ -560,12 +560,20 @@ inspected or changed the host. Do not expose secrets.
     for (final skill in skills) {
       prompt
         ..writeln()
-        ..writeln('--- BEGIN SKILL ${skill.name} ---')
-        ..writeln('Skill directory: ${jsonEncode(skill.directory)}')
-        ..writeln(
-          'Resolve relative references from this directory. Reading referenced '
-          'files still requires HostDeck tool approval.',
-        )
+        ..writeln('--- BEGIN SKILL ${skill.name} ---');
+      if (skill.directory == null) {
+        prompt.writeln(
+          'This database skill has no resource directory. Relative resource references are unavailable.',
+        );
+      } else {
+        prompt
+          ..writeln('Skill directory: ${jsonEncode(skill.directory)}')
+          ..writeln(
+            'Resolve relative references from this directory. Reading referenced '
+            'files still requires HostDeck tool approval.',
+          );
+      }
+      prompt
         ..writeln(skill.content)
         ..writeln('--- END SKILL ${skill.name} ---');
     }

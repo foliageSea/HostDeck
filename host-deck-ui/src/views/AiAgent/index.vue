@@ -81,7 +81,7 @@ const sidebarOpen = ref(true)
 const settingsOpen = ref(false)
 const modeMenuOpen = ref(false)
 const modelMenuOpen = ref(false)
-const settingsSection = ref<'mcp' | 'model'>('model')
+const settingsSection = ref<'mcp' | 'model' | 'skills'>('model')
 const query = ref('')
 const input = ref('')
 const imageInput = ref<HTMLInputElement>()
@@ -180,7 +180,7 @@ const activeModelName = computed(() => {
   return activeModel?.name || settings.value?.model || '选择模型'
 })
 
-function openSettings(section: 'mcp' | 'model' = 'model') {
+function openSettings(section: 'mcp' | 'model' | 'skills' = 'model') {
   settingsSection.value = section
   settingsOpen.value = true
 }
@@ -230,11 +230,7 @@ async function newConversation() {
 
 async function openConversation(id: string) {
   const connectionId = sshStore.connectionId
-  if (
-    !connectionId ||
-    loadingConversation.value ||
-    selectedConversation.value?.id === id
-  ) {
+  if (!connectionId || loadingConversation.value || selectedConversation.value?.id === id) {
     return
   }
   try {
@@ -947,6 +943,7 @@ let resizeObserver: ResizeObserver | undefined
                 v-if="runMode === 'agent'"
                 :connection-id="sshStore.connectionId"
                 :disabled="running"
+                @manage="openSettings('skills')"
               />
               <button
                 v-if="runMode === 'agent'"

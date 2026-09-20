@@ -5,10 +5,11 @@ import type { AiAgentModelConfig, AiAgentSettingsUpdate } from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
 import { useAiAgentStore } from '@/stores/ai-agent'
 import AiAgentMcpSettings from './AiAgentMcpSettings.vue'
+import AiAgentSkillSettings from './AiAgentSkillSettings.vue'
 
 const props = defineProps<{
   show: boolean
-  initialTab?: 'mcp' | 'model'
+  initialTab?: 'mcp' | 'model' | 'skills'
 }>()
 
 const emit = defineEmits<{
@@ -16,10 +17,36 @@ const emit = defineEmits<{
 }>()
 
 const store = useAiAgentStore()
+const skillSettings = ref<InstanceType<typeof AiAgentSkillSettings> | null>(null)
 const saving = ref(false)
 const testing = ref(false)
 const loadingModels = ref(false)
-const activeTab = ref<'mcp' | 'model'>('model')
+const activeTab = ref<'mcp' | 'model' | 'skills'>('model')
+
+function confirmLeavingSkills(action: () => void) {
+  if (activeTab.value !== 'skills' || !skillSettings.value?.dirty) {
+    action()
+    return
+  }
+  getUiApi().dialog.warning({
+    title: '放弃未保存的修改',
+    content: '当前 SKILL.md 尚未保存，确认放弃修改？',
+    positiveText: '放弃修改',
+    negativeText: '继续编辑',
+    onPositiveClick: action,
+  })
+}
+
+function changeTab(value: string | number) {
+  confirmLeavingSkills(() => {
+    activeTab.value = value as 'model' | 'mcp' | 'skills'
+  })
+}
+
+function changeVisibility(value: boolean) {
+  if (value) return emit('update:show', true)
+  confirmLeavingSkills(() => emit('update:show', false))
+}
 const form = reactive({ baseUrl: '', model: '', models: [] as AiAgentModelConfig[], apiKey: '' })
 const availableModels = ref<string[]>([])
 const usesPlainHttp = computed(() => /^http:\/\//i.test(form.baseUrl.trim()))
@@ -203,9 +230,9 @@ function clearKey() {
     title="AI Agent 设置"
     class="agent-settings-modal"
     :bordered="false"
-    @update:show="emit('update:show', $event)"
+    @update:show="changeVisibility"
   >
-    <NTabs v-model:value="activeTab" type="line" animated>
+    <NTabs :value="activeTab" type="line" animated @update:value="changeTab">
       <NTabPane name="model" tab="模型">
         <NForm label-placement="top">
           <NFormItem label="Base URL">
@@ -233,9 +260,7 @@ function clearKey() {
                   >
                     <RefreshCw :size="14" /> 获取模型列表
                   </NButton>
-                  <NButton size="small" @click="addModel">
-                    <Plus :size="14" /> 添加模型
-                  </NButton>
+                  <NButton size="small" @click="addModel"> <Plus :size="14" /> 添加模型 </NButton>
                 </div>
               </div>
               <div class="model-config-headings">
@@ -243,7 +268,11 @@ function clearKey() {
                 <span>显示名称</span>
               </div>
               <div class="model-config-list app-scrollbar app-scrollbar-compact">
-                <div v-for="(configuredModel, index) in form.models" :key="index" class="model-config-item">
+                <div
+                  v-for="(configuredModel, index) in form.models"
+                  :key="index"
+                  class="model-config-item"
+                >
                   <NSelect
                     :value="configuredModel.id || null"
                     :options="modelOptions"
@@ -253,7 +282,13 @@ function clearKey() {
                     @update:value="updateModelId(index, $event)"
                   />
                   <NInput v-model:value="configuredModel.name" placeholder="显示名称" />
-                  <NButton quaternary circle type="error" :aria-label="`移除模型 ${configuredModel.name || configuredModel.id}`" @click="removeModel(index)">
+                  <NButton
+                    quaternary
+                    circle
+                    type="error"
+                    :aria-label="`移除模型 ${configuredModel.name || configuredModel.id}`"
+                    @click="removeModel(index)"
+                  >
                     <Trash2 :size="15" />
                   </NButton>
                 </div>
@@ -303,6 +338,9 @@ function clearKey() {
       <NTabPane name="mcp" tab="MCP">
         <AiAgentMcpSettings />
       </NTabPane>
+      <NTabPane name="skills" tab="Skills">
+        <AiAgentSkillSettings ref="skillSettings" />
+      </NTabPane>
     </NTabs>
     <template #footer>
       <div v-if="activeTab === 'model'" class="flex justify-end gap-2">
@@ -315,7 +353,7 @@ function clearKey() {
 
 <style>
 .agent-settings-modal {
-  width: min(520px, calc(100vw - 28px));
+  width: min(900px, calc(100vw - 28px));
 }
 
 .model-config-panel {

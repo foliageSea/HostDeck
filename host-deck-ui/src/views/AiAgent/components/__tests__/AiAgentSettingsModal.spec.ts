@@ -35,6 +35,7 @@ function mountModal() {
     global: {
       stubs: {
         AiAgentMcpSettings: { template: '<div />' },
+        AiAgentSkillSettings: { template: '<div />' },
         NButton: {
           props: ['disabled', 'loading'],
           emits: ['click'],

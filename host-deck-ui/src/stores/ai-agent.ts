@@ -172,6 +172,7 @@ function persistAutoRun(value: boolean) {
 export const useAiAgentStore = defineStore('ai-agent', () => {
   const settings = ref<AiAgentSettings | null>(null)
   const skills = ref<AiAgentSkill[]>([])
+  const managedSkills = ref<AiAgentSkill[]>([])
   const mcpServers = ref<AiAgentMcpServer[]>([])
   const selectedSkillIds = ref<string[]>([])
   const conversations = ref<AiAgentConversation[]>([])
@@ -184,6 +185,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const durationMs = ref<number | null>(null)
   const loadingSettings = ref(false)
   const loadingSkills = ref(false)
+  const loadingManagedSkills = ref(false)
   const loadingMcpServers = ref(false)
   const loadingConversations = ref(false)
   const loadingConversation = ref(false)
@@ -200,6 +202,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   let listRequest = 0
   let detailRequest = 0
   let skillsRequest = 0
+  let managedSkillsRequest = 0
   let runRequest = 0
   let runController: AbortController | null = null
   let runStartedAt: number | null = null
@@ -260,6 +263,49 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     } finally {
       if (request === skillsRequest) loadingSkills.value = false
     }
+  }
+
+  async function loadManagedSkills() {
+    const request = ++managedSkillsRequest
+    loadingManagedSkills.value = true
+    try {
+      const result = await aiAgentApi.listManagedSkills()
+      if (request === managedSkillsRequest) managedSkills.value = result
+      return managedSkills.value
+    } finally {
+      if (request === managedSkillsRequest) loadingManagedSkills.value = false
+    }
+  }
+
+  async function refreshSkillsAfterManage() {
+    await loadManagedSkills().catch(() => undefined)
+    if (currentConnectionId.value) void loadSkills(currentConnectionId.value).catch(() => undefined)
+  }
+
+  async function getManagedSkill(id: number) {
+    return aiAgentApi.getManagedSkill(id)
+  }
+
+  async function createManagedSkill(content: string) {
+    const skill = await aiAgentApi.createManagedSkill(content)
+    managedSkills.value = [...managedSkills.value, skill]
+    await refreshSkillsAfterManage()
+    return skill
+  }
+
+  async function updateManagedSkill(id: number, content: string) {
+    const skill = await aiAgentApi.updateManagedSkill(id, content)
+    managedSkills.value = managedSkills.value.map((item) => (item.id === skill.id ? skill : item))
+    await refreshSkillsAfterManage()
+    return skill
+  }
+
+  async function deleteManagedSkill(id: number) {
+    await aiAgentApi.deleteManagedSkill(id)
+    managedSkills.value = managedSkills.value.filter((skill) => skill.id !== `hostdeck:${id}`)
+    selectedSkillIds.value = selectedSkillIds.value.filter((skillId) => skillId !== `hostdeck:${id}`)
+    skills.value = skills.value.filter((skill) => skill.id !== `hostdeck:${id}`)
+    await refreshSkillsAfterManage()
   }
 
   async function loadMcpServers() {
@@ -712,23 +758,28 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     autoRun,
     cancelRun,
     conversations,
+    createManagedSkill,
     createConversation,
     currentConnectionId,
     deleteConversation,
+    deleteManagedSkill,
     durationMs,
     error,
     hasPendingApproval,
     loadConversations,
     loadMcpServers,
+    loadManagedSkills,
     loadModels,
     loadSkills,
     loadSettings,
     loadingConversation,
     loadingConversations,
     loadingMcpServers,
+    loadingManagedSkills,
     loadingSettings,
     loadingSkills,
     messages,
+    managedSkills,
     mcpServers,
     resetForConnection,
     resolveApproval,
@@ -754,7 +805,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     createMcpServer,
     deleteMcpServer,
     updateMcpServer,
+    updateManagedSkill,
     updateConversationTitle,
+    getManagedSkill,
     usage,
   }
 })

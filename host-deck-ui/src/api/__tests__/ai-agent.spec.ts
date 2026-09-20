@@ -9,13 +9,51 @@ afterEach(() => {
 
 describe('aiAgentApi skills', () => {
   it('lists skills for the active connection', async () => {
-    const skills = [{ description: 'Inspect logs', id: 'logs', name: 'Logs', source: 'workspace' }]
+    const skills = [
+      {
+        description: 'Inspect logs',
+        editable: false,
+        id: 'logs',
+        name: 'Logs',
+        source: 'workspace',
+      },
+    ]
     const get = vi.spyOn(http, 'get').mockResolvedValue({ data: skills })
 
     await expect(aiAgentApi.listSkills('connection-1')).resolves.toEqual(skills)
     expect(get).toHaveBeenCalledWith('/api/ai-agent/skills', {
       params: { connectionId: 'connection-1' },
     })
+  })
+
+  it('manages database skills with numeric resource paths', async () => {
+    const skill = {
+      content: '---\nname: logs\ndescription: Inspect logs\n---\n',
+      description: 'Inspect logs',
+      editable: true,
+      id: 'hostdeck:7',
+      name: 'logs',
+      source: 'hostdeck',
+    }
+    const get = vi
+      .spyOn(http, 'get')
+      .mockResolvedValueOnce({ data: [skill] })
+      .mockResolvedValueOnce({ data: skill })
+    const post = vi.spyOn(http, 'post').mockResolvedValue({ data: skill })
+    const put = vi.spyOn(http, 'put').mockResolvedValue({ data: skill })
+    const remove = vi.spyOn(http, 'delete').mockResolvedValue({ data: undefined })
+
+    await expect(aiAgentApi.listManagedSkills()).resolves.toEqual([skill])
+    await expect(aiAgentApi.getManagedSkill(7)).resolves.toEqual(skill)
+    await expect(aiAgentApi.createManagedSkill(skill.content)).resolves.toEqual(skill)
+    await expect(aiAgentApi.updateManagedSkill(7, skill.content)).resolves.toEqual(skill)
+    await aiAgentApi.deleteManagedSkill(7)
+
+    expect(get).toHaveBeenNthCalledWith(1, '/api/ai-agent/skills/library')
+    expect(get).toHaveBeenNthCalledWith(2, '/api/ai-agent/skills/7')
+    expect(post).toHaveBeenCalledWith('/api/ai-agent/skills', { content: skill.content })
+    expect(put).toHaveBeenCalledWith('/api/ai-agent/skills/7', { content: skill.content })
+    expect(remove).toHaveBeenCalledWith('/api/ai-agent/skills/7')
   })
 
   it('closes the shared session for the active connection', async () => {
@@ -81,7 +119,7 @@ describe('aiAgentApi.run', () => {
             'event: message-delta\ndata: {"messageId":"message-1","text":"hello"}\n\n' +
             'event: tool-start\ndata: {"callId":"call-1","name":"shell","summary":"Inspect files"}\n\n' +
             'event: approval-required\ndata: {"callId":"call-1","name":"shell","summary":"Remove file","arguments":{"command":"rm old"}}\n\n' +
-             'event: tool-result\ndata: {"callId":"call-1","name":"shell","success":true,"summary":"Done","content":"ok","exitCode":0,"durationMs":12,"truncated":false}\n\n' +
+            'event: tool-result\ndata: {"callId":"call-1","name":"shell","success":true,"summary":"Done","content":"ok","exitCode":0,"durationMs":12,"truncated":false}\n\n' +
             'event: usage\ndata: {"inputTokens":10,"outputTokens":5,"totalTokens":15}\n\n' +
             'event: done\ndata: {"conversationId":"conversation-1","messageId":"message-1"}\n\n',
           { headers: { 'Content-Type': 'text/event-stream' } },

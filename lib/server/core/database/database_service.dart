@@ -445,6 +445,21 @@ class DatabaseService {
       ''');
       _setVersion(15);
     }
+
+    // v15 -> v16: Store globally shared AI agent skills.
+    if (currentVersion < 16) {
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS ai_agent_skills (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          description TEXT NOT NULL,
+          content TEXT NOT NULL,
+          createdAt INTEGER NOT NULL,
+          updatedAt INTEGER NOT NULL
+        )
+      ''');
+      _setVersion(16);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

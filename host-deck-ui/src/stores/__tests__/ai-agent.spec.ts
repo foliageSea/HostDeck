@@ -7,16 +7,21 @@ const apiMocks = vi.hoisted(() => ({
   approve: vi.fn(),
   cancel: vi.fn(),
   createConversation: vi.fn(),
+  createManagedSkill: vi.fn(),
   deleteConversation: vi.fn(),
+  deleteManagedSkill: vi.fn(),
   getConversation: vi.fn(),
+  getManagedSkill: vi.fn(),
   getSettings: vi.fn(),
   listConversations: vi.fn(),
+  listManagedSkills: vi.fn(),
   listSkills: vi.fn(),
   reject: vi.fn(),
   run: vi.fn(),
   saveSettings: vi.fn(),
   testSettings: vi.fn(),
   updateConversation: vi.fn(),
+  updateManagedSkill: vi.fn(),
 }))
 
 vi.mock('@/api/ai-agent', () => ({ aiAgentApi: apiMocks }))
@@ -36,9 +41,22 @@ describe('AI Agent store', () => {
     apiMocks.createConversation.mockResolvedValue(conversation)
     apiMocks.listConversations.mockResolvedValue([conversation])
     apiMocks.listSkills.mockResolvedValue([
-      { description: 'Inspect logs', id: 'logs', name: 'Logs', source: 'workspace' },
-      { description: 'Review services', id: 'services', name: 'Services', source: 'builtin' },
+      {
+        description: 'Inspect logs',
+        editable: false,
+        id: 'logs',
+        name: 'Logs',
+        source: 'workspace',
+      },
+      {
+        description: 'Review services',
+        editable: false,
+        id: 'services',
+        name: 'Services',
+        source: 'builtin',
+      },
     ])
+    apiMocks.listManagedSkills.mockResolvedValue([])
     apiMocks.approve.mockResolvedValue(undefined)
     apiMocks.cancel.mockResolvedValue(undefined)
     apiMocks.reject.mockResolvedValue(undefined)
@@ -546,7 +564,15 @@ describe('AI Agent store', () => {
     )
     const store = useAiAgentStore()
     store.resetForConnection('connection-1')
-    store.skills = [{ description: 'Inspect logs', id: 'logs', name: 'Logs', source: 'workspace' }]
+    store.skills = [
+      {
+        description: 'Inspect logs',
+        editable: false,
+        id: 'logs',
+        name: 'Logs',
+        source: 'workspace',
+      },
+    ]
     store.toggleSkill('logs')
     void store.startRun('read file', 'connection-1')
     await vi.waitFor(() => expect(store.activeRunId).toBe('run-1'))
@@ -591,6 +617,87 @@ describe('AI Agent store', () => {
       'agent',
     )
     expect(store.selectedSkillIds).toEqual([])
+  })
+
+  it('manages database skills and reloads the merged list for the active connection', async () => {
+    const managedSkill = {
+      content: '---\nname: logs\ndescription: Inspect logs\n---\n',
+      description: 'Inspect logs',
+      editable: true,
+      id: 'hostdeck:7',
+      name: 'logs',
+      source: 'hostdeck',
+    }
+    apiMocks.createManagedSkill.mockResolvedValue(managedSkill)
+    apiMocks.updateManagedSkill.mockResolvedValue(managedSkill)
+    apiMocks.getManagedSkill.mockResolvedValue(managedSkill)
+    apiMocks.listManagedSkills.mockResolvedValue([managedSkill])
+    apiMocks.listSkills.mockResolvedValue([managedSkill])
+    const store = useAiAgentStore()
+    await store.loadSkills('connection-1')
+
+    await expect(store.createManagedSkill(managedSkill.content)).resolves.toEqual(managedSkill)
+    await expect(store.getManagedSkill(7)).resolves.toEqual(managedSkill)
+    await expect(store.updateManagedSkill(7, managedSkill.content)).resolves.toEqual(managedSkill)
+
+    expect(apiMocks.listManagedSkills).toHaveBeenCalledTimes(2)
+    expect(apiMocks.listSkills).toHaveBeenCalledWith('connection-1')
+    expect(store.managedSkills).toEqual([managedSkill])
+  })
+
+  it('naturally clears a selected managed skill after deletion reloads the merged list', async () => {
+    const managedSkill = {
+      description: 'Inspect logs',
+      editable: true,
+      id: 'hostdeck:7',
+      name: 'logs',
+      source: 'hostdeck',
+    }
+    apiMocks.listSkills.mockResolvedValueOnce([managedSkill]).mockResolvedValueOnce([])
+    apiMocks.listManagedSkills.mockResolvedValue([])
+    const store = useAiAgentStore()
+    await store.loadSkills('connection-1')
+    store.toggleSkill(managedSkill.id)
+
+    await store.deleteManagedSkill(7)
+
+    expect(apiMocks.deleteManagedSkill).toHaveBeenCalledWith(7)
+    expect(store.selectedSkillIds).toEqual([])
+  })
+
+  it('keeps a successful deletion when remote skill refresh fails', async () => {
+    const managedSkill = {
+      description: 'Inspect logs',
+      editable: true,
+      id: 'hostdeck:7',
+      name: 'logs',
+      source: 'hostdeck',
+    }
+    apiMocks.listSkills.mockResolvedValueOnce([managedSkill]).mockRejectedValueOnce(new Error('SFTP down'))
+    apiMocks.listManagedSkills.mockResolvedValue([])
+    const store = useAiAgentStore()
+    await store.loadSkills('connection-1')
+    store.toggleSkill(managedSkill.id)
+
+    await expect(store.deleteManagedSkill(7)).resolves.toBeUndefined()
+    expect(store.selectedSkillIds).toEqual([])
+    expect(store.skills).toEqual([])
+    expect(store.managedSkills).toEqual([])
+  })
+
+  it('ignores an older managed skill listing after a later refresh', async () => {
+    let resolveOld!: (value: never[]) => void
+    apiMocks.listManagedSkills
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+      .mockResolvedValueOnce([{ id: 'hostdeck:7', name: 'logs', description: 'Logs', source: 'hostdeck', editable: true }])
+    const store = useAiAgentStore()
+    const older = store.loadManagedSkills()
+    await store.loadManagedSkills()
+    resolveOld([])
+    await older
+
+    expect(store.managedSkills).toHaveLength(1)
+    expect(store.loadingManagedSkills).toBe(false)
   })
 
   it('sends and renders an image-only user message', async () => {
@@ -681,6 +788,7 @@ describe('AI Agent store', () => {
     const store = useAiAgentStore()
     store.skills = Array.from({ length: MAX_SELECTED_SKILLS + 1 }, (_, index) => ({
       description: `Skill ${index}`,
+      editable: false,
       id: `skill-${index}`,
       name: `skill-${index}`,
       source: 'opencode',

@@ -26,6 +26,11 @@ export interface AiAgentSkill {
   name: string
   description: string
   source: string
+  editable: boolean
+}
+
+export interface AiAgentSkillDetail extends AiAgentSkill {
+  content: string
 }
 
 export interface AiAgentMcpServer {
@@ -161,7 +166,13 @@ export type AiAgentRunEvent =
   | ({ event: 'model-start'; messageId: string } & AiAgentRunEventMeta)
   | ({ event: 'model-end'; messageId: string } & AiAgentRunEventMeta)
   | ({ event: 'message-delta'; messageId: string; text: string } & AiAgentRunEventMeta)
-  | ({ event: 'tool-start'; callId: string; name: string; summary: string; arguments?: unknown } & AiAgentRunEventMeta)
+  | ({
+      event: 'tool-start'
+      callId: string
+      name: string
+      summary: string
+      arguments?: unknown
+    } & AiAgentRunEventMeta)
   | ({
       event: 'approval-required'
       callId: string
@@ -292,7 +303,8 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
         ...(data.content !== undefined
           ? {
               result: {
-                content: typeof data.content === 'string' ? data.content : JSON.stringify(data.content),
+                content:
+                  typeof data.content === 'string' ? data.content : JSON.stringify(data.content),
                 ...(typeof data.exitCode === 'number' ? { exitCode: data.exitCode } : {}),
                 ...(typeof data.stderr === 'string' ? { stderr: data.stderr } : {}),
                 ...(typeof data.durationMs === 'number' ? { durationMs: data.durationMs } : {}),
@@ -371,6 +383,26 @@ export const aiAgentApi = {
         params: { connectionId },
       })
     ).data
+  },
+
+  async listManagedSkills() {
+    return (await http.get<AiAgentSkill[]>('/api/ai-agent/skills/library')).data
+  },
+
+  async createManagedSkill(content: string) {
+    return (await http.post<AiAgentSkillDetail>('/api/ai-agent/skills', { content })).data
+  },
+
+  async getManagedSkill(id: number) {
+    return (await http.get<AiAgentSkillDetail>(`/api/ai-agent/skills/${id}`)).data
+  },
+
+  async updateManagedSkill(id: number, content: string) {
+    return (await http.put<AiAgentSkillDetail>(`/api/ai-agent/skills/${id}`, { content })).data
+  },
+
+  async deleteManagedSkill(id: number) {
+    await http.delete(`/api/ai-agent/skills/${id}`)
   },
 
   async closeSession(connectionId: string) {

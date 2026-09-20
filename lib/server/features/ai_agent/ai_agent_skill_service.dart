@@ -4,18 +4,21 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:yaml/yaml.dart';
 
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_skill_repository.dart';
 
 class AiAgentSkill {
   final String id;
   final String name;
   final String description;
   final String source;
+  final bool editable;
 
   const AiAgentSkill({
     required this.id,
     required this.name,
     required this.description,
     required this.source,
+    this.editable = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -23,12 +26,13 @@ class AiAgentSkill {
     'name': name,
     'description': description,
     'source': source,
+    'editable': editable,
   };
 }
 
 class AiAgentSkillContent {
   final String name;
-  final String directory;
+  final String? directory;
   final String content;
 
   const AiAgentSkillContent({
@@ -51,14 +55,67 @@ class AiAgentSkillService {
   ];
 
   final AiAgentSkillFileSystem _fileSystem;
+  final AiAgentSkillRepository? _repository;
 
-  AiAgentSkillService(SharedSshSessionResolver sessionResolver)
-    : _fileSystem = SftpAiAgentSkillFileSystem(sessionResolver);
+  AiAgentSkillService(
+    SharedSshSessionResolver sessionResolver,
+    AiAgentSkillRepository repository,
+  ) : _fileSystem = SftpAiAgentSkillFileSystem(sessionResolver),
+      _repository = repository;
 
-  AiAgentSkillService.withFileSystem(this._fileSystem);
+  AiAgentSkillService.withFileSystem(this._fileSystem, [this._repository]);
+
+  static ({String name, String description}) parseContent(String content) {
+    if (utf8.encode(content).length > maxFileBytes) {
+      throw const FormatException('Skill content exceeds 64 KiB.');
+    }
+    final lines = const LineSplitter().convert(content);
+    if (lines.isEmpty || lines.first != '---') {
+      throw const FormatException('Skill frontmatter is required.');
+    }
+    final end = lines.indexOf('---', 1);
+    if (end < 0) throw const FormatException('Skill frontmatter is invalid.');
+    try {
+      final document = loadYaml(lines.sublist(1, end).join('\n'));
+      if (document is! YamlMap) {
+        throw const FormatException('Skill frontmatter is invalid.');
+      }
+      final name = document['name'];
+      final description = document['description'];
+      if (name is! String ||
+          name.length > 64 ||
+          !_namePattern.hasMatch(name) ||
+          description is! String ||
+          description.trim().isEmpty) {
+        throw const FormatException('Invalid skill name or description.');
+      }
+      return (name: name, description: description.trim());
+    } on YamlException {
+      throw const FormatException('Skill frontmatter is invalid.');
+    }
+  }
 
   Future<List<AiAgentSkill>> discover(String connectionId) async {
-    final discovered = await _discoverWithContent(connectionId);
+    late final List<_DiscoveredSkill> discovered;
+    try {
+      discovered = await _discoverWithContent(connectionId);
+    } catch (_) {
+      final stored = _repository?.list() ?? const <AiAgentStoredSkill>[];
+      if (stored.isEmpty) rethrow;
+      return List.unmodifiable(
+        stored
+            .take(maxDiscoveredSkills)
+            .map(
+              (skill) => AiAgentSkill(
+                id: 'hostdeck:${skill.id}',
+                name: skill.name,
+                description: skill.description,
+                source: 'hostdeck',
+                editable: true,
+              ),
+            ),
+      );
+    }
     return List.unmodifiable(discovered.map((item) => item.skill));
   }
 
@@ -73,6 +130,14 @@ class AiAgentSkillService {
       throw const FormatException('skillIds must not contain duplicates.');
     }
     if (skillIds.isEmpty) return const [];
+
+    final storedSkills = _repository?.list() ?? const <AiAgentStoredSkill>[];
+    final storedById = {
+      for (final skill in storedSkills) 'hostdeck:${skill.id}': skill,
+    };
+    if (skillIds.every((id) => id.startsWith('hostdeck:'))) {
+      return _snapshotStoredSkills(skillIds, storedById);
+    }
 
     final discovered = await _discoverWithContent(connectionId);
     final byId = {for (final item in discovered) item.skill.id: item};
@@ -98,12 +163,58 @@ class AiAgentSkillService {
     return List.unmodifiable(result);
   }
 
+  List<AiAgentSkillContent> _snapshotStoredSkills(
+    List<String> skillIds,
+    Map<String, AiAgentStoredSkill> storedById,
+  ) {
+    final result = <AiAgentSkillContent>[];
+    var totalBytes = 0;
+    for (final id in skillIds) {
+      final skill = storedById[id];
+      if (skill == null) {
+        throw FormatException('Unknown or unavailable skill ID: $id');
+      }
+      totalBytes += utf8.encode(skill.content).length;
+      if (totalBytes > maxSelectedContentBytes) {
+        throw const FormatException('Selected skill content exceeds 128 KiB.');
+      }
+      result.add(
+        AiAgentSkillContent(
+          name: skill.name,
+          directory: null,
+          content: skill.content,
+        ),
+      );
+    }
+    return List.unmodifiable(result);
+  }
+
   Future<List<_DiscoveredSkill>> _discoverWithContent(
     String connectionId,
   ) async {
-    final home = await _fileSystem.home(connectionId);
     final result = <_DiscoveredSkill>[];
     final names = <String>{};
+
+    for (final stored
+        in _repository?.list().take(maxDiscoveredSkills) ??
+            const <AiAgentStoredSkill>[]) {
+      result.add(
+        _DiscoveredSkill(
+          AiAgentSkill(
+            id: 'hostdeck:${stored.id}',
+            name: stored.name,
+            description: stored.description,
+            source: 'hostdeck',
+            editable: true,
+          ),
+          null,
+          stored.content,
+        ),
+      );
+      names.add(stored.name);
+    }
+    if (result.length >= maxDiscoveredSkills) return result;
+    final home = await _fileSystem.home(connectionId);
 
     for (final source in _sources) {
       if (result.length >= maxDiscoveredSkills) break;
@@ -172,24 +283,10 @@ class AiAgentSkillService {
   }
 
   String? _parseFrontmatter(String content, String directoryName) {
-    final lines = const LineSplitter().convert(content);
-    if (lines.isEmpty || lines.first != '---') return null;
-    final end = lines.indexOf('---', 1);
-    if (end < 0) return null;
     try {
-      final document = loadYaml(lines.sublist(1, end).join('\n'));
-      if (document is! YamlMap) return null;
-      final name = document['name'];
-      final description = document['description'];
-      if (name is! String ||
-          description is! String ||
-          name != directoryName ||
-          !_namePattern.hasMatch(name) ||
-          description.trim().isEmpty) {
-        return null;
-      }
-      return description.trim();
-    } on YamlException {
+      final parsed = parseContent(content);
+      return parsed.name == directoryName ? parsed.description : null;
+    } on FormatException {
       return null;
     }
   }
@@ -200,7 +297,7 @@ class AiAgentSkillService {
 
 class _DiscoveredSkill {
   final AiAgentSkill skill;
-  final String directory;
+  final String? directory;
   final String content;
 
   const _DiscoveredSkill(this.skill, this.directory, this.content);

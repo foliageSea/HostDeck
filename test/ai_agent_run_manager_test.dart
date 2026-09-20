@@ -208,6 +208,28 @@ void main() {
     );
   });
 
+  test('database skill prompt disallows relative resources', () async {
+    model.responses = const [AiAgentModelResponse(text: 'Checked')];
+    final run = manager.start(
+      conversationId: 'conversation-1',
+      connectionId: 'connection-1',
+      targetKey: 'server:7',
+      ownerId: 'browser:test',
+      input: 'use guidance',
+      skills: const [
+        AiAgentSkillContent(
+          name: 'database-skill',
+          directory: null,
+          content: 'Read ./resources/checklist.md',
+        ),
+      ],
+    );
+    await _collect(run.stream).done.future.timeout(const Duration(seconds: 2));
+    final prompt = model.inputs.single.first.content;
+    expect(prompt, contains('Relative resource references are unavailable.'));
+    expect(prompt, isNot(contains('Skill directory:')));
+  });
+
   test('forwards persisted image attachments to the model', () async {
     model.responses = const [
       AiAgentModelResponse(text: 'The image is readable.'),

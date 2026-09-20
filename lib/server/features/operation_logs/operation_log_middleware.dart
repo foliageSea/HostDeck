@@ -424,6 +424,31 @@ List<_OperationPolicy> _policies(
   ),
   _OperationPolicy('GET', r'api/ai-agent/skills', 'aiAgent', 'skillsList'),
   _OperationPolicy(
+    'GET',
+    r'api/ai-agent/skills/library',
+    'aiAgent',
+    'skillLibraryList',
+  ),
+  _OperationPolicy('POST', r'api/ai-agent/skills', 'aiAgent', 'skillCreate'),
+  _OperationPolicy(
+    'GET',
+    r'api/ai-agent/skills/([^/]+)',
+    'aiAgent',
+    'skillGet',
+  ),
+  _OperationPolicy(
+    'PUT',
+    r'api/ai-agent/skills/([^/]+)',
+    'aiAgent',
+    'skillUpdate',
+  ),
+  _OperationPolicy(
+    'DELETE',
+    r'api/ai-agent/skills/([^/]+)',
+    'aiAgent',
+    'skillDelete',
+  ),
+  _OperationPolicy(
     'POST',
     r'api/ai-agent/mcp-servers',
     'aiAgent',

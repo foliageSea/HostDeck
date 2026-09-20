@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { Puzzle, RefreshCw, Search } from '@lucide/vue'
+import { Puzzle, RefreshCw, Search, Settings } from '@lucide/vue'
 import { MAX_SELECTED_SKILLS, useAiAgentStore } from '@/stores/ai-agent'
 
 const props = defineProps<{
@@ -9,9 +9,14 @@ const props = defineProps<{
   disabled?: boolean
 }>()
 
+const emit = defineEmits<{
+  manage: []
+}>()
+
 const store = useAiAgentStore()
 const { loadingSkills, selectedSkillIds, skills, skillsError } = storeToRefs(store)
 const query = ref('')
+const popoverOpen = ref(false)
 
 const filteredSkills = computed(() => {
   const keyword = query.value.trim().toLocaleLowerCase()
@@ -47,7 +52,13 @@ function skillDisabled(id: string) {
 </script>
 
 <template>
-  <NPopover trigger="click" placement="top-start" :show-arrow="false" :disabled="!connectionId">
+  <NPopover
+    v-model:show="popoverOpen"
+    trigger="click"
+    placement="top-start"
+    :show-arrow="false"
+    :disabled="!connectionId"
+  >
     <template #trigger>
       <button
         type="button"
@@ -65,16 +76,27 @@ function skillDisabled(id: string) {
     <div class="agent-skill-picker">
       <div class="agent-skill-header">
         <div class="agent-skill-title">Agent Skills</div>
-        <button
-          type="button"
-          class="agent-skill-refresh"
-          :disabled="loadingSkills || disabled"
-          aria-label="刷新 Agent Skills"
-          title="刷新"
-          @click="refresh"
-        >
-          <RefreshCw :size="14" :class="{ 'agent-skill-spinning': loadingSkills }" />
-        </button>
+        <div class="agent-skill-header-actions">
+          <button
+            type="button"
+            class="agent-skill-refresh"
+            aria-label="管理 Agent Skills"
+            title="管理"
+            @click="popoverOpen = false; emit('manage')"
+          >
+            <Settings :size="14" />
+          </button>
+          <button
+            type="button"
+            class="agent-skill-refresh"
+            :disabled="loadingSkills || disabled"
+            aria-label="刷新 Agent Skills"
+            title="刷新"
+            @click="refresh"
+          >
+            <RefreshCw :size="14" :class="{ 'agent-skill-spinning': loadingSkills }" />
+          </button>
+        </div>
       </div>
 
       <label class="agent-skill-search">
@@ -183,6 +205,12 @@ function skillDisabled(id: string) {
 .agent-skill-title {
   font-size: 12px;
   font-weight: 600;
+}
+
+.agent-skill-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .agent-skill-refresh {

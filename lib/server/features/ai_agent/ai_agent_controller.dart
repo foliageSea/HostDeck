@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:shelf/shelf.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import 'package:host_deck/server/core/http/result.dart';
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
@@ -14,6 +15,7 @@ import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_skill_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_skill_repository.dart';
 
 class AiAgentController {
   static const _maxImageCount = 4;
@@ -32,6 +34,7 @@ class AiAgentController {
   final AiAgentRunManager _runManager;
   final SshService _sshService;
   final AiAgentSkillService _skillService;
+  final AiAgentSkillRepository _skillRepository;
   final AiAgentMcpRepository _mcpRepository;
   final AiAgentMcpClient _mcpClient;
   final SharedSshSessionResolver _sessionResolver;
@@ -43,6 +46,7 @@ class AiAgentController {
     this._runManager,
     this._sshService,
     this._skillService,
+    this._skillRepository,
     this._mcpRepository,
     this._mcpClient,
     this._sessionResolver,
@@ -118,6 +122,86 @@ class AiAgentController {
     } catch (_) {
       return Result.fail(500, 'Unable to discover AI agent skills.');
     }
+  }
+
+  Response listSkillLibrary(Request _) => Result.ok(
+    _skillRepository.list().map((skill) => skill.toJson()).toList(),
+  );
+
+  Future<Response> createSkill(Request request) async {
+    try {
+      final content = _requiredString(await _readJson(request), 'content');
+      final metadata = AiAgentSkillService.parseContent(content);
+      if (_skillRepository.count() >= AiAgentSkillService.maxDiscoveredSkills) {
+        return Result.fail(409, 'At most 200 database skills may be stored.');
+      }
+      return Result.ok(
+        _skillRepository
+            .create(
+              name: metadata.name,
+              description: metadata.description,
+              content: content,
+            )
+            .toJson(includeContent: true),
+      );
+    } on ArgumentError catch (error) {
+      return Result.fail(400, error.message?.toString() ?? 'Invalid skill.');
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    } on SqliteException catch (error) {
+      return error.resultCode == 19
+          ? Result.fail(409, 'Skill name already exists.')
+          : Result.fail(500, 'Unable to create skill.');
+    }
+  }
+
+  Response getSkill(Request _, String id) {
+    final skillId = int.tryParse(id);
+    if (skillId == null || skillId <= 0) {
+      return Result.fail(400, 'Invalid skill id.');
+    }
+    final skill = _skillRepository.get(skillId);
+    return skill == null
+        ? Result.fail(404, 'Skill not found.')
+        : Result.ok(skill.toJson(includeContent: true));
+  }
+
+  Future<Response> updateSkill(Request request, String id) async {
+    final skillId = int.tryParse(id);
+    if (skillId == null || skillId <= 0) {
+      return Result.fail(400, 'Invalid skill id.');
+    }
+    try {
+      final content = _requiredString(await _readJson(request), 'content');
+      final metadata = AiAgentSkillService.parseContent(content);
+      final skill = _skillRepository.update(
+        skillId,
+        name: metadata.name,
+        description: metadata.description,
+        content: content,
+      );
+      return skill == null
+          ? Result.fail(404, 'Skill not found.')
+          : Result.ok(skill.toJson(includeContent: true));
+    } on ArgumentError catch (error) {
+      return Result.fail(400, error.message?.toString() ?? 'Invalid skill.');
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    } on SqliteException catch (error) {
+      return error.resultCode == 19
+          ? Result.fail(409, 'Skill name already exists.')
+          : Result.fail(500, 'Unable to update skill.');
+    }
+  }
+
+  Response deleteSkill(Request _, String id) {
+    final skillId = int.tryParse(id);
+    if (skillId == null || skillId <= 0) {
+      return Result.fail(400, 'Invalid skill id.');
+    }
+    return _skillRepository.delete(skillId)
+        ? Result.ok({'success': true})
+        : Result.fail(404, 'Skill not found.');
   }
 
   Future<Response> closeSession(Request request) async {

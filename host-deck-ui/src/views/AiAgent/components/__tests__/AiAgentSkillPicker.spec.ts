@@ -46,11 +46,18 @@ describe('AiAgentSkillPicker', () => {
     store.skills = [
       {
         description: 'Inspect application logs',
+        editable: false,
         id: 'logs',
         name: 'Log review',
         source: 'workspace',
       },
-      { description: 'Check service health', id: 'services', name: 'Services', source: 'builtin' },
+      {
+        description: 'Check service health',
+        editable: false,
+        id: 'services',
+        name: 'Services',
+        source: 'builtin',
+      },
     ]
     const wrapper = mountPicker()
 
@@ -65,6 +72,14 @@ describe('AiAgentSkillPicker', () => {
     await wrapper.get('input[type="search"]').setValue('health')
     expect(wrapper.text()).not.toContain('Log review')
     expect(wrapper.text()).toContain('Services')
+  })
+
+  it('emits manage from the title bar', async () => {
+    const wrapper = mountPicker()
+
+    await wrapper.get('[aria-label="管理 Agent Skills"]').trigger('click')
+
+    expect(wrapper.emitted('manage')).toEqual([[]])
   })
 
   it('shows loading, error, and empty states and disables selection while running', async () => {

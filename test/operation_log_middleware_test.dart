@@ -154,6 +154,35 @@ void main() {
       expect(log.toJson().toString(), isNot(contains('/home/')));
     });
 
+    test('audits skill mutations without retaining skill content', () async {
+      handler = operationLogMiddleware(
+        OperationLogService(repository),
+        serverRepository,
+        portForwardRepository,
+      )((request) => Result.ok({'id': 'hostdeck:7'}));
+
+      await handler(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/ai-agent/skills'),
+          body:
+              '{"content":"---\\nname: private-skill\\ndescription: secret-description\\n---\\nsecret-instructions"}',
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+      await handler(
+        Request('DELETE', Uri.parse('http://localhost/api/ai-agent/skills/7')),
+      );
+
+      final logs = repository.list();
+      expect(logs.map((log) => log.action), ['skillDelete', 'skillCreate']);
+      expect(logs.first.target, '7');
+      expect(logs.last.target, isNull);
+      expect(logs.every((log) => log.detail == null), isTrue);
+      expect(logs.toString(), isNot(contains('secret-description')));
+      expect(logs.toString(), isNot(contains('secret-instructions')));
+    });
+
     test('records an SSE operation only after its done event', () async {
       handler =
           operationLogMiddleware(
