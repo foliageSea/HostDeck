@@ -660,10 +660,6 @@ let resizeObserver: ResizeObserver | undefined
           <h1>{{ runMode === 'agent' ? '我们要维护什么？' : '今天想聊些什么？' }}</h1>
         </div>
         <div v-else class="agent-transcript">
-          <div v-if="running" class="agent-run-phase" aria-live="polite">
-            <span class="agent-run-phase-dot" />
-            {{ currentPhase }}
-          </div>
           <template
             v-for="entry in timelineEntries"
             :key="entry.kind === 'message' ? entry.message.id : entry.step.stepId"
@@ -787,6 +783,10 @@ let resizeObserver: ResizeObserver | undefined
         >
           配置 API Key 后开始对话
         </button>
+        <div v-if="running" class="agent-run-phase" aria-live="polite">
+          <span class="agent-run-phase-dot" />
+          {{ currentPhase }}
+        </div>
         <div
           class="agent-composer"
           :class="{ 'agent-composer-running': running }"
@@ -1375,7 +1375,7 @@ let resizeObserver: ResizeObserver | undefined
   display: flex;
   align-items: center;
   gap: 7px;
-  margin: 0 0 16px;
+  margin: 0 0 8px;
   color: var(--agent-muted);
   font-size: 11px;
 }
