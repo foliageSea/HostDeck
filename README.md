@@ -9,6 +9,7 @@
 - Flutter 桌面壳：负责窗口承载、日志面板和内置后端服务
 - Dart CLI 服务：入口为 `bin/server.dart`，可独立以 B/S 模式运行
 - Agent CLI：入口为 `bin/hostdeck_cli.dart`，供本地工具调用已运行的 HostDeck 服务
+- Agent MCP：入口为 `bin/hostdeck_mcp.dart`，以 stdio MCP 服务形式向本地 Agent 暴露 HostDeck 能力
 - Vue 3 前端：当前主前端位于 `host-deck-ui/`
 - Electron Windows 壳：复用 `host-deck-ui/` 前端和 Dart CLI 服务进行桌面打包
 
@@ -20,7 +21,7 @@
 - 桌面式工作台、多窗口、Dock、窗口切换器
 - 多会话终端
 - OpenCode 应用入口，可自动启动远端 `opencode web` 并打开 Web 窗口
-- Agent CLI，可通过本机 HostDeck 服务发现远端会话并执行命令、读写文件和应用 patch
+- Agent CLI / MCP，可通过本机 HostDeck 服务发现远端会话并执行命令、读写文件和应用 patch
 - LangChain.dart AI 运维 Agent，提供目标绑定会话、结构化工具和敏感操作审批
 - 通用内嵌 Web 应用窗口
 - 文件管理、收藏目录、桌面钉住目录
@@ -243,6 +244,39 @@ hostdeck_cli patch --connection <id> --cwd /repo --file fix.diff
 ```
 
 详细说明见 `docs/modules/agent-cli.md`。
+
+## Agent MCP
+
+`bin/hostdeck_mcp.dart` 把 Agent CLI 同样的能力包装成 stdio MCP 服务（newline-delimited JSON-RPC 2.0，协议版本 `2025-06-18`），供 Claude Code、Codex、OpenCode 等本地 Agent 直接挂载调用。服务发现顺序与 CLI 一致：`--hostdeck-url` > `HOSTDECK_URL` > `~/.config/host-deck/instance.json` > `http://127.0.0.1:8080`，认证使用 `--token` 或 `HOSTDECK_TOKEN`。
+
+暴露的工具：
+
+- `hostdeck_discover`：解析并探测 HostDeck 服务地址
+- `hostdeck_sessions`：列出 SSH 连接/会话，获取 `connectionId`
+- `hostdeck_exec`：执行远端命令（检查 `data.exitCode` 与 `data.truncated`）
+- `hostdeck_read_file` / `hostdeck_write_file`：读写远端文本文件
+- `hostdeck_apply_patch`：在远端 Git 仓库先 `git apply --check -` 再 `git apply -`
+
+MCP 客户端配置示例：
+
+```json
+{
+  "mcpServers": {
+    "hostdeck": {
+      "command": "hostdeck_mcp",
+      "env": { "HOSTDECK_TOKEN": "<token-if-needed>" }
+    }
+  }
+}
+```
+
+构建命令：
+
+```bash
+./scripts/build_hostdeck_mcp.sh
+```
+
+详细说明见 `docs/modules/agent-mcp.md`。
 
 ## Docker
 

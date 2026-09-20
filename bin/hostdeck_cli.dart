@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:host_deck/utils/hostdeck_discovery.dart';
-
-String? _accessToken;
+import 'package:host_deck/agent/hostdeck_agent_client.dart';
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty || args.contains('--help') || args.contains('-h')) {
@@ -13,21 +11,19 @@ Future<void> main(List<String> args) async {
 
   final command = args.first;
   final parser = _ArgParser(args.skip(1).toList());
-  _accessToken = parser.option('token')?.trim();
-  if (_accessToken == null || _accessToken!.isEmpty) {
-    _accessToken = Platform.environment['HOSTDECK_TOKEN']?.trim();
-  }
+  final client = HostDeckAgentClient(
+    baseUrl: parser.option('hostdeck-url'),
+    token: parser.option('token') ?? HostDeckAgentClient.tokenFromEnvironment(),
+  );
 
   try {
-    final discovery = await _resolveHostDeckUrl(parser);
-    final baseUrl = discovery.baseUrl;
     final result = switch (command) {
-      'discover' => await _discover(discovery),
-      'sessions' => await _sessions(baseUrl),
-      'exec' => await _exec(baseUrl, parser),
-      'read' => await _read(baseUrl, parser),
-      'write' => await _write(baseUrl, parser),
-      'patch' => await _patch(baseUrl, parser),
+      'discover' => await client.discover(),
+      'sessions' => await client.listSessions(),
+      'exec' => await _exec(client, parser),
+      'read' => await _read(client, parser),
+      'write' => await _write(client, parser),
+      'patch' => await _patch(client, parser),
       _ => throw UsageException('Unknown command: $command'),
     };
 
@@ -48,64 +44,57 @@ Future<void> main(List<String> args) async {
   }
 }
 
-Future<Map<String, dynamic>> _discover(_DiscoveryResult discovery) async {
-  final probe = await _probe(discovery.baseUrl);
-  return {
-    'code': probe.ok ? 200 : 503,
-    'message': probe.ok ? 'success' : probe.message,
-    'data': {
-      'baseUrl': discovery.baseUrl,
-      'source': discovery.source,
-      'instanceFile': discovery.instanceFile,
-      'probe': probe.data,
-    },
-  };
-}
-
-Future<Map<String, dynamic>> _sessions(String baseUrl) {
-  return _get(baseUrl, '/api/agent/sessions');
-}
-
-Future<Map<String, dynamic>> _exec(String baseUrl, _ArgParser parser) async {
-  final connectionId = parser.requiredOption('connection');
+Future<Map<String, dynamic>> _exec(
+  HostDeckAgentClient client,
+  _ArgParser parser,
+) async {
   final command = parser.commandText;
   if (command == null || command.isEmpty) {
     throw UsageException('Missing command text after --.');
   }
 
-  return _post(baseUrl, '/api/agent/exec', {
-    'connectionId': connectionId,
-    'command': command,
-    'cwd': ?parser.option('cwd'),
-    'timeoutMs': ?parser.optionInt('timeout-ms'),
-    'maxOutputBytes': ?parser.optionInt('max-output-bytes'),
-  });
+  return client.exec(
+    connectionId: parser.requiredOption('connection'),
+    command: command,
+    cwd: parser.option('cwd'),
+    timeoutMs: parser.optionInt('timeout-ms'),
+    maxOutputBytes: parser.optionInt('max-output-bytes'),
+  );
 }
 
-Future<Map<String, dynamic>> _read(String baseUrl, _ArgParser parser) {
-  return _post(baseUrl, '/api/agent/file/read', {
-    'connectionId': parser.requiredOption('connection'),
-    'path': parser.requiredOption('path'),
-  });
+Future<Map<String, dynamic>> _read(
+  HostDeckAgentClient client,
+  _ArgParser parser,
+) {
+  return client.readFile(
+    connectionId: parser.requiredOption('connection'),
+    path: parser.requiredOption('path'),
+  );
 }
 
-Future<Map<String, dynamic>> _write(String baseUrl, _ArgParser parser) async {
+Future<Map<String, dynamic>> _write(
+  HostDeckAgentClient client,
+  _ArgParser parser,
+) async {
   final content = await _readInput(parser);
-  return _post(baseUrl, '/api/agent/file/write', {
-    'connectionId': parser.requiredOption('connection'),
-    'path': parser.requiredOption('path'),
-    'content': content,
-  });
+  return client.writeFile(
+    connectionId: parser.requiredOption('connection'),
+    path: parser.requiredOption('path'),
+    content: content,
+  );
 }
 
-Future<Map<String, dynamic>> _patch(String baseUrl, _ArgParser parser) async {
+Future<Map<String, dynamic>> _patch(
+  HostDeckAgentClient client,
+  _ArgParser parser,
+) async {
   final patch = await _readInput(parser);
-  return _post(baseUrl, '/api/agent/patch', {
-    'connectionId': parser.requiredOption('connection'),
-    'patch': patch,
-    'cwd': ?parser.option('cwd'),
-    'timeoutMs': ?parser.optionInt('timeout-ms'),
-  });
+  return client.applyPatch(
+    connectionId: parser.requiredOption('connection'),
+    patch: patch,
+    cwd: parser.option('cwd'),
+    timeoutMs: parser.optionInt('timeout-ms'),
+  );
 }
 
 Future<String> _readInput(_ArgParser parser) async {
@@ -115,121 +104,6 @@ Future<String> _readInput(_ArgParser parser) async {
   }
 
   return stdin.transform(utf8.decoder).join();
-}
-
-Future<_DiscoveryResult> _resolveHostDeckUrl(_ArgParser parser) async {
-  final explicitUrl = parser.option('hostdeck-url');
-  if (explicitUrl != null && explicitUrl.isNotEmpty) {
-    return _DiscoveryResult(baseUrl: explicitUrl, source: 'option');
-  }
-
-  final envUrl = Platform.environment[HostDeckDiscovery.envUrlKey]?.trim();
-  if (envUrl != null && envUrl.isNotEmpty) {
-    return _DiscoveryResult(baseUrl: envUrl, source: 'env');
-  }
-
-  final instanceFile = await HostDeckDiscovery.instanceFile();
-  try {
-    final instance = await HostDeckDiscovery.readInstance();
-    final baseUrl = instance?['baseUrl'];
-    if (baseUrl is String && baseUrl.isNotEmpty) {
-      final probe = await _probe(baseUrl);
-      if (probe.ok) {
-        return _DiscoveryResult(
-          baseUrl: baseUrl,
-          source: 'instance-file',
-          instanceFile: instanceFile.path,
-        );
-      }
-    }
-  } catch (_) {
-    // Ignore stale or invalid discovery files and fall back to the default URL.
-  }
-
-  return _DiscoveryResult(
-    baseUrl: 'http://127.0.0.1:8080',
-    source: 'default',
-    instanceFile: instanceFile.path,
-  );
-}
-
-Future<_ProbeResult> _probe(String baseUrl) async {
-  try {
-    final result = await _get(baseUrl, '/api/agent/discovery');
-    final data = result['data'];
-    final ok =
-        result['code'] == 200 &&
-        data is Map &&
-        data['name'] == 'HostDeck' &&
-        data['agentApi'] == true;
-    return _ProbeResult(
-      ok: ok,
-      message: ok ? 'success' : 'HostDeck discovery probe failed',
-      data: result,
-    );
-  } catch (e) {
-    return _ProbeResult(ok: false, message: e.toString(), data: null);
-  }
-}
-
-Future<Map<String, dynamic>> _get(String baseUrl, String path) async {
-  final client = HttpClient();
-  try {
-    final uri = Uri.parse(baseUrl).resolve(path);
-    final request = await client.getUrl(uri);
-    _addAuthorization(request);
-    final response = await request.close();
-    final text = await response.transform(utf8.decoder).join();
-    final decoded = jsonDecode(text);
-    if (decoded is Map<String, dynamic>) {
-      return decoded;
-    }
-
-    return {
-      'code': response.statusCode,
-      'message': 'Invalid response',
-      'data': text,
-    };
-  } finally {
-    client.close(force: true);
-  }
-}
-
-Future<Map<String, dynamic>> _post(
-  String baseUrl,
-  String path,
-  Map<String, dynamic> body,
-) async {
-  final client = HttpClient();
-  try {
-    final uri = Uri.parse(baseUrl).resolve(path);
-    final request = await client.postUrl(uri);
-    _addAuthorization(request);
-    request.headers.contentType = ContentType.json;
-    request.write(jsonEncode(body));
-
-    final response = await request.close();
-    final text = await response.transform(utf8.decoder).join();
-    final decoded = jsonDecode(text);
-    if (decoded is Map<String, dynamic>) {
-      return decoded;
-    }
-
-    return {
-      'code': response.statusCode,
-      'message': 'Invalid response',
-      'data': text,
-    };
-  } finally {
-    client.close(force: true);
-  }
-}
-
-void _addAuthorization(HttpClientRequest request) {
-  final token = _accessToken;
-  if (token != null && token.isNotEmpty) {
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-  }
 }
 
 void _printUsage() {
@@ -277,30 +151,6 @@ Examples:
 Build:
   fvm dart build cli --target bin/hostdeck_cli.dart --output build/hostdeck-cli
 ''');
-}
-
-class _DiscoveryResult {
-  final String baseUrl;
-  final String source;
-  final String? instanceFile;
-
-  const _DiscoveryResult({
-    required this.baseUrl,
-    required this.source,
-    this.instanceFile,
-  });
-}
-
-class _ProbeResult {
-  final bool ok;
-  final String message;
-  final Object? data;
-
-  const _ProbeResult({
-    required this.ok,
-    required this.message,
-    required this.data,
-  });
 }
 
 class _ArgParser {
