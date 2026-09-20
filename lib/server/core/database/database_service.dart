@@ -460,6 +460,25 @@ class DatabaseService {
       ''');
       _setVersion(16);
     }
+
+    // v16 -> v17: Configure whether remote host skills are displayed.
+    if (currentVersion < 17) {
+      final settingsTable = _db.select(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ai_agent_settings'",
+      );
+      if (settingsTable.isNotEmpty) {
+        final columns = _db
+            .select('PRAGMA table_info(ai_agent_settings)')
+            .map((row) => row['name'] as String)
+            .toSet();
+        if (!columns.contains('showRemoteSkills')) {
+          _db.execute(
+            'ALTER TABLE ai_agent_settings ADD COLUMN showRemoteSkills INTEGER NOT NULL DEFAULT 0',
+          );
+        }
+      }
+      _setVersion(17);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

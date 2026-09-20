@@ -15,12 +15,14 @@ class AiAgentSettings {
   final String model;
   final List<AiAgentModelConfig> models;
   final bool hasApiKey;
+  final bool showRemoteSkills;
 
   const AiAgentSettings({
     required this.baseUrl,
     required this.model,
     required this.models,
     required this.hasApiKey,
+    required this.showRemoteSkills,
   });
 
   Map<String, dynamic> toJson() => {
@@ -28,6 +30,7 @@ class AiAgentSettings {
     'model': model,
     'models': models.map((model) => model.toJson()).toList(),
     'hasApiKey': hasApiKey,
+    'showRemoteSkills': showRemoteSkills,
   };
 }
 

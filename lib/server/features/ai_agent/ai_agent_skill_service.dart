@@ -95,10 +95,16 @@ class AiAgentSkillService {
     }
   }
 
-  Future<List<AiAgentSkill>> discover(String connectionId) async {
+  Future<List<AiAgentSkill>> discover(
+    String connectionId, {
+    bool showRemoteSkills = true,
+  }) async {
     late final List<_DiscoveredSkill> discovered;
     try {
-      discovered = await _discoverWithContent(connectionId);
+      discovered = await _discoverWithContent(
+        connectionId,
+        showRemoteSkills: showRemoteSkills,
+      );
     } catch (_) {
       final stored = _repository?.list() ?? const <AiAgentStoredSkill>[];
       if (stored.isEmpty) rethrow;
@@ -121,8 +127,9 @@ class AiAgentSkillService {
 
   Future<List<AiAgentSkillContent>> snapshot(
     String connectionId,
-    List<String> skillIds,
-  ) async {
+    List<String> skillIds, {
+    bool showRemoteSkills = true,
+  }) async {
     if (skillIds.length > maxSelectedSkills) {
       throw const FormatException('At most 8 skills may be selected.');
     }
@@ -139,7 +146,10 @@ class AiAgentSkillService {
       return _snapshotStoredSkills(skillIds, storedById);
     }
 
-    final discovered = await _discoverWithContent(connectionId);
+    final discovered = await _discoverWithContent(
+      connectionId,
+      showRemoteSkills: showRemoteSkills,
+    );
     final byId = {for (final item in discovered) item.skill.id: item};
     final result = <AiAgentSkillContent>[];
     var totalBytes = 0;
@@ -190,8 +200,9 @@ class AiAgentSkillService {
   }
 
   Future<List<_DiscoveredSkill>> _discoverWithContent(
-    String connectionId,
-  ) async {
+    String connectionId, {
+    bool showRemoteSkills = true,
+  }) async {
     final result = <_DiscoveredSkill>[];
     final names = <String>{};
 
@@ -214,6 +225,7 @@ class AiAgentSkillService {
       names.add(stored.name);
     }
     if (result.length >= maxDiscoveredSkills) return result;
+    if (!showRemoteSkills) return result;
     final home = await _fileSystem.home(connectionId);
 
     for (final source in _sources) {

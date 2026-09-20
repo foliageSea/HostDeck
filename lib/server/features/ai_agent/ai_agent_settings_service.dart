@@ -30,6 +30,7 @@ class AiAgentSettingsService {
       model: stored.model,
       models: _configuredModels(stored),
       hasApiKey: stored.encryptedApiKey?.isNotEmpty == true,
+      showRemoteSkills: stored.showRemoteSkills,
     );
   }
 
@@ -39,6 +40,7 @@ class AiAgentSettingsService {
     List<AiAgentModelConfig>? models,
     String? apiKey,
     bool clearApiKey = false,
+    bool? showRemoteSkills,
   }) {
     final current = _repository.getSettings();
     final nextBaseUrl = baseUrl == null
@@ -66,6 +68,7 @@ class AiAgentSettingsService {
         model: nextModel,
         models: nextModels,
         encryptedApiKey: encryptedApiKey,
+        showRemoteSkills: showRemoteSkills ?? current.showRemoteSkills,
       ),
     );
     return get();

@@ -47,7 +47,13 @@ function changeVisibility(value: boolean) {
   if (value) return emit('update:show', true)
   confirmLeavingSkills(() => emit('update:show', false))
 }
-const form = reactive({ baseUrl: '', model: '', models: [] as AiAgentModelConfig[], apiKey: '' })
+const form = reactive({
+  baseUrl: '',
+  model: '',
+  models: [] as AiAgentModelConfig[],
+  apiKey: '',
+  showRemoteSkills: false,
+})
 const availableModels = ref<string[]>([])
 const usesPlainHttp = computed(() => /^http:\/\//i.test(form.baseUrl.trim()))
 const modelOptions = computed(() =>
@@ -66,6 +72,7 @@ function syncForm() {
   form.baseUrl = store.settings?.baseUrl ?? ''
   form.model = store.settings?.model ?? ''
   form.models = (store.settings?.models ?? []).map((model) => ({ ...model }))
+  form.showRemoteSkills = store.settings?.showRemoteSkills ?? false
   if (form.model && !form.models.some((item) => item.id === form.model)) {
     form.models.push({ id: form.model, name: form.model })
   }
@@ -93,6 +100,7 @@ function payload() {
     baseUrl: form.baseUrl.trim(),
     model: form.model.trim(),
     models: form.models.map((model) => ({ id: model.id.trim(), name: model.name.trim() })),
+    showRemoteSkills: form.showRemoteSkills,
     ...(apiKey ? { apiKey } : {}),
   }
 }
@@ -113,6 +121,7 @@ function isSettingsUnchanged(payload: AiAgentSettingsUpdate) {
     payload.baseUrl === current.baseUrl &&
     payload.model === current.model &&
     payload.models?.length === currentModels.length &&
+    payload.showRemoteSkills === current.showRemoteSkills &&
     payload.models.every((model, index) => {
       const savedModel = currentModels[index]
       return model.id === savedModel?.id && model.name === savedModel?.name
@@ -332,6 +341,12 @@ function clearKey() {
                 </NButton>
               </div>
             </div>
+          </NFormItem>
+          <NFormItem label="远端主机 Skills">
+            <NSwitch v-model:value="form.showRemoteSkills">
+              <template #checked>显示</template>
+              <template #unchecked>隐藏</template>
+            </NSwitch>
           </NFormItem>
         </NForm>
       </NTabPane>

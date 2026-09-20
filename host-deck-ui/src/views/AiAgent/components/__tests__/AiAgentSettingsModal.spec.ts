@@ -27,6 +27,7 @@ const settings = {
   hasApiKey: true,
   model: 'model-a',
   models: [{ id: 'model-a', name: 'Model A' }],
+  showRemoteSkills: false,
 }
 
 function mountModal() {
@@ -55,6 +56,11 @@ function mountModal() {
           template: '<div v-if="show"><slot /><slot name="footer" /></div>',
         },
         NSelect: { template: '<select />' },
+        NSwitch: {
+          props: ['value'],
+          emits: ['update:value'],
+          template: '<input type="checkbox" :checked="value" />',
+        },
         NTabPane: { template: '<div><slot /></div>' },
         NTabs: defineComponent({ template: '<div><slot /></div>' }),
       },

@@ -11,6 +11,7 @@ export interface AiAgentSettings {
   model: string
   models: AiAgentModelConfig[]
   hasApiKey: boolean
+  showRemoteSkills: boolean
 }
 
 export interface AiAgentSettingsUpdate {
@@ -19,6 +20,7 @@ export interface AiAgentSettingsUpdate {
   models?: AiAgentModelConfig[]
   apiKey?: string
   clearApiKey?: boolean
+  showRemoteSkills?: boolean
 }
 
 export interface AiAgentSkill {

@@ -63,6 +63,7 @@ class AiAgentController {
         models: _optionalModelConfigs(data, 'models'),
         apiKey: _optionalConfigString(data, 'apiKey'),
         clearApiKey: _optionalBool(data, 'clearApiKey') ?? false,
+        showRemoteSkills: _optionalBool(data, 'showRemoteSkills'),
       );
       return Result.ok(settings.toJson());
     } on FormatException catch (error) {
@@ -113,7 +114,10 @@ class AiAgentController {
     try {
       final connectionId = request.url.queryParameters['connectionId'];
       _targetKey(connectionId);
-      final skills = await _skillService.discover(connectionId!);
+      final skills = await _skillService.discover(
+        connectionId!,
+        showRemoteSkills: _settingsService.get().showRemoteSkills,
+      );
       return Result.ok(skills.map((skill) => skill.toJson()).toList());
     } on ArgumentError catch (error) {
       return Result.fail(400, error.message?.toString() ?? 'Invalid request.');
@@ -421,7 +425,11 @@ class AiAgentController {
         return Result.fail(404, 'Conversation not found.');
       }
       final skills = mode == AiAgentRunMode.agent
-          ? await _skillService.snapshot(connectionId, skillIds)
+          ? await _skillService.snapshot(
+              connectionId,
+              skillIds,
+              showRemoteSkills: _settingsService.get().showRemoteSkills,
+            )
           : const <AiAgentSkillContent>[];
       final run = _runManager.start(
         conversationId: id,

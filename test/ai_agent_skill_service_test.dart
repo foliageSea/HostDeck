@@ -68,6 +68,21 @@ void main() {
     expect(skills.first.editable, isFalse);
   });
 
+  test('hides remote skills when remote visibility is disabled', () async {
+    fileSystem.addSkill(
+      '.config/opencode/skills',
+      'remote-only',
+      description: 'Remote skill',
+    );
+
+    final skills = await service.discover(
+      'connection-1',
+      showRemoteSkills: false,
+    );
+
+    expect(skills, isEmpty);
+  });
+
   test(
     'rejects invalid frontmatter, oversized files, and mismatched names',
     () async {
@@ -195,7 +210,7 @@ void main() {
           database.db
               .select('SELECT version FROM schema_version')
               .single['version'],
-          16,
+          17,
         );
         final repository = AiAgentSkillRepository(database);
         final dbContent = fileSystem.addSkill(
@@ -312,7 +327,7 @@ void main() {
         database.db
             .select('SELECT version FROM schema_version')
             .single['version'],
-        16,
+        17,
       );
       expect(
         database.db.select('SELECT value FROM existing_data').single['value'],

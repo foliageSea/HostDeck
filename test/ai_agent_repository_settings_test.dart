@@ -31,12 +31,12 @@ void main() {
     await dataDirectory.delete(recursive: true);
   });
 
-  test('migration v16 and target-bound conversation CRUD', () {
+  test('migration v17 and target-bound conversation CRUD', () {
     expect(
       database.db
           .select('SELECT version FROM schema_version')
           .single['version'],
-      16,
+      17,
     );
 
     repository.createConversation('conversation-1', 'server:7');
@@ -209,6 +209,7 @@ void main() {
           {'id': 'ops-model', 'name': 'ops-model'},
         ],
         'hasApiKey': true,
+        'showRemoteSkills': false,
       });
       expect(saved.toJson().containsKey('apiKey'), isFalse);
       expect(repository.getSettings().encryptedApiKey, startsWith('v1.'));
@@ -284,6 +285,19 @@ void main() {
         username: 'deploy',
       ).targetKey,
       'deploy@example.test:2222',
+    );
+  });
+
+  test('persists remote skill visibility and defaults to disabled', () {
+    expect(settingsService.get().showRemoteSkills, isFalse);
+    expect(
+      settingsService.update(showRemoteSkills: true).showRemoteSkills,
+      isTrue,
+    );
+    expect(repository.getSettings().showRemoteSkills, isTrue);
+    expect(
+      settingsService.update(showRemoteSkills: false).showRemoteSkills,
+      isFalse,
     );
   });
 }

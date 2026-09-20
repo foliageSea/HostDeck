@@ -8,12 +8,14 @@ class AiAgentStoredSettings {
   final String model;
   final List<AiAgentModelConfig> models;
   final String? encryptedApiKey;
+  final bool showRemoteSkills;
 
   const AiAgentStoredSettings({
     required this.baseUrl,
     required this.model,
     this.models = const [],
     this.encryptedApiKey,
+    this.showRemoteSkills = false,
   });
 }
 
@@ -27,7 +29,7 @@ class AiAgentRepository {
 
   AiAgentStoredSettings getSettings() {
     final rows = _database.db.select(
-      'SELECT baseUrl, model, models, encryptedApiKey FROM ai_agent_settings WHERE id = 1',
+      'SELECT baseUrl, model, models, encryptedApiKey, showRemoteSkills FROM ai_agent_settings WHERE id = 1',
     );
     if (rows.isEmpty) {
       return const AiAgentStoredSettings(
@@ -41,6 +43,7 @@ class AiAgentRepository {
       model: row['model'] as String,
       models: _modelsFromJson(row['models'] as String?),
       encryptedApiKey: row['encryptedApiKey'] as String?,
+      showRemoteSkills: (row['showRemoteSkills'] as int? ?? 0) != 0,
     );
   }
 
@@ -48,13 +51,14 @@ class AiAgentRepository {
     _database.db.execute(
       '''
       INSERT INTO ai_agent_settings
-        (id, baseUrl, model, models, encryptedApiKey, updatedAt)
-      VALUES (1, ?, ?, ?, ?, ?)
+        (id, baseUrl, model, models, encryptedApiKey, showRemoteSkills, updatedAt)
+      VALUES (1, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         baseUrl = excluded.baseUrl,
         model = excluded.model,
         models = excluded.models,
         encryptedApiKey = excluded.encryptedApiKey,
+        showRemoteSkills = excluded.showRemoteSkills,
         updatedAt = excluded.updatedAt
       ''',
       [
@@ -62,6 +66,7 @@ class AiAgentRepository {
         settings.model,
         jsonEncode(settings.models.map((model) => model.toJson()).toList()),
         settings.encryptedApiKey,
+        settings.showRemoteSkills ? 1 : 0,
         DateTime.now().millisecondsSinceEpoch,
       ],
     );
