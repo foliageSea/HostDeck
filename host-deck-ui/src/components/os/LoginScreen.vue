@@ -484,16 +484,21 @@ onMounted(async () => {
         </NEmpty>
 
         <template v-else>
-          <div class="mb-[22px] flex max-h-[360px] flex-col gap-[10px] overflow-y-auto pr-[2px]">
+          <div
+            class="mx-[-8px] mt-[-8px] mb-[14px] flex max-h-[376px] flex-col gap-[10px] overflow-y-auto p-[8px]"
+          >
             <div
               v-for="server in sshStore.savedServers"
               :key="server.id ?? `${server.host}-${server.port}`"
-              class="app-radius-card group server-list-item flex cursor-pointer items-center justify-between gap-[12px] rounded-[18px] border border-transparent px-[16px] py-[13px] text-left transition-[transform,background-color,border-color,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-2px] lt-sm:items-start"
+              class="app-radius-card group server-list-item flex cursor-pointer items-center justify-between gap-[12px] rounded-[18px] border border-transparent px-[16px] py-[13px] text-left transition-[transform,background-color] duration-[180ms] ease-in-out hover:translate-y-[-2px] lt-sm:items-start"
               :class="[
                 settingsStore.isDark
-                  ? 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
-                  : 'bg-[rgba(255,255,255,0.46)] hover:bg-[rgba(255,255,255,0.78)]',
-                { 'server-list-item-selected': server.id === selectedServerId },
+                  ? server.id === selectedServerId
+                    ? 'bg-[rgba(30,41,59,0.62)]'
+                    : 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
+                  : server.id === selectedServerId
+                    ? 'bg-[rgba(255,255,255,0.78)]'
+                    : 'bg-[rgba(255,255,255,0.46)] hover:bg-[rgba(255,255,255,0.78)]',
               ]"
               @click="applyServer(server)"
             >
@@ -674,12 +679,6 @@ onMounted(async () => {
 <style scoped>
 .form-panel-shake {
   animation: panel-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-.server-list-item-selected {
-  border-color: var(--app-primary-color);
-  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.18);
-  background: color-mix(in srgb, var(--app-primary-color) 16%, transparent) !important;
 }
 
 .selected-server-badge {
