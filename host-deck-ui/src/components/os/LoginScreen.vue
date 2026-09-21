@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
-import { Server } from '@lucide/vue'
+import { Check, Pencil, Plus, RefreshCw, Server, Trash2 } from '@lucide/vue'
 import { authApi, type ConnectParams, type ConnectResponse } from '@/api/auth'
 import type { SavedServer, ServerUpdatePayload } from '@/api/server'
 import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
@@ -471,9 +471,29 @@ onMounted(async () => {
               HostDeck
             </h2>
           </div>
-          <NSpace :wrap="false" :size="10">
-            <NButton text @click="openCreateServerModal">新建</NButton>
-            <NButton text @click="refreshServers">刷新</NButton>
+          <NSpace :wrap="false" :size="10" align="center">
+            <NTooltip>
+              <template #trigger>
+                <NButton
+                  quaternary
+                  circle
+                  size="small"
+                  aria-label="新建"
+                  @click="openCreateServerModal"
+                >
+                  <template #icon><Plus :size="15" /></template>
+                </NButton>
+              </template>
+              新建
+            </NTooltip>
+            <NTooltip>
+              <template #trigger>
+                <NButton quaternary circle size="small" aria-label="刷新" @click="refreshServers">
+                  <template #icon><RefreshCw :size="15" /></template>
+                </NButton>
+              </template>
+              刷新
+            </NTooltip>
           </NSpace>
         </div>
 
@@ -551,13 +571,26 @@ onMounted(async () => {
               <NSpace :size="8" :wrap="false" align="center" class="flex-none" @click.stop>
                 <div
                   v-if="server.id === selectedServerId"
-                  class="self-center rounded-full px-[8px] py-[2px] text-[0.72rem] font-600 text-[var(--app-primary-color)] selected-server-badge"
+                  class="selected-server-badge grid h-[22px] w-[22px] place-items-center self-center rounded-full text-[var(--app-primary-color)]"
+                  title="已选择"
+                  aria-label="已选择"
                 >
-                  已选择
+                  <Check :size="14" :stroke-width="3" />
                 </div>
-                <NButton quaternary size="small" @click="openEditServerModal(server)">
+                <NTooltip>
+                  <template #trigger>
+                    <NButton
+                      quaternary
+                      circle
+                      size="small"
+                      aria-label="编辑"
+                      @click="openEditServerModal(server)"
+                    >
+                      <template #icon><Pencil :size="14" /></template>
+                    </NButton>
+                  </template>
                   编辑
-                </NButton>
+                </NTooltip>
                 <NPopconfirm
                   :positive-button-props="{ loading: deletingServerId === server.id }"
                   @positive-click="handleDeleteServer(server.id)"
@@ -565,11 +598,14 @@ onMounted(async () => {
                   <template #trigger>
                     <NButton
                       quaternary
+                      circle
                       type="error"
                       size="small"
+                      title="删除"
+                      aria-label="删除"
                       :disabled="server.id === undefined"
                     >
-                      删除
+                      <template #icon><Trash2 :size="14" /></template>
                     </NButton>
                   </template>
                   删除该服务器配置？
