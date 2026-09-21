@@ -17,13 +17,6 @@ const refreshAt = ref<Date | null>(null)
 const sessionConnectionIds = new Set<string>()
 
 const hasConnection = computed(() => Boolean(sshStore.connectionId && sshStore.isConnected))
-const connectionText = computed(() => {
-  if (!hasConnection.value) {
-    return '未连接 SSH'
-  }
-
-  return `${sshStore.username}@${sshStore.host}:${sshStore.port}`
-})
 const filteredProcesses = computed(() => {
   const query = keyword.value.trim().toLowerCase()
   if (!query) {
@@ -221,16 +214,7 @@ onBeforeUnmount(() => {
       </NSpace>
     </div>
 
-    <div class="grid grid-cols-4 gap-[12px] lt-lg:grid-cols-2 lt-md:grid-cols-1">
-      <NCard size="small">
-        <div class="text-[12px] text-[rgba(100,116,139,0.86)]">当前连接</div>
-        <div class="mt-[8px] flex items-center gap-[8px] text-[15px] font-600">
-          <NTag :type="hasConnection ? 'success' : 'warning'" size="small">
-            {{ hasConnection ? '已连接' : '未连接' }}
-          </NTag>
-          <span class="truncate">{{ connectionText }}</span>
-        </div>
-      </NCard>
+    <div class="grid grid-cols-3 gap-[12px] lt-lg:grid-cols-2 lt-md:grid-cols-1">
       <NCard size="small">
         <div class="text-[12px] text-[rgba(100,116,139,0.86)]">进程数</div>
         <div class="mt-[8px] text-[26px] font-700">{{ processes.length }}</div>
@@ -241,7 +225,7 @@ onBeforeUnmount(() => {
       </NCard>
       <NCard size="small">
         <div class="text-[12px] text-[rgba(100,116,139,0.86)]">最近刷新</div>
-        <div class="mt-[12px] text-[15px] font-600">{{ formatRefreshAt(refreshAt) }}</div>
+        <div class="mt-[8px] text-[26px] font-700 leading-tight">{{ formatRefreshAt(refreshAt) }}</div>
       </NCard>
     </div>
 
