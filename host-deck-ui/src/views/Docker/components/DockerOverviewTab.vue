@@ -165,6 +165,8 @@ const secondaryMetrics = computed(() => [
   --overview-line: rgba(112, 131, 160, 0.14);
   --overview-surface: rgba(255, 255, 255, 0.72);
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: 100%;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.16);
@@ -205,6 +207,7 @@ const secondaryMetrics = computed(() => [
 .overview-header {
   position: relative;
   z-index: 3;
+  flex: none;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -347,9 +350,10 @@ const secondaryMetrics = computed(() => [
 .primary-metrics {
   position: relative;
   z-index: 3;
+  flex: none;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 126px;
+  margin-top: auto;
   padding: 0 32px;
 }
 
@@ -417,6 +421,7 @@ const secondaryMetrics = computed(() => [
 .secondary-metrics {
   position: relative;
   z-index: 3;
+  flex: none;
   display: flex;
   align-items: stretch;
   margin: 0 32px 28px;
@@ -490,7 +495,7 @@ const secondaryMetrics = computed(() => [
 
   .primary-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin-top: 112px;
+    margin-top: auto;
   }
 
   .primary-metric:nth-child(2) {
@@ -534,7 +539,7 @@ const secondaryMetrics = computed(() => [
   }
 
   .primary-metrics {
-    margin-top: 70px;
+    margin-top: auto;
     padding: 0 14px;
   }
 
