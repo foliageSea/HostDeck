@@ -600,57 +600,59 @@ let resizeObserver: ResizeObserver | undefined
         <div v-else-if="conversationGroups.length === 0" class="agent-sidebar-state">
           {{ query ? '没有匹配的对话' : '还没有对话' }}
         </div>
-        <section v-for="group in conversationGroups" :key="group.label" class="agent-history-group">
-          <h2>{{ group.label }}</h2>
-          <div
-            v-for="conversation in group.conversations"
-            :key="conversation.id"
-            class="agent-history-row"
-            :class="{ 'agent-history-row-active': selectedConversation?.id === conversation.id }"
-          >
-            <button
-              v-if="editingConversationId !== conversation.id"
-              type="button"
-              class="agent-history-open"
-              :disabled="running"
-              @click="openConversation(conversation.id)"
+        <div v-else>
+          <section v-for="group in conversationGroups" :key="group.label" class="agent-history-group">
+            <h2>{{ group.label }}</h2>
+            <div
+              v-for="conversation in group.conversations"
+              :key="conversation.id"
+              class="agent-history-row"
+              :class="{ 'agent-history-row-active': selectedConversation?.id === conversation.id }"
             >
-              <span>{{ conversation.title || '新对话' }}</span>
-            </button>
-            <input
-              v-else
-              v-model="editingTitle"
-              class="agent-history-title-input"
-              type="text"
-              maxlength="100"
-              aria-label="对话标题"
-              :disabled="savingConversationId === conversation.id"
-              @blur="saveConversationTitle(conversation)"
-              @keydown.enter.prevent="($event.currentTarget as HTMLInputElement).blur()"
-              @keydown.esc.prevent="cancelEditingConversation"
-            />
-            <button
-              v-if="editingConversationId !== conversation.id"
-              type="button"
-              class="agent-history-edit"
-              :disabled="running"
-              :aria-label="`修改 ${conversation.title || '新对话'} 的标题`"
-              @click="editConversation(conversation)"
-            >
-              <Pencil :size="13" />
-            </button>
-            <button
-              v-if="editingConversationId !== conversation.id"
-              type="button"
-              class="agent-history-delete"
-              :disabled="running"
-              :aria-label="`删除 ${conversation.title || '新对话'}`"
-              @click="removeConversation(conversation)"
-            >
-              <Trash2 :size="13" />
-            </button>
-          </div>
-        </section>
+              <button
+                v-if="editingConversationId !== conversation.id"
+                type="button"
+                class="agent-history-open"
+                :disabled="running"
+                @click="openConversation(conversation.id)"
+              >
+                <span>{{ conversation.title || '新对话' }}</span>
+              </button>
+              <input
+                v-else
+                v-model="editingTitle"
+                class="agent-history-title-input"
+                type="text"
+                maxlength="100"
+                aria-label="对话标题"
+                :disabled="savingConversationId === conversation.id"
+                @blur="saveConversationTitle(conversation)"
+                @keydown.enter.prevent="($event.currentTarget as HTMLInputElement).blur()"
+                @keydown.esc.prevent="cancelEditingConversation"
+              />
+              <button
+                v-if="editingConversationId !== conversation.id"
+                type="button"
+                class="agent-history-edit"
+                :disabled="running"
+                :aria-label="`修改 ${conversation.title || '新对话'} 的标题`"
+                @click="editConversation(conversation)"
+              >
+                <Pencil :size="13" />
+              </button>
+              <button
+                v-if="editingConversationId !== conversation.id"
+                type="button"
+                class="agent-history-delete"
+                :disabled="running"
+                :aria-label="`删除 ${conversation.title || '新对话'}`"
+                @click="removeConversation(conversation)"
+              >
+                <Trash2 :size="13" />
+              </button>
+            </div>
+          </section>
+        </div>
       </div>
 
       <button type="button" class="agent-settings-entry" @click="openSettings()">
