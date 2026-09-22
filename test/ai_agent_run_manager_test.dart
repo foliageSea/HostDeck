@@ -205,10 +205,8 @@ void main() {
       );
       final body = await events.done.future.timeout(const Duration(seconds: 2));
 
-      expect(
-        body,
-        isNot(contains('Planning details that should stay hidden.')),
-      );
+      expect(body, contains('event: message-reset'));
+      expect(body, contains('Planning details that should stay hidden.'));
       expect(body, contains('The host is up.'));
       expect(
         repository.listMessages('conversation-1').last.content,

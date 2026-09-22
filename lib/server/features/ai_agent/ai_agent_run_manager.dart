@@ -223,45 +223,49 @@ inspected or changed the host. Do not expose secrets.
           status: 'running',
         );
         final iterationText = StringBuffer();
-        final iterationDeltas = <String>[];
         final response = await model.invoke(
           messages,
           toolSpecs,
           onTextDelta: (text) {
             _ensureActive(run);
             iterationText.write(text);
-            iterationDeltas.add(text);
+            run.emit(
+              'message-delta',
+              {'messageId': assistantMessageId, 'text': text},
+              stepId: modelStepId,
+              type: 'model',
+              status: 'running',
+            );
           },
         );
         _ensureActive(run);
         final streamedText = iterationText.toString();
-        if (response.toolCalls.isEmpty) {
-          final deltasMatchResponse = response.text.startsWith(streamedText);
-          if (deltasMatchResponse) {
-            for (final text in iterationDeltas) {
-              if (text.isEmpty) continue;
-              run.emit(
-                'message-delta',
-                {'messageId': assistantMessageId, 'text': text},
-                stepId: modelStepId,
-                type: 'model',
-                status: 'running',
-              );
-            }
-            final remainder = response.text.substring(streamedText.length);
-            if (remainder.isNotEmpty) {
-              run.emit(
-                'message-delta',
-                {'messageId': assistantMessageId, 'text': remainder},
-                stepId: modelStepId,
-                type: 'model',
-                status: 'running',
-              );
-            }
-          } else if (response.text.isNotEmpty) {
+        final deltasMatchResponse = response.text.startsWith(streamedText);
+        if (response.toolCalls.isNotEmpty || !deltasMatchResponse) {
+          if (streamedText.isNotEmpty) {
+            run.emit(
+              'message-reset',
+              {'messageId': assistantMessageId},
+              stepId: modelStepId,
+              type: 'model',
+              status: 'running',
+            );
+          }
+          if (response.toolCalls.isEmpty && response.text.isNotEmpty) {
             run.emit(
               'message-delta',
               {'messageId': assistantMessageId, 'text': response.text},
+              stepId: modelStepId,
+              type: 'model',
+              status: 'running',
+            );
+          }
+        } else {
+          final remainder = response.text.substring(streamedText.length);
+          if (remainder.isNotEmpty) {
+            run.emit(
+              'message-delta',
+              {'messageId': assistantMessageId, 'text': remainder},
               stepId: modelStepId,
               type: 'model',
               status: 'running',

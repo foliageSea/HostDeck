@@ -532,12 +532,14 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     if (!event.stepId || event.sequence == null || !event.type || !event.status) return
     const existing = runSteps.value.find((step) => step.stepId === event.stepId)
     const content =
-      existing?.content ??
-      ('text' in event
-        ? event.text
-        : 'message' in event && typeof event.message === 'string'
-          ? localizeRunMessage(event.message)
-          : undefined)
+      event.event === 'message-reset'
+        ? ''
+        : existing?.content ??
+          ('text' in event
+            ? event.text
+            : 'message' in event && typeof event.message === 'string'
+              ? localizeRunMessage(event.message)
+              : undefined)
     const step: AiAgentRunStep = {
       completedAt: event.completedAt,
       messageId: 'messageId' in event ? event.messageId : existing?.messageId,
@@ -553,7 +555,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       callId: 'callId' in event ? event.callId : existing?.callId,
       arguments: 'arguments' in event ? event.arguments : existing?.arguments,
       content:
-        existing?.content !== undefined && 'text' in event
+        event.event === 'message-reset'
+          ? ''
+          : existing?.content !== undefined && 'text' in event
           ? `${existing.content}${event.text}`
           : content,
     }
@@ -628,6 +632,11 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       assistant.id = event.messageId
       streamingMessageId.value = event.messageId
       assistant.content += event.text
+    } else if (event.event === 'message-reset') {
+      upsertRunStep(event)
+      assistant.id = event.messageId
+      streamingMessageId.value = event.messageId
+      assistant.content = ''
     } else if (
       event.event === 'tool-start' ||
       event.event === 'approval-required' ||

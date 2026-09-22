@@ -171,6 +171,7 @@ export type AiAgentRunEvent =
   | ({ event: 'model-start'; messageId: string } & AiAgentRunEventMeta)
   | ({ event: 'model-end'; messageId: string } & AiAgentRunEventMeta)
   | ({ event: 'message-delta'; messageId: string; text: string } & AiAgentRunEventMeta)
+  | ({ event: 'message-reset'; messageId: string } & AiAgentRunEventMeta)
   | ({
       event: 'tool-start'
       callId: string
@@ -249,6 +250,7 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
       'model-start',
       'model-end',
       'message-delta',
+      'message-reset',
       'tool-start',
       'approval-required',
       'tool-result',
@@ -283,6 +285,12 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
         event,
         messageId: requiredString(data, 'messageId'),
         text: requiredString(data, 'text'),
+      }
+    case 'message-reset':
+      return {
+        ...meta(data),
+        event,
+        messageId: requiredString(data, 'messageId'),
       }
     case 'tool-start':
       return {
