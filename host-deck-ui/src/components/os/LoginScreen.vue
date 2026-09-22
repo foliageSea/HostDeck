@@ -22,10 +22,12 @@ type ConnectionFormState = Omit<ServerFormState, 'name'>
 type CredentialMode = 'password' | 'privateKey'
 type ServerLatency = { status: 'checking' | 'online' | 'offline'; value?: number }
 
+const LAST_SELECTED_SERVER_STORAGE_KEY = 'host-deck-ui.login.lastSelectedServerId'
+
 const sshStore = useSshStore()
 const settingsStore = useSettingsStore()
 const isShaking = ref(false)
-const selectedServerId = ref<number | null>(null)
+const selectedServerId = ref<number | null>(readLastSelectedServerId())
 const deletingServerId = ref<number | null>(null)
 const serverEditorVisible = ref(false)
 const editingServerId = ref<number | null>(null)
@@ -86,6 +88,23 @@ const loginVideoWallpaperUrl = computed(() => {
 const serverEditorTitle = computed(() =>
   serverEditorMode.value === 'create' ? '新建服务器' : '编辑服务器',
 )
+
+function readLastSelectedServerId(): number | null {
+  const value = window.localStorage.getItem(LAST_SELECTED_SERVER_STORAGE_KEY)
+  if (!value) return null
+
+  const serverId = Number(value)
+  return Number.isInteger(serverId) && serverId > 0 ? serverId : null
+}
+
+function persistSelectedServerId(serverId: number | null) {
+  if (serverId === null) {
+    window.localStorage.removeItem(LAST_SELECTED_SERVER_STORAGE_KEY)
+    return
+  }
+
+  window.localStorage.setItem(LAST_SELECTED_SERVER_STORAGE_KEY, String(serverId))
+}
 
 function latencyClass(latency: ServerLatency | undefined) {
   if (latency?.status !== 'online') {
@@ -173,6 +192,7 @@ function applyServerForm(server: SavedServer) {
 
 function applyServer(server: SavedServer) {
   selectedServerId.value = server.id ?? null
+  persistSelectedServerId(selectedServerId.value)
   applyConnectionForm(server)
 }
 
@@ -194,6 +214,7 @@ function openEditServerModal(server: SavedServer) {
 
 function resetConnectionForm() {
   selectedServerId.value = null
+  persistSelectedServerId(null)
   connectionForm.host = ''
   connectionForm.password = ''
   connectionForm.port = 22
@@ -426,7 +447,9 @@ async function handleDeleteServer(serverId?: number) {
 
 onMounted(async () => {
   await sshStore.fetchServers()
-  if (!selectedServer.value) {
+  if (selectedServer.value) {
+    applyServer(selectedServer.value)
+  } else {
     selectFirstAvailableServer()
   }
   void checkServerLatencies()
