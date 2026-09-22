@@ -612,10 +612,10 @@ export const useDesktopStore = defineStore('desktop', {
       },
       'secure-browser': {
         component: markRaw(SecureBrowserView),
-        height: 620,
+        height: 700,
         icon: 'secure-browser',
         id: 'secure-browser',
-        minHeight: 460,
+        minHeight: 700,
         minWidth: 720,
         title: '安全浏览器',
         width: 920,
