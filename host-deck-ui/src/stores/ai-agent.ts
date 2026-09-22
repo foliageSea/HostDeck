@@ -8,6 +8,7 @@ import {
   type AiAgentMcpServer,
   type AiAgentMcpServerInput,
   type AiAgentRunEvent,
+  type AiAgentRunStatus,
   type AiAgentRunStep,
   type AiAgentToolResult,
   type AiAgentRunMode,
@@ -24,7 +25,14 @@ export const MAX_SELECTED_SKILLS = 8
 
 const AUTO_RUN_STORAGE_KEY = 'host-deck-ui.aiAgent.autoRun'
 
-export type AiAgentToolStatus = 'pending' | 'running' | 'success' | 'error' | 'rejected'
+export type AiAgentToolStatus =
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'error'
+  | 'rejected'
+  | 'expired'
+  | 'cancelled'
 
 export interface AiAgentToolCall {
   callId: string
@@ -55,24 +63,32 @@ function restoredToolStatus(
   hasResult: boolean,
 ): AiAgentToolStatus {
   if (toolStatus === 'rejected') return 'rejected'
+  if (toolStatus === 'expired') return 'expired'
+  if (toolStatus === 'cancelled') return 'cancelled'
   if (toolStatus === 'failed') return 'error'
   if (toolStatus === 'success') return 'success'
-  return hasResult ? 'success' : 'error'
+  return hasResult ? 'success' : 'cancelled'
 }
 
 function restoredStepStatus(status: AiAgentToolStatus) {
   if (status === 'rejected') return 'rejected' as const
+  if (status === 'expired') return 'expired' as const
+  if (status === 'cancelled') return 'cancelled' as const
   if (status === 'success') return 'success' as const
   return 'failed' as const
 }
 
 function restoreConversation(loaded: AiAgentMessage[]) {
-  const toolResults = new Map<string, { content: string; status?: AiAgentMessage['toolStatus'] }>()
+  const toolResults = new Map<
+    string,
+    { content: string; status?: AiAgentMessage['toolStatus']; result?: AiAgentToolResult }
+  >()
   for (const message of loaded) {
     if (message.role === 'tool' && message.toolCallId) {
       toolResults.set(message.toolCallId, {
         content: message.content,
         status: message.toolStatus,
+        result: message.toolResult,
       })
     }
   }
@@ -94,6 +110,10 @@ function restoreConversation(loaded: AiAgentMessage[]) {
     for (const message of segment) {
       if (message.role === 'user') {
         messages.push(message)
+        continue
+      }
+      if (message.role === 'error') {
+        messages.push({ ...message, content: localizeRunMessage(message.content) })
         continue
       }
       if (message.role !== 'assistant') continue
@@ -123,7 +143,7 @@ function restoreConversation(loaded: AiAgentMessage[]) {
           approvalPending: false,
           callId: call.id,
           name: call.name,
-          result: result ? { content: result.content } : undefined,
+          result: result ? { ...result.result, content: result.content } : undefined,
           status,
           submitting: false,
           summary: call.summary ?? restoredToolSummary(call.name),
@@ -136,7 +156,19 @@ function restoreConversation(loaded: AiAgentMessage[]) {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : '请求失败，请稍后重试。'
+  return localizeRunMessage(error instanceof Error ? error.message : '请求失败，请稍后重试。')
+}
+
+function localizeRunMessage(message: string) {
+  return (
+    {
+      'API key is not configured.': '尚未配置 API Key。',
+      'The AI agent run could not be completed.': 'Agent 运行失败，请检查配置后重试。',
+      'The AI agent run failed.': 'Agent 运行失败，请稍后重试。',
+      'Run cancelled.': '运行已取消。',
+      'The operation stopped after reaching the tool-call limit.': '已达到工具调用次数上限。',
+    }[message] ?? message
+  )
 }
 
 function temporaryMessage(
@@ -183,6 +215,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const runSteps = ref<AiAgentRunStep[]>([])
   const usage = ref<AiAgentUsage | null>(null)
   const durationMs = ref<number | null>(null)
+  const runStatus = ref<AiAgentRunStatus | 'idle' | 'running'>('idle')
+  const lastRunInput = ref('')
+  const lastRunAttachments = ref<AiAgentImageAttachment[]>([])
   const loadingSettings = ref(false)
   const loadingSkills = ref(false)
   const loadingManagedSkills = ref(false)
@@ -378,6 +413,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     runSteps.value = []
     usage.value = null
     durationMs.value = null
+    runStatus.value = 'idle'
+    lastRunInput.value = ''
+    lastRunAttachments.value = []
     streamingMessageId.value = null
     error.value = null
     skillsError.value = null
@@ -425,6 +463,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     runSteps.value = []
     usage.value = null
     durationMs.value = null
+    runStatus.value = 'idle'
+    lastRunInput.value = ''
+    lastRunAttachments.value = []
     streamingMessageId.value = null
     error.value = null
     detailRequest += 1
@@ -449,6 +490,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       runSteps.value = restored.steps.slice(-MAX_TOOL_CALLS)
       usage.value = null
       durationMs.value = null
+      runStatus.value = 'idle'
       streamingMessageId.value = null
     } catch (requestError) {
       if (request === detailRequest) error.value = errorMessage(requestError)
@@ -489,7 +531,13 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   function upsertRunStep(event: AiAgentRunEvent) {
     if (!event.stepId || event.sequence == null || !event.type || !event.status) return
     const existing = runSteps.value.find((step) => step.stepId === event.stepId)
-    const content = existing?.content ?? ('text' in event ? event.text : undefined)
+    const content =
+      existing?.content ??
+      ('text' in event
+        ? event.text
+        : 'message' in event && typeof event.message === 'string'
+          ? localizeRunMessage(event.message)
+          : undefined)
     const step: AiAgentRunStep = {
       completedAt: event.completedAt,
       messageId: 'messageId' in event ? event.messageId : existing?.messageId,
@@ -526,11 +574,14 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       } else if (event.event === 'tool-result') {
         existing.approvalPending = false
         existing.result = event.result
-        existing.status = event.success
-          ? 'success'
-          : existing.status === 'rejected'
-            ? 'rejected'
-            : 'error'
+        existing.status =
+          event.status === 'expired'
+            ? 'expired'
+            : event.status === 'rejected' || existing.status === 'rejected'
+              ? 'rejected'
+              : event.success
+                ? 'success'
+                : 'error'
       } else {
         existing.status = 'running'
         if ('arguments' in event) existing.arguments = event.arguments
@@ -546,9 +597,13 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         event.event === 'approval-required'
           ? 'pending'
           : event.event === 'tool-result'
-            ? event.success
-              ? 'success'
-              : 'error'
+            ? event.status === 'expired'
+              ? 'expired'
+              : event.status === 'rejected'
+                ? 'rejected'
+                : event.success
+                  ? 'success'
+                  : 'error'
             : 'running',
       submitting: false,
       summary: event.summary,
@@ -588,6 +643,14 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     } else if (event.event === 'done') {
       assistant.id = event.messageId
       finishRunTiming()
+      runStatus.value = 'success'
+    } else if (event.event === 'error') {
+      upsertRunStep(event)
+      error.value = localizeRunMessage(event.message)
+      runStatus.value = event.status === 'cancelled' ? 'cancelled' : 'failed'
+    } else if (event.event === 'run-end') {
+      runStatus.value = event.status
+      if (event.durationMs != null) durationMs.value = event.durationMs
     }
   }
 
@@ -606,6 +669,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     const controller = new AbortController()
     runController = controller
     running.value = true
+    runStatus.value = 'running'
+    lastRunInput.value = trimmedInput
+    lastRunAttachments.value = [...attachments]
     let completed = false
 
     try {
@@ -675,6 +741,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     } catch (runError) {
       if (request === runRequest && !controller.signal.aborted) {
         error.value = errorMessage(runError)
+        runStatus.value = 'failed'
       }
       if (!controller.signal.aborted) throw runError
       return false
@@ -682,6 +749,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       if (request === runRequest) {
         finishRunTiming()
         if (!completed) finishPendingTools('error')
+        if (runStatus.value === 'running') {
+          runStatus.value = controller.signal.aborted ? 'cancelled' : 'failed'
+        }
         running.value = false
         streamingMessageId.value = null
         activeRunId.value = null
@@ -692,12 +762,25 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     }
   }
 
+  async function retryLastRun() {
+    const connectionId = currentConnectionId.value
+    if (
+      !connectionId ||
+      running.value ||
+      (!lastRunInput.value && lastRunAttachments.value.length === 0)
+    ) {
+      return false
+    }
+    return startRun(lastRunInput.value, connectionId, [...lastRunAttachments.value])
+  }
+
   function abortRun() {
     finishRunTiming()
     runRequest += 1
     runController?.abort()
     runController = null
     running.value = false
+    if (runStatus.value === 'running') runStatus.value = 'cancelled'
     streamingMessageId.value = null
     activeRunId.value = null
     lastEventSequence = 0
@@ -710,9 +793,10 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     const controller = runController
     if (!controller) return
     const cancellation = runId ? aiAgentApi.cancel(runId) : Promise.resolve()
+    runStatus.value = 'cancelled'
     finishRunTiming()
     controller.abort()
-    finishPendingTools('error')
+    finishPendingTools('cancelled')
     try {
       await cancellation
     } finally {
@@ -743,7 +827,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     }
   }
 
-  function finishPendingTools(status: 'error' | 'rejected') {
+  function finishPendingTools(status: 'error' | 'rejected' | 'cancelled') {
     for (const tool of toolCalls.value) {
       if (tool.approvalPending || tool.status === 'running') {
         tool.approvalPending = false
@@ -785,6 +869,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     resolveApproval,
     running,
     runMode,
+    runStatus,
+    retryLastRun,
     saveSettings,
     selectedSkillIds,
     selectedConversation,

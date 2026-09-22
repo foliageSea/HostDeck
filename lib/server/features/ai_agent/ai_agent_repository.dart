@@ -161,6 +161,7 @@ class AiAgentRepository {
     List<AiAgentMessageToolCall> toolCalls = const [],
     String? toolCallId,
     String? toolStatus,
+    Map<String, dynamic>? toolResult,
   }) {
     final now = _nextMessageTimestamp();
     final storedContent = role == 'tool'
@@ -182,6 +183,7 @@ class AiAgentRepository {
           toolCalls: toolCalls,
           toolCallId: toolCallId,
           toolStatus: toolStatus,
+          toolResult: toolResult,
         ),
         now,
       ],
@@ -209,6 +211,11 @@ class AiAgentRepository {
       toolCallId: toolCallId,
       toolCalls: toolCalls,
       toolStatus: toolStatus,
+      toolResult: toolResult == null
+          ? null
+          : Map<String, dynamic>.unmodifiable(
+              sanitizeAiAgentValue(toolResult) as Map<String, dynamic>,
+            ),
       createdAt: now,
     );
   }
@@ -235,13 +242,18 @@ class AiAgentRepository {
     List<AiAgentMessageToolCall> toolCalls = const [],
     String? toolCallId,
     String? toolStatus,
+    Map<String, dynamic>? toolResult,
   }) {
-    if (toolCalls.isEmpty && toolCallId == null && toolStatus == null) {
+    if (toolCalls.isEmpty &&
+        toolCallId == null &&
+        toolStatus == null &&
+        toolResult == null) {
       return '{}';
     }
     return jsonEncode({
       'toolCallId': ?toolCallId,
       'toolStatus': ?toolStatus,
+      if (toolResult != null) 'toolResult': sanitizeAiAgentValue(toolResult),
       if (toolCalls.isNotEmpty)
         'toolCalls': toolCalls.map((call) => call.toJson()).toList(),
     });
@@ -271,7 +283,16 @@ class AiAgentRepository {
       toolCallId: metadata['toolCallId'] as String?,
       toolCalls: _toolCallsFromMetadata(metadata),
       toolStatus: metadata['toolStatus'] as String?,
+      toolResult: _toolResultFromMetadata(metadata),
       createdAt: row['createdAt'] as int,
+    );
+  }
+
+  Map<String, dynamic>? _toolResultFromMetadata(Map<String, dynamic> metadata) {
+    final value = metadata['toolResult'];
+    if (value is! Map) return null;
+    return Map<String, dynamic>.unmodifiable(
+      sanitizeAiAgentValue(value) as Map<String, dynamic>,
     );
   }
 

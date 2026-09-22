@@ -59,7 +59,7 @@ void main() {
         migrated.db
             .select('SELECT version FROM schema_version')
             .single['version'],
-        16,
+        18,
       );
     } finally {
       migrated.close();

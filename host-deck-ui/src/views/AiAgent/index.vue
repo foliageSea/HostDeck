@@ -5,6 +5,7 @@ import type { MentionOption } from 'naive-ui'
 import {
   Bot,
   Check,
+  CircleAlert,
   ChevronDown,
   Clipboard,
   Hand,
@@ -17,6 +18,7 @@ import {
   Pencil,
   PlugZap,
   Puzzle,
+  RotateCcw,
   Search,
   Send,
   Settings,
@@ -72,6 +74,7 @@ const {
   streamingMessageId,
   toolCalls,
   runSteps,
+  runStatus,
   usage,
 } = storeToRefs(agentStore)
 
@@ -87,6 +90,8 @@ const input = ref('')
 const imageInput = ref<HTMLInputElement>()
 const imageAttachments = ref<AiAgentImageAttachment[]>([])
 const messageScroller = ref<HTMLElement>()
+const followOutput = ref(true)
+const showScrollButton = ref(false)
 const editingConversationId = ref<string | null>(null)
 const editingTitle = ref('')
 const savingConversationId = ref<string | null>(null)
@@ -168,8 +173,29 @@ const currentPhase = computed(() => {
   if (!running.value) return '已完成'
   if (toolCalls.value.some((tool) => tool.approvalPending)) return '等待授权'
   if (toolCalls.value.some((tool) => tool.status === 'running')) return '执行工具'
-  return runSteps.value.some((step) => step.type === 'tool') ? '整理结果' : '分析中'
+  const latestStep = [...runSteps.value].sort((a, b) => b.sequence - a.sequence)[0]
+  return latestStep?.type === 'tool' &&
+    ['success', 'failed', 'rejected', 'expired'].includes(latestStep.status)
+    ? '整理结果'
+    : '分析中'
 })
+
+const runStatusLabel = computed(() => {
+  switch (runStatus.value) {
+    case 'success':
+      return '已完成'
+    case 'failed':
+      return '运行失败'
+    case 'cancelled':
+      return '已取消'
+    case 'expired':
+      return '已过期'
+    default:
+      return ''
+  }
+})
+
+const runToolCount = computed(() => toolCalls.value.length)
 
 const enabledMcpServers = computed(() => agentStore.mcpServers.filter((server) => server.enabled))
 const modelOptions = computed(() =>
@@ -446,11 +472,20 @@ async function resolveApproval(callId: string, approved: boolean) {
   }
 }
 
-function scrollToLatest() {
+function handleMessageScroll() {
+  const element = messageScroller.value
+  if (!element) return
+  const nearBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 96
+  followOutput.value = nearBottom
+  showScrollButton.value = !nearBottom
+}
+
+function scrollToLatest(force = false) {
   void nextTick(() => {
-    if (messageScroller.value) {
-      messageScroller.value.scrollTop = messageScroller.value.scrollHeight
-    }
+    const element = messageScroller.value
+    if (!element || (!force && !followOutput.value)) return
+    element.scrollTop = element.scrollHeight
+    showScrollButton.value = false
   })
 }
 
@@ -471,7 +506,15 @@ watch(
   { immediate: true },
 )
 
-watch(() => [messages.value.at(-1)?.content, toolCalls.value.length, running.value], scrollToLatest)
+watch(
+  () => [
+    messages.value.at(-1)?.content,
+    toolCalls.value.map((tool) => `${tool.callId}:${tool.status}`).join(','),
+    runSteps.value.length,
+    running.value,
+  ],
+  () => scrollToLatest(),
+)
 
 onMounted(() => {
   if (typeof ResizeObserver !== 'undefined') {
@@ -651,7 +694,11 @@ let resizeObserver: ResizeObserver | undefined
         </button>
       </header>
 
-      <div ref="messageScroller" class="agent-messages app-scrollbar">
+      <div
+        ref="messageScroller"
+        class="agent-messages app-scrollbar"
+        @scroll="handleMessageScroll"
+      >
         <div v-if="loadingConversation" class="agent-loading">
           <NSpin size="small" /> 正在加载对话
         </div>
@@ -671,8 +718,15 @@ let resizeObserver: ResizeObserver | undefined
             >
               <div v-if="entry.message.role !== 'user'" class="agent-message-role">
                 <Bot v-if="entry.message.role === 'assistant'" :size="14" />
+                <CircleAlert v-else-if="entry.message.role === 'error'" :size="14" />
                 <Wrench v-else :size="14" />
-                {{ entry.message.role === 'assistant' ? 'Agent' : entry.message.role }}
+                {{
+                  entry.message.role === 'assistant'
+                    ? 'Agent'
+                    : entry.message.role === 'error'
+                      ? '运行状态'
+                      : entry.message.role
+                }}
               </div>
               <div v-if="entry.message.role === 'user'" class="agent-message-user-wrap">
                 <div class="agent-message-user-bubble">
@@ -748,6 +802,43 @@ let resizeObserver: ResizeObserver | undefined
               <div v-else-if="running" class="agent-thinking" aria-label="Agent 正在思考">
                 <span /><span /><span />
               </div>
+              <button
+                v-if="entry.step.content"
+                type="button"
+                class="agent-message-copy"
+                aria-label="复制对话内容"
+                title="复制对话内容"
+                @click="copyMessage(entry.step.content)"
+              >
+                <Clipboard :size="13" />
+              </button>
+            </div>
+            <div
+              v-else-if="entry.step.type === 'error'"
+              class="agent-message agent-message-error"
+              role="alert"
+            >
+              <div class="agent-message-role"><CircleAlert :size="14" /> 运行状态</div>
+              <div v-if="entry.step.content" class="agent-message-content">
+                {{ entry.step.content }}
+              </div>
+            </div>
+            <div
+              v-else-if="entry.step.type === 'summary'"
+              class="agent-message agent-message-assistant"
+            >
+              <div class="agent-message-role"><Bot :size="14" /> Agent</div>
+              <AiAgentMarkdown v-if="entry.step.content" :content="entry.step.content" />
+              <button
+                v-if="entry.step.content"
+                type="button"
+                class="agent-message-copy"
+                aria-label="复制对话内容"
+                title="复制对话内容"
+                @click="copyMessage(entry.step.content)"
+              >
+                <Clipboard :size="13" />
+              </button>
             </div>
             <div
               v-else-if="
@@ -764,7 +855,20 @@ let resizeObserver: ResizeObserver | undefined
               />
             </div>
           </template>
-          <div v-if="usage?.totalTokens != null || durationMs != null" class="agent-usage">
+          <div
+            v-if="runStatusLabel || usage?.totalTokens != null || durationMs != null"
+            class="agent-usage"
+          >
+            <span v-if="runStatusLabel" :class="`agent-usage-status agent-usage-${runStatus}`">
+              {{ runStatusLabel }}
+            </span>
+            <span v-if="runToolCount">工具调用 {{ runToolCount }} 次</span>
+            <span v-if="usage?.promptTokens != null">
+              输入 {{ usage.promptTokens.toLocaleString() }} tokens
+            </span>
+            <span v-if="usage?.responseTokens != null">
+              输出 {{ usage.responseTokens.toLocaleString() }} tokens
+            </span>
             <span v-if="usage?.totalTokens != null">
               本次使用 {{ usage.totalTokens.toLocaleString() }} tokens
             </span>
@@ -774,7 +878,18 @@ let resizeObserver: ResizeObserver | undefined
       </div>
 
       <footer class="agent-composer-area">
-        <div v-if="error" class="agent-error" role="alert">{{ error }}</div>
+        <div v-if="error" class="agent-error" role="alert">
+          <span>{{ error }}</span>
+          <button
+            v-if="runStatus === 'failed' || runStatus === 'cancelled'"
+            type="button"
+            class="agent-error-retry"
+            @click="void agentStore.retryLastRun().catch(() => undefined)"
+          >
+            <RotateCcw :size="12" />
+            重试
+          </button>
+        </div>
         <button
           v-if="settings && !settings.hasApiKey"
           type="button"
@@ -787,6 +902,15 @@ let resizeObserver: ResizeObserver | undefined
           <span class="agent-run-phase-dot" />
           {{ currentPhase }}
         </div>
+        <button
+          v-if="showScrollButton"
+          type="button"
+          class="agent-scroll-latest"
+          aria-label="跳转到最新输出"
+          @click="scrollToLatest(true)"
+        >
+          查看最新输出
+        </button>
         <div
           class="agent-composer"
           :class="{ 'agent-composer-running': running }"
@@ -1430,6 +1554,19 @@ let resizeObserver: ResizeObserver | undefined
   line-height: 1.78;
 }
 
+.agent-message-error {
+  padding: 10px 12px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: var(--app-radius-item);
+  color: #b91c1c;
+  background: rgba(254, 226, 226, 0.45);
+}
+
+.ai-agent-dark .agent-message-error {
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.2);
+}
+
 .agent-message-copy {
   display: inline-flex;
   align-items: center;
@@ -1510,6 +1647,23 @@ let resizeObserver: ResizeObserver | undefined
   color: var(--agent-muted);
   text-align: left;
   font-size: 10px;
+}
+
+.agent-usage-status {
+  font-weight: 600;
+}
+
+.agent-usage-success {
+  color: #16a34a;
+}
+
+.agent-usage-failed,
+.agent-usage-expired {
+  color: #dc2626;
+}
+
+.agent-usage-cancelled {
+  color: #d97706;
 }
 
 .agent-composer-area {
@@ -1941,9 +2095,38 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin: 0 8px 8px;
   color: #dc2626;
   font-size: 11px;
+}
+
+.agent-error-retry {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 1px solid currentColor;
+  border-radius: var(--app-radius-control);
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.agent-scroll-latest {
+  display: block;
+  margin: 0 auto 7px;
+  padding: 4px 9px;
+  border: 1px solid var(--app-primary-border);
+  border-radius: var(--app-radius-control);
+  color: var(--app-primary-color);
+  background: var(--app-primary-soft);
+  font-size: 10px;
+  cursor: pointer;
 }
 
 .agent-configure {

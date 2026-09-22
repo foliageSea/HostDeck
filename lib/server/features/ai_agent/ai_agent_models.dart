@@ -112,6 +112,7 @@ class AiAgentMessage {
   final String? toolCallId;
   final List<AiAgentMessageToolCall> toolCalls;
   final String? toolStatus;
+  final Map<String, dynamic>? toolResult;
   final int createdAt;
 
   const AiAgentMessage({
@@ -123,6 +124,7 @@ class AiAgentMessage {
     this.toolCallId,
     this.toolCalls = const [],
     this.toolStatus,
+    this.toolResult,
     required this.createdAt,
   });
 
@@ -137,6 +139,7 @@ class AiAgentMessage {
     if (toolCalls.isNotEmpty)
       'toolCalls': toolCalls.map((call) => call.toJson()).toList(),
     if (toolStatus != null) 'toolStatus': toolStatus,
+    if (toolResult != null) 'toolResult': toolResult,
     'createdAt': createdAt,
   };
 }

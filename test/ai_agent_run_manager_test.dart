@@ -134,7 +134,7 @@ void main() {
     expect(model.closed, isTrue);
     expect(
       repository.listMessages('conversation-1').map((message) => message.role),
-      ['user', 'assistant'],
+      ['user', 'assistant', 'error'],
     );
     expect(
       manager.approve(run.runId, 'call-1', 'browser:test'),
@@ -169,6 +169,53 @@ void main() {
       'First second',
     );
   });
+
+  test(
+    'keeps tool-planning text out of the final assistant response',
+    () async {
+      model.responses = const [
+        AiAgentModelResponse(
+          text: 'Planning details that should stay hidden.',
+          toolCalls: [
+            AiAgentToolCall(
+              id: 'call-1',
+              name: 'shell_execute',
+              arguments: {'command': 'uptime'},
+            ),
+          ],
+        ),
+        AiAgentModelResponse(text: 'The host is up.'),
+      ];
+      model.textDeltas = const [
+        ['Planning details that should stay hidden.'],
+        ['The host is up.'],
+      ];
+      final run = manager.start(
+        conversationId: 'conversation-1',
+        connectionId: 'connection-1',
+        targetKey: 'server:7',
+        ownerId: 'browser:test',
+        input: 'check uptime',
+      );
+      final events = _collect(run.stream);
+      await events.approvalRequired.future.timeout(const Duration(seconds: 2));
+      expect(
+        manager.approve(run.runId, 'call-1', 'browser:test'),
+        AiAgentApprovalResult.accepted,
+      );
+      final body = await events.done.future.timeout(const Duration(seconds: 2));
+
+      expect(
+        body,
+        isNot(contains('Planning details that should stay hidden.')),
+      );
+      expect(body, contains('The host is up.'));
+      expect(
+        repository.listMessages('conversation-1').last.content,
+        'The host is up.',
+      );
+    },
+  );
 
   test('wraps immutable skill content in security constraints', () async {
     model.responses = const [AiAgentModelResponse(text: 'Checked')];
@@ -340,6 +387,12 @@ void main() {
       expect(stored[2].toolCallId, 'call-1');
       expect(stored[2].content, 'executed');
       expect(stored[2].toolStatus, 'success');
+      expect(stored[2].toolResult, {
+        'content': 'executed',
+        'durationMs': 4,
+        'exitCode': 0,
+        'truncated': false,
+      });
 
       final secondRun = manager.start(
         conversationId: 'conversation-1',

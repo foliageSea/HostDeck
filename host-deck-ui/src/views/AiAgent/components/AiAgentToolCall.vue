@@ -21,6 +21,8 @@ const statusLabel = computed(() => {
   if (props.tool.status === 'running') return '执行中'
   if (props.tool.status === 'success') return '已完成'
   if (props.tool.status === 'rejected') return '已拒绝'
+  if (props.tool.status === 'expired') return '审批已过期'
+  if (props.tool.status === 'cancelled') return '已取消'
   return '失败'
 })
 
@@ -29,15 +31,54 @@ const argumentsText = computed(() => {
   return JSON.stringify(props.tool.arguments ?? {}, null, 2)
 })
 const isMcpTool = computed(() => props.tool.name.startsWith('mcp_'))
+const toolLabel = computed(() => {
+  const labels: Record<string, string> = {
+    apply_patch: '应用远程补丁',
+    file_read: '读取远程文件',
+    file_write: '写入远程文件',
+    process_list: '读取进程列表',
+    shell_execute: '执行远程命令',
+    system_status: '读取系统状态',
+  }
+  return labels[props.tool.name] ?? (isMcpTool.value ? props.tool.summary : props.tool.name)
+})
 const outputText = computed(() => {
   const result = props.tool.result
   if (!result) return ''
   const sections = [result.content]
   if (result.stderr) sections.push(`stderr:\n${result.stderr}`)
-  if (result.structured !== undefined) {
+  if (result.diff) sections.push(`diff:\n${result.diff}`)
+  const structuredText =
+    result.structured === undefined ? '' : JSON.stringify(result.structured, null, 2)
+  if (
+    structuredText &&
+    !result.content.includes(structuredText) &&
+    !structuredText.includes(result.content)
+  ) {
     sections.push(`structured:\n${JSON.stringify(result.structured, null, 2)}`)
   }
   return sections.filter(Boolean).join('\n\n')
+})
+const inlineOutput = computed(() => {
+  const value = outputText.value.trim()
+  if (!value) return ''
+  const lines = value.split('\n')
+  if (lines.length > 5) return `${lines.slice(0, 5).join('\n')}\n…`
+  return value.length > 360 ? `${value.slice(0, 360)}…` : value
+})
+const approvalPreview = computed(() => {
+  const args = props.tool.arguments
+  if (!args || typeof args !== 'object' || Array.isArray(args)) return ''
+  const record = args as Record<string, unknown>
+  if (typeof record.command === 'string') {
+    return `命令：${record.command}${typeof record.cwd === 'string' ? `\n目录：${record.cwd}` : ''}`
+  }
+  if (typeof record.path === 'string') return `路径：${record.path}`
+  if (typeof record.patch === 'string') {
+    const lines = record.patch.split('\n')
+    return `补丁：${lines.slice(0, 4).join('\n')}${lines.length > 4 ? '\n…' : ''}`
+  }
+  return JSON.stringify(record, null, 2)
 })
 const filteredOutput = computed(() => {
   const query = outputQuery.value.trim().toLocaleLowerCase()
@@ -86,7 +127,8 @@ async function copyOutput() {
           <span>{{ isMcpTool ? 'MCP 权限申请' : '权限申请' }}</span>
         </span>
         <strong class="agent-approval-question">允许 AI Agent 执行此工具？</strong>
-        <span class="agent-approval-summary">{{ tool.summary }}</span>
+        <span class="agent-approval-summary">{{ toolLabel }}</span>
+        <pre v-if="approvalPreview" class="agent-approval-preview">{{ approvalPreview }}</pre>
       </button>
       <div class="agent-approval-footer">
         <div class="agent-tool-actions">
@@ -129,9 +171,10 @@ async function copyOutput() {
         </span>
         <span class="agent-tool-copy">
           <strong class="agent-tool-label">{{ statusLabel }}</strong>
-          <span class="agent-tool-summary">{{ tool.summary }}</span>
+          <span class="agent-tool-summary">{{ toolLabel }}</span>
         </span>
       </button>
+      <pre v-if="inlineOutput" class="agent-tool-inline-output">{{ inlineOutput }}</pre>
     </template>
 
     <NModal
@@ -142,10 +185,10 @@ async function copyOutput() {
     >
       <div class="agent-tool-modal-body app-scrollbar">
         <header class="agent-tool-modal-header">
-          <strong>{{ tool.name }}</strong>
+          <strong>{{ toolLabel }}</strong>
           <span>{{ statusLabel }}</span>
         </header>
-        <p class="agent-tool-modal-summary">{{ tool.summary }}</p>
+        <p class="agent-tool-modal-summary">{{ toolLabel }}</p>
 
         <section v-if="tool.arguments !== undefined" class="agent-tool-modal-section">
           <h3>参数</h3>
@@ -167,6 +210,10 @@ async function copyOutput() {
             </button>
           </div>
           <div class="agent-tool-result-meta">
+            <span v-if="tool.result.path">{{ tool.result.path }}</span>
+            <span v-if="tool.result.operation">{{ tool.result.operation }}</span>
+            <span v-if="tool.result.mcpServer">{{ tool.result.mcpServer }}</span>
+            <span v-if="tool.result.mcpTool">{{ tool.result.mcpTool }}</span>
             <span v-if="tool.result.exitCode != null">退出码 {{ tool.result.exitCode }}</span>
             <span v-if="tool.result.durationMs != null">{{ tool.result.durationMs }} ms</span>
             <span v-if="tool.result.truncated">已截断</span>
@@ -213,8 +260,14 @@ async function copyOutput() {
 }
 
 .agent-tool-error,
-.agent-tool-rejected {
+.agent-tool-rejected,
+.agent-tool-expired,
+.agent-tool-cancelled {
   color: #dc2626;
+}
+
+.agent-tool-cancelled {
+  color: #d97706;
 }
 
 .agent-tool-approval {
@@ -259,6 +312,21 @@ async function copyOutput() {
   color: var(--agent-muted);
   font-size: 11px;
   line-height: 1.45;
+}
+
+.agent-approval-preview {
+  max-height: 92px;
+  margin: 8px 0 0;
+  overflow: auto;
+  padding: 7px 9px;
+  border-radius: var(--app-radius-control);
+  color: var(--agent-text);
+  background: var(--agent-code-bg);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font:
+    10px/1.5 'Maple Mono',
+    monospace;
 }
 
 .agent-approval-footer {
@@ -323,6 +391,20 @@ async function copyOutput() {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
+}
+
+.agent-tool-inline-output {
+  max-height: 118px;
+  margin: 2px 8px 6px 33px;
+  overflow: hidden;
+  padding: 6px 8px;
+  border-left: 2px solid var(--agent-border);
+  color: var(--agent-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font:
+    10px/1.5 'Maple Mono',
+    monospace;
 }
 
 .agent-tool-label {

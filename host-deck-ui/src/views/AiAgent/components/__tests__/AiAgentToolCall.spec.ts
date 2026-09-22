@@ -42,11 +42,10 @@ describe('AiAgentToolCall', () => {
       },
     })
 
-    expect(wrapper.find('pre').exists()).toBe(false)
+    expect(wrapper.find('.agent-tool-inline-output').exists()).toBe(true)
     await wrapper.get('.agent-tool-heading').trigger('click')
-    const outputBlocks = wrapper.findAll('pre')
-    expect(outputBlocks[0]?.text()).toContain('uptime')
-    expect(outputBlocks[1]?.text()).toContain('up 2 days')
+    expect(wrapper.findAll('.agent-tool-arguments')[0]?.text()).toContain('uptime')
+    expect(wrapper.findAll('.agent-tool-arguments')[1]?.text()).toContain('up 2 days')
     expect(wrapper.find('.agent-tool-modal-empty').exists()).toBe(false)
   })
 
@@ -64,7 +63,7 @@ describe('AiAgentToolCall', () => {
       },
     })
 
-    expect(wrapper.find('pre').exists()).toBe(false)
+    expect(wrapper.find('.agent-approval-preview').exists()).toBe(true)
     await wrapper.get('.agent-approval-detail').trigger('click')
     expect(wrapper.get('pre').text()).toContain('rm old.log')
 

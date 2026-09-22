@@ -58,7 +58,7 @@ export interface AiAgentConversation {
   updatedAt: number | string
 }
 
-export type AiAgentMessageRole = 'assistant' | 'system' | 'tool' | 'user'
+export type AiAgentMessageRole = 'assistant' | 'error' | 'system' | 'tool' | 'user'
 
 export interface AiAgentImageAttachment {
   name: string
@@ -80,7 +80,8 @@ export interface AiAgentMessage {
   attachments: AiAgentImageAttachment[]
   toolCallId?: string
   toolCalls?: AiAgentMessageToolCall[]
-  toolStatus?: 'success' | 'failed' | 'rejected'
+  toolStatus?: 'success' | 'failed' | 'rejected' | 'expired' | 'cancelled'
+  toolResult?: AiAgentToolResult
   createdAt: number | string
 }
 
@@ -109,6 +110,8 @@ export type AiAgentRunStepStatus =
   | 'rejected'
   | 'cancelled'
   | 'expired'
+
+export type AiAgentRunStatus = 'success' | 'failed' | 'cancelled' | 'expired'
 
 export interface AiAgentRunStep {
   runId: string
@@ -193,6 +196,13 @@ export type AiAgentRunEvent =
   | ({ event: 'usage'; usage: AiAgentUsage } & AiAgentRunEventMeta)
   | ({ event: 'done'; conversationId: string; messageId: string } & AiAgentRunEventMeta)
   | ({ event: 'error'; message: string } & AiAgentRunEventMeta)
+  | ({
+      event: 'run-end'
+      status: AiAgentRunStatus
+      durationMs?: number
+      message?: string
+      code?: string
+    } & AiAgentRunEventMeta)
 
 export class AiAgentStreamHttpError extends Error {
   readonly status: number
@@ -245,6 +255,7 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
       'usage',
       'done',
       'error',
+      'run-end',
     ].includes(event)
   ) {
     return null
@@ -346,7 +357,31 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
         messageId: requiredString(data, 'messageId'),
       }
     case 'error':
-      return { ...meta(data), event, message: requiredString(data, 'message') }
+      return {
+        ...meta(data),
+        event,
+        message: requiredString(data, 'message'),
+        ...(typeof data.code === 'string' ? { code: data.code } : {}),
+      }
+    case 'run-end': {
+      const status = data.status
+      if (
+        status !== 'success' &&
+        status !== 'failed' &&
+        status !== 'cancelled' &&
+        status !== 'expired'
+      ) {
+        throw new Error('AI Agent 事件缺少有效的运行状态。')
+      }
+      return {
+        ...meta(data),
+        event,
+        status,
+        ...(typeof data.durationMs === 'number' ? { durationMs: data.durationMs } : {}),
+        ...(typeof data.message === 'string' ? { message: data.message } : {}),
+        ...(typeof data.code === 'string' ? { code: data.code } : {}),
+      }
+    }
     default:
       return null
   }
@@ -512,14 +547,20 @@ export const aiAgentApi = {
     if (!response.body) throw new Error('浏览器未提供 AI Agent 流式响应。')
 
     let completed = false
+    let streamError: Error | null = null
     await consumeServerSentEvents(response.body, (message) => {
       const parsed = parseRunEvent(message.event, message.data)
       if (!parsed) return
-      if (parsed.event === 'error') throw new Error(parsed.message)
-      if (parsed.event === 'done') completed = true
+      if (parsed.event === 'error') {
+        streamError = new Error(parsed.message)
+      }
+      if (parsed.event === 'done' || (parsed.event === 'run-end' && parsed.status === 'success')) {
+        completed = true
+      }
       onEvent(parsed)
     })
 
+    if (streamError) throw streamError
     if (!completed && !signal?.aborted) {
       throw new Error('AI Agent 响应意外中断。')
     }

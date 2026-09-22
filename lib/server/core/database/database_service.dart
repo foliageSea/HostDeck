@@ -479,6 +479,43 @@ class DatabaseService {
       }
       _setVersion(17);
     }
+
+    // v17 -> v18: Persist failed and cancelled AI agent runs as timeline messages.
+    if (currentVersion < 18) {
+      final messageTable = _db.select(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ai_agent_messages'",
+      );
+      if (messageTable.isNotEmpty) {
+        _db.execute('''
+          CREATE TABLE ai_agent_messages_v18 (
+            id TEXT PRIMARY KEY,
+            conversationId TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'tool', 'error')),
+            content TEXT NOT NULL,
+            attachments TEXT NOT NULL DEFAULT '[]',
+            metadata TEXT NOT NULL DEFAULT '{}',
+            createdAt INTEGER NOT NULL,
+            FOREIGN KEY(conversationId) REFERENCES ai_agent_conversations(id)
+              ON DELETE CASCADE
+          )
+        ''');
+        _db.execute('''
+          INSERT INTO ai_agent_messages_v18
+            (id, conversationId, role, content, attachments, metadata, createdAt)
+          SELECT id, conversationId, role, content, attachments, metadata, createdAt
+          FROM ai_agent_messages
+        ''');
+        _db.execute('DROP TABLE ai_agent_messages');
+        _db.execute(
+          'ALTER TABLE ai_agent_messages_v18 RENAME TO ai_agent_messages',
+        );
+        _db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_ai_agent_messages_conversation_created
+          ON ai_agent_messages(conversationId, createdAt, id)
+        ''');
+      }
+      _setVersion(18);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

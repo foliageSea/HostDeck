@@ -210,7 +210,7 @@ void main() {
           database.db
               .select('SELECT version FROM schema_version')
               .single['version'],
-          17,
+          18,
         );
         final repository = AiAgentSkillRepository(database);
         final dbContent = fileSystem.addSkill(
@@ -312,38 +312,41 @@ void main() {
     },
   );
 
-  test('upgrades v15 database without changing existing records', () async {
-    final dir = await Directory.systemTemp.createTemp('hostdeck-skills-v15-');
-    final raw = sqlite3.open('${dir.path}/host_deck.db');
-    raw.execute('CREATE TABLE schema_version (version INTEGER NOT NULL)');
-    raw.execute('INSERT INTO schema_version (version) VALUES (15)');
-    raw.execute('CREATE TABLE existing_data (value TEXT)');
-    raw.execute("INSERT INTO existing_data (value) VALUES ('retained')");
-    raw.close();
-    final database = DatabaseService(dataDir: dir.path);
-    try {
-      await database.init();
-      expect(
-        database.db
-            .select('SELECT version FROM schema_version')
-            .single['version'],
-        17,
-      );
-      expect(
-        database.db.select('SELECT value FROM existing_data').single['value'],
-        'retained',
-      );
-      expect(
-        database.db
-            .select('PRAGMA table_info(ai_agent_skills)')
-            .map((row) => row['name']),
-        ['id', 'name', 'description', 'content', 'createdAt', 'updatedAt'],
-      );
-    } finally {
-      database.close();
-      await dir.delete(recursive: true);
-    }
-  });
+  test(
+    'upgrades v15 database to the current schema without changing existing records',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('hostdeck-skills-v15-');
+      final raw = sqlite3.open('${dir.path}/host_deck.db');
+      raw.execute('CREATE TABLE schema_version (version INTEGER NOT NULL)');
+      raw.execute('INSERT INTO schema_version (version) VALUES (15)');
+      raw.execute('CREATE TABLE existing_data (value TEXT)');
+      raw.execute("INSERT INTO existing_data (value) VALUES ('retained')");
+      raw.close();
+      final database = DatabaseService(dataDir: dir.path);
+      try {
+        await database.init();
+        expect(
+          database.db
+              .select('SELECT version FROM schema_version')
+              .single['version'],
+          18,
+        );
+        expect(
+          database.db.select('SELECT value FROM existing_data').single['value'],
+          'retained',
+        );
+        expect(
+          database.db
+              .select('PRAGMA table_info(ai_agent_skills)')
+              .map((row) => row['name']),
+          ['id', 'name', 'description', 'content', 'createdAt', 'updatedAt'],
+        );
+      } finally {
+        database.close();
+        await dir.delete(recursive: true);
+      }
+    },
+  );
 
   test('limits merged discovery to 200 with database priority', () async {
     final dir = await Directory.systemTemp.createTemp('hostdeck-skills-limit-');

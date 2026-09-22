@@ -483,7 +483,7 @@ describe('AI Agent store', () => {
         callId: 'call-3',
         name: 'mcp_3_search',
         result: undefined,
-        status: 'error',
+        status: 'cancelled',
         summary: 'Docs: search',
       },
     ])
@@ -580,7 +580,7 @@ describe('AI Agent store', () => {
     await store.cancelRun()
     expect(store.running).toBe(false)
     expect(store.selectedSkillIds).toEqual([])
-    expect(store.toolCalls[0]).toMatchObject({ approvalPending: false, status: 'error' })
+      expect(store.toolCalls[0]).toMatchObject({ approvalPending: false, status: 'cancelled' })
 
     finishRun()
   })

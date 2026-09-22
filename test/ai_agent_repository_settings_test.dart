@@ -31,12 +31,12 @@ void main() {
     await dataDirectory.delete(recursive: true);
   });
 
-  test('migration v17 and target-bound conversation CRUD', () {
+  test('migration v18 and target-bound conversation CRUD', () {
     expect(
       database.db
           .select('SELECT version FROM schema_version')
           .single['version'],
-      17,
+      18,
     );
 
     repository.createConversation('conversation-1', 'server:7');

@@ -117,11 +117,17 @@ inspected or changed the host. Do not expose secrets.
       return false;
     }
     run.cancelled = true;
+    run.terminalMessage = 'Run cancelled.';
     run.pendingApproval?.complete(false);
     run.pendingApproval = null;
     run.model?.close();
     run.model = null;
-    run.emit('error', {'message': 'Run cancelled.'});
+    _emitRunErrorIfNeeded(
+      run,
+      message: run.terminalMessage!,
+      code: 'RUN_CANCELLED',
+      status: 'cancelled',
+    );
     return true;
   }
 
@@ -179,10 +185,10 @@ inspected or changed the host. Do not expose secrets.
     String input,
     List<AiAgentImageAttachment> attachments,
   ) async {
+    String? terminalStatus;
+    String? terminalMessage;
+    String? terminalCode;
     try {
-      final settings = _settingsService.resolve(model: run.modelName);
-      final model = _modelFactory.create(settings);
-      run.model = model;
       _repository.addMessage(
         id: _newId(),
         conversationId: run.conversationId,
@@ -190,6 +196,9 @@ inspected or changed the host. Do not expose secrets.
         content: input,
         attachments: attachments,
       );
+      final settings = _settingsService.resolve(model: run.modelName);
+      final model = _modelFactory.create(settings);
+      run.model = model;
       final history = _repository.listMessages(run.conversationId);
       final messages = <AiAgentModelMessage>[
         AiAgentModelMessage(role: 'system', content: run.systemPrompt),
@@ -199,7 +208,6 @@ inspected or changed the host. Do not expose secrets.
       Map<String, dynamic>? usage;
       var toolCallCount = 0;
       final assistantMessageId = _newId();
-      final emittedText = StringBuffer();
       final toolSpecs = run.mode == AiAgentRunMode.agent
           ? await _toolService.resolveSpecs()
           : const <ToolSpec>[];
@@ -215,31 +223,45 @@ inspected or changed the host. Do not expose secrets.
           status: 'running',
         );
         final iterationText = StringBuffer();
+        final iterationDeltas = <String>[];
         final response = await model.invoke(
           messages,
           toolSpecs,
           onTextDelta: (text) {
             _ensureActive(run);
             iterationText.write(text);
-            emittedText.write(text);
-            run.emit(
-              'message-delta',
-              {'messageId': assistantMessageId, 'text': text},
-              stepId: modelStepId,
-              type: 'model',
-              status: 'running',
-            );
+            iterationDeltas.add(text);
           },
         );
         _ensureActive(run);
         final streamedText = iterationText.toString();
-        if (response.text.startsWith(streamedText)) {
-          final remainder = response.text.substring(streamedText.length);
-          if (remainder.isNotEmpty) {
-            emittedText.write(remainder);
+        if (response.toolCalls.isEmpty) {
+          final deltasMatchResponse = response.text.startsWith(streamedText);
+          if (deltasMatchResponse) {
+            for (final text in iterationDeltas) {
+              if (text.isEmpty) continue;
+              run.emit(
+                'message-delta',
+                {'messageId': assistantMessageId, 'text': text},
+                stepId: modelStepId,
+                type: 'model',
+                status: 'running',
+              );
+            }
+            final remainder = response.text.substring(streamedText.length);
+            if (remainder.isNotEmpty) {
+              run.emit(
+                'message-delta',
+                {'messageId': assistantMessageId, 'text': remainder},
+                stepId: modelStepId,
+                type: 'model',
+                status: 'running',
+              );
+            }
+          } else if (response.text.isNotEmpty) {
             run.emit(
               'message-delta',
-              {'messageId': assistantMessageId, 'text': remainder},
+              {'messageId': assistantMessageId, 'text': response.text},
               stepId: modelStepId,
               type: 'model',
               status: 'running',
@@ -309,6 +331,7 @@ inspected or changed the host. Do not expose secrets.
           );
           AiAgentToolResult result;
           var rejected = false;
+          var expired = false;
           if (_toolService.requiresApproval(call.name)) {
             final approval = _PendingApproval(
               callId: call.id,
@@ -333,6 +356,7 @@ inspected or changed the host. Do not expose secrets.
             final approved = await approval.future.timeout(
               approvalLifetime,
               onTimeout: () {
+                expired = true;
                 approval.complete(false);
                 return false;
               },
@@ -346,7 +370,7 @@ inspected or changed the host. Do not expose secrets.
               result = AiAgentToolResult(
                 success: false,
                 content: 'The user rejected this tool call.',
-                summary: '$summary rejected',
+                summary: expired ? '$summary expired' : '$summary rejected',
               );
             } else {
               result = await _toolService.execute(
@@ -377,7 +401,13 @@ inspected or changed the host. Do not expose secrets.
             stepId: toolStepId,
             parentStepId: modelStepId,
             type: 'tool',
-            status: result.success ? 'success' : 'failed',
+            status: expired
+                ? 'expired'
+                : rejected
+                ? 'rejected'
+                : result.success
+                ? 'success'
+                : 'failed',
           );
           messages.add(
             AiAgentModelMessage(
@@ -392,11 +422,14 @@ inspected or changed the host. Do not expose secrets.
             role: 'tool',
             content: result.content,
             toolCallId: call.id,
-            toolStatus: rejected
+            toolStatus: expired
+                ? 'expired'
+                : rejected
                 ? 'rejected'
                 : result.success
                 ? 'success'
                 : 'failed',
+            toolResult: {'content': result.content, ...result.toEventData()},
           );
         }
       }
@@ -405,36 +438,78 @@ inspected or changed the host. Do not expose secrets.
       if (finalText == null) {
         const limitMessage =
             'The operation stopped after reaching the tool-call limit.';
-        emittedText.write(limitMessage);
+        finalText = limitMessage;
+        final summaryStepId = _newId();
         run.emit(
           'message-delta',
           {'messageId': assistantMessageId, 'text': limitMessage},
+          stepId: summaryStepId,
           type: 'summary',
           status: 'success',
         );
       }
-      final text = emittedText.toString();
       final assistantMessage = _repository.addMessage(
         id: assistantMessageId,
         conversationId: run.conversationId,
         role: 'assistant',
-        content: text,
+        content: finalText,
       );
       if (usage != null) run.emit('usage', usage);
       run.emit('done', {
         'conversationId': run.conversationId,
         'messageId': assistantMessage.id,
+        'status': 'success',
       });
+      terminalStatus = 'success';
     } on _RunCancelled {
-      // Cancellation already emitted a safe terminal event.
+      terminalStatus = 'cancelled';
+      terminalMessage = run.terminalMessage ?? 'Run cancelled.';
+      terminalCode = 'RUN_CANCELLED';
+      _persistErrorMessage(run, terminalMessage);
+      _emitRunErrorIfNeeded(
+        run,
+        message: terminalMessage,
+        code: terminalCode,
+        status: 'cancelled',
+      );
     } on StateError catch (error) {
-      run.emit('error', {'message': _sanitizeStateError(error)});
+      terminalStatus = 'failed';
+      terminalMessage = _sanitizeStateError(error);
+      terminalCode = _stateErrorCode(error);
+      _persistErrorMessage(run, terminalMessage);
+      _emitRunErrorIfNeeded(
+        run,
+        message: terminalMessage,
+        code: terminalCode,
+        status: 'failed',
+      );
     } catch (_) {
-      run.emit('error', {'message': 'The AI agent run failed.'});
+      terminalStatus = 'failed';
+      terminalMessage = 'The AI agent run failed.';
+      terminalCode = 'RUN_FAILED';
+      _persistErrorMessage(run, terminalMessage);
+      _emitRunErrorIfNeeded(
+        run,
+        message: terminalMessage,
+        code: terminalCode,
+        status: 'failed',
+      );
     } finally {
+      terminalStatus ??= run.cancelled ? 'cancelled' : 'failed';
+      if (terminalStatus == 'cancelled' && terminalMessage == null) {
+        terminalMessage = run.terminalMessage ?? 'Run cancelled.';
+        terminalCode = 'RUN_CANCELLED';
+        _persistErrorMessage(run, terminalMessage);
+      }
       run.pendingApproval?.complete(false);
       run.model?.close();
       run.model = null;
+      run.emit('run-end', {
+        'status': terminalStatus,
+        'durationMs': DateTime.now().difference(run.startedAt).inMilliseconds,
+        'message': ?terminalMessage,
+        'code': ?terminalCode,
+      });
       _runs.remove(run.id);
       await run.close();
     }
@@ -444,6 +519,43 @@ inspected or changed the host. Do not expose secrets.
     final message = error.message;
     if (message == 'API key is not configured.') return message;
     return 'The AI agent run could not be completed.';
+  }
+
+  String _stateErrorCode(StateError error) {
+    return switch (error.message) {
+      'API key is not configured.' => 'API_KEY_NOT_CONFIGURED',
+      'Tool call limit exceeded.' => 'TOOL_CALL_LIMIT',
+      'Run timed out.' => 'RUN_TIMEOUT',
+      _ => 'RUN_FAILED',
+    };
+  }
+
+  void _emitRunErrorIfNeeded(
+    _ActiveRun run, {
+    required String message,
+    required String code,
+    required String status,
+  }) {
+    if (run.errorEmitted) return;
+    run.errorEmitted = true;
+    run.emit(
+      'error',
+      {'message': message, 'code': code},
+      stepId: _newId(),
+      type: 'error',
+      status: status,
+    );
+  }
+
+  void _persistErrorMessage(_ActiveRun run, String message) {
+    if (run.errorMessagePersisted) return;
+    run.errorMessagePersisted = true;
+    _repository.addMessage(
+      id: _newId(),
+      conversationId: run.conversationId,
+      role: 'error',
+      content: message,
+    );
   }
 
   void _ensureActive(_ActiveRun run) {
@@ -605,6 +717,9 @@ class _ActiveRun {
   final DateTime startedAt = DateTime.now();
   late final Timer _heartbeat;
   bool cancelled = false;
+  bool errorEmitted = false;
+  bool errorMessagePersisted = false;
+  String? terminalMessage;
   _PendingApproval? pendingApproval;
   AiAgentModel? model;
 
@@ -636,10 +751,10 @@ class _ActiveRun {
       if (data is Map<String, dynamic>) ...data,
       'runId': id,
       'sequence': ++_sequence,
-      if (stepId != null) 'stepId': stepId,
-      if (parentStepId != null) 'parentStepId': parentStepId,
-      if (type != null) 'type': type,
-      if (status != null) 'status': status,
+      'stepId': ?stepId,
+      'parentStepId': ?parentStepId,
+      'type': ?type,
+      'status': ?status,
       'startedAt': DateTime.now().millisecondsSinceEpoch,
       if (status == 'success' ||
           status == 'failed' ||
