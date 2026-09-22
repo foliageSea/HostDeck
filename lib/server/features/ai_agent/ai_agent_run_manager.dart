@@ -457,6 +457,7 @@ inspected or changed the host. Do not expose secrets.
         conversationId: run.conversationId,
         role: 'assistant',
         content: finalText,
+        usage: usage,
       );
       if (usage != null) run.emit('usage', usage);
       run.emit('done', {

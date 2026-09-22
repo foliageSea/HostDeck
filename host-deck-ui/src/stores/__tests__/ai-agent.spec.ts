@@ -436,13 +436,14 @@ describe('AI Agent store', () => {
           toolCallId: 'call-2',
           toolStatus: 'failed',
         },
-        {
-          attachments: [],
-          content: 'Checking.Done.',
-          createdAt: 5,
-          id: 'm-final-1',
-          role: 'assistant',
-        },
+          {
+            attachments: [],
+            content: 'Checking.Done.',
+            createdAt: 5,
+            id: 'm-final-1',
+            role: 'assistant',
+            usage: { promptTokens: 120, responseTokens: 30, totalTokens: 150 },
+          },
         { attachments: [], content: 'clean up', createdAt: 6, id: 'm-user-2', role: 'user' },
         {
           attachments: [],
@@ -490,6 +491,7 @@ describe('AI Agent store', () => {
     expect(store.toolCalls.every((tool) => !tool.approvalPending)).toBe(true)
     expect(store.runSteps.map((step) => step.callId)).toEqual(['call-1', 'call-2', 'call-3'])
     expect(store.runSteps.every((step) => step.restored && step.type === 'tool')).toBe(true)
+    expect(store.usage).toEqual({ promptTokens: 120, responseTokens: 30, totalTokens: 150 })
   })
 
   it('does not overwrite a completed tool when approval responds late', async () => {

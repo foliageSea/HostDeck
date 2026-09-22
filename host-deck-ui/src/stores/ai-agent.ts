@@ -152,7 +152,11 @@ function restoreConversation(loaded: AiAgentMessage[]) {
     }
   }
 
-  return { messages, steps, tools }
+  const restoredUsage = [...loaded]
+    .reverse()
+    .find((message) => message.role === 'assistant' && message.usage)?.usage ?? null
+
+  return { messages, steps, tools, usage: restoredUsage }
 }
 
 function errorMessage(error: unknown) {
@@ -488,7 +492,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       messages.value = restored.messages.slice(-MAX_MESSAGES)
       toolCalls.value = restored.tools.slice(-MAX_TOOL_CALLS)
       runSteps.value = restored.steps.slice(-MAX_TOOL_CALLS)
-      usage.value = null
+      usage.value = restored.usage
       durationMs.value = null
       runStatus.value = 'idle'
       streamingMessageId.value = null

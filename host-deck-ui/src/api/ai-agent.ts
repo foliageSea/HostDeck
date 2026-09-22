@@ -82,6 +82,7 @@ export interface AiAgentMessage {
   toolCalls?: AiAgentMessageToolCall[]
   toolStatus?: 'success' | 'failed' | 'rejected' | 'expired' | 'cancelled'
   toolResult?: AiAgentToolResult
+  usage?: AiAgentUsage
   createdAt: number | string
 }
 

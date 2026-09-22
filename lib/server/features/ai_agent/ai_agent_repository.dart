@@ -162,6 +162,7 @@ class AiAgentRepository {
     String? toolCallId,
     String? toolStatus,
     Map<String, dynamic>? toolResult,
+    Map<String, dynamic>? usage,
   }) {
     final now = _nextMessageTimestamp();
     final storedContent = role == 'tool'
@@ -184,6 +185,7 @@ class AiAgentRepository {
           toolCallId: toolCallId,
           toolStatus: toolStatus,
           toolResult: toolResult,
+          usage: usage,
         ),
         now,
       ],
@@ -216,6 +218,9 @@ class AiAgentRepository {
           : Map<String, dynamic>.unmodifiable(
               sanitizeAiAgentValue(toolResult) as Map<String, dynamic>,
             ),
+      usage: usage == null
+          ? null
+          : Map<String, dynamic>.unmodifiable(_persistableUsage(usage)),
       createdAt: now,
     );
   }
@@ -243,17 +248,20 @@ class AiAgentRepository {
     String? toolCallId,
     String? toolStatus,
     Map<String, dynamic>? toolResult,
+    Map<String, dynamic>? usage,
   }) {
     if (toolCalls.isEmpty &&
         toolCallId == null &&
         toolStatus == null &&
-        toolResult == null) {
+        toolResult == null &&
+        usage == null) {
       return '{}';
     }
     return jsonEncode({
       'toolCallId': ?toolCallId,
       'toolStatus': ?toolStatus,
       if (toolResult != null) 'toolResult': sanitizeAiAgentValue(toolResult),
+      if (usage != null) 'usage': _persistableUsage(usage),
       if (toolCalls.isNotEmpty)
         'toolCalls': toolCalls.map((call) => call.toJson()).toList(),
     });
@@ -284,6 +292,7 @@ class AiAgentRepository {
       toolCalls: _toolCallsFromMetadata(metadata),
       toolStatus: metadata['toolStatus'] as String?,
       toolResult: _toolResultFromMetadata(metadata),
+      usage: _usageFromMetadata(metadata),
       createdAt: row['createdAt'] as int,
     );
   }
@@ -294,6 +303,18 @@ class AiAgentRepository {
     return Map<String, dynamic>.unmodifiable(
       sanitizeAiAgentValue(value) as Map<String, dynamic>,
     );
+  }
+
+  Map<String, dynamic> _persistableUsage(Map value) => {
+    for (final entry in value.entries)
+      if (entry.key is String && entry.value is num)
+        entry.key as String: entry.value,
+  };
+
+  Map<String, dynamic>? _usageFromMetadata(Map<String, dynamic> metadata) {
+    final value = metadata['usage'];
+    if (value is! Map) return null;
+    return Map<String, dynamic>.unmodifiable(_persistableUsage(value));
   }
 
   Map<String, dynamic> _metadataFromJson(String? raw) {

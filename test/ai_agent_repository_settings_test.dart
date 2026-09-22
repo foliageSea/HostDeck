@@ -173,6 +173,11 @@ void main() {
       conversationId: 'conversation-1',
       role: 'assistant',
       content: 'All good.',
+      usage: const {
+        'promptTokens': 120,
+        'responseTokens': 30,
+        'totalTokens': 150,
+      },
     );
 
     final json = repository
@@ -187,6 +192,11 @@ void main() {
         'summary': 'Execute a remote shell command',
       },
     ]);
+    expect(json[3]['usage'], {
+      'promptTokens': 120,
+      'responseTokens': 30,
+      'totalTokens': 150,
+    });
     expect(json[2]['toolCallId'], 'call-1');
     expect(json[2]['toolStatus'], 'success');
     expect(json[3].containsKey('toolCalls'), isFalse);
