@@ -152,10 +152,6 @@ onMounted(() => {
         <section class="hero-copy">
           <div class="section-eyebrow">ISOLATED BROWSING SESSION</div>
           <h2>把远程网络<br /><span>带到你的桌面。</span></h2>
-          <p class="hero-description">
-            通过 SSH 隧道建立隔离浏览环境。浏览器不会复用普通会话，访问结束后可随时关闭代理。
-          </p>
-
           <div class="connection-panel">
             <div class="connection-status" :class="{ connected: hasConnection }">
               <span class="status-dot"></span>
@@ -360,17 +356,6 @@ onMounted(() => {
 .is-dark .hero-copy h2 span {
   color: #5eead4;
 }
-.hero-description {
-  max-width: 390px;
-  margin: 0;
-  color: #607184;
-  font-size: 13px;
-  line-height: 1.75;
-}
-.is-dark .hero-description {
-  color: #96a9b2;
-}
-
 .connection-panel {
   width: min(100%, 350px);
   margin-top: 28px;
@@ -677,9 +662,6 @@ onMounted(() => {
   .hero-copy h2 {
     margin: 9px 0 11px;
     font-size: clamp(30px, 3.5vw, 40px);
-  }
-  .hero-description {
-    line-height: 1.55;
   }
   .connection-panel {
     margin-top: 16px;
