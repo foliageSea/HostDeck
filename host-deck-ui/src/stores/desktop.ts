@@ -620,6 +620,7 @@ export const useDesktopStore = defineStore('desktop', {
         title: '安全浏览器',
         width: 920,
         showInLaunchpad: true,
+        maximizable: false,
       },
       'operation-logs': {
         component: markRaw(OperationLogsView),
