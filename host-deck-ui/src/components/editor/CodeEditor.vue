@@ -210,14 +210,7 @@ watch(
 </script>
 
 <template>
-  <div
-    class="app-radius-card code-editor h-full min-h-0 overflow-hidden rounded-[18px] border shadow-[0_20px_48px_rgba(15,23,42,0.16)]"
-    :class="
-      settingsStore.isDark
-        ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(2,6,23,0.46)]'
-        : 'border-[rgba(148,163,184,0.2)] bg-[rgba(255,255,255,0.74)]'
-    "
-  >
+  <div class="code-editor h-full min-h-0 overflow-hidden bg-transparent">
     <NSpin :show="loading" class="h-full min-h-0" size="large">
       <div ref="editorContainer" class="h-full min-h-0 overflow-hidden rounded-[inherit]" />
     </NSpin>
@@ -226,7 +219,11 @@ watch(
 
 <style scoped>
 .code-editor {
-  backdrop-filter: blur(18px);
+  backdrop-filter: none;
+}
+
+.code-editor :deep(.monaco-scrollable-element > .shadow) {
+  box-shadow: none;
 }
 
 .code-editor :deep(.n-spin-content),
