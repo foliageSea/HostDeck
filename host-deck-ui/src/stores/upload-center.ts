@@ -1,5 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import type { FileTask, FileTaskStatus, FileTaskType } from '@/api/files'
+import { getUiApi } from '@/lib/ui'
 
 export type UploadTaskStatus =
   | 'pending'
@@ -49,10 +51,27 @@ export interface UploadBatchFile {
   size?: number
 }
 
+const fileTaskTypeLabels: Record<FileTaskType, string> = {
+  compress: '压缩',
+  copy: '复制',
+  delete: '删除',
+  extract: '解压',
+  move: '移动',
+}
+
+function isFinishedFileTask(status: FileTaskStatus) {
+  return status === 'success' || status === 'failed' || status === 'cancelled'
+}
+
+function getFileTaskSummary(task: FileTask) {
+  return task.items.length === 1 ? task.items[0]?.sourcePath : `${task.items.length} 个项目`
+}
+
 export const useUploadCenterStore = defineStore('upload-center', () => {
   const batches = ref<UploadBatch[]>([])
   const batchControllers = new Map<string, AbortController>()
   const cancelledBatchIds = new Set<string>()
+  const notifiedRemoteTaskIds = new Set<string>()
 
   function isTaskActive(status: UploadTaskStatus) {
     return (
@@ -141,20 +160,40 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     Object.assign(task, patch)
   }
 
-  function upsertRemoteTask(task: {
-    id: string
-    connectionId: string
-    type: 'copy' | 'move' | 'delete' | 'extract' | 'compress'
-    status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
-    errorMessage?: string | null
-    createdAt: number
-    items: Array<{
-      id: number
-      sourcePath: string
-      targetPath?: string | null
-      status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
-    }>
-  }) {
+  function notifyRemoteTask(task: FileTask) {
+    if (!isFinishedFileTask(task.status) || notifiedRemoteTaskIds.has(task.id)) return
+
+    notifiedRemoteTaskIds.add(task.id)
+    const label = fileTaskTypeLabels[task.type]
+    const summary = getFileTaskSummary(task)
+
+    if (task.status === 'success') {
+      getUiApi().notification.success({
+        title: `${label}任务已完成`,
+        content: summary,
+        duration: 5000,
+      })
+      return
+    }
+
+    if (task.status === 'failed') {
+      const itemError = task.items.find((item) => item.errorMessage)?.errorMessage
+      getUiApi().notification.error({
+        title: `${label}任务失败`,
+        content: task.errorMessage || itemError || summary,
+        duration: 8000,
+      })
+      return
+    }
+
+    getUiApi().notification.warning({
+      title: `${label}任务已取消`,
+      content: summary,
+      duration: 5000,
+    })
+  }
+
+  function upsertRemoteTask(task: FileTask, options: { notify?: boolean } = {}) {
     const source = `files-${task.type}` as UploadTaskSource
     const mapStatus = (status: typeof task.status): UploadTaskStatus => {
       if (status === 'queued') return 'pending'
@@ -187,6 +226,8 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     } else {
       batches.value.unshift(batch)
     }
+
+    if (options.notify !== false) notifyRemoteTask(task)
   }
 
   function markBatchError(batchId: string, message: string) {

@@ -76,7 +76,7 @@ export function useRemoteFileTasks({
     try {
       const tasks = await filesApi.listTasks(connectionId)
       tasks.forEach((task) => {
-        uploadCenterStore.upsertRemoteTask(task)
+        uploadCenterStore.upsertRemoteTask(task, { notify: false })
         if (task.status === 'queued' || task.status === 'running') watchRemoteTask(task)
       })
     } catch (error) {
