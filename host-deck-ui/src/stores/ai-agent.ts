@@ -15,6 +15,7 @@ import {
   type AiAgentSettings,
   type AiAgentSettingsUpdate,
   type AiAgentSkill,
+  type AiAgentTool,
   type AiAgentUsage,
 } from '@/api/ai-agent'
 
@@ -47,8 +48,11 @@ export interface AiAgentToolCall {
 
 const TOOL_SUMMARIES: Record<string, string> = {
   apply_patch: 'Apply a remote patch',
+  directory_list: 'List a remote directory',
+  file_delete: 'Delete a remote file',
   file_read: 'Read a remote file',
   file_write: 'Write a remote file',
+  process_kill: 'Terminate a remote process',
   process_list: 'Read process list',
   shell_execute: 'Execute a remote shell command',
   system_status: 'Read system status',
@@ -210,6 +214,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const skills = ref<AiAgentSkill[]>([])
   const managedSkills = ref<AiAgentSkill[]>([])
   const mcpServers = ref<AiAgentMcpServer[]>([])
+  const tools = ref<AiAgentTool[]>([])
   const selectedSkillIds = ref<string[]>([])
   const conversations = ref<AiAgentConversation[]>([])
   const currentConnectionId = ref<string | null>(null)
@@ -226,6 +231,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const loadingSkills = ref(false)
   const loadingManagedSkills = ref(false)
   const loadingMcpServers = ref(false)
+  const loadingTools = ref(false)
   const loadingConversations = ref(false)
   const loadingConversation = ref(false)
   const running = ref(false)
@@ -378,6 +384,16 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
 
   async function testMcpServer(id: number) {
     return aiAgentApi.testMcpServer(id)
+  }
+
+  async function loadTools() {
+    loadingTools.value = true
+    try {
+      tools.value = await aiAgentApi.listTools()
+      return tools.value
+    } finally {
+      loadingTools.value = false
+    }
   }
 
   function setSelectedSkillIds(ids: string[]) {
@@ -869,12 +885,14 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     loadModels,
     loadSkills,
     loadSettings,
+    loadTools,
     loadingConversation,
     loadingConversations,
     loadingMcpServers,
     loadingManagedSkills,
     loadingSettings,
     loadingSkills,
+    loadingTools,
     messages,
     managedSkills,
     mcpServers,
@@ -900,6 +918,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     testMcpServer,
     toggleSkill,
     toolCalls,
+    tools,
     runSteps,
     createMcpServer,
     deleteMcpServer,

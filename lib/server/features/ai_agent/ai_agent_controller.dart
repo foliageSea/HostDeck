@@ -16,6 +16,7 @@ import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_skill_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_skill_repository.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_tool_service.dart';
 
 class AiAgentController {
   static const _maxImageCount = 4;
@@ -38,6 +39,7 @@ class AiAgentController {
   final AiAgentMcpRepository _mcpRepository;
   final AiAgentMcpClient _mcpClient;
   final SharedSshSessionResolver _sessionResolver;
+  final AiAgentToolExecutor _toolService;
 
   AiAgentController(
     this._repository,
@@ -50,6 +52,7 @@ class AiAgentController {
     this._mcpRepository,
     this._mcpClient,
     this._sessionResolver,
+    this._toolService,
   );
 
   Response getSettings(Request _) => Result.ok(_settingsService.get().toJson());
@@ -289,6 +292,24 @@ class AiAgentController {
       return Result.ok({'success': true, 'toolCount': tools.length});
     } catch (_) {
       return Result.fail(502, 'Unable to connect to the MCP server.');
+    }
+  }
+
+  Future<Response> listTools(Request _) async {
+    try {
+      final specs = await _toolService.resolveSpecs();
+      return Result.ok([
+        for (final spec in specs)
+          {
+            'name': spec.name,
+            'description': spec.description,
+            'source': spec.name.startsWith('mcp_') ? 'mcp' : 'built-in',
+            'requiresApproval': _toolService.requiresApproval(spec.name),
+            'inputSchema': spec.inputJsonSchema,
+          },
+      ]);
+    } catch (_) {
+      return Result.fail(500, 'Unable to list AI agent tools.');
     }
   }
 

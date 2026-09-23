@@ -19,6 +19,7 @@ void registerAiAgentRoutes(Router router, AiAgentController controller) {
   router.put('/api/ai-agent/mcp-servers/<id>', controller.updateMcpServer);
   router.delete('/api/ai-agent/mcp-servers/<id>', controller.deleteMcpServer);
   router.post('/api/ai-agent/mcp-servers/<id>/test', controller.testMcpServer);
+  router.get('/api/ai-agent/tools', controller.listTools);
   router.get('/api/ai-agent/conversations', controller.listConversations);
   router.post('/api/ai-agent/conversations', controller.createConversation);
   router.get('/api/ai-agent/conversations/<id>', controller.getConversation);

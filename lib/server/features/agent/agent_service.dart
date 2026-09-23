@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/features/files/file_item.dart';
 
 class AgentService {
   final SshRepository _repository;
@@ -66,6 +67,15 @@ class AgentService {
       path,
       Stream.value(utf8.encode(content)),
     );
+  }
+
+  Future<List<FileItem>> listDirectory(SshSession session, String path) {
+    return _repository.listFiles(session, path);
+  }
+
+  Future<void> deleteFile(SshSession session, String path) async {
+    final sftp = await session.sftp();
+    await sftp.remove(path);
   }
 
   Future<Map<String, dynamic>> applyPatch(

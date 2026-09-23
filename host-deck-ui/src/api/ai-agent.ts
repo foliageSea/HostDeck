@@ -51,6 +51,14 @@ export interface AiAgentMcpServerInput {
   clearHeaders?: boolean
 }
 
+export interface AiAgentTool {
+  name: string
+  description: string
+  source: 'built-in' | 'mcp'
+  requiresApproval: boolean
+  inputSchema: Record<string, unknown>
+}
+
 export interface AiAgentConversation {
   id: string
   title?: string
@@ -477,6 +485,10 @@ export const aiAgentApi = {
         `/api/ai-agent/mcp-servers/${id}/test`,
       )
     ).data
+  },
+
+  async listTools() {
+    return (await http.get<AiAgentTool[]>('/api/ai-agent/tools')).data
   },
 
   async listConversations(connectionId: string) {

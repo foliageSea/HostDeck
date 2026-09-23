@@ -23,7 +23,13 @@ class ProcessService {
       throw ArgumentError('Invalid pid');
     }
 
-    await _repository.exec(session, 'kill $pid');
+    final result = await _repository.execWithResult(session, 'kill $pid');
+    if (result.exitCode != 0) {
+      final message = result.stderr.trim();
+      throw StateError(
+        message.isEmpty ? 'Unable to terminate process.' : message,
+      );
+    }
   }
 
   ProcessInfo? _parseProcessLine(String line) {

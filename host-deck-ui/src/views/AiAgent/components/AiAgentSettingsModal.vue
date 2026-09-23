@@ -6,10 +6,11 @@ import { getUiApi } from '@/lib/ui'
 import { useAiAgentStore } from '@/stores/ai-agent'
 import AiAgentMcpSettings from './AiAgentMcpSettings.vue'
 import AiAgentSkillSettings from './AiAgentSkillSettings.vue'
+import AiAgentToolList from './AiAgentToolList.vue'
 
 const props = defineProps<{
   show: boolean
-  initialTab?: 'mcp' | 'model' | 'skills'
+  initialTab?: 'mcp' | 'model' | 'skills' | 'tools'
 }>()
 
 const emit = defineEmits<{
@@ -21,7 +22,7 @@ const skillSettings = ref<InstanceType<typeof AiAgentSkillSettings> | null>(null
 const saving = ref(false)
 const testing = ref(false)
 const loadingModels = ref(false)
-const activeTab = ref<'mcp' | 'model' | 'skills'>('model')
+const activeTab = ref<'mcp' | 'model' | 'skills' | 'tools'>('model')
 
 function confirmLeavingSkills(action: () => void) {
   if (activeTab.value !== 'skills' || !skillSettings.value?.dirty) {
@@ -39,7 +40,7 @@ function confirmLeavingSkills(action: () => void) {
 
 function changeTab(value: string | number) {
   confirmLeavingSkills(() => {
-    activeTab.value = value as 'model' | 'mcp' | 'skills'
+    activeTab.value = value as 'model' | 'mcp' | 'skills' | 'tools'
   })
 }
 
@@ -352,6 +353,9 @@ function clearKey() {
       </NTabPane>
       <NTabPane name="mcp" tab="MCP">
         <AiAgentMcpSettings />
+      </NTabPane>
+      <NTabPane name="tools" tab="工具">
+        <AiAgentToolList :active="activeTab === 'tools'" />
       </NTabPane>
       <NTabPane name="skills" tab="Skills">
         <AiAgentSkillSettings ref="skillSettings" />

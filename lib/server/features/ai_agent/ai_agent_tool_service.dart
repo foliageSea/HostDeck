@@ -97,6 +97,19 @@ class AiAgentToolService implements AiAgentToolExecutor {
       },
     ),
     ToolSpec(
+      name: 'directory_list',
+      description:
+          'List files and subdirectories in a remote directory. Always requires user approval.',
+      inputJsonSchema: {
+        'type': 'object',
+        'properties': {
+          'path': {'type': 'string'},
+        },
+        'required': ['path'],
+        'additionalProperties': false,
+      },
+    ),
+    ToolSpec(
       name: 'shell_execute',
       description:
           'Execute an arbitrary shell command. Always requires user approval.',
@@ -137,6 +150,32 @@ class AiAgentToolService implements AiAgentToolExecutor {
       },
     ),
     ToolSpec(
+      name: 'file_delete',
+      description:
+          'Delete one remote file. Directories are not deleted. Always requires user approval.',
+      inputJsonSchema: {
+        'type': 'object',
+        'properties': {
+          'path': {'type': 'string'},
+        },
+        'required': ['path'],
+        'additionalProperties': false,
+      },
+    ),
+    ToolSpec(
+      name: 'process_kill',
+      description:
+          'Send SIGTERM to a remote process. Always requires user approval.',
+      inputJsonSchema: {
+        'type': 'object',
+        'properties': {
+          'pid': {'type': 'integer', 'minimum': 1},
+        },
+        'required': ['pid'],
+        'additionalProperties': false,
+      },
+    ),
+    ToolSpec(
       name: 'apply_patch',
       description:
           'Apply a git patch in a remote working directory. Always requires user approval.',
@@ -165,9 +204,12 @@ class AiAgentToolService implements AiAgentToolExecutor {
   String summary(String name) => switch (name) {
     'system_status' => 'Read system status',
     'process_list' => 'Read process list',
+    'directory_list' => 'List a remote directory',
     'shell_execute' => 'Execute a remote shell command',
     'file_read' => 'Read a remote file',
     'file_write' => 'Write a remote file',
+    'file_delete' => 'Delete a remote file',
+    'process_kill' => 'Terminate a remote process',
     'apply_patch' => 'Apply a remote patch',
     _ => 'Use unknown tool',
   };
@@ -179,9 +221,10 @@ class AiAgentToolService implements AiAgentToolExecutor {
   ) {
     final allowedKeys = switch (name) {
       'system_status' || 'process_list' => const <String>{},
+      'directory_list' || 'file_read' || 'file_delete' => const {'path'},
       'shell_execute' => const {'command', 'cwd'},
-      'file_read' => const {'path'},
       'file_write' => const {'path', 'content'},
+      'process_kill' => const {'pid'},
       'apply_patch' => const {'patch', 'cwd'},
       _ => throw ArgumentError('Unknown tool.'),
     };
@@ -191,15 +234,18 @@ class AiAgentToolService implements AiAgentToolExecutor {
 
     return Map<String, dynamic>.unmodifiable(switch (name) {
       'system_status' || 'process_list' => const <String, dynamic>{},
+      'directory_list' ||
+      'file_read' ||
+      'file_delete' => {'path': _boundedString(arguments, 'path')},
       'shell_execute' => {
         'command': _boundedString(arguments, 'command'),
         'cwd': ?_strictOptionalString(arguments, 'cwd'),
       },
-      'file_read' => {'path': _boundedString(arguments, 'path')},
       'file_write' => {
         'path': _boundedString(arguments, 'path'),
         'content': _boundedString(arguments, 'content'),
       },
+      'process_kill' => {'pid': _positiveInt(arguments, 'pid')},
       'apply_patch' => {
         'patch': _boundedString(arguments, 'patch'),
         'cwd': ?_strictOptionalString(arguments, 'cwd'),
@@ -220,9 +266,12 @@ class AiAgentToolService implements AiAgentToolExecutor {
         const {
           'system_status',
           'process_list',
+          'directory_list',
           'shell_execute',
           'file_read',
           'file_write',
+          'file_delete',
+          'process_kill',
           'apply_patch',
         }.contains(name)
         ? name
@@ -239,6 +288,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
           _processService
               .listProcesses(session)
               .then((items) => items.map((item) => item.toJson()).toList()),
+        'directory_list' => _listDirectory(session, normalizedArguments),
         'shell_execute' => _agentService.exec(
           session,
           command: _requiredString(normalizedArguments, 'command'),
@@ -255,6 +305,8 @@ class AiAgentToolService implements AiAgentToolExecutor {
               )
               .then((content) => {'content': content}),
         'file_write' => _writeFile(session, normalizedArguments),
+        'file_delete' => _deleteFile(session, normalizedArguments),
+        'process_kill' => _killProcess(session, normalizedArguments),
         'apply_patch' => _agentService.applyPatch(
           session,
           patch: _requiredString(normalizedArguments, 'patch'),
@@ -330,6 +382,62 @@ class AiAgentToolService implements AiAgentToolExecutor {
     return {'success': true};
   }
 
+  Future<Map<String, dynamic>> _listDirectory(
+    SshSession session,
+    Map<String, dynamic> arguments,
+  ) async {
+    final path = _requiredString(arguments, 'path');
+    final items = await _agentService.listDirectory(session, path);
+    items.sort((a, b) {
+      if (a.isDirectory != b.isDirectory) return a.isDirectory ? -1 : 1;
+      return a.filename.toLowerCase().compareTo(b.filename.toLowerCase());
+    });
+    final entries = <Map<String, dynamic>>[];
+    var truncated = false;
+    for (final item in items) {
+      if (item.filename == '.' || item.filename == '..') continue;
+      if (entries.length >= 500) {
+        truncated = true;
+        break;
+      }
+      final entry = <String, dynamic>{
+        'name': item.filename,
+        'type': item.isDirectory ? 'directory' : 'file',
+        'size': item.size,
+        if (item.mtime != null) 'modifiedAt': item.mtime!.toIso8601String(),
+      };
+      final candidate = {
+        'path': path,
+        'entries': [...entries, entry],
+        'truncated': false,
+      };
+      if (utf8.encode(jsonEncode(candidate)).length > maxOutputBytes) {
+        truncated = true;
+        break;
+      }
+      entries.add(entry);
+    }
+    return {'path': path, 'entries': entries, 'truncated': truncated};
+  }
+
+  Future<Map<String, dynamic>> _deleteFile(
+    SshSession session,
+    Map<String, dynamic> arguments,
+  ) async {
+    final path = _requiredString(arguments, 'path');
+    await _agentService.deleteFile(session, path);
+    return {'success': true, 'path': path};
+  }
+
+  Future<Map<String, dynamic>> _killProcess(
+    SshSession session,
+    Map<String, dynamic> arguments,
+  ) async {
+    final pid = _positiveInt(arguments, 'pid');
+    await _processService.killProcess(session, pid);
+    return {'success': true, 'pid': pid, 'signal': 'SIGTERM'};
+  }
+
   String _requiredString(Map<String, dynamic> arguments, String key) {
     final value = arguments[key];
     if (value is! String || value.isEmpty) {
@@ -342,6 +450,14 @@ class AiAgentToolService implements AiAgentToolExecutor {
     final value = _requiredString(arguments, key);
     if (utf8.encode(value).length > maxOutputBytes) {
       throw ArgumentError('Tool argument is too large.');
+    }
+    return value;
+  }
+
+  int _positiveInt(Map<String, dynamic> arguments, String key) {
+    final value = arguments[key];
+    if (value is! int || value <= 0) {
+      throw ArgumentError('Invalid tool argument type.');
     }
     return value;
   }
@@ -367,7 +483,9 @@ class AiAgentToolService implements AiAgentToolExecutor {
     return switch (name) {
       'shell_execute' => output['exitCode'] == 0,
       'apply_patch' => output['applied'] == true,
-      'file_write' => output['success'] == true,
+      'file_write' ||
+      'file_delete' ||
+      'process_kill' => output['success'] == true,
       _ => true,
     };
   }
@@ -400,9 +518,21 @@ class AiAgentToolService implements AiAgentToolExecutor {
     }
     final path = arguments['path'];
     if (path is String) result['path'] = path;
+    final pid = arguments['pid'];
+    if (pid is int) result['pid'] = pid;
+    if (name == 'directory_list') result['operation'] = 'list';
     if (name == 'file_read') result['operation'] = 'read';
     if (name == 'file_write') {
       result['operation'] = 'write';
+      result['changed'] = output?['success'] == true;
+    }
+    if (name == 'file_delete') {
+      result['operation'] = 'delete';
+      result['changed'] = output?['success'] == true;
+    }
+    if (name == 'process_kill') {
+      result['operation'] = 'terminate';
+      result['signal'] = 'SIGTERM';
       result['changed'] = output?['success'] == true;
     }
     if (name == 'apply_patch') {

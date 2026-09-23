@@ -84,7 +84,7 @@ const sidebarOpen = ref(true)
 const settingsOpen = ref(false)
 const modeMenuOpen = ref(false)
 const modelMenuOpen = ref(false)
-const settingsSection = ref<'mcp' | 'model' | 'skills'>('model')
+const settingsSection = ref<'mcp' | 'model' | 'skills' | 'tools'>('model')
 const query = ref('')
 const input = ref('')
 const imageInput = ref<HTMLInputElement>()
@@ -206,7 +206,7 @@ const activeModelName = computed(() => {
   return activeModel?.name || settings.value?.model || '选择模型'
 })
 
-function openSettings(section: 'mcp' | 'model' | 'skills' = 'model') {
+function openSettings(section: 'mcp' | 'model' | 'skills' | 'tools' = 'model') {
   settingsSection.value = section
   settingsOpen.value = true
 }
@@ -1076,6 +1076,17 @@ let resizeObserver: ResizeObserver | undefined
                 type="button"
                 class="agent-mcp-entry"
                 :disabled="running"
+                aria-label="查看 Agent 工具"
+                @click="openSettings('tools')"
+              >
+                <Wrench :size="12" />
+                工具
+              </button>
+              <button
+                v-if="runMode === 'agent'"
+                type="button"
+                class="agent-mcp-entry"
+                :disabled="running"
                 aria-label="MCP 服务器设置"
                 @click="openSettings('mcp')"
               >
@@ -1123,8 +1134,8 @@ let resizeObserver: ResizeObserver | undefined
                       <strong>{{ mode ? '自动运行' : '按需审批' }}</strong>
                       <span>{{
                         mode
-                          ? '自动批准命令执行、文件读写及 MCP 调用'
-                          : '命令执行、文件读写及 MCP 调用前请求批准'
+                          ? '自动批准所有受保护的工具调用'
+                          : '受保护的工具调用前请求批准'
                       }}</span>
                     </span>
                     <Check

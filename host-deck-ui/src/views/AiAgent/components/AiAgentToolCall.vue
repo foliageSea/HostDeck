@@ -34,8 +34,11 @@ const isMcpTool = computed(() => props.tool.name.startsWith('mcp_'))
 const toolLabel = computed(() => {
   const labels: Record<string, string> = {
     apply_patch: '应用远程补丁',
+    directory_list: '浏览远程目录',
+    file_delete: '删除远程文件',
     file_read: '读取远程文件',
     file_write: '写入远程文件',
+    process_kill: '结束远程进程',
     process_list: '读取进程列表',
     shell_execute: '执行远程命令',
     system_status: '读取系统状态',
@@ -73,6 +76,7 @@ const approvalPreview = computed(() => {
   if (typeof record.command === 'string') {
     return `命令：${record.command}${typeof record.cwd === 'string' ? `\n目录：${record.cwd}` : ''}`
   }
+  if (typeof record.pid === 'number') return `进程 PID：${record.pid}`
   if (typeof record.path === 'string') return `路径：${record.path}`
   if (typeof record.patch === 'string') {
     const lines = record.patch.split('\n')

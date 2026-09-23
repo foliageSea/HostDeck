@@ -336,6 +336,7 @@ class ServerContainer {
           getIt<AiAgentMcpRepository>(),
           getIt<AiAgentMcpClient>(),
           getIt<SharedSshSessionResolver>(),
+          getIt<AiAgentMcpToolService>(),
         ),
         systemController: SystemController(
           getIt<SshService>(),

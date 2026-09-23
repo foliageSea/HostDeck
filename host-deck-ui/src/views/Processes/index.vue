@@ -3,10 +3,8 @@ import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { NButton, NTag, type DataTableColumns } from 'naive-ui'
 import { processApi, type ProcessInfo } from '@/api/process'
 import { getUiApi } from '@/lib/ui'
-import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 
-const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 
 const loading = ref(false)
