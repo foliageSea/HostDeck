@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { RefreshCw } from '@lucide/vue'
 import { Launch } from '@vicons/carbon'
 import {
   secureBrowserApi,
@@ -144,7 +145,7 @@ onMounted(() => {
           aria-label="刷新浏览器状态"
           @click="fetchTunnels"
         >
-          ↻
+          <template #icon><RefreshCw :size="16" /></template>
         </NButton>
       </header>
 
