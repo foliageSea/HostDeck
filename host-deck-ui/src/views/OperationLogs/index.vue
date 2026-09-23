@@ -146,6 +146,17 @@ function renderPreviewCell(title: string, value?: string | null) {
   )
 }
 
+function renderSingleLineCell(value: string) {
+  return h(
+    'span',
+    {
+      class: 'operation-log-single-line-cell',
+      title: value,
+    },
+    value,
+  )
+}
+
 const columns: DataTableColumns<OperationLogItem> = [
   {
     title: '时间',
@@ -163,7 +174,7 @@ const columns: DataTableColumns<OperationLogItem> = [
     title: '操作',
     key: 'action',
     width: 150,
-    render: (row) => actionLabels[row.action] ?? row.action,
+    render: (row) => renderSingleLineCell(actionLabels[row.action] ?? row.action),
   },
   {
     title: '目标',
@@ -314,7 +325,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.operation-log-preview-cell {
+:deep(.operation-log-preview-cell) {
   display: block;
   width: 100%;
   overflow: hidden;
@@ -324,12 +335,20 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.operation-log-preview-cell:hover {
+:deep(.operation-log-single-line-cell) {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.operation-log-preview-cell:hover) {
   color: var(--n-text-color-hover);
   text-decoration: underline;
 }
 
-.operation-log-preview-content {
+:deep(.operation-log-preview-content) {
   max-height: 60vh;
   margin: 0;
   overflow: auto;
