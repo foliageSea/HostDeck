@@ -1175,8 +1175,8 @@ let resizeObserver: ResizeObserver | undefined
 
 <style scoped>
 .ai-agent-root {
-  --agent-bg: #f8fafc;
-  --agent-sidebar-bg: #f1f5f9;
+  --agent-bg: transparent;
+  --agent-sidebar-bg: transparent;
   --agent-elevated: #ffffff;
   --agent-tool-bg: rgba(241, 245, 249, 0.75);
   --agent-code-bg: #e8edf3;
@@ -1196,8 +1196,8 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .ai-agent-dark {
-  --agent-bg: #11151b;
-  --agent-sidebar-bg: #171c23;
+  --agent-bg: transparent;
+  --agent-sidebar-bg: transparent;
   --agent-elevated: #1b212a;
   --agent-tool-bg: rgba(30, 37, 47, 0.82);
   --agent-code-bg: #10141a;
