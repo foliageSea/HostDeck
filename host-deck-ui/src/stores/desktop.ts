@@ -380,6 +380,7 @@ export interface AppConfig {
   singleInstance?: boolean
   hide?: boolean
   showInLaunchpad?: boolean
+  transparentBody?: boolean
 }
 
 export interface OpenWindowOptions {
@@ -393,6 +394,7 @@ export interface WindowState {
   id: string
   appId: DesktopAppId
   title: string
+  transparentBody: boolean
   component: Component
   icon: AppIconKey
   x: number
@@ -609,6 +611,7 @@ export const useDesktopStore = defineStore('desktop', {
         title: '端口转发',
         width: 1040,
         showInLaunchpad: true,
+        transparentBody: true,
       },
       'secure-browser': {
         component: markRaw(SecureBrowserView),
@@ -621,6 +624,7 @@ export const useDesktopStore = defineStore('desktop', {
         width: 920,
         showInLaunchpad: true,
         maximizable: false,
+        transparentBody: true,
       },
       'operation-logs': {
         component: markRaw(OperationLogsView),
@@ -643,6 +647,7 @@ export const useDesktopStore = defineStore('desktop', {
         title: '实时日志',
         width: 1160,
         showInLaunchpad: true,
+        transparentBody: true,
       },
       'cron-tasks': {
         component: markRaw(CronTasksView),
@@ -672,6 +677,7 @@ export const useDesktopStore = defineStore('desktop', {
         icon: 'dashboard',
         id: 'dashboard',
         minHeight: 620,
+        transparentBody: true,
         minWidth: 880,
         title: '性能监控',
         width: 1180,
@@ -1244,6 +1250,7 @@ export const useDesktopStore = defineStore('desktop', {
             : props,
         resizable: maximizable && (options.resizable ?? app.resizable ?? true),
         title: typeof props?.title === 'string' ? props.title : app.title,
+        transparentBody: app.transparentBody ?? false,
         width,
         x: Math.max(edgeGap, centeredX),
         y: Math.max(edgeGap, centeredY),

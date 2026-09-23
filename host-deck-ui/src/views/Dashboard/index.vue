@@ -771,10 +771,7 @@ function createChartOption(config: {
 
 <style scoped>
 .monitor-view {
-  background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 30%),
-    radial-gradient(circle at top right, rgba(129, 140, 248, 0.14), transparent 28%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.1), rgba(15, 23, 42, 0.04));
+  background: transparent;
 }
 
 .dashboard-tabs {
