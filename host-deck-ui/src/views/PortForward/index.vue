@@ -637,12 +637,12 @@ onMounted(() => {
 <style scoped>
 .port-forward-view {
   color: #172033;
-  background: transparent;
+  background: #f4f7fa;
 }
 
 .port-forward-view.is-dark {
   color: #e5e7eb;
-  background: transparent;
+  background: #111827;
 }
 
 .flow-header {
@@ -655,12 +655,12 @@ onMounted(() => {
   gap: 18px;
   padding: 13px 20px;
   border-bottom: 1px solid #dbe2ea;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .is-dark .flow-header {
   border-bottom-color: #273244;
-  background: transparent;
+  background: rgba(17, 24, 39, 0.94);
 }
 
 .flow-title-icon {
@@ -736,11 +736,11 @@ onMounted(() => {
   min-height: 0;
   flex: 1;
   overflow: hidden;
-  background: transparent;
+  background: radial-gradient(circle at 18% 8%, rgba(14, 165, 233, 0.08), transparent 28%), #f5f7fa;
 }
 
 .is-dark .flow-canvas {
-  background: transparent;
+  background: radial-gradient(circle at 18% 8%, rgba(14, 165, 233, 0.1), transparent 28%), #111827;
 }
 
 .endpoint-node,

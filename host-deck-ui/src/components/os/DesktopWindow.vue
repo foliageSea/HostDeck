@@ -327,16 +327,14 @@ onUnmounted(() => {
       data-window-body
       class="min-h-0 flex-1"
       :class="[
-        window.transparentBody
-          ? 'bg-transparent'
-          : settingsStore.isDark
-            ? settingsStore.windowBlur
-              ? 'bg-[rgba(0,0,0,0.72)]'
-              : 'bg-black'
-            : settingsStore.windowBlur
-              ? 'bg-[rgba(255,255,255,0.76)]'
-              : 'bg-white',
-        settingsStore.windowBlur && !window.transparentBody
+        settingsStore.isDark
+          ? settingsStore.windowBlur
+            ? 'bg-[rgba(0,0,0,0.72)]'
+            : 'bg-black'
+          : settingsStore.windowBlur
+            ? 'bg-[rgba(255,255,255,0.76)]'
+            : 'bg-white',
+        settingsStore.windowBlur
           ? 'backdrop-blur-[22px] [backdrop-filter:blur(22px)_saturate(135%)]'
           : '',
       ]"

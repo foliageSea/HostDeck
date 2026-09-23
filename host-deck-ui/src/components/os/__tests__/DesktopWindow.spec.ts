@@ -74,14 +74,4 @@ describe('DesktopWindow', () => {
     expect(wrapper.get('[data-window-title-bar]').classes()).toContain('bg-white')
     expect(wrapper.get('[data-window-body]').classes()).toContain('bg-white')
   })
-
-  it('keeps configured window bodies transparent', () => {
-    const desktopStore = useDesktopStore()
-    const windowId = desktopStore.openWindow('realtime-logs')!
-    const desktopWindow = desktopStore.windows.find((window) => window.id === windowId)!
-    const wrapper = shallowMount(DesktopWindow, { props: { window: desktopWindow } })
-
-    expect(wrapper.get('[data-window-body]').classes()).toContain('bg-transparent')
-    expect(wrapper.get('[data-window-body]').classes()).not.toContain('backdrop-blur-[22px]')
-  })
 })

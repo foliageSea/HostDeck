@@ -305,7 +305,7 @@ watch(autoScroll, (enabled) => {
 .realtime-logs {
   position: relative;
   color: #d7dee9;
-  background: transparent;
+  background: #0b1018;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 }
 
@@ -315,7 +315,7 @@ watch(autoScroll, (enabled) => {
   z-index: 1;
   flex: none;
   border-color: rgba(148, 163, 184, 0.18);
-  background: transparent;
+  background: #121925;
 }
 
 .log-toolbar {
@@ -386,7 +386,7 @@ watch(autoScroll, (enabled) => {
 }
 .log-output {
   padding: 7px 0 16px;
-  background: transparent;
+  background: #0b1018;
   user-select: text;
 }
 .log-entry {
@@ -499,13 +499,13 @@ watch(autoScroll, (enabled) => {
 
 .realtime-logs-light {
   color: #263244;
-  background: transparent;
+  background: #f8fafc;
 }
 .realtime-logs-light .log-toolbar,
 .realtime-logs-light .metrics-strip,
 .realtime-logs-light .log-statusbar {
   border-color: #d9e0e9;
-  background: transparent;
+  background: #eef2f6;
 }
 .realtime-logs-light .metrics-strip {
   color: #526176;
@@ -519,7 +519,7 @@ watch(autoScroll, (enabled) => {
   color: #778397;
 }
 .realtime-logs-light .log-output {
-  background: transparent;
+  background: #f8fafc;
 }
 .realtime-logs-light .log-message {
   color: #263244;
