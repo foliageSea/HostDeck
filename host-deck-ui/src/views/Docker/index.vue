@@ -32,11 +32,7 @@ const controller: DockerViewController = reactive(useDockerView(props))
 <template>
   <div
     class="docker-page flex h-full min-h-0 flex-col gap-[16px] overflow-hidden p-[18px]"
-    :class="
-      settingsStore.isDark
-        ? 'docker-theme-dark bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.06))]'
-        : 'docker-theme-light bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(226,232,240,0.38))]'
-    "
+    :class="settingsStore.isDark ? 'docker-theme-dark' : 'docker-theme-light'"
   >
     <div class="flex flex-none flex-col gap-[16px]">
       <div class="flex flex-wrap items-start justify-between gap-[16px]">

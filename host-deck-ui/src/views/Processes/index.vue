@@ -191,11 +191,6 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="process-view flex h-full flex-col gap-[16px] overflow-hidden p-[20px]"
-    :class="
-      settingsStore.isDark
-        ? 'bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.12),transparent_32%),rgba(15,23,42,0.05)]'
-        : 'bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.16),transparent_32%),rgba(248,250,252,0.62)]'
-    "
   >
     <div class="flex flex-wrap items-start justify-between gap-[12px]">
       <div>

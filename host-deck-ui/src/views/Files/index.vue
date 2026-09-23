@@ -1226,11 +1226,6 @@ onMounted(async () => {
 <template>
   <div
     class="flex h-full flex-col gap-[14px] p-[16px] outline-none"
-    :class="
-      settingsStore.isDark
-        ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.14),rgba(15,23,42,0.04))]'
-        : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.68),rgba(226,232,240,0.34))]'
-    "
     tabindex="0"
     @keydown="handleKeydown"
     @click.self="fileStore.clearSelection()"
