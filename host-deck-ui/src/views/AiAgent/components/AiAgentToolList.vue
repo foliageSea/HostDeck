@@ -48,9 +48,9 @@ function argumentNames(schema: Record<string, unknown>) {
   return Object.keys(properties)
 }
 
-async function load() {
+async function load(refresh = false) {
   try {
-    await store.loadTools()
+    await store.loadTools(refresh)
   } catch (error) {
     getUiApi().message.error(error instanceof Error ? error.message : '加载工具列表失败。')
   }
@@ -76,7 +76,7 @@ watch(
         <NInput v-model:value="query" clearable size="small" placeholder="搜索工具">
           <template #prefix><Search :size="14" /></template>
         </NInput>
-        <NButton quaternary circle size="small" :loading="store.loadingTools" aria-label="刷新工具列表" @click="load">
+        <NButton quaternary circle size="small" :loading="store.loadingTools" aria-label="刷新工具列表" @click="load(true)">
           <template #icon><RefreshCw :size="14" /></template>
         </NButton>
       </div>

@@ -531,7 +531,7 @@ class _FakeToolExecutor implements AiAgentToolExecutor {
   int resolveCount = 0;
 
   @override
-  Future<List<ToolSpec>> resolveSpecs() async {
+  Future<List<ToolSpec>> resolveSpecs({bool refresh = false}) async {
     resolveCount++;
     return const [];
   }

@@ -487,8 +487,12 @@ export const aiAgentApi = {
     ).data
   },
 
-  async listTools() {
-    return (await http.get<AiAgentTool[]>('/api/ai-agent/tools')).data
+  async listTools(refresh = false) {
+    return (
+      await http.get<AiAgentTool[]>('/api/ai-agent/tools', {
+        params: refresh ? { refresh: true } : undefined,
+      })
+    ).data
   },
 
   async listConversations(connectionId: string) {

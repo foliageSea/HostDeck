@@ -386,10 +386,10 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     return aiAgentApi.testMcpServer(id)
   }
 
-  async function loadTools() {
+  async function loadTools(refresh = false) {
     loadingTools.value = true
     try {
-      tools.value = await aiAgentApi.listTools()
+      tools.value = await aiAgentApi.listTools(refresh)
       return tools.value
     } finally {
       loadingTools.value = false

@@ -49,6 +49,7 @@ describe('AiAgentToolList', () => {
     await flushPromises()
 
     expect(apiMocks.listTools).toHaveBeenCalledOnce()
+    expect(apiMocks.listTools).toHaveBeenNthCalledWith(1, false)
     expect(wrapper.text()).toContain('内置 1')
     expect(wrapper.text()).toContain('MCP 1')
     expect(wrapper.text()).toContain('浏览目录')
@@ -56,5 +57,9 @@ describe('AiAgentToolList', () => {
     expect(wrapper.text()).toContain('执行前需批准')
     expect(wrapper.text()).toContain('path')
     expect(wrapper.text()).toContain('query')
+
+    await wrapper.get('[aria-label="刷新工具列表"]').trigger('click')
+    await flushPromises()
+    expect(apiMocks.listTools).toHaveBeenLastCalledWith(true)
   })
 })

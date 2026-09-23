@@ -139,6 +139,18 @@ void main() {
       final tools = await client.listTools(server);
       expect(tools.single.name, 'weather');
       expect(tools.single.inputSchema['type'], 'object');
+      final cachedTools = await client.listTools(server);
+      expect(cachedTools.single.name, 'weather');
+      expect(
+        requests.where((request) => request['method'] == 'tools/list'),
+        hasLength(1),
+      );
+
+      await client.listTools(server, refresh: true);
+      expect(
+        requests.where((request) => request['method'] == 'tools/list'),
+        hasLength(2),
+      );
 
       final result = await client.callTool(server, 'weather', {
         'city': 'Shenzhen',
@@ -147,7 +159,7 @@ void main() {
       expect(result.content, 'Sunny');
       expect(
         requests.where((request) => request['method'] == 'initialize'),
-        hasLength(2),
+        hasLength(3),
       );
     } finally {
       await httpServer.close(force: true);

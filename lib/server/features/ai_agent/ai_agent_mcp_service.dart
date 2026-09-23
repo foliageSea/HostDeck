@@ -133,10 +133,46 @@ class AiAgentMcpRepository {
 class AiAgentMcpClient {
   static const protocolVersion = '2025-06-18';
   static const timeout = Duration(seconds: 20);
+  static const toolsCacheLifetime = Duration(minutes: 5);
   static const maxResponseBytes = 1024 * 1024;
   static const maxToolOutputBytes = 64 * 1024;
+  final Map<int, _McpToolsCacheEntry> _toolsCache = {};
+  final Map<int, _PendingMcpToolDiscovery> _pendingToolDiscoveries = {};
 
-  Future<List<AiAgentMcpTool>> listTools(AiAgentMcpServer server) async {
+  Future<List<AiAgentMcpTool>> listTools(
+    AiAgentMcpServer server, {
+    bool refresh = false,
+  }) async {
+    final now = DateTime.now();
+    if (refresh) _toolsCache.remove(server.id);
+    final cached = _toolsCache[server.id];
+    if (!refresh && cached != null && cached.matches(server, now)) {
+      return cached.tools;
+    }
+    final pending = _pendingToolDiscoveries[server.id];
+    if (pending != null && pending.matches(server)) return pending.future;
+
+    final future = _discoverTools(server);
+    final discovery = _PendingMcpToolDiscovery(server, future);
+    _pendingToolDiscoveries[server.id] = discovery;
+    try {
+      final tools = await future;
+      if (identical(_pendingToolDiscoveries[server.id], discovery)) {
+        _toolsCache[server.id] = _McpToolsCacheEntry(
+          server,
+          tools,
+          DateTime.now().add(toolsCacheLifetime),
+        );
+      }
+      return tools;
+    } finally {
+      if (identical(_pendingToolDiscoveries[server.id], discovery)) {
+        _pendingToolDiscoveries.remove(server.id);
+      }
+    }
+  }
+
+  Future<List<AiAgentMcpTool>> _discoverTools(AiAgentMcpServer server) async {
     final session = await _initialize(server);
     try {
       final discovered = <AiAgentMcpTool>[];
@@ -359,12 +395,12 @@ class AiAgentMcpToolService implements AiAgentToolExecutor {
   );
 
   @override
-  Future<List<ToolSpec>> resolveSpecs() async {
+  Future<List<ToolSpec>> resolveSpecs({bool refresh = false}) async {
     final registered = <String, _RegisteredMcpTool>{};
     final specs = <ToolSpec>[...await _builtIn.resolveSpecs()];
     for (final server in _repository.list(enabledOnly: true)) {
       try {
-        final tools = await _client.listTools(server);
+        final tools = await _client.listTools(server, refresh: refresh);
         for (final tool in tools.take(64)) {
           var name = _toolName(server.id, tool.name);
           var suffix = 2;
@@ -385,7 +421,7 @@ class AiAgentMcpToolService implements AiAgentToolExecutor {
         // A disconnected optional MCP server must not prevent the agent from running.
       }
     }
-    _tools = Map.unmodifiable({..._tools, ...registered});
+    _tools = Map.unmodifiable(registered);
     return List.unmodifiable(specs);
   }
 
@@ -520,4 +556,41 @@ class _RegisteredMcpTool {
   final AiAgentMcpServer server;
   final AiAgentMcpTool tool;
   const _RegisteredMcpTool(this.server, this.tool);
+}
+
+class _McpToolsCacheEntry {
+  final String url;
+  final Map<String, String> headers;
+  final List<AiAgentMcpTool> tools;
+  final DateTime expiresAt;
+
+  _McpToolsCacheEntry(AiAgentMcpServer server, this.tools, this.expiresAt)
+    : url = server.url,
+      headers = Map.unmodifiable(server.headers);
+
+  bool matches(AiAgentMcpServer server, DateTime now) =>
+      now.isBefore(expiresAt) &&
+      url == server.url &&
+      _sameHeaders(headers, server.headers);
+}
+
+class _PendingMcpToolDiscovery {
+  final String url;
+  final Map<String, String> headers;
+  final Future<List<AiAgentMcpTool>> future;
+
+  _PendingMcpToolDiscovery(AiAgentMcpServer server, this.future)
+    : url = server.url,
+      headers = Map.unmodifiable(server.headers);
+
+  bool matches(AiAgentMcpServer server) =>
+      url == server.url && _sameHeaders(headers, server.headers);
+}
+
+bool _sameHeaders(Map<String, String> left, Map<String, String> right) {
+  if (left.length != right.length) return false;
+  for (final entry in left.entries) {
+    if (right[entry.key] != entry.value) return false;
+  }
+  return true;
 }

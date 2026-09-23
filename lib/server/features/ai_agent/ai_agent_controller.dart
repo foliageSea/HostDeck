@@ -288,16 +288,17 @@ class AiAgentController {
       if (serverId == null) return Result.fail(400, 'Invalid MCP server id.');
       final server = _mcpRepository.get(serverId);
       if (server == null) return Result.fail(404, 'MCP server not found.');
-      final tools = await _mcpClient.listTools(server);
+      final tools = await _mcpClient.listTools(server, refresh: true);
       return Result.ok({'success': true, 'toolCount': tools.length});
     } catch (_) {
       return Result.fail(502, 'Unable to connect to the MCP server.');
     }
   }
 
-  Future<Response> listTools(Request _) async {
+  Future<Response> listTools(Request request) async {
     try {
-      final specs = await _toolService.resolveSpecs();
+      final refresh = request.url.queryParameters['refresh'] == 'true';
+      final specs = await _toolService.resolveSpecs(refresh: refresh);
       return Result.ok([
         for (final spec in specs)
           {

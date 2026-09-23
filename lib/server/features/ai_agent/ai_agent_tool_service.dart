@@ -39,7 +39,7 @@ class AiAgentToolResult {
 }
 
 abstract interface class AiAgentToolExecutor {
-  Future<List<ToolSpec>> resolveSpecs();
+  Future<List<ToolSpec>> resolveSpecs({bool refresh = false});
 
   bool requiresApproval(String name);
 
@@ -192,7 +192,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
   ];
 
   @override
-  Future<List<ToolSpec>> resolveSpecs() async => specs;
+  Future<List<ToolSpec>> resolveSpecs({bool refresh = false}) async => specs;
 
   @override
   bool requiresApproval(String name) => switch (name) {
