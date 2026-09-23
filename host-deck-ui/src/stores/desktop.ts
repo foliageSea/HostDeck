@@ -518,7 +518,6 @@ export const useDesktopStore = defineStore('desktop', {
         minWidth: 620,
         singleInstance: true,
         title: 'AI Agent',
-        transparentBody: true,
         width: 1180,
         showInLaunchpad: true,
       },
