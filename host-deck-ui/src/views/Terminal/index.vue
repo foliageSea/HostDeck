@@ -184,29 +184,6 @@ async function openCurrentDirectory() {
         在文件管理器中打开当前目录
       </NTooltip>
 
-      <NPopover trigger="hover" placement="top-end">
-        <template #trigger>
-          <NButton quaternary circle size="small" aria-label="终端快捷键">
-            <template #icon>
-              <NIcon :size="16">
-                <Help />
-              </NIcon>
-            </template>
-          </NButton>
-        </template>
-        <div
-          class="flex flex-col gap-[6px] text-[12px]"
-          :class="
-            settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'
-          "
-        >
-          <div>Ctrl + V：粘贴</div>
-          <div>Alt + C：复制选中内容</div>
-          <div>输入至少 2 个字符：显示命令补全</div>
-          <div>补全中使用 ↑↓ 选择，Tab 填入，Enter 执行</div>
-        </div>
-      </NPopover>
-
       <NTooltip trigger="hover">
         <template #trigger>
           <NButton quaternary circle size="small" aria-label="命令片段" @click="openSnippets">
@@ -232,6 +209,29 @@ async function openCurrentDirectory() {
         </template>
         终端设置
       </NTooltip>
+
+      <NPopover trigger="hover" placement="top-end">
+        <template #trigger>
+          <NButton quaternary circle size="small" aria-label="终端快捷键">
+            <template #icon>
+              <NIcon :size="16">
+                <Help />
+              </NIcon>
+            </template>
+          </NButton>
+        </template>
+        <div
+          class="flex flex-col gap-[6px] text-[12px]"
+          :class="
+            settingsStore.isDark ? 'text-[rgba(226,232,240,0.96)]' : 'text-[rgba(51,65,85,0.96)]'
+          "
+        >
+          <div>Ctrl + V：粘贴</div>
+          <div>Alt + C：复制选中内容</div>
+          <div>输入至少 2 个字符：显示命令补全</div>
+          <div>补全中使用 ↑↓ 选择，Tab 填入，Enter 执行</div>
+        </div>
+      </NPopover>
     </div>
 
     <Teleport to="body">
