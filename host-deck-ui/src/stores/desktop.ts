@@ -694,7 +694,6 @@ export const useDesktopStore = defineStore('desktop', {
         minHeight: 520,
         minWidth: 860,
         title: '运行态会话',
-        transparentBody: true,
         width: 1120,
         showInLaunchpad: true,
       },

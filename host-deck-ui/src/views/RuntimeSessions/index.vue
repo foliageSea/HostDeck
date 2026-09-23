@@ -453,12 +453,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .runtime-view {
   color: #172033;
-  background: transparent;
+  background: #f4f7fa;
 }
 
 .runtime-view.is-dark {
   color: #e5e7eb;
-  background: transparent;
+  background: #111827;
 }
 
 .runtime-header {
@@ -471,12 +471,12 @@ onBeforeUnmount(() => {
   gap: 20px;
   padding: 14px 20px;
   border-bottom: 1px solid #dbe2ea;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .is-dark .runtime-header {
   border-bottom-color: #273244;
-  background: transparent;
+  background: rgba(17, 24, 39, 0.92);
 }
 
 .secondary-text {
@@ -544,11 +544,11 @@ onBeforeUnmount(() => {
 }
 
 .runtime-canvas :deep(.vue-flow) {
-  background: transparent;
+  background: #f8fafc;
 }
 
 .is-dark .runtime-canvas :deep(.vue-flow) {
-  background: transparent;
+  background: #151d2a;
 }
 
 .flow-node {
