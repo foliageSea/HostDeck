@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RefreshCw } from '@lucide/vue'
-import { Launch } from '@vicons/carbon'
+import { AppWindow, Lock, Play, RefreshCw, ShieldCheck } from '@lucide/vue'
 import {
   secureBrowserApi,
   type SecureBrowserCapabilities,
@@ -33,6 +32,31 @@ const canLaunch = computed(
     hasConnection.value &&
     (Boolean(window.hostDeck?.app?.openInSecureChrome) || capabilities.value.launchEnabled),
 )
+const launchModeText = computed(() => {
+  if (window.hostDeck?.app?.openInSecureChrome) return '桌面环境直接启动'
+  if (capabilities.value.launchEnabled) {
+    return capabilities.value.chromeDetected ? 'CLI 启动 Chrome' : 'CLI 启动（未检测到 Chrome）'
+  }
+  return '未启用（需 --enable-secure-browser）'
+})
+
+const features = [
+  {
+    title: '隔离环境',
+    desc: '独立的浏览器配置与数据目录，与日常浏览互不影响。',
+    icon: ShieldCheck,
+  },
+  {
+    title: '安全代理',
+    desc: '全部流量经 SSH 隧道以 SOCKS5 转发，直连远程网络。',
+    icon: Lock,
+  },
+  {
+    title: '单实例',
+    desc: '每个连接仅保留一个会话，可随时停止并释放端口。',
+    icon: AppWindow,
+  },
+]
 
 async function fetchTunnels() {
   loading.value = true
@@ -53,6 +77,11 @@ async function fetchCapabilities() {
   } catch {
     capabilities.value = { launchEnabled: false, chromeDetected: false }
   }
+}
+
+function refreshAll() {
+  void fetchTunnels()
+  void fetchCapabilities()
 }
 
 async function launchTunnelInChrome(tunnel: SecureBrowserTunnel) {
@@ -121,6 +150,14 @@ async function stopTunnel(tunnel: SecureBrowserTunnel) {
   }
 }
 
+function formatTime(timestamp: number) {
+  return new Intl.DateTimeFormat('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date(timestamp))
+}
+
 onMounted(() => {
   void fetchTunnels()
   void fetchCapabilities()
@@ -128,591 +165,384 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="secure-browser-view" :class="{ 'is-dark': settingsStore.isDark }">
-    <div class="launcher-shell">
-      <header class="launcher-header">
-        <div class="brand-lockup">
-          <div class="brand-icon"><AppIcon name="secure-browser" :size="27" themed /></div>
+  <div class="secure-browser-view" :class="{ 'secure-browser-dark': settingsStore.isDark }">
+    <div class="sb-grid">
+      <section class="sb-card sb-card-wide" aria-labelledby="sb-connection-title">
+        <header class="sb-card-header">
+          <h2 id="sb-connection-title">连接状态</h2>
+          <div class="sb-header-actions">
+            <span class="sb-pill" :class="{ 'sb-pill-ok': hasConnection }">
+              <span class="sb-pill-dot" />{{ hasConnection ? 'SSH 已连接' : '等待连接' }}
+            </span>
+            <NTooltip>
+              <template #trigger>
+                <NButton
+                  quaternary
+                  circle
+                  size="small"
+                  :loading="loading"
+                  aria-label="刷新浏览器状态"
+                  @click="refreshAll"
+                >
+                  <template #icon><RefreshCw :size="15" /></template>
+                </NButton>
+              </template>
+              刷新状态
+            </NTooltip>
+          </div>
+        </header>
+        <div class="sb-connection">
+          <div class="sb-connection-icon">
+            <AppIcon name="secure-browser" :size="30" themed />
+          </div>
+          <div class="sb-connection-identity">
+            <h3>安全浏览器</h3>
+            <div class="sb-connection-meta sb-muted">{{ connectionText }}</div>
+          </div>
+          <span class="sb-pill sb-pill-desktop" :class="{ 'sb-pill-ok': hasConnection }">
+            <span class="sb-pill-dot" />{{ hasConnection ? '连接就绪' : '未连接' }}
+          </span>
+        </div>
+      </section>
+
+      <section class="sb-card sb-card-wide" aria-labelledby="sb-session-title">
+        <header class="sb-card-header">
+          <h2 id="sb-session-title">浏览会话</h2>
+          <span class="sb-pill" :class="{ 'sb-pill-ok': activeTunnel }">
+            <span class="sb-pill-dot" />{{ activeTunnel ? '运行中' : '未启动' }}
+          </span>
+        </header>
+        <div class="sb-session">
+          <div class="sb-session-info">
+            <div class="sb-session-icon" :class="{ 'sb-session-icon-active': activeTunnel }">
+              <AppWindow :size="22" aria-hidden="true" />
+            </div>
+            <div class="sb-session-text">
+              <strong>{{ activeTunnel ? '浏览器已准备好' : '准备启动' }}</strong>
+              <small class="sb-muted">
+                {{
+                  activeTunnel
+                    ? `代理 ${activeTunnel.bindHost}:${activeTunnel.bindPort}`
+                    : '启动后将打开独立浏览器窗口'
+                }}
+              </small>
+            </div>
+          </div>
+          <div class="sb-session-actions">
+            <NButton
+              v-if="activeTunnel"
+              secondary
+              type="error"
+              :loading="operatingId === activeTunnel.id"
+              @click="stopTunnel(activeTunnel)"
+            >
+              停止会话
+            </NButton>
+            <NButton
+              type="primary"
+              :disabled="!canLaunch"
+              :loading="starting"
+              @click="startSecureBrowser"
+            >
+              <template #icon><Play :size="15" /></template>
+              {{ activeTunnel ? '打开浏览器' : '启动浏览器' }}
+            </NButton>
+          </div>
+        </div>
+        <dl class="sb-details">
           <div>
-            <div class="brand-kicker">HOST DECK / PRIVATE ACCESS</div>
-            <h1>安全浏览器</h1>
+            <dt class="sb-muted">代理协议</dt>
+            <dd>SOCKS5 over SSH</dd>
           </div>
-        </div>
-        <NButton
-          quaternary
-          circle
-          :loading="loading"
-          aria-label="刷新浏览器状态"
-          @click="fetchTunnels"
-        >
-          <template #icon><RefreshCw :size="16" /></template>
-        </NButton>
-      </header>
-
-      <main class="launcher-main">
-        <section class="hero-copy">
-          <div class="section-eyebrow">ISOLATED BROWSING SESSION</div>
-          <h2>把远程网络<br /><span>带到你的桌面。</span></h2>
-          <div class="connection-panel">
-            <div class="connection-status" :class="{ connected: hasConnection }">
-              <span class="status-dot"></span>
-              <span>{{ hasConnection ? 'SSH 连接就绪' : '等待 SSH 连接' }}</span>
-            </div>
-            <div class="connection-address">{{ connectionText }}</div>
-          </div>
-        </section>
-
-        <div class="hero-art" aria-hidden="true">
-          <div class="orbit orbit-large"></div>
-          <div class="orbit orbit-small"></div>
-          <div class="browser-card">
-            <div class="browser-toolbar">
-              <span></span><span></span><span></span>
-              <i></i>
-            </div>
-            <div class="browser-card-content">
-              <div class="browser-card-icon">
-                <AppIcon name="secure-browser" :size="48" themed />
-              </div>
-              <div class="browser-card-lines"><b></b><b></b><b></b></div>
-            </div>
-          </div>
-          <div class="secure-badge">SECURE<span>SSH TUNNEL</span></div>
-        </div>
-
-        <div class="feature-strip">
-          <div class="feature-item">
-            <span class="feature-index">01</span>
-            <div><strong>隔离环境</strong><small>独立浏览器配置</small></div>
-          </div>
-          <div class="feature-item">
-            <span class="feature-index">02</span>
-            <div><strong>安全代理</strong><small>流量经 SSH 转发</small></div>
-          </div>
-          <div class="feature-item">
-            <span class="feature-index">03</span>
-            <div><strong>单实例</strong><small>一个连接，一个会话</small></div>
-          </div>
-        </div>
-      </main>
-
-      <footer class="launcher-footer">
-        <div class="launch-status">
-          <span class="status-ring" :class="{ active: activeTunnel }"></span>
           <div>
-            <strong>{{ activeTunnel ? '浏览器已准备好' : '准备启动' }}</strong>
-            <small v-if="activeTunnel">
-              代理 {{ activeTunnel.bindHost }}:{{ activeTunnel.bindPort }}
-            </small>
-            <small v-else>启动后将打开独立 Chrome 窗口</small>
+            <dt class="sb-muted">启动方式</dt>
+            <dd>{{ launchModeText }}</dd>
           </div>
+          <div v-if="activeTunnel">
+            <dt class="sb-muted">启动时间</dt>
+            <dd>{{ formatTime(activeTunnel.startedAt) }}</dd>
+          </div>
+          <div v-else>
+            <dt class="sb-muted">代理端口</dt>
+            <dd>启动时自动分配</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section v-for="feature in features" :key="feature.title" class="sb-card">
+        <header class="sb-card-header">
+          <h2>{{ feature.title }}</h2>
+        </header>
+        <div class="sb-feature">
+          <div class="sb-feature-icon">
+            <component :is="feature.icon" :size="18" aria-hidden="true" />
+          </div>
+          <p class="sb-feature-desc sb-muted">{{ feature.desc }}</p>
         </div>
-        <div class="launch-actions">
-          <NButton
-            v-if="activeTunnel"
-            quaternary
-            type="error"
-            :loading="operatingId === activeTunnel.id"
-            @click="stopTunnel(activeTunnel)"
-          >
-            停止会话
-          </NButton>
-          <NButton
-            class="launch-button"
-            type="primary"
-            size="large"
-            :disabled="!canLaunch"
-            :loading="starting"
-            @click="startSecureBrowser"
-          >
-            <template #icon
-              ><NIcon><Launch /></NIcon
-            ></template>
-            {{ activeTunnel ? '打开浏览器' : '启动浏览器' }}
-            <span class="launch-arrow">↗</span>
-          </NButton>
-        </div>
-      </footer>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped>
 .secure-browser-view {
-  position: relative;
+  --sb-border: rgba(148, 163, 184, 0.2);
+  --sb-surface: rgba(255, 255, 255, 0.72);
+  --sb-header: rgba(148, 163, 184, 0.06);
+  --sb-muted: #64748b;
+  --sb-ok: #15803d;
   height: 100%;
   overflow: auto;
   padding: 20px;
-  color: #152235;
-  background: radial-gradient(circle at 80% 8%, rgba(34, 197, 94, 0.14), transparent 30%), #eef3f5;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 30%),
+    radial-gradient(circle at top right, rgba(129, 140, 248, 0.14), transparent 28%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.1), rgba(15, 23, 42, 0.04));
 }
 
-.secure-browser-view::before {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  content: '';
-  opacity: 0.32;
-  background-image:
-    linear-gradient(rgba(100, 116, 139, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(100, 116, 139, 0.07) 1px, transparent 1px);
-  background-size: 28px 28px;
+.secure-browser-dark {
+  --sb-border: rgba(148, 163, 184, 0.13);
+  --sb-surface: rgba(30, 32, 42, 0.66);
+  --sb-header: rgba(255, 255, 255, 0.025);
+  --sb-muted: #a1a1aa;
+  --sb-ok: #4ade80;
 }
 
-.is-dark.secure-browser-view {
-  color: #e7f0f0;
-  background: radial-gradient(circle at 80% 8%, rgba(45, 212, 191, 0.14), transparent 30%), #07131c;
-}
-
-.launcher-shell {
-  position: relative;
-  z-index: 1;
-  display: flex;
+.sb-grid {
+  display: grid;
   min-height: 100%;
-  flex-direction: column;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: center;
+  gap: 14px;
+  container-type: inline-size;
+}
+
+.sb-muted {
+  color: var(--sb-muted);
+}
+
+.sb-card {
+  min-width: 0;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.1);
-  backdrop-filter: blur(18px);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--app-radius-card, 10px);
+  background: var(--sb-surface);
+  backdrop-filter: blur(16px);
 }
 
-.is-dark .launcher-shell {
-  border-color: rgba(148, 163, 184, 0.18);
-  background: rgba(13, 27, 36, 0.78);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.26);
+.sb-card-wide {
+  grid-column: 1 / -1;
 }
 
-.launcher-header {
+.sb-card-header {
   display: flex;
-  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 28px 10px;
-}
-
-.brand-lockup,
-.launch-status,
-.launch-actions {
-  display: flex;
-  align-items: center;
-}
-
-.brand-lockup {
   gap: 12px;
-}
-.brand-icon {
-  display: grid;
-  width: 45px;
-  height: 45px;
-  place-items: center;
-  border: 1px solid rgba(20, 184, 166, 0.25);
-  border-radius: 14px;
-  background: rgba(20, 184, 166, 0.12);
-}
-.brand-kicker,
-.section-eyebrow {
-  color: #0f9f91;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.17em;
-}
-.is-dark .brand-kicker,
-.is-dark .section-eyebrow {
-  color: #5eead4;
-}
-.brand-lockup h1 {
-  margin: 2px 0 0;
-  font-size: 17px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
+  min-height: 45px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--sb-border);
+  background: var(--sb-header);
 }
 
-.launcher-main {
-  display: grid;
-  flex: 1 1 auto;
-  grid-template-columns: minmax(260px, 0.95fr) minmax(260px, 1.05fr);
-  align-items: center;
-  gap: 12px;
-  padding: 34px 48px 30px;
+.sb-card-header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
 }
-.hero-copy {
-  max-width: 440px;
-}
-.hero-copy h2 {
-  margin: 13px 0 16px;
-  color: #102334;
-  font-size: clamp(30px, 4vw, 48px);
-  font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -0.055em;
-}
-.hero-copy h2 span {
-  color: #0e9f91;
-}
-.is-dark .hero-copy h2 {
-  color: #ecfdf5;
-}
-.is-dark .hero-copy h2 span {
-  color: #5eead4;
-}
-.connection-panel {
-  width: min(100%, 350px);
-  margin-top: 28px;
-  padding: 12px 14px;
-  border: 1px solid rgba(148, 163, 184, 0.23);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.62);
-}
-.is-dark .connection-panel {
-  background: rgba(3, 12, 18, 0.3);
-}
-.connection-status {
+
+.sb-header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #b7791f;
+}
+
+.sb-pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--sb-muted);
+  background: rgba(148, 163, 184, 0.12);
   font-size: 12px;
-  font-weight: 700;
+  white-space: nowrap;
 }
-.connection-status.connected {
-  color: #0e9f91;
+
+.sb-pill-ok {
+  color: var(--sb-ok);
+  background: rgba(34, 197, 94, 0.1);
 }
-.status-dot,
-.status-ring {
+
+.sb-pill-dot {
   width: 7px;
   height: 7px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: #e2a83f;
-  box-shadow: 0 0 0 4px rgba(226, 168, 63, 0.12);
+  flex: none;
+  border-radius: 999px;
+  background: currentColor;
 }
-.connection-status.connected .status-dot {
-  background: #10b981;
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.13);
+
+.sb-connection {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
 }
-.connection-address {
+
+.sb-connection-icon {
+  display: grid;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  place-items: center;
+  background: var(--app-primary-soft, rgba(37, 99, 235, 0.16));
+}
+
+.sb-connection-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.sb-connection-identity h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.sb-connection-meta {
   overflow: hidden;
-  margin-top: 8px;
-  color: #718096;
-  font-family: monospace;
-  font-size: 11px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.is-dark .connection-address {
-  color: #9aadb5;
-}
 
-.hero-art {
-  position: relative;
-  display: grid;
-  min-height: 265px;
-  place-items: center;
-}
-.orbit {
-  position: absolute;
-  border: 1px solid rgba(20, 184, 166, 0.2);
-  border-radius: 50%;
-  transform: rotate(-24deg);
-}
-.orbit-large {
-  width: min(31vw, 330px);
-  height: min(15vw, 160px);
-}
-.orbit-small {
-  width: min(25vw, 270px);
-  height: min(12vw, 130px);
-  border-color: rgba(16, 185, 129, 0.16);
-  transform: rotate(34deg);
-}
-.browser-card {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 290px);
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: 16px;
-  background: rgba(245, 253, 252, 0.75);
-  box-shadow:
-    0 26px 45px rgba(30, 91, 94, 0.18),
-    0 0 0 9px rgba(20, 184, 166, 0.06);
-  transform: rotate(-5deg);
-}
-.is-dark .browser-card {
-  border-color: rgba(148, 163, 184, 0.2);
-  background: rgba(18, 43, 49, 0.82);
-  box-shadow:
-    0 26px 45px rgba(0, 0, 0, 0.28),
-    0 0 0 9px rgba(45, 212, 191, 0.06);
-}
-.browser-toolbar {
+.sb-session {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 25px;
-  padding: 0 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-}
-.browser-toolbar span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #7dd3c7;
-}
-.browser-toolbar i {
-  width: 95px;
-  height: 5px;
-  margin-left: 12px;
-  border-radius: 4px;
-  background: rgba(100, 116, 139, 0.15);
-}
-.browser-card-content {
-  display: flex;
-  align-items: center;
-  gap: 19px;
-  padding: 42px 28px;
-}
-.browser-card-icon {
-  display: grid;
-  width: 76px;
-  height: 76px;
-  place-items: center;
-  border-radius: 23px;
-  background: rgba(20, 184, 166, 0.13);
-}
-.browser-card-lines {
-  display: grid;
-  gap: 8px;
-}
-.browser-card-lines b {
-  display: block;
-  width: 72px;
-  height: 6px;
-  border-radius: 5px;
-  background: rgba(20, 184, 166, 0.2);
-}
-.browser-card-lines b:nth-child(2) {
-  width: 52px;
-  background: rgba(100, 116, 139, 0.16);
-}
-.browser-card-lines b:nth-child(3) {
-  width: 64px;
-  background: rgba(100, 116, 139, 0.12);
-}
-.secure-badge {
-  position: absolute;
-  right: 3%;
-  bottom: 8%;
-  display: grid;
-  gap: 2px;
-  padding: 8px 11px;
-  border: 1px solid rgba(20, 184, 166, 0.25);
-  border-radius: 8px;
-  color: #0e9f91;
-  background: rgba(231, 253, 249, 0.86);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  transform: rotate(4deg);
-}
-.secure-badge span {
-  color: #7b8b96;
-  font-size: 7px;
-  letter-spacing: 0.08em;
-}
-.is-dark .secure-badge {
-  background: rgba(10, 42, 42, 0.9);
-}
-
-.feature-strip {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 34px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
-}
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 135px;
-}
-.feature-index {
-  color: #0e9f91;
-  font-family: monospace;
-  font-size: 10px;
-  font-weight: 800;
-}
-.feature-item strong,
-.feature-item small {
-  display: block;
-}
-.feature-item strong {
-  font-size: 11px;
-}
-.feature-item small {
-  margin-top: 3px;
-  color: #80909b;
-  font-size: 10px;
-}
-
-.launcher-footer {
-  display: flex;
-  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  margin: 0 28px 24px;
-  padding: 17px 18px 17px 20px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.5);
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 20px;
 }
-.is-dark .launcher-footer {
-  background: rgba(2, 12, 18, 0.28);
+
+.sb-session-info {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
 }
-.launch-status {
-  gap: 10px;
+
+.sb-session-icon {
+  display: grid;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  place-items: center;
+  color: var(--sb-muted);
+  background: rgba(148, 163, 184, 0.12);
 }
-.status-ring {
-  width: 9px;
-  height: 9px;
-  background: #94a3b8;
-  box-shadow: 0 0 0 5px rgba(148, 163, 184, 0.12);
+
+.sb-session-icon-active {
+  color: var(--sb-ok);
+  background: rgba(34, 197, 94, 0.12);
 }
-.status-ring.active {
-  background: #10b981;
-  box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.13);
-}
-.launch-status strong,
-.launch-status small {
+
+.sb-session-text strong,
+.sb-session-text small {
   display: block;
 }
-.launch-status strong {
+
+.sb-session-text strong {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.sb-session-text small {
+  margin-top: 5px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sb-session-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sb-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 20px;
+  padding: 16px 0 20px;
+  border-top: 1px solid var(--sb-border);
+}
+
+.sb-details dt {
+  margin-bottom: 6px;
   font-size: 12px;
 }
-.launch-status small {
-  margin-top: 4px;
-  color: #7b8b96;
-  font-family: monospace;
-  font-size: 10px;
-}
-.launch-actions {
-  gap: 12px;
-}
-.launch-button {
-  min-width: 178px;
-  border-radius: 10px;
-  font-weight: 750;
-  box-shadow: 0 9px 20px rgba(13, 148, 136, 0.2);
-}
-.launch-arrow {
-  margin-left: 10px;
-  font-size: 16px;
-  line-height: 1;
+
+.sb-details dd {
+  overflow: hidden;
+  margin: 0;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-@media (max-width: 760px) {
-  .secure-browser-view {
-    padding: 10px;
+.sb-feature {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px 20px;
+}
+
+.sb-feature-icon {
+  display: grid;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  place-items: center;
+  color: var(--app-primary-color, #2563eb);
+  background: var(--app-primary-soft, rgba(37, 99, 235, 0.16));
+}
+
+.sb-feature-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+@container (max-width: 640px) {
+  .sb-grid {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
   }
-  .launcher-header {
-    padding: 18px 18px 8px;
+
+  .sb-connection {
+    flex-wrap: wrap;
   }
-  .launcher-main {
-    grid-template-columns: 1fr;
-    padding: 24px 24px 22px;
+
+  .sb-pill-desktop {
+    margin-left: 68px;
   }
-  .hero-art {
-    min-height: 205px;
-  }
-  .orbit-large {
-    width: 300px;
-    height: 145px;
-  }
-  .orbit-small {
-    width: 240px;
-    height: 115px;
-  }
-  .feature-strip {
-    gap: 14px;
-  }
-  .launcher-footer {
+
+  .sb-session {
     align-items: stretch;
     flex-direction: column;
-    margin: 0 18px 18px;
   }
-  .launch-actions {
+
+  .sb-session-actions {
     justify-content: flex-end;
   }
-}
 
-@media (min-width: 761px) and (max-height: 700px) {
-  .secure-browser-view {
-    padding: 12px 16px;
+  .sb-details {
+    grid-template-columns: minmax(0, 1fr);
   }
-  .launcher-header {
-    padding: 16px 24px 6px;
-  }
-  .launcher-main {
-    padding: 18px 36px 14px;
-  }
-  .hero-copy h2 {
-    margin: 9px 0 11px;
-    font-size: clamp(30px, 3.5vw, 40px);
-  }
-  .connection-panel {
-    margin-top: 16px;
-    padding: 10px 12px;
-  }
-  .hero-art {
-    min-height: 190px;
-  }
-  .browser-card {
-    width: min(100%, 270px);
-  }
-  .browser-card-content {
-    padding: 30px 24px;
-  }
-  .browser-card-icon {
-    width: 64px;
-    height: 64px;
-  }
-  .feature-strip {
-    gap: 8px 28px;
-    padding-top: 9px;
-  }
-  .launcher-footer {
-    margin: 0 24px 14px;
-    padding: 12px 14px 12px 16px;
-  }
-}
-
-@media (max-width: 430px) {
-  .hero-copy h2 {
-    font-size: 34px;
-  }
-  .browser-card {
-    width: 250px;
-  }
-  .feature-item {
-    min-width: 120px;
-  }
-  .launch-actions {
-    align-items: stretch;
-    flex-direction: column-reverse;
-  }
-  .launch-button {
-    width: 100%;
-  }
-}
-
-.secure-browser-view::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
 }
 </style>
