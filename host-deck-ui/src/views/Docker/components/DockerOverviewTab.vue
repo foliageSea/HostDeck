@@ -131,7 +131,7 @@ const resourceItems = computed(() => [
         </header>
         <div class="ov-engine">
           <div class="ov-engine-icon">
-            <NIcon :size="30"><LogoDocker /></NIcon>
+            <NIcon class="ov-engine-logo" :size="30"><LogoDocker /></NIcon>
           </div>
           <div class="ov-engine-identity">
             <h3>Docker Engine</h3>
@@ -299,6 +299,17 @@ const resourceItems = computed(() => [
   place-items: center;
   color: #fff;
   background: var(--app-primary-color, #2563eb);
+}
+
+.ov-engine-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.ov-engine-logo :deep(svg) {
+  display: block;
 }
 
 .ov-engine-identity {
