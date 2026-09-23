@@ -220,10 +220,11 @@ const resourceItems = computed(() => [
 
 .overview-grid {
   display: grid;
+  align-self: flex-start;
   width: 100%;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
-  margin: auto 0;
+  margin: 0;
   padding-bottom: 14px;
   container-type: inline-size;
 }
