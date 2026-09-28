@@ -40,6 +40,7 @@ Future<void> main(List<String> args) async {
     flushLogs: logging.flush,
     adminPassword: Platform.environment['HOSTDECK_ACCESS_PASSWORD'],
     apiToken: Platform.environment['HOSTDECK_API_TOKEN'],
+    totpSecret: Platform.environment['HOSTDECK_ACCESS_TOTP_SECRET'],
     secureCookies:
         Platform.environment['HOSTDECK_SECURE_COOKIES']?.toLowerCase() ==
         'true',

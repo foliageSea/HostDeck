@@ -4,6 +4,8 @@
 #   ./dev.sh
 #   ./dev.sh --backend-port 9000 --frontend-port 5179
 #   HOSTDECK_ACCESS_PASSWORD='change-me' ./dev.sh --backend-host 0.0.0.0 --backend-port 9000 --frontend-port 5179
+#   HOSTDECK_ACCESS_TOTP_SECRET='BASE32_SECRET' ./dev.sh --backend-host 0.0.0.0
+#   ./dev.sh --enable-totp --backend-host 0.0.0.0
 
 set -euo pipefail
 
@@ -11,6 +13,9 @@ backend_host="127.0.0.1"
 backend_port=8080
 frontend_port=5178
 startup_timeout_seconds=30
+totp_secret_override=""
+totp_debug_secret="JBSWY3DPEHPK3PXP"
+totp_debug_enabled=false
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 backend_pid=""
 frontend_pid=""
@@ -24,6 +29,8 @@ Options:
   --backend-port PORT                Backend port, 1-65535 (default: 8080)
   --frontend-port PORT               Frontend port, 1-65535 (default: 5178)
   --startup-timeout-seconds SECONDS  Startup timeout, 1-300 (default: 30)
+  --totp-secret SECRET               Set HOSTDECK_ACCESS_TOTP_SECRET for the backend
+  --enable-totp                      Enable a fixed development TOTP Secret
   -h, --help                         Show this help message
 EOF
 }
@@ -54,6 +61,23 @@ while (($#)); do
       startup_timeout_seconds="${2:?Missing value for --startup-timeout-seconds}"
       shift 2
       ;;
+    --totp-secret)
+      if [[ -n "$totp_secret_override" ]]; then
+        printf '%s\n' 'Only one of --totp-secret and --enable-totp may be used.' >&2
+        exit 1
+      fi
+      totp_secret_override="${2:?Missing value for --totp-secret}"
+      shift 2
+      ;;
+    --enable-totp)
+      if [[ -n "$totp_secret_override" ]]; then
+        printf '%s\n' 'Only one of --totp-secret and --enable-totp may be used.' >&2
+        exit 1
+      fi
+      totp_secret_override="$totp_debug_secret"
+      totp_debug_enabled=true
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -65,6 +89,10 @@ while (($#)); do
       ;;
   esac
 done
+
+if [[ -n "$totp_secret_override" ]]; then
+  export HOSTDECK_ACCESS_TOTP_SECRET="$totp_secret_override"
+fi
 
 if ! is_integer_in_range "$backend_port" 1 65535; then
   printf '%s\n' '--backend-port must be between 1 and 65535.' >&2
@@ -97,9 +125,11 @@ backend_url="http://${backend_url_host}:${backend_port}"
 
 if [[ "$backend_host" != "127.0.0.1" && "$backend_host" != "localhost" && \
   "$backend_host" != "::1" && "$backend_host" != "[::1]" ]] && \
-  [[ -z "${HOSTDECK_ACCESS_PASSWORD:-}" && -z "${HOSTDECK_API_TOKEN:-}" ]]; then
+  [[ -z "${HOSTDECK_ACCESS_PASSWORD:-}" && \
+    -z "${HOSTDECK_ACCESS_TOTP_SECRET:-}" && \
+    -z "${HOSTDECK_API_TOKEN:-}" ]]; then
   printf '%s\n' \
-    'Non-loopback binding requires HOSTDECK_ACCESS_PASSWORD or HOSTDECK_API_TOKEN.' \
+    'Non-loopback binding requires HOSTDECK_ACCESS_PASSWORD, HOSTDECK_ACCESS_TOTP_SECRET, or HOSTDECK_API_TOKEN.' \
     "Example: HOSTDECK_ACCESS_PASSWORD='change-me' $0 --backend-host $backend_host --backend-port $backend_port --frontend-port $frontend_port" >&2
   exit 1
 fi
@@ -204,6 +234,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 start_backend
+if [[ "$totp_debug_enabled" == true ]]; then
+  printf 'Development TOTP is enabled. Configure this Secret in your Authenticator app: %s\n' \
+    "$totp_debug_secret"
+fi
 start_frontend
 
 printf '\nPress [r] to restart backend, [q] to quit.\n'

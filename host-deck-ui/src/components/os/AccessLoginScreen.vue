@@ -1,27 +1,74 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { LockKeyhole } from '@lucide/vue'
-import { NButton, NInput, NSpin } from 'naive-ui'
+import { computed, ref } from 'vue'
+import { KeyRound, ShieldCheck } from '@lucide/vue'
+import { NButton, NButtonGroup, NInput } from 'naive-ui'
+import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { useAccessStore } from '@/stores/access'
 import { useSettingsStore } from '@/stores/settings'
 
 const accessStore = useAccessStore()
 const settingsStore = useSettingsStore()
-const password = ref('')
+const credential = ref('')
 const submitting = ref(false)
 const errorMessage = ref('')
+const loginMode = ref<'password' | 'totp'>('totp')
+const useTotp = computed(
+  () =>
+    accessStore.totpLoginEnabled &&
+    (loginMode.value === 'totp' || !accessStore.passwordLoginEnabled),
+)
+const loginWallpaperStyle = computed(() =>
+  createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
+)
+const loginWallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
+const isDefaultWallpaper = computed(() => settingsStore.desktopWallpaper.mode === 'default')
+const isVideoWallpaper = computed(
+  () =>
+    settingsStore.desktopWallpaper.mode === 'custom' &&
+    settingsStore.desktopWallpaper.customType === 'video' &&
+    Boolean(settingsStore.desktopWallpaper.customDataUrl),
+)
+const loginVideoWallpaperUrl = computed(() => {
+  const wallpaperUrl = settingsStore.desktopWallpaper.customDataUrl
+  if (
+    !wallpaperUrl ||
+    !wallpaperUrl.startsWith('/') ||
+    !import.meta.env.DEV ||
+    !import.meta.env.VITE_DEV_PROXY_TARGET
+  ) {
+    return wallpaperUrl ?? undefined
+  }
+
+  try {
+    return new URL(wallpaperUrl, import.meta.env.VITE_DEV_PROXY_TARGET).toString()
+  } catch {
+    return wallpaperUrl
+  }
+})
+
+function selectLoginMode(mode: 'password' | 'totp') {
+  loginMode.value = mode
+  credential.value = ''
+  errorMessage.value = ''
+}
 
 async function submit() {
-  if (!password.value || submitting.value) return
+  if (!credential.value || submitting.value) return
 
   submitting.value = true
   errorMessage.value = ''
   try {
-    await accessStore.login(password.value)
-    password.value = ''
+    if (useTotp.value) {
+      await accessStore.login({ code: credential.value })
+    } else {
+      await accessStore.login({ password: credential.value })
+    }
+    credential.value = ''
     await settingsStore.initialize()
   } catch {
-    errorMessage.value = '访问密码不正确'
+    errorMessage.value = useTotp.value
+      ? 'Authenticator 验证码不正确'
+      : '访问凭据不正确'
   } finally {
     submitting.value = false
   }
@@ -29,104 +76,147 @@ async function submit() {
 </script>
 
 <template>
-  <main class="access-screen">
-    <section class="access-panel" aria-labelledby="access-title">
-      <div class="access-brand">
-        <div class="access-mark"><LockKeyhole :size="24" /></div>
-        <div>
-          <h1 id="access-title">HostDeck</h1>
-          <p>管理访问验证</p>
+  <main class="relative min-h-screen overflow-hidden">
+    <video
+      v-if="isVideoWallpaper"
+      class="absolute inset-0 h-full w-full object-cover"
+      :src="loginVideoWallpaperUrl"
+      :style="{ filter: loginWallpaperFilter }"
+      autoplay
+      muted
+      loop
+      playsinline
+    />
+    <div
+      v-else
+      class="absolute inset-0 bg-cover bg-center bg-no-repeat"
+      :class="{ 'default-wallpaper-motion': isDefaultWallpaper }"
+      :style="loginWallpaperStyle"
+    />
+
+    <div
+      class="relative z-1 grid min-h-screen w-full box-border place-items-center p-[40px] lt-lg:p-[20px]"
+    >
+      <section
+        class="app-radius-card box-border w-full max-w-[520px] rounded-[24px] p-[24px] backdrop-blur-[18px]"
+        :class="settingsStore.isDark ? 'glass-panel-dark' : 'glass-panel-light'"
+        aria-labelledby="access-title"
+      >
+        <div class="mb-[22px] flex items-center gap-[12px]">
+          <div class="access-brand-icon flex-none" aria-hidden="true">
+            <img src="/favicon.png" alt="" />
+          </div>
+          <div class="min-w-0">
+            <h1
+              id="access-title"
+              class="m-0 truncate text-[1.5rem] font-bold leading-[1.25]"
+              :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
+            >
+              HostDeck
+            </h1>
+            <p
+              class="mb-0 mt-[3px] text-[0.82rem]"
+              :class="
+                settingsStore.isDark
+                  ? 'text-[rgba(203,213,225,0.7)]'
+                  : 'text-[rgba(51,65,85,0.76)]'
+              "
+            >
+              管理访问验证
+            </p>
+          </div>
         </div>
-      </div>
 
-      <form v-if="accessStore.passwordLoginEnabled" class="access-form" @submit.prevent="submit">
-        <NInput
-          v-model:value="password"
-          type="password"
-          size="large"
-          placeholder="访问密码"
-          show-password-on="click"
-          autofocus
-        />
-        <p v-if="errorMessage" class="access-error" role="alert">{{ errorMessage }}</p>
-        <NButton type="primary" size="large" attr-type="submit" :loading="submitting" block>
-          解锁
-        </NButton>
-      </form>
+        <form
+          v-if="accessStore.passwordLoginEnabled || accessStore.totpLoginEnabled"
+          class="flex flex-col gap-[14px]"
+          @submit.prevent="submit"
+        >
+          <NButtonGroup
+            v-if="accessStore.passwordLoginEnabled && accessStore.totpLoginEnabled"
+            class="w-full"
+          >
+            <NButton
+              class="flex-1"
+              :type="loginMode === 'totp' ? 'primary' : 'default'"
+              :secondary="loginMode !== 'totp'"
+              @click="selectLoginMode('totp')"
+            >
+              Authenticator
+            </NButton>
+            <NButton
+              class="flex-1"
+              :type="loginMode === 'password' ? 'primary' : 'default'"
+              :secondary="loginMode !== 'password'"
+              @click="selectLoginMode('password')"
+            >
+              访问密码
+            </NButton>
+          </NButtonGroup>
 
-      <div v-else class="access-token-only">
-        <NSpin size="small" />
-        <span>此实例仅允许 API Token 访问</span>
-      </div>
-    </section>
+          <NInput
+            v-model:value="credential"
+            :type="useTotp ? 'text' : 'password'"
+            size="large"
+            :placeholder="useTotp ? 'Authenticator 验证码或恢复码' : '访问密码'"
+            :maxlength="useTotp ? 19 : undefined"
+            :show-password-on="useTotp ? undefined : 'click'"
+            autofocus
+          >
+            <template #prefix>
+              <ShieldCheck v-if="useTotp" :size="17" aria-hidden="true" />
+              <KeyRound v-else :size="17" aria-hidden="true" />
+            </template>
+          </NInput>
+
+          <p v-if="errorMessage" class="access-error" role="alert">{{ errorMessage }}</p>
+
+          <NButton
+            type="primary"
+            size="large"
+            attr-type="submit"
+            :loading="submitting"
+            :disabled="!credential"
+            block
+          >
+            登录
+          </NButton>
+        </form>
+
+        <div
+          v-else
+          class="app-radius-item flex items-center gap-[12px] border px-[14px] py-[13px] text-[0.84rem]"
+          :class="
+            settingsStore.isDark
+              ? 'border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.34)] text-[rgba(203,213,225,0.8)]'
+              : 'border-[rgba(148,163,184,0.28)] bg-[rgba(255,255,255,0.46)] text-[rgba(51,65,85,0.78)]'
+          "
+        >
+          <ShieldCheck :size="18" class="flex-none text-[var(--app-primary-color)]" />
+          <span>此实例仅允许 API Token 访问</span>
+        </div>
+      </section>
+    </div>
   </main>
 </template>
 
 <style scoped>
-.access-screen {
-  min-height: 100vh;
+.access-brand-icon {
   display: grid;
-  place-items: center;
-  padding: 24px;
-  background: #101418;
-  color: #f3f4f6;
-}
-
-.access-panel {
-  width: min(100%, 360px);
-  padding: 28px;
-  border: 1px solid #303840;
-  border-radius: 8px;
-  background: #181d22;
-  box-shadow: 0 18px 60px rgb(0 0 0 / 30%);
-}
-
-.access-brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 28px;
-}
-
-.access-mark {
   width: 46px;
   height: 46px;
-  display: grid;
   place-items: center;
-  border: 1px solid #3b879a;
-  border-radius: 8px;
-  color: #67d3e8;
-  background: #132a30;
 }
 
-h1 {
-  margin: 0;
-  font-size: 21px;
-  line-height: 1.2;
-  letter-spacing: 0;
-}
-
-.access-brand p,
-.access-token-only {
-  margin: 4px 0 0;
-  color: #9ca3af;
-  font-size: 13px;
-}
-
-.access-form {
-  display: grid;
-  gap: 14px;
+.access-brand-icon img {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
 }
 
 .access-error {
   margin: -4px 0 0;
-  color: #fb7185;
-  font-size: 12px;
-}
-
-.access-token-only {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  color: #ef4444;
+  font-size: 0.78rem;
 }
 </style>

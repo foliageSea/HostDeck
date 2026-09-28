@@ -7,6 +7,7 @@ import { downloadBlob } from '@/lib/download'
 import { createKeyboardShortcut, formatKeyboardShortcut } from '@/lib/keyboard-shortcut'
 import { getUiApi } from '@/lib/ui'
 import BackendPortsSection from './components/BackendPortsSection.vue'
+import TotpSecuritySection from './components/TotpSecuritySection.vue'
 import WallpaperSection from './components/WallpaperSection.vue'
 import { useWallpaperSettings } from './hooks/useWallpaperSettings'
 
@@ -366,6 +367,10 @@ async function exportLogs() {
 
       <NTabPane name="ports" tab="后端端口">
         <BackendPortsSection ref="backendPortsSection" />
+      </NTabPane>
+
+      <NTabPane name="security" tab="安全">
+        <TotpSecuritySection />
       </NTabPane>
 
       <NTabPane name="app" tab="应用">

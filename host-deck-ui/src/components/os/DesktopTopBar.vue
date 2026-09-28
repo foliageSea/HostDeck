@@ -331,7 +331,14 @@ function disconnect() {
         {{ fullscreenLabel }}
       </NTooltip>
 
-      <NButton size="small" quaternary circle @click="disconnect">
+      <NButton
+        size="small"
+        quaternary
+        circle
+        aria-label="断开 SSH 连接"
+        title="断开 SSH 连接"
+        @click="disconnect"
+      >
         <template #icon>
           <NIcon :size="14">
             <Logout />

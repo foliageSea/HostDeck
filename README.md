@@ -150,7 +150,7 @@ HOSTDECK_ACCESS_PASSWORD=replace-with-a-strong-password dart run bin/server.dart
 
 纯 B/S 服务同时向 `stderr` 和日志文件输出日志。日志文件按本地日期命名为 `hostdeck-server-YYYY-MM-DD.log`，服务启动及日期切换时会删除超过保留天数的日志文件。
 
-非 loopback 监听必须配置 `HOSTDECK_ACCESS_PASSWORD` 或 `HOSTDECK_API_TOKEN`。浏览器使用访问密码登录，Agent CLI 通过 `--token` 或 `HOSTDECK_TOKEN` 发送 Bearer Token；详见 `docs/access-control.md`。
+非 loopback 监听必须配置 `HOSTDECK_ACCESS_PASSWORD`、`HOSTDECK_ACCESS_TOTP_SECRET` 或 `HOSTDECK_API_TOKEN`。浏览器可使用访问密码或 Authenticator 登录，Agent CLI 通过 `--token` 或 `HOSTDECK_TOKEN` 发送 Bearer Token；详见 `docs/access-control.md`。
 
 启用安全浏览器后，Web 页面会请求 Dart CLI 在服务所在机器启动独立 Chrome 配置目录，并强制使用 SSH 动态转发产生的本地 SOCKS5 代理。例如：
 

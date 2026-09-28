@@ -49,9 +49,23 @@ $env:HOSTDECK_ACCESS_PASSWORD = 'replace-with-a-strong-password'
 dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
 ```
 
+使用 `dev.sh` 调试 Authenticator/TOTP 登录时，可以传入已有的 Base32 Secret：
+
+```bash
+./dev.sh --totp-secret 'BASE32_SECRET'
+```
+
+也可以使用固定的开发 Secret，方便在 Authenticator 应用中重复配置：
+
+```bash
+./dev.sh --enable-totp
+```
+
+脚本会在启动时打印该开发 Secret。它只适用于本地调试，不要用于生产环境。也可以直接通过 `HOSTDECK_ACCESS_TOTP_SECRET` 环境变量配置 Secret。
+
 启动后访问 `http://localhost:8080`。
 
-非 loopback 监听必须通过 `HOSTDECK_ACCESS_PASSWORD` 或 `HOSTDECK_API_TOKEN` 启用访问认证。仅本机开发可省略 `--host`，默认绑定 `127.0.0.1`。完整说明见 `docs/access-control.md`。
+非 loopback 监听必须通过 `HOSTDECK_ACCESS_PASSWORD`、`HOSTDECK_ACCESS_TOTP_SECRET` 或 `HOSTDECK_API_TOKEN` 启用访问认证。仅本机开发可省略 `--host`，默认绑定 `127.0.0.1`。完整说明见 `docs/access-control.md`。
 
 常用参数：
 

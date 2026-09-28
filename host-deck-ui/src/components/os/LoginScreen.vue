@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
-import { Check, Pencil, Plus, RefreshCw, Server, Trash2 } from '@lucide/vue'
+import { Check, LogOut, Pencil, Plus, RefreshCw, Server, Trash2 } from '@lucide/vue'
 import { authApi, type ConnectParams, type ConnectResponse } from '@/api/auth'
 import type { SavedServer, ServerUpdatePayload } from '@/api/server'
 import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { getUiApi } from '@/lib/ui'
+import { useAccessStore } from '@/stores/access'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 
@@ -25,8 +26,10 @@ type ServerLatency = { status: 'checking' | 'online' | 'offline'; value?: number
 const LAST_SELECTED_SERVER_STORAGE_KEY = 'host-deck-ui.login.lastSelectedServerId'
 
 const sshStore = useSshStore()
+const accessStore = useAccessStore()
 const settingsStore = useSettingsStore()
 const isShaking = ref(false)
+const isLoggingOut = ref(false)
 const selectedServerId = ref<number | null>(readLastSelectedServerId())
 const deletingServerId = ref<number | null>(null)
 const serverEditorVisible = ref(false)
@@ -388,6 +391,30 @@ function handleConnect() {
   })
 }
 
+function handleAccessLogout() {
+  if (isLoggingOut.value) return
+
+  const dialog = getUiApi().dialog.warning({
+    title: '退出登录',
+    content: '确认清除 HostDeck 管理登录并返回访问认证页面？',
+    positiveText: '退出登录',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      isLoggingOut.value = true
+      dialog.loading = true
+      try {
+        await sshStore.clearSession()
+        await accessStore.logout()
+      } catch {
+        getUiApi().message.error('退出登录失败，请重试。')
+      } finally {
+        dialog.loading = false
+        isLoggingOut.value = false
+      }
+    },
+  })
+}
+
 function handleTestConnection() {
   const hasSecretInput = hasSelectedCredential.value
   testConnectionMutation.mutate({
@@ -516,6 +543,22 @@ onMounted(async () => {
                 </NButton>
               </template>
               刷新
+            </NTooltip>
+            <NTooltip>
+              <template #trigger>
+                <NButton
+                  quaternary
+                  circle
+                  size="small"
+                  type="error"
+                  aria-label="退出 HostDeck 登录"
+                  :loading="isLoggingOut"
+                  @click="handleAccessLogout"
+                >
+                  <template #icon><LogOut :size="15" /></template>
+                </NButton>
+              </template>
+              退出 HostDeck 登录
             </NTooltip>
           </NSpace>
         </div>

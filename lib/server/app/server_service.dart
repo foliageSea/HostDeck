@@ -21,6 +21,7 @@ class ServerService {
   Future<void> Function()? flushLogs;
   String? adminPassword;
   String? apiToken;
+  String? totpSecret;
   bool secureCookies;
   final ServerLogService logService;
   final bool _ownsLogService;
@@ -41,6 +42,7 @@ class ServerService {
     this.flushLogs,
     this.adminPassword,
     this.apiToken,
+    this.totpSecret,
     this.secureCookies = false,
     ServerLogService? logService,
     this.chromeLauncher,
@@ -65,7 +67,7 @@ class ServerService {
 
     if (!_isLoopbackHost(host) && !_hasAccessCredential) {
       throw StateError(
-        'Non-loopback binding requires HOSTDECK_ACCESS_PASSWORD or HOSTDECK_API_TOKEN.',
+        'Non-loopback binding requires an access password, TOTP secret, or API token.',
       );
     }
 
@@ -76,6 +78,7 @@ class ServerService {
       log: _log,
       adminPassword: adminPassword,
       apiToken: apiToken,
+      totpSecret: totpSecret,
       secureCookies: secureCookies,
       logService: logService,
       chromeLauncher: chromeLauncher,
@@ -158,7 +161,8 @@ class ServerService {
 
   bool get _hasAccessCredential =>
       (adminPassword?.trim().isNotEmpty ?? false) ||
-      (apiToken?.trim().isNotEmpty ?? false);
+      (apiToken?.trim().isNotEmpty ?? false) ||
+      (totpSecret?.trim().isNotEmpty ?? false);
 
   bool _isLoopbackHost(String value) {
     final normalized = value.trim().toLowerCase();

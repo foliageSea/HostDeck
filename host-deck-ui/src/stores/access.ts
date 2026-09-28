@@ -8,6 +8,8 @@ export const useAccessStore = defineStore('access', () => {
   const enabled = ref(false)
   const authenticated = ref(false)
   const passwordLoginEnabled = ref(false)
+  const totpLoginEnabled = ref(false)
+  const totpSource = ref<'none' | 'environment' | 'stored'>('none')
 
   async function initialize() {
     setAccessUnauthorizedHandler(() => {
@@ -19,13 +21,15 @@ export const useAccessStore = defineStore('access', () => {
       enabled.value = state.enabled
       authenticated.value = state.authenticated
       passwordLoginEnabled.value = state.passwordLoginEnabled
+      totpLoginEnabled.value = state.totpLoginEnabled
+      totpSource.value = state.totpSource
     } finally {
       initialized.value = true
     }
   }
 
-  async function login(password: string) {
-    await accessApi.login(password)
+  async function login(credential: { password?: string; code?: string }) {
+    await accessApi.login(credential)
     authenticated.value = true
   }
 
@@ -39,6 +43,8 @@ export const useAccessStore = defineStore('access', () => {
     enabled,
     initialized,
     passwordLoginEnabled,
+    totpLoginEnabled,
+    totpSource,
     initialize,
     login,
     logout,

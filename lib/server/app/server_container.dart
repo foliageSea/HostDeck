@@ -10,6 +10,7 @@ import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/agent/agent_controller.dart';
 import 'package:host_deck/server/features/access/access_controller.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
+import 'package:host_deck/server/features/access/access_secret_store.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_controller.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
@@ -100,6 +101,7 @@ class ServerContainer {
     required Logger log,
     String? adminPassword,
     String? apiToken,
+    String? totpSecret,
     bool secureCookies = false,
     required ServerLogService logService,
     ChromeLauncher? chromeLauncher,
@@ -127,10 +129,15 @@ class ServerContainer {
       await store.init();
       return store;
     });
+    final accessSecretStore = AccessSecretStore(dataDir: dataDir);
+    await accessSecretStore.init();
+    getIt.registerSingleton<AccessSecretStore>(accessSecretStore);
     getIt.registerLazySingleton<AccessAuthService>(
       () => AccessAuthService(
         password: adminPassword,
         apiToken: apiToken,
+        totpSecret: totpSecret,
+        secretStore: getIt<AccessSecretStore>(),
         secureCookies: secureCookies,
       ),
     );

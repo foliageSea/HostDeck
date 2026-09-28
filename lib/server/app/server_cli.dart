@@ -106,6 +106,7 @@ Options:
 
 Environment:
   HOSTDECK_ACCESS_PASSWORD Enable browser password login
+  HOSTDECK_ACCESS_TOTP_SECRET Enable Authenticator/TOTP login (Base32)
   HOSTDECK_API_TOKEN       Enable Bearer authentication for CLI/API clients
   HOSTDECK_SECURE_COOKIES  Set true when HTTPS terminates at a reverse proxy
 ''');
