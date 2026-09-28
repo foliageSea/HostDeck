@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { LayoutGrid } from '@lucide/vue'
 import AppIcon from '@/components/common/AppIcon.vue'
+import { useDockMagnification } from '@/hooks/useDockMagnification'
 import { preloadAppIcons } from '@/lib/app-icons'
 import { useDesktopStore, type AppConfig } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -16,10 +17,13 @@ const selectorTarget = ref<HTMLElement | null>(null)
 const selectorPanel = ref<HTMLElement | null>(null)
 const selectorAppId = ref<DesktopAppId | null>(null)
 const bouncingAppId = ref<DesktopAppId | null>(null)
-const hoveredDockIndex = ref<number | null>(null)
 const draggedAppId = ref<DesktopAppId | null>(null)
 const dragOverAppId = ref<DesktopAppId | null>(null)
 const dragOverSide = ref<'before' | 'after'>('before')
+useDockMagnification(
+  selectorTarget,
+  computed(() => Boolean(draggedAppId.value)),
+)
 const selectorPosition = ref<{
   x: number
   y: number
@@ -105,38 +109,6 @@ function getAppWindows(appId: DesktopAppId) {
 
 function isAppOpen(appId: DesktopAppId) {
   return getAppWindows(appId).length > 0
-}
-
-function getDockItemStyle(index: number, appId?: DesktopAppId) {
-  const hoveredIndex = hoveredDockIndex.value
-  const isOpen = appId ? isAppOpen(appId) : false
-
-  if (draggedAppId.value) {
-    return {
-      '--dock-scale': '1',
-      '--dock-lift': isOpen ? '-2px' : '0px',
-      '--dock-spread': '0px',
-    }
-  }
-
-  if (hoveredIndex === null) {
-    return {
-      '--dock-scale': '1',
-      '--dock-lift': isOpen ? '-2px' : '0px',
-      '--dock-spread': '0px',
-    }
-  }
-
-  const distance = Math.abs(index - hoveredIndex)
-  const scale = distance === 0 ? 1.34 : distance === 1 ? 1.16 : distance === 2 ? 1.06 : 1
-  const lift = distance === 0 ? -10 : distance === 1 ? -5 : distance === 2 ? -2 : isOpen ? -2 : 0
-  const spread = distance === 0 ? 9 : distance === 1 ? 3 : 0
-
-  return {
-    '--dock-scale': String(scale),
-    '--dock-lift': `${lift}px`,
-    '--dock-spread': `${spread}px`,
-  }
 }
 
 function handleOpen(event: MouseEvent, appId: DesktopAppId) {
@@ -319,87 +291,94 @@ function openLaunchpad() {
   <div class="dock-hover-zone absolute inset-x-0 bottom-0 z-20 h-[12px]">
     <footer
       ref="selectorTarget"
-      class="app-radius-card desktop-dock absolute bottom-[2px] left-1/2 flex translate-x-[-50%] items-center gap-[12px] rounded-[24px] p-[10px] backdrop-blur-[16px]"
-      :class="[
-        {
-          'dock-auto-hide': settingsStore.dockAutoHide,
-          'dock-expanded': isDockExpanded,
-          'dock-dragging': draggedAppId,
-        },
-        settingsStore.isDark
-          ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.3)]'
-          : 'border border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.36)]',
-      ]"
+      class="app-radius-card desktop-dock absolute bottom-[2px] left-1/2 rounded-[24px] p-[10px]"
+      :class="{
+        'dock-auto-hide': settingsStore.dockAutoHide,
+        'dock-expanded': isDockExpanded,
+        'dock-dragging': draggedAppId,
+        'dock-dark': settingsStore.isDark,
+      }"
       @contextmenu.prevent
     >
-      <NTooltip>
-        <template #trigger>
-          <button
-            type="button"
-            class="app-radius-surface launchpad-trigger dock-item flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 backdrop-blur-[14px] [backdrop-filter:blur(14px)_saturate(145%)] transition-[transform,background-color,margin] duration-[180ms] ease-out cursor-pointer"
-            :class="
-              settingsStore.isDark
-                ? 'bg-[rgba(2,6,23,0.46)] text-[#e2e8f0] hover:bg-[rgba(2,6,23,0.58)]'
-                : 'bg-[rgba(255,255,255,0.48)] text-[#334155] hover:bg-[rgba(255,255,255,0.62)]'
-            "
-            :style="getDockItemStyle(-1)"
-            aria-label="打开启动台"
-            @click="openLaunchpad"
-            @mouseenter="hoveredDockIndex = -1"
-            @mouseleave="hoveredDockIndex = null"
-          >
-            <LayoutGrid :size="25" />
-          </button>
-        </template>
-        启动台
-      </NTooltip>
+      <div class="dock-track">
+        <NTooltip>
+          <template #trigger>
+            <button
+              type="button"
+              class="app-radius-surface launchpad-trigger dock-item flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 backdrop-blur-[14px] [backdrop-filter:blur(14px)_saturate(145%)] cursor-pointer"
+              :class="
+                settingsStore.isDark
+                  ? 'bg-[rgba(2,6,23,0.46)] text-[#e2e8f0] hover:bg-[rgba(2,6,23,0.58)]'
+                  : 'bg-[rgba(255,255,255,0.48)] text-[#334155] hover:bg-[rgba(255,255,255,0.62)]'
+              "
+              data-dock-slot
+              aria-label="打开启动台"
+              @click="openLaunchpad"
+            >
+              <LayoutGrid :size="25" />
+            </button>
+          </template>
+          启动台
+        </NTooltip>
 
-      <span class="h-[34px] w-px shrink-0 bg-[rgba(148,163,184,0.3)]" aria-hidden="true" />
+        <span
+          class="dock-separator h-[34px] w-px shrink-0 bg-[rgba(148,163,184,0.3)]"
+          data-dock-slot
+          aria-hidden="true"
+        />
 
-      <TransitionGroup name="dock-app" tag="div" class="flex items-center gap-[12px]">
-        <div
-          v-for="(app, index) in dockApps"
-          :key="app.id"
-          class="dock-entry relative"
-          :class="{
-            'dock-entry-dragging': draggedAppId === app.id,
-            'dock-entry-drag-over': dragOverAppId === app.id,
-            'dock-entry-drag-over-before': dragOverAppId === app.id && dragOverSide === 'before',
-            'dock-entry-drag-over-after': dragOverAppId === app.id && dragOverSide === 'after',
-          }"
-          draggable="true"
-          @mouseenter="hoveredDockIndex = index"
-          @mouseleave="hoveredDockIndex = null"
-          @dragstart="handleDragStart($event, app.id)"
-          @dragover="handleDragOver($event, app.id)"
-          @dragleave="dragOverAppId = null"
-          @drop="handleDrop($event, app.id)"
-          @dragend="handleDragEnd"
+        <TransitionGroup
+          name="dock-app"
+          tag="div"
+          class="dock-apps relative flex shrink-0 items-center gap-[12px]"
         >
-          <NTooltip>
-            <template #trigger>
-              <div
-                class="dock-item relative flex h-[52px] w-[52px] items-center justify-center border-0 bg-transparent p-0 transition-[transform,margin] duration-[180ms] ease-out cursor-pointer"
-                :class="{ 'dock-item-bounce': bouncingAppId === app.id }"
-                :style="getDockItemStyle(index, app.id)"
-                type="button"
-                :aria-label="app.title"
-                @click="handleOpen($event, app.id)"
-                @contextmenu="handleContextMenu($event, app.id)"
-                @keydown="handleTriggerKeydown($event, app.id)"
-              >
-                <AppIcon :name="app.icon" :size="52" themed />
-              </div>
-            </template>
-            {{ app.title }}
-          </NTooltip>
-          <span
-            v-if="isAppOpen(app.id)"
-            class="dock-running-indicator absolute bottom-[-7px] left-1/2 h-[5px] w-[5px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]"
-            aria-hidden="true"
-          />
-        </div>
-      </TransitionGroup>
+          <div
+            v-for="app in dockApps"
+            :key="app.id"
+            class="dock-entry relative"
+            data-dock-slot
+            :data-running="isAppOpen(app.id)"
+            :class="{
+              'dock-entry-dragging': draggedAppId === app.id,
+              'dock-entry-drag-over': dragOverAppId === app.id,
+              'dock-entry-drag-over-before': dragOverAppId === app.id && dragOverSide === 'before',
+              'dock-entry-drag-over-after': dragOverAppId === app.id && dragOverSide === 'after',
+            }"
+            draggable="true"
+            @dragstart="handleDragStart($event, app.id)"
+            @dragover="handleDragOver($event, app.id)"
+            @dragleave="dragOverAppId = null"
+            @drop="handleDrop($event, app.id)"
+            @dragend="handleDragEnd"
+          >
+            <NTooltip>
+              <template #trigger>
+                <button
+                  class="dock-item relative flex h-[52px] w-[52px] items-center justify-center border-0 bg-transparent p-0 cursor-pointer"
+                  type="button"
+                  :aria-label="app.title"
+                  @click="handleOpen($event, app.id)"
+                  @contextmenu="handleContextMenu($event, app.id)"
+                  @keydown="handleTriggerKeydown($event, app.id)"
+                >
+                  <span
+                    class="dock-artwork"
+                    :class="{ 'dock-item-bounce': bouncingAppId === app.id }"
+                  >
+                    <AppIcon :name="app.icon" :size="52" themed />
+                  </span>
+                </button>
+              </template>
+              {{ app.title }}
+            </NTooltip>
+            <span
+              v-if="isAppOpen(app.id)"
+              class="dock-running-indicator absolute bottom-[-7px] left-1/2 h-[5px] w-[5px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]"
+              aria-hidden="true"
+            />
+          </div>
+        </TransitionGroup>
+      </div>
 
       <Teleport to="body">
         <div
@@ -474,7 +453,19 @@ function openLaunchpad() {
 <style scoped>
 .dock-entry {
   display: flex;
+  flex-shrink: 0;
   align-items: flex-end;
+}
+
+.dock-entry,
+.dock-separator {
+  /* Keep lateral magnification separate from TransitionGroup's FLIP transform. */
+  translate: var(--dock-shift, 0px) 0;
+  transition: translate var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dock-entry[data-running='true'] {
+  --dock-lift: -2px;
 }
 
 .dock-entry-dragging {
@@ -515,18 +506,13 @@ function openLaunchpad() {
   right: -8px;
 }
 
-.dock-dragging .dock-item {
-  transition:
-    opacity 160ms ease,
-    background-color 160ms ease;
-}
-
 .dock-app-enter-active,
 .dock-app-leave-active,
 .dock-app-move {
   transition:
     opacity 220ms ease,
-    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
+    translate var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dock-app-enter-from,
@@ -540,15 +526,95 @@ function openLaunchpad() {
 }
 
 .desktop-dock {
+  --dock-motion-duration: 360ms;
+  display: flex;
+  isolation: isolate;
+  width: max-content;
+  max-width: calc(100vw - 100px);
+  border: 1px solid transparent;
   transform: translateX(-50%);
-  transition: transform 220ms ease-out;
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.desktop-dock[data-magnifying='true'] {
+  --dock-motion-duration: 180ms;
+}
+
+.desktop-dock::before {
+  position: absolute;
+  z-index: -1;
+  top: -1px;
+  bottom: -1px;
+  left: calc(-1px - var(--dock-expansion, 0px) / 2);
+  right: calc(-1px - var(--dock-expansion, 0px) / 2);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.36);
+  backdrop-filter: blur(16px) saturate(145%);
+  box-shadow:
+    0 8px 28px rgba(15, 23, 42, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+  transition:
+    left var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1),
+    right var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  content: '';
+}
+
+.desktop-dock.dock-dark::before {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.3);
+  box-shadow:
+    0 8px 28px rgba(2, 6, 23, 0.24),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+}
+
+.dock-track {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  overflow-x: auto;
+  /* Let enlarged icons, the launch bounce, and running dots fit inside the scrollport. */
+  padding: 40px 40px 10px;
+  margin: -40px -40px -10px;
+  scrollbar-width: none;
+}
+
+.dock-track::-webkit-scrollbar {
+  display: none;
 }
 
 .dock-item {
-  margin-inline: var(--dock-spread, 0);
-  transform: translateY(var(--dock-lift, 0)) scale(var(--dock-scale, 1));
+  transform: translateY(var(--dock-lift, 0px)) scale(var(--dock-scale, 1));
   transform-origin: center bottom;
-  will-change: transform;
+  transition:
+    transform var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 160ms ease;
+}
+
+.launchpad-trigger {
+  translate: var(--dock-shift, 0px) 0;
+  transition:
+    translate var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 160ms ease;
+}
+
+.dock-item:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+.dock-item:active {
+  transform: translateY(var(--dock-lift, 0px)) scale(calc(var(--dock-scale, 1) * 0.94));
+}
+
+.dock-artwork {
+  display: flex;
+  pointer-events: none;
 }
 
 .dock-item-bounce {
@@ -556,25 +622,20 @@ function openLaunchpad() {
 }
 
 @keyframes dock-bounce {
-  0% {
-    transform: translateY(var(--dock-lift, 0)) scale(var(--dock-scale, 1));
+  0%,
+  100% {
+    transform: translateY(0);
   }
 
   40% {
-    transform: translateY(calc(var(--dock-lift, 0) - 6px)) scale(var(--dock-scale, 1));
-  }
-
-  100% {
-    transform: translateY(var(--dock-lift, 0)) scale(var(--dock-scale, 1));
+    transform: translateY(-6px);
   }
 }
 
 @media (max-width: 768px) {
-  .desktop-dock {
-    width: calc(100% - 20px);
-    justify-content: flex-start;
+  .dock-track,
+  .dock-apps {
     gap: 6px;
-    overflow-x: auto;
   }
 
   .dock-entry {
@@ -590,10 +651,19 @@ function openLaunchpad() {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .desktop-dock,
+  .desktop-dock::before,
+  .dock-item,
+  .dock-entry,
+  .dock-separator,
   .dock-app-enter-active,
   .dock-app-leave-active,
   .dock-app-move {
     transition-duration: 1ms;
+  }
+
+  .dock-item-bounce {
+    animation: none;
   }
 }
 
