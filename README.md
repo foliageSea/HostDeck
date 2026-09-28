@@ -287,6 +287,14 @@ docker build -t host-deck:local .
 docker run --rm -p 8080:8080 -v host-deck-data:/data host-deck:local
 ```
 
+也可以使用 Docker Compose 启动。将 TOTP Secret 放在项目根目录的 `.env` 中，或直接通过环境变量传入：
+
+```bash
+HOSTDECK_ACCESS_TOTP_SECRET='YOUR_BASE32_SECRET' docker compose up -d
+```
+
+Compose 配置位于 `compose.yaml`，数据会持久化到 `host-deck-data` 卷。
+
 容器默认启动参数：
 
 - `--host 0.0.0.0`

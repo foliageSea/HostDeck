@@ -31,6 +31,8 @@ LABEL org.opencontainers.image.revision="${HOSTDECK_REVISION}"
 LABEL org.opencontainers.image.source="https://github.com/foliageSea/HostDeck"
 LABEL org.opencontainers.image.licenses="GPL-3.0-only"
 ENV HOSTDECK_VERSION="${HOSTDECK_VERSION}"
+# Set HOSTDECK_ACCESS_TOTP_SECRET when starting the container to enable TOTP login.
+ENV HOSTDECK_ACCESS_TOTP_SECRET=""
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
