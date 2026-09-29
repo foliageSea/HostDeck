@@ -199,10 +199,21 @@ const runToolCount = computed(() => toolCalls.value.length)
 
 const enabledMcpServers = computed(() => agentStore.mcpServers.filter((server) => server.enabled))
 const modelOptions = computed(() =>
-  (settings.value?.models ?? []).map((model) => ({ label: model.name, value: model.id })),
+  (settings.value?.providers ?? []).flatMap((provider) =>
+    provider.models.map((model) => ({
+      id: model.id,
+      key: `${provider.id}:${model.id}`,
+      label: model.name,
+      provider: provider.id,
+      hasCredentials: provider.hasCredentials,
+    })),
+  ),
 )
 const activeModelName = computed(() => {
-  const activeModel = settings.value?.models.find((model) => model.id === settings.value?.model)
+  const activeProvider = settings.value?.providers.find(
+    (provider) => provider.id === settings.value?.provider,
+  )
+  const activeModel = activeProvider?.models.find((model) => model.id === settings.value?.model)
   return activeModel?.name || settings.value?.model || '选择模型'
 })
 
@@ -382,11 +393,16 @@ function removeImage(index: number) {
   imageAttachments.value = imageAttachments.value.filter((_, itemIndex) => itemIndex !== index)
 }
 
-async function switchModel(model: string) {
-  if (model === settings.value?.model || switchingModel.value || running.value) return true
+async function switchModel(provider: string, model: string) {
+  if (
+    (provider === settings.value?.provider && model === settings.value?.model) ||
+    switchingModel.value ||
+    running.value
+  )
+    return true
   switchingModel.value = true
   try {
-    await agentStore.saveSettings({ model })
+    await agentStore.saveSettings({ provider, model })
     return true
   } catch (requestError) {
     getUiApi().message.error(
@@ -398,8 +414,8 @@ async function switchModel(model: string) {
   }
 }
 
-async function selectModel(model: string) {
-  if (await switchModel(model)) modelMenuOpen.value = false
+async function selectModel(provider: string, model: string) {
+  if (await switchModel(provider, model)) modelMenuOpen.value = false
 }
 
 function handleComposerKeydown(event: KeyboardEvent) {
@@ -1025,13 +1041,13 @@ let resizeObserver: ResizeObserver | undefined
                 trigger="click"
                 placement="top-start"
                 :show-arrow="false"
-                :disabled="running || !settings?.hasCredentials || modelOptions.length === 0"
+                :disabled="running || modelOptions.length === 0"
               >
                 <template #trigger>
                   <button
                     type="button"
                     class="agent-mode-trigger agent-model-trigger"
-                    :disabled="running || !settings?.hasCredentials || modelOptions.length === 0"
+                    :disabled="running || modelOptions.length === 0"
                     :aria-expanded="modelMenuOpen"
                     aria-label="选择模型"
                   >
@@ -1044,22 +1060,25 @@ let resizeObserver: ResizeObserver | undefined
                   <div class="agent-mode-heading">选择模型</div>
                   <button
                     v-for="model in modelOptions"
-                    :key="model.value"
+                    :key="model.key"
                     type="button"
                     class="agent-mode-option"
-                    :aria-pressed="settings?.model === model.value"
-                    :disabled="switchingModel || running"
-                    @click="selectModel(model.value)"
+                    :aria-pressed="settings?.provider === model.provider && settings?.model === model.id"
+                    :disabled="switchingModel || running || !model.hasCredentials"
+                    @click="selectModel(model.provider, model.id)"
                   >
                     <Bot :size="16" />
                     <span class="agent-mode-copy">
                       <strong>{{ model.label }}</strong>
-                      <span>{{ model.value }}</span>
+                      <span>{{ model.provider }} · {{ model.id }}</span>
                     </span>
                     <Check
                       :size="16"
                       :style="{
-                        visibility: settings?.model === model.value ? 'visible' : 'hidden',
+                        visibility:
+                          settings?.provider === model.provider && settings?.model === model.id
+                            ? 'visible'
+                            : 'hidden',
                       }"
                     />
                   </button>

@@ -27,10 +27,16 @@ The AI settings UI reads pi-ai's bundled catalog. API-key providers using OpenAI
 Chat Completions, OpenAI Responses, Anthropic Messages, and Google Gemini are
 supported. Custom endpoints can choose any of these four protocols and enter
 model IDs manually. The existing endpoint/key/model settings migrate to custom
-OpenAI Chat Completions. One provider/endpoint/key is active at a time; the model
-picker switches between that provider's configured models. OpenAI Codex also
+OpenAI Chat Completions. Provider profiles persist their endpoint, protocol,
+configured models, and encrypted API key independently. One provider/model is
+active at a time, while the chat model picker can switch directly between every
+configured provider without replacing another provider's key. OpenAI Codex also
 supports ChatGPT account login as described below. Other providers' OAuth login
 and ambient cloud credentials are not exposed by this integration.
+
+The model catalog is a convenience list, not an allowlist. Every provider's
+model selector accepts a custom model ID; catalog entries prefill metadata while
+an unknown ID uses that provider profile's configured API protocol and Base URL.
 
 The Base URL is the API root, not the generation endpoint (e.g. OpenAI
 `https://api.openai.com/v1`, Anthropic `https://api.anthropic.com`, Gemini
@@ -62,6 +68,12 @@ one refresh across concurrent requests. A failed refresh keeps the credential
 for retry/re-login. A late refresh/login cannot restore credentials after logout.
 Codex subscription tokens always use pi-ai's built-in ChatGPT endpoint; custom
 Base URLs are not allowed for this provider.
+
+API-key provider profiles are stored in `ai_agent_provider_settings` (schema
+v21). Upgrading copies the previous active provider into this table and removes
+the duplicate encrypted key from the legacy global settings row. Clearing a key
+only affects the selected provider. Model identity is always the compound
+`provider + model id`, so providers may configure identical model IDs safely.
 
 ## Distribution
 

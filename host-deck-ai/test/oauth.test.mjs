@@ -81,3 +81,16 @@ test('Codex catalog and inference use subscription auth at a fixed endpoint', as
   assert.equal(output.at(-1).text, 'Codex ready')
   assert.equal(output.at(-1).providerMessage.provider, 'openai-codex')
 })
+
+test('catalog providers accept custom model IDs with their configured protocol', () => {
+  const model = resolveModel({
+    provider: 'openai',
+    model: 'company-preview-model',
+    api: 'openai-responses',
+    baseUrl: 'https://gateway.example.test/v1',
+  })
+  assert.equal(model.id, 'company-preview-model')
+  assert.equal(model.provider, 'openai')
+  assert.equal(model.api, 'openai-responses')
+  assert.equal(model.baseUrl, 'https://gateway.example.test/v1')
+})

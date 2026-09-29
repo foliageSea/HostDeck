@@ -31,12 +31,12 @@ void main() {
     await dataDirectory.delete(recursive: true);
   });
 
-  test('migration v20 and target-bound conversation CRUD', () {
+  test('migration v21 and target-bound conversation CRUD', () {
     expect(
       database.db
           .select('SELECT version FROM schema_version')
           .single['version'],
-      20,
+      21,
     );
 
     repository.createConversation('conversation-1', 'server:7');
@@ -82,6 +82,57 @@ void main() {
     expect(repository.deleteConversation('conversation-1', 'server:7'), isTrue);
     expect(repository.listMessages('conversation-1'), isEmpty);
   });
+
+  test(
+    'v21 migration moves the active provider profile and encrypted key',
+    () async {
+      database.db.execute('DROP TABLE ai_agent_provider_settings');
+      database.db.execute(
+        '''INSERT INTO ai_agent_settings
+      (id, baseUrl, model, models, encryptedApiKey, updatedAt, provider, api, showRemoteSkills)
+      VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET baseUrl=excluded.baseUrl, model=excluded.model,
+      models=excluded.models, encryptedApiKey=excluded.encryptedApiKey,
+      updatedAt=excluded.updatedAt, provider=excluded.provider, api=excluded.api,
+      showRemoteSkills=excluded.showRemoteSkills''',
+        [
+          'https://api.anthropic.com',
+          'claude-test',
+          jsonEncode([
+            {'id': 'claude-test', 'name': 'Claude Test'},
+          ]),
+          'v1.encrypted.key',
+          1,
+          'anthropic',
+          'anthropic-messages',
+          1,
+        ],
+      );
+      database.db.execute('UPDATE schema_version SET version = 20');
+      database.close();
+      database = DatabaseService(dataDir: dataDirectory.path);
+      await database.init();
+      repository = AiAgentRepository(database);
+
+      final migrated = repository.getSettings();
+      expect(migrated.provider, 'anthropic');
+      expect(migrated.model, 'claude-test');
+      expect(migrated.encryptedApiKey, 'v1.encrypted.key');
+      expect(repository.listProviderSettings(), hasLength(1));
+      expect(
+        database.db
+            .select('SELECT encryptedApiKey FROM ai_agent_settings')
+            .single['encryptedApiKey'],
+        isNull,
+      );
+      expect(
+        database.db
+            .select('SELECT version FROM schema_version')
+            .single['version'],
+        21,
+      );
+    },
+  );
 
   test('persists tool-call metadata, sanitizes and truncates tool output', () {
     repository.createConversation('conversation-1', 'server:7');
@@ -223,6 +274,21 @@ void main() {
         'hasApiKey': true,
         'hasOAuth': false,
         'hasCredentials': true,
+        'providers': [
+          {
+            'id': 'custom',
+            'api': 'openai-completions',
+            'baseUrl': 'https://models.example.test/v1',
+            'model': 'ops-model',
+            'models': [
+              {'id': 'gpt-4o-mini', 'name': 'gpt-4o-mini'},
+              {'id': 'ops-model', 'name': 'ops-model'},
+            ],
+            'hasApiKey': true,
+            'hasOAuth': false,
+            'hasCredentials': true,
+          },
+        ],
         'showRemoteSkills': false,
       });
       expect(saved.toJson().containsKey('apiKey'), isFalse);
@@ -325,7 +391,7 @@ void main() {
       );
       expect(
         () => settingsService.resolve(provider: 'anthropic'),
-        throwsFormatException,
+        throwsStateError,
       );
       settingsService.update(
         provider: 'anthropic',
@@ -337,6 +403,28 @@ void main() {
       expect(settingsService.resolve().provider, 'anthropic');
       expect(settingsService.resolve().api, 'anthropic-messages');
       expect(settingsService.resolve().apiKey, 'anthropic-secret');
+      expect(
+        settingsService.resolve(provider: 'custom').apiKey,
+        'openai-secret',
+      );
+      expect(settingsService.get().providers.map((item) => item.id), [
+        'anthropic',
+        'custom',
+      ]);
+      settingsService.update(provider: 'custom', model: 'gpt-4o-mini');
+      expect(settingsService.resolve().provider, 'custom');
+      expect(settingsService.resolve().apiKey, 'openai-secret');
+      settingsService.update(
+        provider: 'anthropic',
+        clearApiKey: true,
+        activate: false,
+      );
+      expect(settingsService.get().provider, 'custom');
+      expect(settingsService.resolve().apiKey, 'openai-secret');
+      expect(
+        () => settingsService.resolve(provider: 'anthropic'),
+        throwsStateError,
+      );
       expect(
         () => settingsService.update(api: 'invalid'),
         throwsFormatException,

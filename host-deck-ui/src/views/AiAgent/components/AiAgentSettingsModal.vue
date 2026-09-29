@@ -62,8 +62,14 @@ const availableModels = ref<string[]>([])
 const providers = ref<AiAgentProviderCatalog[]>([])
 const catalogError = ref('')
 const providerOptions = computed(() => [
-  { label: '自定义 / OpenAI 兼容', value: 'custom' },
-  ...providers.value.map((provider) => ({ label: provider.id === 'openai-codex' ? 'OpenAI Codex（ChatGPT 登录）' : provider.id, value: provider.id })),
+  {
+    label: `自定义 / OpenAI 兼容${store.settings?.providers.some((item) => item.id === 'custom') ? ' · 已配置' : ''}`,
+    value: 'custom',
+  },
+  ...providers.value.map((provider) => ({
+    label: `${provider.id === 'openai-codex' ? 'OpenAI Codex（ChatGPT 登录）' : provider.id}${store.settings?.providers.some((item) => item.id === provider.id) ? ' · 已配置' : ''}`,
+    value: provider.id,
+  })),
 ])
 const apiOptions = [
   { label: 'OpenAI Chat Completions', value: 'openai-completions' },
@@ -72,16 +78,28 @@ const apiOptions = [
   { label: 'Google Gemini', value: 'google-generative-ai' },
 ]
 const providerModels = computed(() => providers.value.find((item) => item.id === form.provider)?.models ?? [])
+const savedProvider = computed(() =>
+  store.settings?.providers.find((provider) => provider.id === form.provider),
+)
 
 function selectProvider(provider: string) {
   form.provider = provider
   availableModels.value = []
   form.apiKey = ''
-  if (provider === 'custom' && form.api === 'openai-codex-responses') {
+  const saved = store.settings?.providers.find((item) => item.id === provider)
+  if (saved) {
+    form.api = saved.api
+    form.baseUrl = saved.baseUrl
+    form.model = saved.model
+    form.models = saved.models.map((model) => ({ ...model }))
+    return
+  }
+  if (provider === 'custom') {
     form.api = 'openai-completions'
     form.baseUrl = 'https://api.openai.com/v1'
     form.model = 'gpt-4o-mini'
     form.models = [{ id: form.model, name: form.model }]
+    return
   }
   const first = providerModels.value[0]
   if (first) {
@@ -105,12 +123,7 @@ const selectedModelOptions = computed(() =>
 )
 
 function syncForm() {
-  form.provider = store.settings?.provider ?? 'custom'
-  form.api = store.settings?.api ?? 'openai-completions'
-  availableModels.value = []
-  form.baseUrl = store.settings?.baseUrl ?? ''
-  form.model = store.settings?.model ?? ''
-  form.models = (store.settings?.models ?? []).map((model) => ({ ...model }))
+  selectProvider(store.settings?.provider ?? 'custom')
   form.showRemoteSkills = store.settings?.showRemoteSkills ?? false
   if (form.model && !form.models.some((item) => item.id === form.model)) {
     form.models.push({ id: form.model, name: form.model })
@@ -155,19 +168,20 @@ function payload() {
 function isSettingsUnchanged(payload: AiAgentSettingsUpdate) {
   const current = store.settings
   if (!current || payload.apiKey || payload.clearApiKey) return false
-
-  const currentModels = current.models.map((model) => ({
+  const provider = current.providers.find((item) => item.id === payload.provider)
+  if (!provider) return false
+  const currentModels = provider.models.map((model) => ({
     id: model.id.trim(),
     name: model.name.trim(),
   }))
-  if (current.model && !currentModels.some((model) => model.id === current.model)) {
-    currentModels.push({ id: current.model, name: current.model })
+  if (provider.model && !currentModels.some((model) => model.id === provider.model)) {
+    currentModels.push({ id: provider.model, name: provider.model })
   }
 
   return (
     payload.provider === (current.provider ?? 'custom') &&
-    payload.api === (current.api ?? 'openai-completions') &&
-    payload.baseUrl === current.baseUrl &&
+    payload.api === provider.api &&
+    payload.baseUrl === provider.baseUrl &&
     payload.model === current.model &&
     payload.models?.length === currentModels.length &&
     payload.showRemoteSkills === current.showRemoteSkills &&
@@ -186,8 +200,16 @@ function updateModelId(index: number, id: string) {
   const configuredModel = form.models[index]
   if (!configuredModel) return
   const previousId = configuredModel.id
+  const previousCatalogName = providerModels.value.find((model) => model.id === previousId)?.name
+  const previousSavedName = savedProvider.value?.models.find((model) => model.id === previousId)?.name
   configuredModel.id = id
-  if (!configuredModel.name || configuredModel.name === previousId) configuredModel.name = id
+  if (
+    !configuredModel.name ||
+    configuredModel.name === previousId ||
+    configuredModel.name === previousCatalogName ||
+    configuredModel.name === previousSavedName
+  )
+    configuredModel.name = id
   if (!form.model || form.model === previousId) form.model = id
   if (form.provider !== 'custom' && form.model === id) {
     const catalogModel = providerModels.value.find((model) => model.id === id)
@@ -220,11 +242,11 @@ async function fetchModels() {
       providers.value = await aiAgentApi.modelCatalog()
       availableModels.value = providerModels.value.map((model) => model.id)
     } else {
-      if (form.baseUrl.trim() !== store.settings?.baseUrl || form.provider !== store.settings?.provider) {
-        getUiApi().message.warning('请先保存自定义接口设置，再获取模型列表。')
+      if (!savedProvider.value || form.baseUrl.trim() !== savedProvider.value.baseUrl) {
+        getUiApi().message.warning('请先保存此自定义接口设置，再获取模型列表。')
         return
       }
-      availableModels.value = await store.loadModels()
+      availableModels.value = await store.loadModels(form.provider)
     }
     getUiApi().message.success(`已获取 ${availableModels.value.length} 个模型。`)
   } catch (error) {
@@ -294,7 +316,7 @@ function clearKey() {
     onPositiveClick: async () => {
       dialog.loading = true
       try {
-        await store.saveSettings({ clearApiKey: true })
+        await store.saveSettings({ provider: form.provider, clearApiKey: true, activate: false })
         form.apiKey = ''
         getUiApi().message.success('API Key 已清除。')
       } catch (error) {
@@ -349,7 +371,7 @@ function clearKey() {
                   <NButton
                     size="small"
                     :loading="loadingModels"
-                    :disabled="saving || testing || (form.provider === 'custom' && !store.settings?.hasApiKey)"
+                    :disabled="saving || testing || (form.provider === 'custom' && !savedProvider?.hasApiKey)"
                     @click="fetchModels"
                   >
                     <RefreshCw :size="14" /> 获取模型列表
@@ -371,7 +393,7 @@ function clearKey() {
                     :value="configuredModel.id || null"
                     :options="modelOptions"
                     filterable
-                    :tag="form.provider === 'custom'"
+                    tag
                     placeholder="选择或手动输入模型 ID"
                     @update:value="updateModelId(index, $event)"
                   />
@@ -408,7 +430,7 @@ function clearKey() {
               />
               <div class="mt-2 flex items-center justify-between gap-3 text-[11px]">
                 <span
-                  v-if="store.settings?.hasApiKey"
+                  v-if="savedProvider?.hasApiKey"
                   class="flex items-center gap-1 text-green-600"
                 >
                   <CheckCircle2 :size="13" /> 已配置密钥
@@ -417,7 +439,7 @@ function clearKey() {
                   <KeyRound :size="13" /> 未配置密钥
                 </span>
                 <NButton
-                  v-if="store.settings?.hasApiKey"
+                  v-if="savedProvider?.hasApiKey"
                   text
                   type="error"
                   size="tiny"

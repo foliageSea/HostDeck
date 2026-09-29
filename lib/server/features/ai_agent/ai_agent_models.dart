@@ -7,6 +7,39 @@ class AiAgentModelConfig {
   Map<String, dynamic> toJson() => {'id': id, 'name': name};
 }
 
+class AiAgentProviderConfig {
+  final String id;
+  final String api;
+  final String baseUrl;
+  final String model;
+  final List<AiAgentModelConfig> models;
+  final bool hasApiKey;
+  final bool hasOAuth;
+
+  const AiAgentProviderConfig({
+    required this.id,
+    required this.api,
+    required this.baseUrl,
+    required this.model,
+    required this.models,
+    required this.hasApiKey,
+    required this.hasOAuth,
+  });
+
+  bool get hasCredentials => id == 'openai-codex' ? hasOAuth : hasApiKey;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'api': api,
+    'baseUrl': baseUrl,
+    'model': model,
+    'models': models.map((model) => model.toJson()).toList(),
+    'hasApiKey': hasApiKey,
+    'hasOAuth': hasOAuth,
+    'hasCredentials': hasCredentials,
+  };
+}
+
 class AiAgentSettings {
   static const defaultBaseUrl = 'https://api.openai.com/v1';
   static const defaultModel = 'gpt-4o-mini';
@@ -18,10 +51,12 @@ class AiAgentSettings {
   final List<AiAgentModelConfig> models;
   final bool hasApiKey;
   final bool hasOAuth;
+  final List<AiAgentProviderConfig> providers;
   final bool showRemoteSkills;
 
   const AiAgentSettings({
     this.hasOAuth = false,
+    this.providers = const [],
     this.provider = 'custom',
     this.api = 'openai-completions',
     required this.baseUrl,
@@ -40,6 +75,7 @@ class AiAgentSettings {
     'hasApiKey': hasApiKey,
     'hasOAuth': hasOAuth,
     'hasCredentials': provider == 'openai-codex' ? hasOAuth : hasApiKey,
+    'providers': providers.map((provider) => provider.toJson()).toList(),
     'showRemoteSkills': showRemoteSkills,
   };
 }

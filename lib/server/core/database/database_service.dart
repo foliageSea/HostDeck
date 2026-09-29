@@ -539,6 +539,32 @@ class DatabaseService {
       )''');
       _setVersion(20);
     }
+    // v20 -> v21: Keep one independent model/API-key profile per provider.
+    if (currentVersion < 21) {
+      _db.execute('''CREATE TABLE IF NOT EXISTS ai_agent_provider_settings (
+        provider TEXT PRIMARY KEY,
+        api TEXT NOT NULL,
+        baseUrl TEXT NOT NULL,
+        model TEXT NOT NULL,
+        models TEXT NOT NULL DEFAULT '[]',
+        encryptedApiKey TEXT,
+        updatedAt INTEGER NOT NULL
+      )''');
+      final settingsTable = _db.select(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ai_agent_settings'",
+      );
+      if (settingsTable.isNotEmpty) {
+        _db.execute('''INSERT OR IGNORE INTO ai_agent_provider_settings
+          (provider, api, baseUrl, model, models, encryptedApiKey, updatedAt)
+          SELECT provider, api, baseUrl, model, models, encryptedApiKey, updatedAt
+          FROM ai_agent_settings WHERE id = 1''');
+        // The normalized provider table is now the only API-key storage location.
+        _db.execute(
+          'UPDATE ai_agent_settings SET encryptedApiKey = NULL WHERE id = 1',
+        );
+      }
+      _setVersion(21);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

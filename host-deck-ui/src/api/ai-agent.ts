@@ -25,6 +25,7 @@ export interface AiAgentSettings {
   hasApiKey: boolean
   hasOAuth: boolean
   hasCredentials: boolean
+  providers: AiAgentProviderConfig[]
   showRemoteSkills: boolean
 }
 
@@ -36,7 +37,19 @@ export interface AiAgentSettingsUpdate {
   models?: AiAgentModelConfig[]
   apiKey?: string
   clearApiKey?: boolean
+  activate?: boolean
   showRemoteSkills?: boolean
+}
+
+export interface AiAgentProviderConfig {
+  id: string
+  api: string
+  baseUrl: string
+  model: string
+  models: AiAgentModelConfig[]
+  hasApiKey: boolean
+  hasOAuth: boolean
+  hasCredentials: boolean
 }
 
 export interface AiAgentOAuthStatus {
@@ -468,8 +481,8 @@ export const aiAgentApi = {
     return (await http.post<unknown>('/api/ai-agent/settings/test', payload ?? {})).data
   },
 
-  async listModels() {
-    return (await http.get<string[]>('/api/ai-agent/models')).data
+  async listModels(provider?: string) {
+    return (await http.get<string[]>('/api/ai-agent/models', { params: { provider } })).data
   },
 
   async listSkills(connectionId: string) {

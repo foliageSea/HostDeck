@@ -83,6 +83,7 @@ class AiAgentController {
         models: _optionalModelConfigs(data, 'models'),
         apiKey: _optionalConfigString(data, 'apiKey'),
         clearApiKey: _optionalBool(data, 'clearApiKey') ?? false,
+        activate: _optionalBool(data, 'activate') ?? true,
         showRemoteSkills: _optionalBool(data, 'showRemoteSkills'),
       );
       return Result.ok(settings.toJson());
@@ -93,9 +94,13 @@ class AiAgentController {
     }
   }
 
-  Future<Response> listModels(Request _) async {
+  Future<Response> listModels(Request request) async {
     try {
-      return Result.ok(await _settingsService.listModels());
+      return Result.ok(
+        await _settingsService.listModels(
+          provider: request.url.queryParameters['provider'],
+        ),
+      );
     } on StateError catch (error) {
       return Result.fail(400, error.message);
     } on FormatException catch (error) {

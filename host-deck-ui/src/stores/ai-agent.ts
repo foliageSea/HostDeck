@@ -287,8 +287,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     return aiAgentApi.testSettings(payload)
   }
 
-  async function loadModels() {
-    return aiAgentApi.listModels()
+  async function loadModels(provider?: string) {
+    return aiAgentApi.listModels(provider)
   }
 
   async function loadSkills(connectionId: string) {

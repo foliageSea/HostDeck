@@ -18,6 +18,7 @@ const zeroUsage = () => ({
   input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 })
+const OPENAI_CODEX_BASE_URL = 'https://chatgpt.com/backend-api'
 
 // Codex uses encrypted OAuth credentials managed and refreshed by Dart.
 export function catalog() {
@@ -36,11 +37,12 @@ export function catalog() {
 export function resolveModel(settings) {
   const builtin = settings.provider === 'custom' ? undefined
     : getBuiltinModels(settings.provider).find((model) => model.id === settings.model)
-  if (settings.provider !== 'custom' && !builtin) throw new Error('Model is not in the selected provider catalog.')
   // Subscription tokens must only be sent to the provider's built-in endpoint.
-  const model = builtin ? { ...builtin, baseUrl: settings.provider === 'openai-codex' ? builtin.baseUrl : settings.baseUrl } : {
-    id: settings.model, name: settings.model, provider: 'hostdeck-custom',
-    api: settings.api, baseUrl: settings.baseUrl, reasoning: false,
+  const model = builtin ? { ...builtin, baseUrl: settings.provider === 'openai-codex' ? OPENAI_CODEX_BASE_URL : settings.baseUrl } : {
+    id: settings.model, name: settings.model,
+    provider: settings.provider === 'custom' ? 'hostdeck-custom' : settings.provider,
+    api: settings.api,
+    baseUrl: settings.provider === 'openai-codex' ? OPENAI_CODEX_BASE_URL : settings.baseUrl,
     input: ['text', 'image'], contextWindow: 128000, maxTokens: 4096,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   }

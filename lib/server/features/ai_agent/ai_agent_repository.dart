@@ -65,8 +65,21 @@ class AiAgentRepository {
       );
     }
     final row = rows.first;
+    final provider = row['provider'] as String;
+    final profile = getProviderSettings(provider);
+    if (profile != null) {
+      return AiAgentStoredSettings(
+        provider: profile.provider,
+        api: profile.api,
+        baseUrl: profile.baseUrl,
+        model: profile.model,
+        models: profile.models,
+        encryptedApiKey: profile.encryptedApiKey,
+        showRemoteSkills: (row['showRemoteSkills'] as int? ?? 0) != 0,
+      );
+    }
     return AiAgentStoredSettings(
-      provider: row['provider'] as String,
+      provider: provider,
       api: row['api'] as String,
       baseUrl: row['baseUrl'] as String,
       model: row['model'] as String,
@@ -77,6 +90,75 @@ class AiAgentRepository {
   }
 
   void saveSettings(AiAgentStoredSettings settings) {
+    _database.db.execute('BEGIN IMMEDIATE');
+    try {
+      saveProviderSettings(settings);
+      _saveActiveSettings(settings);
+      _database.db.execute('COMMIT');
+    } catch (_) {
+      _database.db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  AiAgentStoredSettings? getProviderSettings(String provider) {
+    final rows = _database.db.select(
+      'SELECT * FROM ai_agent_provider_settings WHERE provider = ?',
+      [provider],
+    );
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    return AiAgentStoredSettings(
+      provider: row['provider'] as String,
+      api: row['api'] as String,
+      baseUrl: row['baseUrl'] as String,
+      model: row['model'] as String,
+      models: _modelsFromJson(row['models'] as String?),
+      encryptedApiKey: row['encryptedApiKey'] as String?,
+    );
+  }
+
+  List<AiAgentStoredSettings> listProviderSettings() => _database.db
+      .select(
+        'SELECT * FROM ai_agent_provider_settings ORDER BY provider COLLATE NOCASE',
+      )
+      .map(
+        (row) => AiAgentStoredSettings(
+          provider: row['provider'] as String,
+          api: row['api'] as String,
+          baseUrl: row['baseUrl'] as String,
+          model: row['model'] as String,
+          models: _modelsFromJson(row['models'] as String?),
+          encryptedApiKey: row['encryptedApiKey'] as String?,
+        ),
+      )
+      .toList();
+
+  void saveProviderSettings(AiAgentStoredSettings settings) {
+    _database.db.execute(
+      '''INSERT INTO ai_agent_provider_settings
+        (provider, api, baseUrl, model, models, encryptedApiKey, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(provider) DO UPDATE SET
+          api = excluded.api,
+          baseUrl = excluded.baseUrl,
+          model = excluded.model,
+          models = excluded.models,
+          encryptedApiKey = excluded.encryptedApiKey,
+          updatedAt = excluded.updatedAt''',
+      [
+        settings.provider,
+        settings.api,
+        settings.baseUrl,
+        settings.model,
+        jsonEncode(settings.models.map((model) => model.toJson()).toList()),
+        settings.encryptedApiKey,
+        DateTime.now().millisecondsSinceEpoch,
+      ],
+    );
+  }
+
+  void _saveActiveSettings(AiAgentStoredSettings settings) {
     _database.db.execute(
       '''
       INSERT INTO ai_agent_settings
@@ -88,7 +170,7 @@ class AiAgentRepository {
         api = excluded.api,
         model = excluded.model,
         models = excluded.models,
-        encryptedApiKey = excluded.encryptedApiKey,
+        encryptedApiKey = NULL,
         showRemoteSkills = excluded.showRemoteSkills,
         updatedAt = excluded.updatedAt
       ''',
@@ -96,7 +178,7 @@ class AiAgentRepository {
         settings.baseUrl,
         settings.model,
         jsonEncode(settings.models.map((model) => model.toJson()).toList()),
-        settings.encryptedApiKey,
+        null,
         settings.showRemoteSkills ? 1 : 0,
         DateTime.now().millisecondsSinceEpoch,
         settings.provider,

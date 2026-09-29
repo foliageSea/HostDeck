@@ -32,6 +32,18 @@ const settings = {
   hasCredentials: true,
   model: 'model-a',
   models: [{ id: 'model-a', name: 'Model A' }],
+  providers: [
+    {
+      id: 'custom',
+      api: 'openai-completions',
+      baseUrl: 'https://api.example.com/v1',
+      model: 'model-a',
+      models: [{ id: 'model-a', name: 'Model A' }],
+      hasApiKey: true,
+      hasOAuth: false,
+      hasCredentials: true,
+    },
+  ],
   showRemoteSkills: false,
 }
 
@@ -63,7 +75,11 @@ function mountModal() {
           props: ['show'],
           template: '<div v-if="show"><slot /><slot name="footer" /></div>',
         },
-        NSelect: { props: ['options', 'value'], template: '<select />' },
+        NSelect: {
+          name: 'NSelect',
+          props: ['options', 'value', 'tag'],
+          template: '<select :data-tag="tag ? \'true\' : \'false\'" />',
+        },
         NSwitch: {
           props: ['value'],
           emits: ['update:value'],
@@ -85,7 +101,7 @@ describe('AiAgentSettingsModal', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     const store = useAiAgentStore()
-    store.settings = { ...settings, models: settings.models.map((model) => ({ ...model })) }
+    store.settings = structuredClone(settings)
   })
 
   it('skips saving when settings are unchanged', async () => {
@@ -119,5 +135,85 @@ describe('AiAgentSettingsModal', () => {
     await flushPromises()
     expect(apiMocks.saveSettings).toHaveBeenCalledTimes(1)
     expect(wrapper.emitted('update:show')).toEqual([[false]])
+  })
+
+  it('restores and activates an independently configured provider', async () => {
+    const store = useAiAgentStore()
+    const anthropic = {
+      id: 'anthropic',
+      api: 'anthropic-messages',
+      baseUrl: 'https://api.anthropic.com',
+      model: 'claude-test',
+      models: [{ id: 'claude-test', name: 'Claude Test' }],
+      hasApiKey: true,
+      hasOAuth: false,
+      hasCredentials: true,
+    }
+    store.settings!.providers.push(anthropic)
+    apiMocks.saveSettings.mockResolvedValue({
+      ...structuredClone(settings),
+      provider: anthropic.id,
+      api: anthropic.api,
+      baseUrl: anthropic.baseUrl,
+      model: anthropic.model,
+      models: anthropic.models,
+      providers: [...store.settings!.providers],
+    })
+    const wrapper = mountModal()
+    await flushPromises()
+    ;(wrapper.vm as unknown as { selectProvider: (provider: string) => void }).selectProvider(
+      'anthropic',
+    )
+    await getSaveButton(wrapper)?.trigger('click')
+    await flushPromises()
+
+    expect(apiMocks.saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'anthropic',
+        api: 'anthropic-messages',
+        baseUrl: 'https://api.anthropic.com',
+        model: 'claude-test',
+      }),
+    )
+    expect(apiMocks.saveSettings.mock.calls[0]![0]).not.toHaveProperty('apiKey')
+  })
+
+  it('allows custom model IDs for catalog providers', async () => {
+    const store = useAiAgentStore()
+    store.settings!.providers.push({
+      id: 'openai',
+      api: 'openai-responses',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-5',
+      models: [{ id: 'gpt-5', name: 'GPT-5' }],
+      hasApiKey: true,
+      hasOAuth: false,
+      hasCredentials: true,
+    })
+    const wrapper = mountModal()
+    await flushPromises()
+    const component = wrapper.vm as unknown as {
+      selectProvider: (provider: string) => void
+      updateModelId: (index: number, id: string) => void
+    }
+    component.selectProvider('openai')
+    component.updateModelId(0, 'company-preview-model')
+    apiMocks.saveSettings.mockResolvedValue({
+      ...structuredClone(settings),
+      provider: 'openai',
+      api: 'openai-responses',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'company-preview-model',
+      models: [{ id: 'company-preview-model', name: 'company-preview-model' }],
+    })
+    await getSaveButton(wrapper)?.trigger('click')
+    await flushPromises()
+    expect(apiMocks.saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'openai',
+        model: 'company-preview-model',
+        models: [{ id: 'company-preview-model', name: 'company-preview-model' }],
+      }),
+    )
   })
 })
