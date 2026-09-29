@@ -432,6 +432,65 @@ void main() {
     },
   );
 
+  test('activates and deletes saved provider profiles independently', () {
+    settingsService.update(apiKey: 'openai-secret');
+    settingsService.update(
+      provider: 'anthropic',
+      api: 'anthropic-messages',
+      baseUrl: 'https://api.anthropic.com',
+      model: 'claude-sonnet-4-5',
+      models: const [
+        AiAgentModelConfig(id: 'claude-sonnet-4-5', name: 'Claude Sonnet'),
+        AiAgentModelConfig(id: 'claude-haiku-4-5', name: 'Claude Haiku'),
+      ],
+      apiKey: 'anthropic-secret',
+      activate: false,
+    );
+    // Saving another provider must not switch the active profile.
+    expect(settingsService.get().provider, 'custom');
+
+    expect(
+      () => settingsService.activate(provider: 'google'),
+      throwsStateError,
+    );
+    expect(
+      () => settingsService.activate(
+        provider: 'anthropic',
+        model: 'unknown-model',
+      ),
+      throwsFormatException,
+    );
+
+    final activated = settingsService.activate(
+      provider: 'anthropic',
+      model: 'claude-haiku-4-5',
+    );
+    expect(activated.provider, 'anthropic');
+    expect(activated.model, 'claude-haiku-4-5');
+    expect(settingsService.resolve().apiKey, 'anthropic-secret');
+    expect(settingsService.resolve(provider: 'custom').apiKey, 'openai-secret');
+
+    expect(() => settingsService.deleteProvider('anthropic'), throwsStateError);
+    settingsService.activate(provider: 'custom');
+    final remaining = settingsService.deleteProvider('anthropic');
+    expect(remaining.provider, 'custom');
+    expect(remaining.providers.map((item) => item.id), ['custom']);
+    expect(() => settingsService.deleteProvider('anthropic'), throwsStateError);
+
+    settingsService.update(
+      provider: 'anthropic',
+      api: 'anthropic-messages',
+      baseUrl: 'https://api.anthropic.com',
+      model: 'claude-sonnet-4-5',
+      activate: false,
+    );
+    // A saved profile without credentials cannot be activated.
+    expect(
+      () => settingsService.activate(provider: 'anthropic'),
+      throwsStateError,
+    );
+  });
+
   test(
     'keeps provider signatures private and sanitizes persisted tool arguments',
     () {

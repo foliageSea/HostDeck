@@ -154,6 +154,50 @@ class AiAgentSettingsService {
     return get();
   }
 
+  AiAgentSettings activate({required String provider, String? model}) {
+    final providerId = _validateProvider(provider);
+    final profile = _repository.getProviderSettings(providerId);
+    if (profile == null) throw StateError('Provider is not configured.');
+    final nextModel = model == null ? profile.model : _validateModel(model);
+    if (!profile.models.any((item) => item.id == nextModel)) {
+      throw const FormatException('Model is not configured for this provider.');
+    }
+    if (providerId == AiAgentOAuthService.provider) {
+      if (!oauth.authenticated) throw StateError('请先登录 OpenAI Codex。');
+    } else if (profile.encryptedApiKey?.isNotEmpty != true) {
+      throw StateError('API key is not configured.');
+    }
+    final active = _repository.getSettings();
+    _repository.saveSettings(
+      AiAgentStoredSettings(
+        provider: profile.provider,
+        api: profile.api,
+        baseUrl: profile.baseUrl,
+        model: nextModel,
+        models: profile.models,
+        encryptedApiKey: profile.encryptedApiKey,
+        showRemoteSkills: active.showRemoteSkills,
+      ),
+    );
+    return get();
+  }
+
+  AiAgentSettings deleteProvider(String provider) {
+    final providerId = _validateProvider(provider);
+    final active = _repository.getSettings();
+    if (providerId == active.provider) {
+      throw StateError('The active provider cannot be deleted.');
+    }
+    if (_repository.getProviderSettings(providerId) == null) {
+      throw StateError('Provider is not configured.');
+    }
+    _repository.deleteProviderSettings(providerId);
+    if (providerId == AiAgentOAuthService.provider) {
+      oauth.logout();
+    }
+    return get();
+  }
+
   AiAgentResolvedSettings resolve({
     String? provider,
     String? api,

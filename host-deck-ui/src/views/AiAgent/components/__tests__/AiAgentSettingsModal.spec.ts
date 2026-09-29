@@ -8,6 +8,9 @@ import AiAgentSettingsModal from '../AiAgentSettingsModal.vue'
 const apiMocks = vi.hoisted(() => ({
   getSettings: vi.fn(),
   saveSettings: vi.fn(),
+  saveProvider: vi.fn(),
+  deleteProvider: vi.fn(),
+  activateModel: vi.fn(),
   modelCatalog: vi.fn().mockResolvedValue([]),
 }))
 
@@ -17,6 +20,9 @@ const uiMocks = vi.hoisted(() => ({
     info: vi.fn(),
     success: vi.fn(),
     warning: vi.fn(),
+  },
+  dialog: {
+    warning: vi.fn((_options: unknown) => ({ loading: false })),
   },
 }))
 
@@ -45,6 +51,17 @@ const settings = {
     },
   ],
   showRemoteSkills: false,
+}
+
+const anthropicProvider = {
+  id: 'anthropic',
+  api: 'anthropic-messages',
+  baseUrl: 'https://api.anthropic.com',
+  model: 'claude-test',
+  models: [{ id: 'claude-test', name: 'Claude Test' }],
+  hasApiKey: true,
+  hasOAuth: false,
+  hasCredentials: true,
 }
 
 function mountModal() {
@@ -92,8 +109,8 @@ function mountModal() {
   })
 }
 
-function getSaveButton(wrapper: ReturnType<typeof mountModal>) {
-  return wrapper.findAll('button').find((button) => button.text() === '保存')
+function getButton(wrapper: ReturnType<typeof mountModal>, text: string) {
+  return wrapper.findAll('button').find((button) => button.text() === text)
 }
 
 describe('AiAgentSettingsModal', () => {
@@ -104,78 +121,69 @@ describe('AiAgentSettingsModal', () => {
     store.settings = structuredClone(settings)
   })
 
-  it('skips saving when settings are unchanged', async () => {
+  it('disables saving while the selected provider is unchanged', async () => {
     const wrapper = mountModal()
     await flushPromises()
 
-    await getSaveButton(wrapper)?.trigger('click')
-
+    expect(getButton(wrapper, '保存')?.attributes('disabled')).toBeDefined()
+    expect(apiMocks.saveProvider).not.toHaveBeenCalled()
     expect(apiMocks.saveSettings).not.toHaveBeenCalled()
-    expect(uiMocks.message.info).not.toHaveBeenCalled()
-    expect(wrapper.emitted('update:show')).toEqual([[false]])
   })
 
   it('saves changed settings only once while a save is pending', async () => {
     let resolveSave!: (value: typeof settings) => void
-    apiMocks.saveSettings.mockReturnValue(
+    apiMocks.saveProvider.mockReturnValue(
       new Promise((resolve) => {
         resolveSave = resolve
       }),
     )
     const wrapper = mountModal()
     await flushPromises()
-    await wrapper.findAll('input')[0]!.setValue('https://api.example.com/v2')
+    await wrapper.find('.provider-detail input').setValue('https://api.example.com/v2')
 
-    const saveButton = getSaveButton(wrapper)
+    const saveButton = getButton(wrapper, '保存')
     await saveButton?.trigger('click')
     await saveButton?.trigger('click')
 
-    expect(apiMocks.saveSettings).toHaveBeenCalledTimes(1)
-    resolveSave({ ...settings, baseUrl: 'https://api.example.com/v2' })
+    expect(apiMocks.saveProvider).toHaveBeenCalledTimes(1)
+    expect(apiMocks.saveProvider).toHaveBeenCalledWith(
+      'custom',
+      expect.objectContaining({ baseUrl: 'https://api.example.com/v2' }),
+    )
+    resolveSave({ ...structuredClone(settings), baseUrl: 'https://api.example.com/v2' })
     await flushPromises()
-    expect(apiMocks.saveSettings).toHaveBeenCalledTimes(1)
-    expect(wrapper.emitted('update:show')).toEqual([[false]])
+    expect(apiMocks.saveProvider).toHaveBeenCalledTimes(1)
+    expect(wrapper.emitted('update:show')).toBeUndefined()
   })
 
-  it('restores and activates an independently configured provider', async () => {
+  it('restores an independently configured provider and activates it separately', async () => {
     const store = useAiAgentStore()
-    const anthropic = {
-      id: 'anthropic',
-      api: 'anthropic-messages',
-      baseUrl: 'https://api.anthropic.com',
-      model: 'claude-test',
-      models: [{ id: 'claude-test', name: 'Claude Test' }],
-      hasApiKey: true,
-      hasOAuth: false,
-      hasCredentials: true,
-    }
-    store.settings!.providers.push(anthropic)
-    apiMocks.saveSettings.mockResolvedValue({
+    store.settings!.providers.push({ ...anthropicProvider })
+    apiMocks.activateModel.mockResolvedValue({
       ...structuredClone(settings),
-      provider: anthropic.id,
-      api: anthropic.api,
-      baseUrl: anthropic.baseUrl,
-      model: anthropic.model,
-      models: anthropic.models,
-      providers: [...store.settings!.providers],
+      provider: anthropicProvider.id,
+      api: anthropicProvider.api,
+      baseUrl: anthropicProvider.baseUrl,
+      model: anthropicProvider.model,
+      models: anthropicProvider.models,
     })
     const wrapper = mountModal()
     await flushPromises()
     ;(wrapper.vm as unknown as { selectProvider: (provider: string) => void }).selectProvider(
       'anthropic',
     )
-    await getSaveButton(wrapper)?.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(getButton(wrapper, '保存')?.attributes('disabled')).toBeDefined()
+    await getButton(wrapper, '设为当前')?.trigger('click')
     await flushPromises()
 
-    expect(apiMocks.saveSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: 'anthropic',
-        api: 'anthropic-messages',
-        baseUrl: 'https://api.anthropic.com',
-        model: 'claude-test',
-      }),
-    )
-    expect(apiMocks.saveSettings.mock.calls[0]![0]).not.toHaveProperty('apiKey')
+    expect(apiMocks.activateModel).toHaveBeenCalledWith({
+      provider: 'anthropic',
+      model: 'claude-test',
+    })
+    expect(apiMocks.saveProvider).not.toHaveBeenCalled()
+    expect(wrapper.emitted('update:show')).toEqual([[false]])
   })
 
   it('allows custom model IDs for catalog providers', async () => {
@@ -198,22 +206,46 @@ describe('AiAgentSettingsModal', () => {
     }
     component.selectProvider('openai')
     component.updateModelId(0, 'company-preview-model')
-    apiMocks.saveSettings.mockResolvedValue({
-      ...structuredClone(settings),
-      provider: 'openai',
-      api: 'openai-responses',
-      baseUrl: 'https://api.openai.com/v1',
-      model: 'company-preview-model',
-      models: [{ id: 'company-preview-model', name: 'company-preview-model' }],
-    })
-    await getSaveButton(wrapper)?.trigger('click')
+    await wrapper.vm.$nextTick()
+    apiMocks.saveProvider.mockResolvedValue(structuredClone(settings))
+    await getButton(wrapper, '保存')?.trigger('click')
     await flushPromises()
-    expect(apiMocks.saveSettings).toHaveBeenCalledWith(
+    expect(apiMocks.saveProvider).toHaveBeenCalledWith(
+      'openai',
       expect.objectContaining({
-        provider: 'openai',
         model: 'company-preview-model',
         models: [{ id: 'company-preview-model', name: 'company-preview-model' }],
       }),
     )
+  })
+
+  it('deletes a non-active provider after confirmation', async () => {
+    const store = useAiAgentStore()
+    store.settings!.providers.push({ ...anthropicProvider })
+    apiMocks.deleteProvider.mockResolvedValue(structuredClone(settings))
+    const wrapper = mountModal()
+    await flushPromises()
+    ;(wrapper.vm as unknown as { selectProvider: (provider: string) => void }).selectProvider(
+      'anthropic',
+    )
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('button[aria-label="删除配置"]').trigger('click')
+    expect(uiMocks.dialog.warning).toHaveBeenCalled()
+    const dialog = uiMocks.dialog.warning.mock.results[0]!.value as { loading: boolean }
+    const options = uiMocks.dialog.warning.mock.calls[0]![0] as unknown as {
+      onPositiveClick: () => Promise<void>
+    }
+    await options.onPositiveClick()
+
+    expect(apiMocks.deleteProvider).toHaveBeenCalledWith('anthropic')
+    expect(dialog.loading).toBe(false)
+  })
+
+  it('does not offer deletion for the active provider', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.find('button[aria-label="删除配置"]').exists()).toBe(false)
+    expect(getButton(wrapper, '设为当前')).toBeUndefined()
   })
 })

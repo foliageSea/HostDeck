@@ -8,6 +8,7 @@ export interface AiAgentModelConfig {
 
 export interface AiAgentProviderCatalog {
   id: string
+  name?: string
   models: (AiAgentModelConfig & {
     api: string
     baseUrl: string
@@ -39,6 +40,15 @@ export interface AiAgentSettingsUpdate {
   clearApiKey?: boolean
   activate?: boolean
   showRemoteSkills?: boolean
+}
+
+export interface AiAgentProviderUpdate {
+  api?: string
+  baseUrl?: string
+  model?: string
+  models?: AiAgentModelConfig[]
+  apiKey?: string
+  clearApiKey?: boolean
 }
 
 export interface AiAgentProviderConfig {
@@ -475,6 +485,18 @@ export const aiAgentApi = {
 
   async saveSettings(payload: AiAgentSettingsUpdate) {
     return (await http.put<AiAgentSettings>('/api/ai-agent/settings', payload)).data
+  },
+
+  async saveProvider(provider: string, payload: AiAgentProviderUpdate) {
+    return (await http.put<AiAgentSettings>(`/api/ai-agent/providers/${encodeURIComponent(provider)}`, payload)).data
+  },
+
+  async deleteProvider(provider: string) {
+    return (await http.delete<AiAgentSettings>(`/api/ai-agent/providers/${encodeURIComponent(provider)}`)).data
+  },
+
+  async activateModel(payload: { provider: string; model?: string }) {
+    return (await http.post<AiAgentSettings>('/api/ai-agent/active-model', payload)).data
   },
 
   async testSettings(payload?: AiAgentSettingsUpdate) {

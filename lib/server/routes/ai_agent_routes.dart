@@ -6,6 +6,12 @@ void registerAiAgentRoutes(Router router, AiAgentController controller) {
   router.get('/api/ai-agent/settings', controller.getSettings);
   router.put('/api/ai-agent/settings', controller.updateSettings);
   router.post('/api/ai-agent/settings/test', controller.testSettings);
+  router.put('/api/ai-agent/providers/<provider>', controller.updateProvider);
+  router.delete(
+    '/api/ai-agent/providers/<provider>',
+    controller.deleteProvider,
+  );
+  router.post('/api/ai-agent/active-model', controller.activateModel);
   router.get('/api/ai-agent/models', controller.listModels);
   router.get('/api/ai-agent/catalog', controller.modelCatalog);
   router.get('/api/ai-agent/oauth/openai-codex', controller.oauthStatus);

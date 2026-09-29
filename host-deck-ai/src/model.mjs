@@ -19,6 +19,46 @@ const zeroUsage = () => ({
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 })
 const OPENAI_CODEX_BASE_URL = 'https://chatgpt.com/backend-api'
+const providerNames = {
+  'ant-ling': 'Ant Ling',
+  anthropic: 'Anthropic',
+  'azure-openai-responses': 'Azure OpenAI',
+  baseten: 'Baseten',
+  cerebras: 'Cerebras',
+  'cloudflare-ai-gateway': 'Cloudflare AI Gateway',
+  'cloudflare-workers-ai': 'Cloudflare Workers AI',
+  deepseek: 'DeepSeek',
+  fireworks: 'Fireworks AI',
+  google: 'Google Gemini',
+  groq: 'Groq',
+  huggingface: 'Hugging Face',
+  'kimi-coding': 'Kimi for Coding',
+  meta: 'Meta',
+  minimax: 'MiniMax',
+  'minimax-cn': 'MiniMax（国内）',
+  mistral: 'Mistral AI',
+  moonshotai: 'Moonshot AI',
+  'moonshotai-cn': 'Moonshot AI（国内）',
+  nvidia: 'NVIDIA',
+  openai: 'OpenAI',
+  'openai-codex': 'OpenAI Codex',
+  opencode: 'OpenCode Zen',
+  'opencode-go': 'OpenCode Go',
+  openrouter: 'OpenRouter',
+  'qwen-token-plan': 'Qwen Token Plan',
+  'qwen-token-plan-cn': 'Qwen Token Plan（国内）',
+  'qwen-token-plan-individual': 'Qwen Token Plan Individual',
+  radius: 'Radius',
+  together: 'Together AI',
+  'vercel-ai-gateway': 'Vercel AI Gateway',
+  xai: 'xAI',
+  xiaomi: 'Xiaomi MiMo',
+  'xiaomi-token-plan-ams': 'Xiaomi Token Plan (AMS)',
+  'xiaomi-token-plan-cn': 'Xiaomi Token Plan（国内）',
+  'xiaomi-token-plan-sgp': 'Xiaomi Token Plan (SGP)',
+  zai: 'Z.AI',
+  'zai-coding-cn': 'Z.AI Coding Plan（国内）',
+}
 
 // Codex uses encrypted OAuth credentials managed and refreshed by Dart.
 export function catalog() {
@@ -26,6 +66,7 @@ export function catalog() {
     .filter((id) => !['github-copilot', 'google-vertex', 'amazon-bedrock'].includes(id))
     .map((id) => ({
       id,
+      name: providerNames[id] ?? id,
       models: getBuiltinModels(id).filter((model) => apis[model.api]).map((model) => ({
         id: model.id, name: model.name, api: model.api, baseUrl: model.baseUrl,
         reasoning: model.reasoning, input: model.input,

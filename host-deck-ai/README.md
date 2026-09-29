@@ -30,7 +30,8 @@ model IDs manually. The existing endpoint/key/model settings migrate to custom
 OpenAI Chat Completions. Provider profiles persist their endpoint, protocol,
 configured models, and encrypted API key independently. One provider/model is
 active at a time, while the chat model picker can switch directly between every
-configured provider without replacing another provider's key. OpenAI Codex also
+configured provider without replacing another provider's key. Catalog entries
+carry a display `name` alongside each provider `id`. OpenAI Codex also
 supports ChatGPT account login as described below. Other providers' OAuth login
 and ambient cloud credentials are not exposed by this integration.
 

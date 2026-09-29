@@ -115,6 +115,38 @@ void main() {
     },
   );
 
+  test('deleting the Codex provider also clears OAuth credentials', () async {
+    service.startLogin();
+    bridges.single.notify!({
+      'userCode': 'ABCD-EFGH',
+      'verificationUri': 'https://auth.openai.com/codex/device',
+      'expiresInSeconds': 900,
+    });
+    bridges.single.result.complete({'credential': token('one')});
+    await Future<void>.delayed(Duration.zero);
+    expect(service.authenticated, isTrue);
+
+    final settings = AiAgentSettingsService(repository, secrets);
+    settings.update(
+      provider: 'custom',
+      baseUrl: 'https://api.example.test/v1',
+      model: 'custom-model',
+      apiKey: 'custom-secret',
+    );
+    settings.update(
+      provider: 'openai-codex',
+      api: 'openai-codex-responses',
+      baseUrl: 'https://chatgpt.com/backend-api',
+      model: 'gpt-5.4',
+      activate: false,
+    );
+    settings.deleteProvider('openai-codex');
+    expect(settings.get().providers.map((item) => item.id), ['custom']);
+    expect(service.authenticated, isFalse);
+    expect(repository.getCredential('openai-codex'), isNull);
+    settings.oauth.dispose();
+  });
+
   test('cancel and logout discard late login responses', () async {
     final first = service.startLogin();
     service.cancelLogin(first['id'] as String);

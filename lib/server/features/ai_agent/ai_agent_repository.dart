@@ -158,6 +158,13 @@ class AiAgentRepository {
     );
   }
 
+  void deleteProviderSettings(String provider) {
+    _database.db.execute(
+      'DELETE FROM ai_agent_provider_settings WHERE provider = ?',
+      [provider],
+    );
+  }
+
   void _saveActiveSettings(AiAgentStoredSettings settings) {
     _database.db.execute(
       '''

@@ -94,6 +94,61 @@ class AiAgentController {
     }
   }
 
+  Future<Response> updateProvider(Request request, String provider) async {
+    try {
+      final data = await _readJson(request);
+      final settings = _settingsService.update(
+        provider: provider,
+        api: _optionalConfigString(data, 'api'),
+        baseUrl: _optionalConfigString(data, 'baseUrl'),
+        model: _optionalConfigString(data, 'model'),
+        models: _optionalModelConfigs(data, 'models'),
+        apiKey: _optionalConfigString(data, 'apiKey'),
+        clearApiKey: _optionalBool(data, 'clearApiKey') ?? false,
+        activate: false,
+      );
+      return Result.ok(settings.toJson());
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    } catch (_) {
+      return Result.fail(500, 'Unable to update the provider configuration.');
+    }
+  }
+
+  Response deleteProvider(Request _, String provider) {
+    try {
+      return Result.ok(_settingsService.deleteProvider(provider).toJson());
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    } on StateError catch (error) {
+      return Result.fail(400, error.message);
+    } catch (_) {
+      return Result.fail(500, 'Unable to delete the provider configuration.');
+    }
+  }
+
+  Future<Response> activateModel(Request request) async {
+    try {
+      final data = await _readJson(request);
+      final provider = data['provider'];
+      if (provider is! String) {
+        throw const FormatException('provider is required.');
+      }
+      final model = data['model'];
+      final settings = _settingsService.activate(
+        provider: provider,
+        model: model is String ? model : null,
+      );
+      return Result.ok(settings.toJson());
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    } on StateError catch (error) {
+      return Result.fail(400, error.message);
+    } catch (_) {
+      return Result.fail(500, 'Unable to activate the model.');
+    }
+  }
+
   Future<Response> listModels(Request request) async {
     try {
       return Result.ok(

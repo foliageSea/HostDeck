@@ -12,6 +12,7 @@ import {
   type AiAgentRunStep,
   type AiAgentToolResult,
   type AiAgentRunMode,
+  type AiAgentProviderUpdate,
   type AiAgentSettings,
   type AiAgentSettingsUpdate,
   type AiAgentSkill,
@@ -273,6 +274,21 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
 
   async function saveSettings(payload: AiAgentSettingsUpdate) {
     settings.value = await aiAgentApi.saveSettings(payload)
+    return settings.value
+  }
+
+  async function saveProvider(provider: string, payload: AiAgentProviderUpdate) {
+    settings.value = await aiAgentApi.saveProvider(provider, payload)
+    return settings.value
+  }
+
+  async function removeProvider(provider: string) {
+    settings.value = await aiAgentApi.deleteProvider(provider)
+    return settings.value
+  }
+
+  async function activateModel(payload: { provider: string; model?: string }) {
+    settings.value = await aiAgentApi.activateModel(payload)
     return settings.value
   }
 
@@ -902,6 +918,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     runMode,
     runStatus,
     retryLastRun,
+    saveProvider,
+    removeProvider,
+    activateModel,
     saveSettings,
     selectedSkillIds,
     selectedConversation,
