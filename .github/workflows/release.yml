@@ -27,6 +27,12 @@ jobs:
         run: |
           cd host-deck-ui
           pnpm build
+      - name: Verify pi-ai bridge
+        working-directory: host-deck-ai
+        run: |
+          npm ci
+          npm run build
+          npm test
       - name: Upload Web Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -41,10 +47,15 @@ jobs:
         with:
           flutter-version: "3.41.2"
           channel: "stable"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Resolve Dart Dependencies
         run: flutter pub get
       - name: Build HostDeck CLI
         run: dart build cli --target bin/hostdeck_cli.dart --output build/hostdeck-cli
+      - name: Build pi-ai bridge
+        run: node scripts/build_ai.mjs build/hostdeck-cli/bundle
       - name: Include License Notices
         shell: pwsh
         run: |

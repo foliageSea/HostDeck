@@ -6,21 +6,47 @@ export interface AiAgentModelConfig {
   name: string
 }
 
+export interface AiAgentProviderCatalog {
+  id: string
+  models: (AiAgentModelConfig & {
+    api: string
+    baseUrl: string
+    reasoning: boolean
+    input: string[]
+  })[]
+}
+
 export interface AiAgentSettings {
+  provider: string
+  api: string
   baseUrl: string
   model: string
   models: AiAgentModelConfig[]
   hasApiKey: boolean
+  hasOAuth: boolean
+  hasCredentials: boolean
   showRemoteSkills: boolean
 }
 
 export interface AiAgentSettingsUpdate {
+  provider?: string
+  api?: string
   baseUrl?: string
   model?: string
   models?: AiAgentModelConfig[]
   apiKey?: string
   clearApiKey?: boolean
   showRemoteSkills?: boolean
+}
+
+export interface AiAgentOAuthStatus {
+  authenticated: boolean
+  id?: string
+  status: 'idle' | 'starting' | 'pending' | 'success' | 'failed' | 'expired' | 'cancelled'
+  userCode?: string
+  verificationUri?: string
+  expiresAt?: number
+  error?: string
 }
 
 export interface AiAgentSkill {
@@ -415,6 +441,21 @@ async function responseErrorMessage(response: Response) {
 }
 
 export const aiAgentApi = {
+  async oauthStatus() {
+    return (await http.get<AiAgentOAuthStatus>('/api/ai-agent/oauth/openai-codex')).data
+  },
+  async oauthLogin() {
+    return (await http.post<AiAgentOAuthStatus>('/api/ai-agent/oauth/openai-codex/login')).data
+  },
+  async oauthCancel(id: string) {
+    return (await http.delete<AiAgentOAuthStatus>(`/api/ai-agent/oauth/openai-codex/login/${encodeURIComponent(id)}`)).data
+  },
+  async oauthLogout() {
+    return (await http.delete<AiAgentSettings>('/api/ai-agent/oauth/openai-codex')).data
+  },
+  async modelCatalog() {
+    return (await http.get<AiAgentProviderCatalog[]>('/api/ai-agent/catalog')).data
+  },
   async getSettings() {
     return (await http.get<AiAgentSettings>('/api/ai-agent/settings')).data
   },

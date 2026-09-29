@@ -8,6 +8,7 @@ import AiAgentSettingsModal from '../AiAgentSettingsModal.vue'
 const apiMocks = vi.hoisted(() => ({
   getSettings: vi.fn(),
   saveSettings: vi.fn(),
+  modelCatalog: vi.fn().mockResolvedValue([]),
 }))
 
 const uiMocks = vi.hoisted(() => ({
@@ -23,8 +24,12 @@ vi.mock('@/api/ai-agent', () => ({ aiAgentApi: apiMocks }))
 vi.mock('@/lib/ui', () => ({ getUiApi: () => uiMocks }))
 
 const settings = {
+  provider: 'custom',
+  api: 'openai-completions',
   baseUrl: 'https://api.example.com/v1',
   hasApiKey: true,
+  hasOAuth: false,
+  hasCredentials: true,
   model: 'model-a',
   models: [{ id: 'model-a', name: 'Model A' }],
   showRemoteSkills: false,
@@ -35,6 +40,8 @@ function mountModal() {
     props: { show: true },
     global: {
       stubs: {
+        AiAgentOAuthLogin: { template: '<div />' },
+        NAlert: { template: '<div><slot /></div>' },
         AiAgentMcpSettings: { template: '<div />' },
         AiAgentSkillSettings: { template: '<div />' },
         AiAgentToolList: { template: '<div />' },
@@ -56,7 +63,7 @@ function mountModal() {
           props: ['show'],
           template: '<div v-if="show"><slot /><slot name="footer" /></div>',
         },
-        NSelect: { template: '<select />' },
+        NSelect: { props: ['options', 'value'], template: '<select />' },
         NSwitch: {
           props: ['value'],
           emits: ['update:value'],

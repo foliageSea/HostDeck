@@ -34,6 +34,7 @@ if (pubGetStatus !== 0) {
 }
 
 run('dart', ['build', 'cli', '--target', path.join('bin', 'server.dart'), '--output', outputDir])
+run(process.execPath, [path.join('scripts', 'build_ai.mjs'), path.join(outputDir, 'bundle')])
 
 if (!fs.existsSync(serverExecutable)) {
   console.error('Server executable was not generated: ' + serverExecutable)

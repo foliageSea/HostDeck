@@ -210,7 +210,7 @@ void main() {
           database.db
               .select('SELECT version FROM schema_version')
               .single['version'],
-          18,
+          20,
         );
         final repository = AiAgentSkillRepository(database);
         final dbContent = fileSystem.addSkill(
@@ -329,7 +329,7 @@ void main() {
           database.db
               .select('SELECT version FROM schema_version')
               .single['version'],
-          18,
+          20,
         );
         expect(
           database.db.select('SELECT value FROM existing_data').single['value'],

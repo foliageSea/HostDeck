@@ -7,6 +7,14 @@ void registerAiAgentRoutes(Router router, AiAgentController controller) {
   router.put('/api/ai-agent/settings', controller.updateSettings);
   router.post('/api/ai-agent/settings/test', controller.testSettings);
   router.get('/api/ai-agent/models', controller.listModels);
+  router.get('/api/ai-agent/catalog', controller.modelCatalog);
+  router.get('/api/ai-agent/oauth/openai-codex', controller.oauthStatus);
+  router.post('/api/ai-agent/oauth/openai-codex/login', controller.oauthLogin);
+  router.delete(
+    '/api/ai-agent/oauth/openai-codex/login/<id>',
+    controller.oauthCancel,
+  );
+  router.delete('/api/ai-agent/oauth/openai-codex', controller.oauthLogout);
   router.get('/api/ai-agent/skills', controller.listSkills);
   router.get('/api/ai-agent/skills/library', controller.listSkillLibrary);
   router.post('/api/ai-agent/skills', controller.createSkill);

@@ -1,11 +1,8 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:langchain/langchain.dart';
-import 'package:langchain_openai/langchain_openai.dart';
 
 import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_pi_bridge.dart';
 
 class AiAgentToolCall {
   final String id;
@@ -17,6 +14,12 @@ class AiAgentToolCall {
     required this.name,
     required this.arguments,
   });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'arguments': arguments,
+  };
 }
 
 class AiAgentModelMessage {
@@ -25,6 +28,8 @@ class AiAgentModelMessage {
   final List<AiAgentImageAttachment> attachments;
   final String? toolCallId;
   final List<AiAgentToolCall> toolCalls;
+  final Map<String, dynamic>? providerMessage;
+  final bool isError;
 
   const AiAgentModelMessage({
     required this.role,
@@ -32,18 +37,32 @@ class AiAgentModelMessage {
     this.attachments = const [],
     this.toolCallId,
     this.toolCalls = const [],
+    this.providerMessage,
+    this.isError = false,
   });
+
+  Map<String, dynamic> toJson() => {
+    'role': role,
+    'content': content,
+    'attachments': attachments.map((image) => image.toJson()).toList(),
+    'toolCallId': toolCallId,
+    'toolCalls': toolCalls.map((call) => call.toJson()).toList(),
+    'providerMessage': providerMessage,
+    'isError': isError,
+  };
 }
 
 class AiAgentModelResponse {
   final String text;
   final List<AiAgentToolCall> toolCalls;
   final Map<String, dynamic>? usage;
+  final Map<String, dynamic>? providerMessage;
 
   const AiAgentModelResponse({
     required this.text,
     this.toolCalls = const [],
     this.usage,
+    this.providerMessage,
   });
 }
 
@@ -53,7 +72,6 @@ abstract interface class AiAgentModel {
     List<ToolSpec> tools, {
     void Function(String text)? onTextDelta,
   });
-
   void close();
 }
 
@@ -61,28 +79,19 @@ abstract interface class AiAgentModelFactory {
   AiAgentModel create(AiAgentResolvedSettings settings);
 }
 
-class LangChainOpenAiAgentModelFactory implements AiAgentModelFactory {
-  const LangChainOpenAiAgentModelFactory();
+class PiAiAgentModelFactory implements AiAgentModelFactory {
+  const PiAiAgentModelFactory();
 
   @override
   AiAgentModel create(AiAgentResolvedSettings settings) =>
-      LangChainOpenAiAgentModel(settings);
+      PiAiAgentModel(settings);
 }
 
-class LangChainOpenAiAgentModel implements AiAgentModel {
-  final ChatOpenAI _model;
+class PiAiAgentModel implements AiAgentModel {
+  final AiAgentResolvedSettings settings;
+  final AiAgentPiBridge _bridge = AiAgentPiBridge();
 
-  LangChainOpenAiAgentModel(AiAgentResolvedSettings settings)
-    : _model = ChatOpenAI(
-        apiKey: settings.apiKey,
-        baseUrl: settings.baseUrl,
-        defaultOptions: ChatOpenAIOptions(
-          model: settings.model,
-          temperature: 0,
-          maxTokens: 4096,
-          parallelToolCalls: false,
-        ),
-      );
+  PiAiAgentModel(this.settings);
 
   @override
   Future<AiAgentModelResponse> invoke(
@@ -90,78 +99,44 @@ class LangChainOpenAiAgentModel implements AiAgentModel {
     List<ToolSpec> tools, {
     void Function(String text)? onTextDelta,
   }) async {
-    ChatResult? result;
-    await for (final chunk
-        in _model
-            .stream(
-              PromptValue.chat(messages.map(_toLangChainMessage).toList()),
-              options: ChatOpenAIOptions(tools: tools),
-            )
-            .timeout(const Duration(minutes: 2))) {
-      result = result?.concat(chunk) ?? chunk;
-      final text = chunk.output.contentAsString;
-      if (text.isNotEmpty) onTextDelta?.call(text);
-    }
-    if (result == null) {
-      throw StateError('The model returned an empty response.');
-    }
-    return AiAgentModelResponse(
-      text: result.output.contentAsString,
-      toolCalls: result.output.toolCalls
+    final result = await _bridge.request({
+      'type': 'invoke',
+      'settings': {
+        'provider': settings.provider,
+        'api': settings.api,
+        'baseUrl': settings.baseUrl,
+        'model': settings.model,
+        'apiKey': settings.apiKey,
+        if (settings.oauthCredential != null)
+          'credential': await settings.oauthCredential!(),
+      },
+      'messages': messages.map((message) => message.toJson()).toList(),
+      'tools': tools
           .map(
-            (call) => AiAgentToolCall(
-              id: call.id,
-              name: call.name,
-              arguments: Map<String, dynamic>.unmodifiable(call.arguments),
+            (tool) => {
+              'name': tool.name,
+              'description': tool.description,
+              'parameters': tool.inputJsonSchema,
+            },
+          )
+          .toList(),
+    }, onTextDelta: onTextDelta);
+    return AiAgentModelResponse(
+      text: result['text'] as String,
+      toolCalls: (result['toolCalls'] as List)
+          .map(
+            (value) => AiAgentToolCall(
+              id: value['id'] as String,
+              name: value['name'] as String,
+              arguments: Map<String, dynamic>.from(value['arguments'] as Map),
             ),
           )
           .toList(),
-      usage: {
-        'promptTokens': result.usage.promptTokens,
-        'responseTokens': result.usage.responseTokens,
-        'totalTokens': result.usage.totalTokens,
-      },
+      usage: result['usage'] as Map<String, dynamic>?,
+      providerMessage: result['providerMessage'] as Map<String, dynamic>?,
     );
   }
 
-  ChatMessage _toLangChainMessage(AiAgentModelMessage message) {
-    return switch (message.role) {
-      'system' => ChatMessage.system(message.content),
-      'user' =>
-        message.attachments.isEmpty
-            ? ChatMessage.humanText(message.content)
-            : ChatMessage.human(
-                ChatMessageContent.multiModal([
-                  if (message.content.isNotEmpty)
-                    ChatMessageContent.text(message.content),
-                  for (final attachment in message.attachments)
-                    ChatMessageContent.image(
-                      data: attachment.data,
-                      mimeType: attachment.mimeType,
-                    ),
-                ]),
-              ),
-      'assistant' => ChatMessage.aiText(
-        message.content,
-        toolCalls: message.toolCalls
-            .map(
-              (call) => AIChatMessageToolCall(
-                id: call.id,
-                name: call.name,
-                argumentsRaw: jsonEncode(call.arguments),
-                arguments: call.arguments,
-              ),
-            )
-            .toList(),
-      ),
-      'tool' => ChatMessage.tool(
-        toolCallId: message.toolCallId!,
-        content: message.content,
-      ),
-      _ => throw ArgumentError('Unsupported model message role.'),
-    };
-  }
-
   @override
-  void close() => _model.close();
+  void close() => _bridge.close();
 }

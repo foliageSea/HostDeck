@@ -140,7 +140,7 @@ const canSend = computed(() =>
   Boolean(
     (input.value.trim() || imageAttachments.value.length > 0) &&
     sshStore.connectionId &&
-    settings.value?.hasApiKey &&
+    settings.value?.hasCredentials &&
     !running.value,
   ),
 )
@@ -683,7 +683,7 @@ let resizeObserver: ResizeObserver | undefined
           <div class="flex min-w-0 items-center gap-1.5 text-[10px] opacity-55">
             <span class="truncate">{{ hostLabel }}</span>
             <span>·</span>
-            <span class="truncate">{{ settings?.model || '未配置模型' }}</span>
+            <span class="truncate">{{ settings?.provider === 'custom' ? '自定义' : settings?.provider }} · {{ settings?.model || '未配置模型' }}</span>
           </div>
         </div>
         <button
@@ -893,12 +893,12 @@ let resizeObserver: ResizeObserver | undefined
           </button>
         </div>
         <button
-          v-if="settings && !settings.hasApiKey"
+          v-if="settings && !settings.hasCredentials"
           type="button"
           class="agent-configure"
           @click="openSettings()"
         >
-          配置 API Key 后开始对话
+          {{ settings?.provider === 'openai-codex' ? '登录 OpenAI Codex 后开始对话' : '配置 API Key 后开始对话' }}
         </button>
         <div v-if="running" class="agent-run-phase" aria-live="polite">
           <span class="agent-run-phase-dot" />
@@ -1025,13 +1025,13 @@ let resizeObserver: ResizeObserver | undefined
                 trigger="click"
                 placement="top-start"
                 :show-arrow="false"
-                :disabled="running || !settings?.hasApiKey || modelOptions.length === 0"
+                :disabled="running || !settings?.hasCredentials || modelOptions.length === 0"
               >
                 <template #trigger>
                   <button
                     type="button"
                     class="agent-mode-trigger agent-model-trigger"
-                    :disabled="running || !settings?.hasApiKey || modelOptions.length === 0"
+                    :disabled="running || !settings?.hasCredentials || modelOptions.length === 0"
                     :aria-expanded="modelMenuOpen"
                     aria-label="选择模型"
                   >

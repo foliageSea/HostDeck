@@ -4,13 +4,21 @@ import 'dart:io';
 import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_secret_store.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_pi_bridge.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_oauth_service.dart';
 
 class AiAgentResolvedSettings {
+  final String provider;
+  final String api;
   final String baseUrl;
   final String model;
   final String apiKey;
+  final Future<Map<String, dynamic>> Function()? oauthCredential;
 
   const AiAgentResolvedSettings({
+    this.oauthCredential,
+    this.provider = 'custom',
+    this.api = 'openai-completions',
     required this.baseUrl,
     required this.model,
     required this.apiKey,
@@ -18,6 +26,10 @@ class AiAgentResolvedSettings {
 }
 
 class AiAgentSettingsService {
+  late final AiAgentOAuthService oauth = AiAgentOAuthService(
+    _repository,
+    _secretStore,
+  );
   final AiAgentRepository _repository;
   final AiAgentSecretStore _secretStore;
 
@@ -26,15 +38,20 @@ class AiAgentSettingsService {
   AiAgentSettings get() {
     final stored = _repository.getSettings();
     return AiAgentSettings(
+      provider: stored.provider,
+      api: stored.api,
       baseUrl: stored.baseUrl,
       model: stored.model,
       models: _configuredModels(stored),
       hasApiKey: stored.encryptedApiKey?.isNotEmpty == true,
+      hasOAuth: oauth.authenticated,
       showRemoteSkills: stored.showRemoteSkills,
     );
   }
 
   AiAgentSettings update({
+    String? provider,
+    String? api,
     String? baseUrl,
     String? model,
     List<AiAgentModelConfig>? models,
@@ -43,17 +60,30 @@ class AiAgentSettingsService {
     bool? showRemoteSkills,
   }) {
     final current = _repository.getSettings();
+    final nextProvider = provider == null
+        ? current.provider
+        : _validateProvider(provider);
+    final requestedApi = api == null ? current.api : _validateApi(api);
+    final nextApi = nextProvider == 'openai-codex'
+        ? 'openai-codex-responses'
+        : requestedApi;
     final nextBaseUrl = baseUrl == null
         ? current.baseUrl
         : _validateBaseUrl(baseUrl);
     final nextModel = model == null ? current.model : _validateModel(model);
+    if (nextProvider == 'openai-codex') {
+      _validateCodexEndpoint(nextBaseUrl);
+    } else if (nextApi == 'openai-codex-responses') {
+      throw const FormatException('Codex requires the OpenAI Codex provider.');
+    }
     final nextModels = _configuredModels(current, models: models);
     if (!nextModels.any((item) => item.id == nextModel)) {
       nextModels.add(AiAgentModelConfig(id: nextModel, name: nextModel));
     }
-    final endpointChanged = nextBaseUrl != current.baseUrl;
+    final endpointChanged =
+        nextBaseUrl != current.baseUrl || nextProvider != current.provider;
     String? encryptedApiKey = current.encryptedApiKey;
-    if (clearApiKey) {
+    if (clearApiKey || nextProvider == 'openai-codex') {
       encryptedApiKey = null;
     } else if (apiKey != null && apiKey.isNotEmpty) {
       encryptedApiKey = _secretStore.encrypt(_validateApiKey(apiKey));
@@ -64,6 +94,8 @@ class AiAgentSettingsService {
     }
     _repository.saveSettings(
       AiAgentStoredSettings(
+        provider: nextProvider,
+        api: nextApi,
         baseUrl: nextBaseUrl,
         model: nextModel,
         models: nextModels,
@@ -75,16 +107,34 @@ class AiAgentSettingsService {
   }
 
   AiAgentResolvedSettings resolve({
+    String? provider,
+    String? api,
     String? baseUrl,
     String? model,
     String? apiKey,
   }) {
     final stored = _repository.getSettings();
+    final resolvedProvider = provider == null
+        ? stored.provider
+        : _validateProvider(provider);
+    final resolvedApi = api == null ? stored.api : _validateApi(api);
     final resolvedBaseUrl = baseUrl == null
         ? stored.baseUrl
         : _validateBaseUrl(baseUrl);
-    if (baseUrl != null &&
-        resolvedBaseUrl != stored.baseUrl &&
+    if (resolvedProvider == 'openai-codex') {
+      _validateCodexEndpoint(resolvedBaseUrl);
+      if (!oauth.authenticated) throw StateError('请先登录 OpenAI Codex。');
+      return AiAgentResolvedSettings(
+        provider: resolvedProvider,
+        api: 'openai-codex-responses',
+        baseUrl: resolvedBaseUrl,
+        model: model == null ? stored.model : _validateModel(model),
+        apiKey: '',
+        oauthCredential: oauth.credential,
+      );
+    }
+    if ((resolvedBaseUrl != stored.baseUrl ||
+            resolvedProvider != stored.provider) &&
         (apiKey == null || apiKey.isEmpty)) {
       throw const FormatException(
         'Testing a different baseUrl requires an explicit API key.',
@@ -99,6 +149,8 @@ class AiAgentSettingsService {
       throw StateError('API key is not configured.');
     }
     return AiAgentResolvedSettings(
+      provider: resolvedProvider,
+      api: resolvedApi,
       baseUrl: resolvedBaseUrl,
       model: model == null ? stored.model : _validateModel(model),
       apiKey: resolvedKey,
@@ -106,7 +158,22 @@ class AiAgentSettingsService {
   }
 
   Future<List<String>> listModels() async {
+    final stored = _repository.getSettings();
+    if (stored.provider != 'custom') {
+      final providers = await catalog();
+      final provider = providers
+          .where((item) => item['id'] == stored.provider)
+          .firstOrNull;
+      if (provider == null) throw StateError('Provider is not supported.');
+      return (provider['models'] as List)
+          .map((model) => model['id'] as String)
+          .toList();
+    }
     final settings = resolve();
+    if (settings.api != 'openai-completions' &&
+        settings.api != 'openai-responses') {
+      throw StateError('Enter model IDs manually for this custom API.');
+    }
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 10);
     try {
@@ -148,6 +215,7 @@ class AiAgentSettingsService {
         !uri.hasAuthority ||
         uri.userInfo.isNotEmpty ||
         uri.hasFragment ||
+        uri.hasQuery ||
         (uri.scheme != 'http' && uri.scheme != 'https')) {
       throw FormatException('baseUrl must be an absolute HTTP(S) URL.');
     }
@@ -160,6 +228,44 @@ class AiAgentSettingsService {
       throw FormatException('model must not be empty.');
     }
     return normalized;
+  }
+
+  Future<List<Map<String, dynamic>>> catalog() async {
+    final bridge = AiAgentPiBridge();
+    try {
+      final result = await bridge.request({'type': 'catalog'});
+      return (result['providers'] as List).cast<Map<String, dynamic>>();
+    } finally {
+      bridge.close();
+    }
+  }
+
+  String _validateProvider(String value) {
+    if (!RegExp(r'^[a-z0-9][a-z0-9-]{0,99}$').hasMatch(value)) {
+      throw const FormatException('Invalid provider.');
+    }
+    return value;
+  }
+
+  String _validateApi(String value) {
+    if (!{
+      'openai-completions',
+      'openai-responses',
+      'anthropic-messages',
+      'google-generative-ai',
+      'openai-codex-responses',
+    }.contains(value)) {
+      throw const FormatException('Unsupported model API.');
+    }
+    return value;
+  }
+
+  void _validateCodexEndpoint(String value) {
+    if (value != 'https://chatgpt.com/backend-api') {
+      throw const FormatException(
+        'OpenAI Codex uses https://chatgpt.com/backend-api.',
+      );
+    }
   }
 
   String _validateApiKey(String value) {

@@ -167,6 +167,7 @@ class ServerContainer {
         getIt<AiAgentRepository>(),
         getIt<AiAgentSecretStore>(),
       ),
+      dispose: (service) => service.oauth.dispose(),
     );
     getIt.registerLazySingleton<AiAgentMcpRepository>(
       () => AiAgentMcpRepository(
@@ -175,9 +176,7 @@ class ServerContainer {
       ),
     );
     getIt.registerLazySingleton<AiAgentMcpClient>(AiAgentMcpClient.new);
-    getIt.registerLazySingleton<AiAgentModelFactory>(
-      LangChainOpenAiAgentModelFactory.new,
-    );
+    getIt.registerLazySingleton<AiAgentModelFactory>(PiAiAgentModelFactory.new);
     getIt.registerLazySingleton<MonitorHistoryService>(
       MonitorHistoryService.new,
     );

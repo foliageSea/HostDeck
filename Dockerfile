@@ -21,6 +21,13 @@ COPY lib ./lib
 RUN flutter pub get
 RUN dart build cli --target bin/server.dart -o build/server
 
+FROM node:22-bookworm-slim AS ai-builder
+WORKDIR /src/host-deck-ai
+COPY host-deck-ai/package.json host-deck-ai/package-lock.json ./
+RUN npm ci
+COPY host-deck-ai/ ./
+RUN npm run build
+
 FROM debian:bookworm-slim AS runtime
 ARG HOSTDECK_VERSION
 ARG HOSTDECK_REVISION
@@ -42,6 +49,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=server-builder /src/build/server/bundle/ ./
+COPY --from=ai-builder /usr/local/bin/node ./ai/node
+COPY --from=ai-builder /src/host-deck-ai/dist/bridge.mjs ./ai/bridge.mjs
+COPY --from=ai-builder /src/host-deck-ai/node_modules ./ai/node_modules
 COPY --from=web-builder /src/host-deck-ui/dist ./web
 COPY LICENSE THIRD_PARTY_NOTICES.md ./
 

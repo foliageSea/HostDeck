@@ -516,6 +516,29 @@ class DatabaseService {
       }
       _setVersion(18);
     }
+    // v18 -> v19: pi-ai provider and wire protocol. Existing endpoints retain
+    // their OpenAI Chat Completions behavior.
+    if (currentVersion < 19) {
+      final tables = _db.select(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ai_agent_settings'",
+      );
+      if (tables.isNotEmpty) {
+        _db.execute(
+          "ALTER TABLE ai_agent_settings ADD COLUMN provider TEXT NOT NULL DEFAULT 'custom'",
+        );
+        _db.execute(
+          "ALTER TABLE ai_agent_settings ADD COLUMN api TEXT NOT NULL DEFAULT 'openai-completions'",
+        );
+      }
+      _setVersion(19);
+    }
+    if (currentVersion < 20) {
+      _db.execute('''CREATE TABLE IF NOT EXISTS ai_agent_credentials (
+        provider TEXT PRIMARY KEY,
+        encryptedCredential TEXT NOT NULL
+      )''');
+      _setVersion(20);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

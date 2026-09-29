@@ -38,6 +38,7 @@ if ($versionLine -notmatch '^version:\s*(?<version>\S+)') {
   throw "Unable to resolve the application version from $pubspecPath"
 }
 Invoke-Native -Command dart -Args @('build', 'cli', '--target', 'bin/server.dart', '--output', $buildDir)
+Invoke-Native -Command node -Args @((Join-Path $RootDir 'scripts\build_ai.mjs'), (Join-Path $buildDir 'bundle'))
 Set-Content -LiteralPath (Join-Path $buildDir 'bundle\VERSION') -Value $Matches.version -NoNewline -Encoding ascii
 Copy-Item (Join-Path $RootDir 'LICENSE') (Join-Path $buildDir 'bundle\LICENSE')
 Copy-Item (Join-Path $RootDir 'THIRD_PARTY_NOTICES.md') (Join-Path $buildDir 'bundle\THIRD_PARTY_NOTICES.md')

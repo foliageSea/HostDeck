@@ -18,6 +18,16 @@ and the selected SVG contents have not been intentionally modified. See its
 `AUTHORS`, `COPYING`, and `README.md` files for the applicable notices and GPL
 version 3 terms.
 
+## pi-ai
+
+- Project: https://github.com/earendil-works/pi
+- Package: `@earendil-works/pi-ai` 0.87.1
+- License: MIT
+
+HostDeck bundles the pi-ai package and its runtime dependencies in the private
+Node.js bridge under `ai/node_modules/`. See the package licenses included by
+the npm distribution for the complete notices.
+
 ## Maple Mono
 
 - Project: https://github.com/subframe7536/maple-font

@@ -205,6 +205,7 @@ inspected or changed the host. Do not expose secrets.
         ..._historyContext(history),
       ];
       String? finalText;
+      Map<String, dynamic>? finalProviderMessage;
       Map<String, dynamic>? usage;
       var toolCallCount = 0;
       final assistantMessageId = _newId();
@@ -278,6 +279,7 @@ inspected or changed the host. Do not expose secrets.
             role: 'assistant',
             content: response.text,
             toolCalls: response.toolCalls,
+            providerMessage: response.providerMessage,
           ),
         );
         run.emit(
@@ -289,6 +291,7 @@ inspected or changed the host. Do not expose secrets.
         );
         if (run.mode == AiAgentRunMode.chat || response.toolCalls.isEmpty) {
           finalText = response.text;
+          finalProviderMessage = response.providerMessage;
           break;
         }
 
@@ -297,6 +300,7 @@ inspected or changed the host. Do not expose secrets.
           conversationId: run.conversationId,
           role: 'assistant',
           content: response.text,
+          providerMessage: response.providerMessage,
           toolCalls: [
             for (final call in response.toolCalls)
               AiAgentMessageToolCall(
@@ -418,6 +422,7 @@ inspected or changed the host. Do not expose secrets.
               role: 'tool',
               content: result.content,
               toolCallId: call.id,
+              isError: !result.success,
             ),
           );
           _repository.addMessage(
@@ -457,6 +462,7 @@ inspected or changed the host. Do not expose secrets.
         conversationId: run.conversationId,
         role: 'assistant',
         content: finalText,
+        providerMessage: finalProviderMessage,
         usage: usage,
       );
       if (usage != null) run.emit('usage', usage);
@@ -629,6 +635,7 @@ inspected or changed the host. Do not expose secrets.
         );
       case 'assistant':
         return AiAgentModelMessage(
+          providerMessage: message.providerMessage,
           role: message.role,
           content: message.content,
           toolCalls: [
@@ -650,6 +657,8 @@ inspected or changed the host. Do not expose secrets.
           role: message.role,
           content: message.content,
           toolCallId: message.toolCallId,
+          isError:
+              message.toolStatus != null && message.toolStatus != 'success',
         );
       default:
         return null;

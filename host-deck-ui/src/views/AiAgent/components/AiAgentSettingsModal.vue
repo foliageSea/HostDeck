@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { CheckCircle2, KeyRound, Plus, RefreshCw, Trash2, TriangleAlert } from '@lucide/vue'
-import type { AiAgentModelConfig, AiAgentSettingsUpdate } from '@/api/ai-agent'
+import { aiAgentApi, type AiAgentModelConfig, type AiAgentProviderCatalog, type AiAgentSettingsUpdate } from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
 import { useAiAgentStore } from '@/stores/ai-agent'
 import AiAgentMcpSettings from './AiAgentMcpSettings.vue'
 import AiAgentSkillSettings from './AiAgentSkillSettings.vue'
 import AiAgentToolList from './AiAgentToolList.vue'
+import AiAgentOAuthLogin from './AiAgentOAuthLogin.vue'
 
 const props = defineProps<{
   show: boolean
@@ -49,6 +50,8 @@ function changeVisibility(value: boolean) {
   confirmLeavingSkills(() => emit('update:show', false))
 }
 const form = reactive({
+  provider: 'custom',
+  api: 'openai-completions',
   baseUrl: '',
   model: '',
   models: [] as AiAgentModelConfig[],
@@ -56,9 +59,41 @@ const form = reactive({
   showRemoteSkills: false,
 })
 const availableModels = ref<string[]>([])
+const providers = ref<AiAgentProviderCatalog[]>([])
+const catalogError = ref('')
+const providerOptions = computed(() => [
+  { label: '自定义 / OpenAI 兼容', value: 'custom' },
+  ...providers.value.map((provider) => ({ label: provider.id === 'openai-codex' ? 'OpenAI Codex（ChatGPT 登录）' : provider.id, value: provider.id })),
+])
+const apiOptions = [
+  { label: 'OpenAI Chat Completions', value: 'openai-completions' },
+  { label: 'OpenAI Responses', value: 'openai-responses' },
+  { label: 'Anthropic Messages', value: 'anthropic-messages' },
+  { label: 'Google Gemini', value: 'google-generative-ai' },
+]
+const providerModels = computed(() => providers.value.find((item) => item.id === form.provider)?.models ?? [])
+
+function selectProvider(provider: string) {
+  form.provider = provider
+  availableModels.value = []
+  form.apiKey = ''
+  if (provider === 'custom' && form.api === 'openai-codex-responses') {
+    form.api = 'openai-completions'
+    form.baseUrl = 'https://api.openai.com/v1'
+    form.model = 'gpt-4o-mini'
+    form.models = [{ id: form.model, name: form.model }]
+  }
+  const first = providerModels.value[0]
+  if (first) {
+    form.api = first.api
+    form.baseUrl = first.baseUrl
+    form.model = first.id
+    form.models = [{ id: first.id, name: first.name }]
+  }
+}
 const usesPlainHttp = computed(() => /^http:\/\//i.test(form.baseUrl.trim()))
 const modelOptions = computed(() =>
-  availableModels.value.map((model) => ({
+  (form.provider === 'custom' ? availableModels.value : providerModels.value.map((model) => model.id)).map((model) => ({
     label: model,
     value: model,
   })),
@@ -70,6 +105,9 @@ const selectedModelOptions = computed(() =>
 )
 
 function syncForm() {
+  form.provider = store.settings?.provider ?? 'custom'
+  form.api = store.settings?.api ?? 'openai-completions'
+  availableModels.value = []
   form.baseUrl = store.settings?.baseUrl ?? ''
   form.model = store.settings?.model ?? ''
   form.models = (store.settings?.models ?? []).map((model) => ({ ...model }))
@@ -88,6 +126,12 @@ watch(
     try {
       if (!store.settings) await store.loadSettings()
       syncForm()
+      catalogError.value = ''
+      try {
+        providers.value = await aiAgentApi.modelCatalog()
+      } catch (error) {
+        catalogError.value = error instanceof Error ? error.message : '无法加载 pi-ai 模型目录。'
+      }
     } catch (error) {
       getUiApi().message.error(error instanceof Error ? error.message : '加载 AI 设置失败。')
     }
@@ -98,6 +142,8 @@ watch(
 function payload() {
   const apiKey = form.apiKey.trim()
   return {
+    provider: form.provider,
+    api: form.api,
     baseUrl: form.baseUrl.trim(),
     model: form.model.trim(),
     models: form.models.map((model) => ({ id: model.id.trim(), name: model.name.trim() })),
@@ -119,6 +165,8 @@ function isSettingsUnchanged(payload: AiAgentSettingsUpdate) {
   }
 
   return (
+    payload.provider === (current.provider ?? 'custom') &&
+    payload.api === (current.api ?? 'openai-completions') &&
     payload.baseUrl === current.baseUrl &&
     payload.model === current.model &&
     payload.models?.length === currentModels.length &&
@@ -141,6 +189,23 @@ function updateModelId(index: number, id: string) {
   configuredModel.id = id
   if (!configuredModel.name || configuredModel.name === previousId) configuredModel.name = id
   if (!form.model || form.model === previousId) form.model = id
+  if (form.provider !== 'custom' && form.model === id) {
+    const catalogModel = providerModels.value.find((model) => model.id === id)
+    if (catalogModel) {
+      form.api = catalogModel.api
+      form.baseUrl = catalogModel.baseUrl
+    }
+  }
+}
+
+function updateActiveModel(model: string) {
+  form.model = model
+  if (form.provider === 'custom') return
+  const catalogModel = providerModels.value.find((item) => item.id === model)
+  if (catalogModel) {
+    form.api = catalogModel.api
+    form.baseUrl = catalogModel.baseUrl
+  }
 }
 
 function removeModel(index: number) {
@@ -151,7 +216,16 @@ function removeModel(index: number) {
 async function fetchModels() {
   loadingModels.value = true
   try {
-    availableModels.value = await store.loadModels()
+    if (form.provider !== 'custom') {
+      providers.value = await aiAgentApi.modelCatalog()
+      availableModels.value = providerModels.value.map((model) => model.id)
+    } else {
+      if (form.baseUrl.trim() !== store.settings?.baseUrl || form.provider !== store.settings?.provider) {
+        getUiApi().message.warning('请先保存自定义接口设置，再获取模型列表。')
+        return
+      }
+      availableModels.value = await store.loadModels()
+    }
     getUiApi().message.success(`已获取 ${availableModels.value.length} 个模型。`)
   } catch (error) {
     getUiApi().message.error(error instanceof Error ? error.message : '获取模型列表失败。')
@@ -245,7 +319,17 @@ function clearKey() {
     <NTabs :value="activeTab" type="line" animated @update:value="changeTab">
       <NTabPane name="model" tab="模型">
         <NForm label-placement="top">
-          <NFormItem label="Base URL">
+          <div class="mb-3 text-xs opacity-60">由 pi-ai 驱动 · API Key / OpenAI 账号登录</div>
+          <NAlert v-if="catalogError" type="error" class="mb-3">{{ catalogError }}</NAlert>
+          <NFormItem label="供应商">
+            <NSelect :value="form.provider" :options="providerOptions" filterable @update:value="selectProvider" />
+          </NFormItem>
+          <NFormItem v-if="form.provider === 'custom'" label="API 协议">
+            <NSelect v-model:value="form.api" :options="apiOptions" />
+          </NFormItem>
+          <div v-else-if="form.provider !== 'openai-codex'" class="mb-3 text-xs opacity-60">协议由模型目录自动匹配；切换供应商时请填写对应 API Key。</div>
+          <AiAgentOAuthLogin v-if="form.provider === 'openai-codex'" :active="show && activeTab === 'model'" />
+          <NFormItem v-if="form.provider !== 'openai-codex'" label="Base URL">
             <div class="w-full">
               <NInput v-model:value="form.baseUrl" placeholder="https://api.openai.com/v1" />
               <div
@@ -265,7 +349,7 @@ function clearKey() {
                   <NButton
                     size="small"
                     :loading="loadingModels"
-                    :disabled="saving || testing || !store.settings?.hasApiKey"
+                    :disabled="saving || testing || (form.provider === 'custom' && !store.settings?.hasApiKey)"
                     @click="fetchModels"
                   >
                     <RefreshCw :size="14" /> 获取模型列表
@@ -287,7 +371,7 @@ function clearKey() {
                     :value="configuredModel.id || null"
                     :options="modelOptions"
                     filterable
-                    tag
+                    :tag="form.provider === 'custom'"
                     placeholder="选择或手动输入模型 ID"
                     @update:value="updateModelId(index, $event)"
                   />
@@ -308,12 +392,13 @@ function clearKey() {
           </div>
           <NFormItem label="当前模型">
             <NSelect
-              v-model:value="form.model"
+              :value="form.model"
               :options="selectedModelOptions"
               placeholder="请先添加模型"
+              @update:value="updateActiveModel"
             />
           </NFormItem>
-          <NFormItem label="API Key">
+          <NFormItem v-if="form.provider !== 'openai-codex'" label="API Key">
             <div class="w-full">
               <NInput
                 v-model:value="form.apiKey"

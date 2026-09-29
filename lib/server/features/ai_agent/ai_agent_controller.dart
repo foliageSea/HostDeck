@@ -57,10 +57,27 @@ class AiAgentController {
 
   Response getSettings(Request _) => Result.ok(_settingsService.get().toJson());
 
+  Response oauthStatus(Request _) => Result.ok(_settingsService.oauth.status());
+
+  Response oauthLogin(Request _) =>
+      Result.ok(_settingsService.oauth.startLogin());
+
+  Response oauthCancel(Request _, String id) {
+    _settingsService.oauth.cancelLogin(id);
+    return Result.ok(_settingsService.oauth.status());
+  }
+
+  Response oauthLogout(Request _) {
+    _settingsService.oauth.logout();
+    return Result.ok(_settingsService.get().toJson());
+  }
+
   Future<Response> updateSettings(Request request) async {
     try {
       final data = await _readJson(request);
       final settings = _settingsService.update(
+        provider: _optionalConfigString(data, 'provider'),
+        api: _optionalConfigString(data, 'api'),
         baseUrl: _optionalConfigString(data, 'baseUrl'),
         model: _optionalConfigString(data, 'model'),
         models: _optionalModelConfigs(data, 'models'),
@@ -88,11 +105,23 @@ class AiAgentController {
     }
   }
 
+  Future<Response> modelCatalog(Request _) async {
+    try {
+      return Result.ok(await _settingsService.catalog());
+    } on StateError catch (error) {
+      return Result.fail(503, error.message);
+    } catch (_) {
+      return Result.fail(503, 'Unable to load pi-ai model catalog.');
+    }
+  }
+
   Future<Response> testSettings(Request request) async {
     AiAgentModel? model;
     try {
       final data = await _readJson(request);
       final settings = _settingsService.resolve(
+        provider: _optionalConfigString(data, 'provider'),
+        api: _optionalConfigString(data, 'api'),
         baseUrl: _optionalConfigString(data, 'baseUrl'),
         model: _optionalConfigString(data, 'model'),
         apiKey: _optionalConfigString(data, 'apiKey'),

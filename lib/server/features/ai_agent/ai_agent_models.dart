@@ -12,12 +12,18 @@ class AiAgentSettings {
   static const defaultModel = 'gpt-4o-mini';
 
   final String baseUrl;
+  final String provider;
+  final String api;
   final String model;
   final List<AiAgentModelConfig> models;
   final bool hasApiKey;
+  final bool hasOAuth;
   final bool showRemoteSkills;
 
   const AiAgentSettings({
+    this.hasOAuth = false,
+    this.provider = 'custom',
+    this.api = 'openai-completions',
     required this.baseUrl,
     required this.model,
     required this.models,
@@ -26,10 +32,14 @@ class AiAgentSettings {
   });
 
   Map<String, dynamic> toJson() => {
+    'provider': provider,
+    'api': api,
     'baseUrl': baseUrl,
     'model': model,
     'models': models.map((model) => model.toJson()).toList(),
     'hasApiKey': hasApiKey,
+    'hasOAuth': hasOAuth,
+    'hasCredentials': provider == 'openai-codex' ? hasOAuth : hasApiKey,
     'showRemoteSkills': showRemoteSkills,
   };
 }
@@ -104,6 +114,8 @@ class AiAgentMessageToolCall {
 }
 
 class AiAgentMessage {
+  // Provider-native context is private to the backend (signatures, response IDs).
+  final Map<String, dynamic>? providerMessage;
   final String id;
   final String conversationId;
   final String role;
@@ -117,6 +129,7 @@ class AiAgentMessage {
   final int createdAt;
 
   const AiAgentMessage({
+    this.providerMessage,
     required this.id,
     required this.conversationId,
     required this.role,

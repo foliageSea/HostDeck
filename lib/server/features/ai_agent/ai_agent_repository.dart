@@ -4,6 +4,8 @@ import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 
 class AiAgentStoredSettings {
+  final String provider;
+  final String api;
   final String baseUrl;
   final String model;
   final List<AiAgentModelConfig> models;
@@ -11,6 +13,8 @@ class AiAgentStoredSettings {
   final bool showRemoteSkills;
 
   const AiAgentStoredSettings({
+    this.provider = 'custom',
+    this.api = 'openai-completions',
     required this.baseUrl,
     required this.model,
     this.models = const [],
@@ -27,9 +31,32 @@ class AiAgentRepository {
 
   AiAgentRepository(this._database);
 
+  String? getCredential(String provider) {
+    final rows = _database.db.select(
+      'SELECT encryptedCredential FROM ai_agent_credentials WHERE provider = ?',
+      [provider],
+    );
+    return rows.isEmpty ? null : rows.first['encryptedCredential'] as String;
+  }
+
+  void saveCredential(String provider, String encryptedCredential) {
+    _database.db.execute(
+      '''INSERT INTO ai_agent_credentials (provider, encryptedCredential)
+      VALUES (?, ?) ON CONFLICT(provider) DO UPDATE SET encryptedCredential = excluded.encryptedCredential''',
+      [provider, encryptedCredential],
+    );
+  }
+
+  void deleteCredential(String provider) {
+    _database.db.execute(
+      'DELETE FROM ai_agent_credentials WHERE provider = ?',
+      [provider],
+    );
+  }
+
   AiAgentStoredSettings getSettings() {
     final rows = _database.db.select(
-      'SELECT baseUrl, model, models, encryptedApiKey, showRemoteSkills FROM ai_agent_settings WHERE id = 1',
+      'SELECT * FROM ai_agent_settings WHERE id = 1',
     );
     if (rows.isEmpty) {
       return const AiAgentStoredSettings(
@@ -39,6 +66,8 @@ class AiAgentRepository {
     }
     final row = rows.first;
     return AiAgentStoredSettings(
+      provider: row['provider'] as String,
+      api: row['api'] as String,
       baseUrl: row['baseUrl'] as String,
       model: row['model'] as String,
       models: _modelsFromJson(row['models'] as String?),
@@ -51,10 +80,12 @@ class AiAgentRepository {
     _database.db.execute(
       '''
       INSERT INTO ai_agent_settings
-        (id, baseUrl, model, models, encryptedApiKey, showRemoteSkills, updatedAt)
-      VALUES (1, ?, ?, ?, ?, ?, ?)
+        (id, baseUrl, model, models, encryptedApiKey, showRemoteSkills, updatedAt, provider, api)
+      VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         baseUrl = excluded.baseUrl,
+        provider = excluded.provider,
+        api = excluded.api,
         model = excluded.model,
         models = excluded.models,
         encryptedApiKey = excluded.encryptedApiKey,
@@ -68,6 +99,8 @@ class AiAgentRepository {
         settings.encryptedApiKey,
         settings.showRemoteSkills ? 1 : 0,
         DateTime.now().millisecondsSinceEpoch,
+        settings.provider,
+        settings.api,
       ],
     );
   }
@@ -153,6 +186,7 @@ class AiAgentRepository {
   }
 
   AiAgentMessage addMessage({
+    Map<String, dynamic>? providerMessage,
     required String id,
     required String conversationId,
     required String role,
@@ -181,6 +215,7 @@ class AiAgentRepository {
           attachments.map((attachment) => attachment.toJson()).toList(),
         ),
         _metadataJson(
+          providerMessage: providerMessage,
           toolCalls: toolCalls,
           toolCallId: toolCallId,
           toolStatus: toolStatus,
@@ -205,6 +240,7 @@ class AiAgentRepository {
       );
     }
     return AiAgentMessage(
+      providerMessage: providerMessage,
       id: id,
       conversationId: conversationId,
       role: role,
@@ -244,6 +280,7 @@ class AiAgentRepository {
   }
 
   String _metadataJson({
+    Map<String, dynamic>? providerMessage,
     List<AiAgentMessageToolCall> toolCalls = const [],
     String? toolCallId,
     String? toolStatus,
@@ -254,10 +291,25 @@ class AiAgentRepository {
         toolCallId == null &&
         toolStatus == null &&
         toolResult == null &&
-        usage == null) {
+        usage == null &&
+        providerMessage == null) {
       return '{}';
     }
     return jsonEncode({
+      if (providerMessage != null)
+        'providerMessage': {
+          ...providerMessage,
+          'content': [
+            for (final block in providerMessage['content'] as List)
+              if (block is Map && block['type'] == 'toolCall')
+                {
+                  ...block,
+                  'arguments': sanitizeAiAgentValue(block['arguments']),
+                }
+              else
+                block,
+          ],
+        },
       'toolCallId': ?toolCallId,
       'toolStatus': ?toolStatus,
       if (toolResult != null) 'toolResult': sanitizeAiAgentValue(toolResult),
@@ -283,6 +335,7 @@ class AiAgentRepository {
   AiAgentMessage _messageFromRow(dynamic row) {
     final metadata = _metadataFromJson(row['metadata'] as String?);
     return AiAgentMessage(
+      providerMessage: metadata['providerMessage'] as Map<String, dynamic>?,
       id: row['id'] as String,
       conversationId: row['conversationId'] as String,
       role: row['role'] as String,

@@ -31,12 +31,12 @@ void main() {
     await dataDirectory.delete(recursive: true);
   });
 
-  test('migration v18 and target-bound conversation CRUD', () {
+  test('migration v20 and target-bound conversation CRUD', () {
     expect(
       database.db
           .select('SELECT version FROM schema_version')
           .single['version'],
-      18,
+      20,
     );
 
     repository.createConversation('conversation-1', 'server:7');
@@ -212,6 +212,8 @@ void main() {
         apiKey: 'first-secret',
       );
       expect(saved.toJson(), {
+        'provider': 'custom',
+        'api': 'openai-completions',
         'baseUrl': 'https://models.example.test/v1',
         'model': 'ops-model',
         'models': [
@@ -219,6 +221,8 @@ void main() {
           {'id': 'ops-model', 'name': 'ops-model'},
         ],
         'hasApiKey': true,
+        'hasOAuth': false,
+        'hasCredentials': true,
         'showRemoteSkills': false,
       });
       expect(saved.toJson().containsKey('apiKey'), isFalse);
@@ -310,4 +314,70 @@ void main() {
       isFalse,
     );
   });
+
+  test(
+    'persists provider protocol and prevents reusing another provider key',
+    () {
+      settingsService.update(apiKey: 'openai-secret');
+      expect(
+        () => settingsService.update(provider: 'anthropic'),
+        throwsFormatException,
+      );
+      expect(
+        () => settingsService.resolve(provider: 'anthropic'),
+        throwsFormatException,
+      );
+      settingsService.update(
+        provider: 'anthropic',
+        api: 'anthropic-messages',
+        baseUrl: 'https://api.anthropic.com',
+        model: 'claude-sonnet-4-5',
+        apiKey: 'anthropic-secret',
+      );
+      expect(settingsService.resolve().provider, 'anthropic');
+      expect(settingsService.resolve().api, 'anthropic-messages');
+      expect(settingsService.resolve().apiKey, 'anthropic-secret');
+      expect(
+        () => settingsService.update(api: 'invalid'),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test(
+    'keeps provider signatures private and sanitizes persisted tool arguments',
+    () {
+      repository.createConversation('pi-chat', 'server:7');
+      repository.addMessage(
+        id: 'pi-message',
+        conversationId: 'pi-chat',
+        role: 'assistant',
+        content: '',
+        providerMessage: {
+          'role': 'assistant',
+          'provider': 'anthropic',
+          'content': [
+            {
+              'type': 'thinking',
+              'thinking': '',
+              'thinkingSignature': 'opaque-signature',
+            },
+            {
+              'type': 'toolCall',
+              'id': 'call-1',
+              'name': 'exec',
+              'arguments': {'password': 'secret'},
+            },
+          ],
+        },
+      );
+      final message = repository.listMessages('pi-chat').single;
+      expect(
+        (message.providerMessage!['content'] as List)[0]['thinkingSignature'],
+        'opaque-signature',
+      );
+      expect(jsonEncode(message.providerMessage), isNot(contains('"secret"')));
+      expect(message.toJson().containsKey('providerMessage'), isFalse);
+    },
+  );
 }
