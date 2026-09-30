@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import {
   CheckCircle2,
   ChevronDown,
@@ -18,21 +18,20 @@ import {
 } from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
 import { useAiAgentStore } from '@/stores/ai-agent'
+import { useDesktopStore } from '@/stores/desktop'
 import AiAgentMcpSettings from './AiAgentMcpSettings.vue'
 import AiAgentSkillSettings from './AiAgentSkillSettings.vue'
 import AiAgentToolList from './AiAgentToolList.vue'
 import AiAgentOAuthLogin from './AiAgentOAuthLogin.vue'
 
 const props = defineProps<{
-  show: boolean
   initialTab?: 'mcp' | 'model' | 'skills' | 'tools'
-}>()
-
-const emit = defineEmits<{
-  'update:show': [value: boolean]
+  tabRequestId?: number
+  windowId?: string
 }>()
 
 const store = useAiAgentStore()
+const desktopStore = useDesktopStore()
 const skillSettings = ref<InstanceType<typeof AiAgentSkillSettings> | null>(null)
 const saving = ref(false)
 const testing = ref(false)
@@ -41,6 +40,8 @@ const deleting = ref(false)
 const loadingModels = ref(false)
 const advancedOpen = ref(false)
 const activeTab = ref<'mcp' | 'model' | 'skills' | 'tools'>('model')
+const providerPickerOpen = ref(false)
+let initialized = false
 
 const form = reactive({
   provider: 'custom',
@@ -156,14 +157,10 @@ function confirmLeavingSkills(action: () => void) {
 }
 
 function changeTab(value: string | number) {
+  if (value === activeTab.value) return
   confirmLeavingSkills(() => {
     activeTab.value = value as 'model' | 'mcp' | 'skills' | 'tools'
   })
-}
-
-function changeVisibility(value: boolean) {
-  if (value) return emit('update:show', true)
-  confirmLeavingSkills(() => emit('update:show', false))
 }
 
 function selectProvider(provider: string) {
@@ -200,30 +197,88 @@ function chooseProvider(provider: string) {
   confirmDiscardingForm(() => selectProvider(provider))
 }
 
+function chooseProviderFromPicker(provider: string) {
+  if (provider === form.provider) {
+    providerPickerOpen.value = false
+    return
+  }
+  confirmDiscardingForm(() => {
+    selectProvider(provider)
+    providerPickerOpen.value = false
+  })
+}
+
 function syncForm() {
   selectProvider(store.settings?.provider ?? 'custom')
 }
 
-watch(
-  () => props.show,
-  async (show) => {
-    if (!show) return
-    activeTab.value = props.initialTab ?? 'model'
+async function initialize() {
+  activeTab.value = props.initialTab ?? 'model'
+  try {
+    if (!store.settings) await store.loadSettings()
+    catalogError.value = ''
     try {
-      if (!store.settings) await store.loadSettings()
-      catalogError.value = ''
-      try {
-        providers.value = await aiAgentApi.modelCatalog()
-      } catch (error) {
-        catalogError.value = error instanceof Error ? error.message : '无法加载 pi-ai 模型目录。'
-      }
-      syncForm()
+      providers.value = await aiAgentApi.modelCatalog()
     } catch (error) {
-      getUiApi().message.error(error instanceof Error ? error.message : '加载 AI 设置失败。')
+      catalogError.value = error instanceof Error ? error.message : '无法加载 pi-ai 模型目录。'
     }
+    syncForm()
+  } catch (error) {
+    getUiApi().message.error(error instanceof Error ? error.message : '加载 AI 设置失败。')
+  }
+}
+
+watch(
+  () => props.tabRequestId,
+  () => {
+    if (!initialized) {
+      initialized = true
+      void initialize()
+      return
+    }
+    changeTab(props.initialTab ?? 'model')
   },
   { immediate: true },
 )
+
+watch(
+  () => props.windowId,
+  (windowId, previousWindowId) => {
+    if (previousWindowId) desktopStore.setWindowBeforeClose(previousWindowId)
+    if (windowId) desktopStore.setWindowBeforeClose(windowId, confirmWindowClose)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  if (props.windowId) desktopStore.setWindowBeforeClose(props.windowId)
+})
+
+function confirmWindowClose() {
+  const hasUnsavedSkill = activeTab.value === 'skills' && skillSettings.value?.dirty
+  const hasUnsavedProvider = activeTab.value === 'model' && dirty.value
+  if (!hasUnsavedSkill && !hasUnsavedProvider) return true
+
+  return new Promise<boolean>((resolve) => {
+    let settled = false
+    const settle = (result: boolean) => {
+      if (settled) return
+      settled = true
+      resolve(result)
+    }
+    getUiApi().dialog.warning({
+      title: '放弃未保存的修改',
+      content: hasUnsavedSkill
+        ? '当前 SKILL.md 尚未保存，确认放弃修改？'
+        : `供应商「${providerDisplayName(form.provider)}」的配置尚未保存，确认放弃修改？`,
+      positiveText: '放弃修改',
+      negativeText: '继续编辑',
+      onPositiveClick: () => settle(true),
+      onNegativeClick: () => settle(false),
+      onClose: () => settle(false),
+    })
+  })
+}
 
 function payload(): AiAgentProviderUpdate {
   const apiKey = form.apiKey.trim()
@@ -245,7 +300,9 @@ function updateModelId(index: number, id: string) {
   if (!configuredModel) return
   const previousId = configuredModel.id
   const previousCatalogName = providerModels.value.find((model) => model.id === previousId)?.name
-  const previousSavedName = savedProvider.value?.models.find((model) => model.id === previousId)?.name
+  const previousSavedName = savedProvider.value?.models.find(
+    (model) => model.id === previousId,
+  )?.name
   configuredModel.id = id
   if (
     !configuredModel.name ||
@@ -354,7 +411,7 @@ async function activate() {
       model: savedProvider.value.model,
     })
     getUiApi().message.success(`已切换到「${providerDisplayName(form.provider)}」。`)
-    emit('update:show', false)
+    if (props.windowId) await desktopStore.requestCloseWindow(props.windowId)
   } catch (error) {
     getUiApi().message.error(error instanceof Error ? error.message : '切换供应商失败。')
   } finally {
@@ -438,16 +495,15 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
 </script>
 
 <template>
-  <NModal
-    :show="show"
-    preset="card"
-    title="AI Agent 设置"
-    class="agent-settings-modal"
-    :bordered="false"
-    @update:show="changeVisibility"
-  >
-    <NTabs :value="activeTab" type="line" animated @update:value="changeTab">
-      <NTabPane name="model" tab="模型">
+  <div class="agent-settings-view">
+    <NTabs
+      class="agent-settings-tabs"
+      :value="activeTab"
+      type="line"
+      animated
+      @update:value="changeTab"
+    >
+      <NTabPane name="model" tab="模型" class="agent-model-settings-pane">
         <NAlert v-if="catalogError" type="error" class="mb-3">{{ catalogError }}</NAlert>
         <div class="provider-manager">
           <aside class="provider-sidebar">
@@ -492,7 +548,11 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
             <div class="provider-detail-heading">
               <strong>{{ providerDisplayName(form.provider) }}</strong>
               <span v-if="isDraftProvider" class="provider-detail-badge">新配置，保存后生效</span>
-              <span v-else-if="isActiveProvider" class="provider-detail-badge provider-detail-badge-current">当前使用</span>
+              <span
+                v-else-if="isActiveProvider"
+                class="provider-detail-badge provider-detail-badge-current"
+                >当前使用</span
+              >
               <NButton
                 v-if="savedProvider && !isActiveProvider"
                 class="provider-detail-delete"
@@ -511,7 +571,7 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
             <NForm label-placement="top">
               <AiAgentOAuthLogin
                 v-if="form.provider === 'openai-codex'"
-                :active="show && activeTab === 'model'"
+                :active="activeTab === 'model'"
               />
               <NFormItem v-if="form.provider === 'custom'" label="API 协议">
                 <NSelect v-model:value="form.api" :options="apiOptions" />
@@ -566,12 +626,18 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
                       <NButton
                         size="small"
                         :loading="loadingModels"
-                        :disabled="saving || testing || (form.provider === 'custom' && !savedProvider?.hasApiKey)"
+                        :disabled="
+                          saving ||
+                          testing ||
+                          (form.provider === 'custom' && !savedProvider?.hasApiKey)
+                        "
                         @click="fetchModels"
                       >
                         <RefreshCw :size="14" /> 获取模型列表
                       </NButton>
-                      <NButton size="small" @click="addModel"> <Plus :size="14" /> 添加模型 </NButton>
+                      <NButton size="small" @click="addModel">
+                        <Plus :size="14" /> 添加模型
+                      </NButton>
                     </div>
                   </div>
                   <div class="model-config-headings">
@@ -603,7 +669,9 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
                         <Trash2 :size="15" />
                       </NButton>
                     </div>
-                    <div v-if="form.models.length === 0" class="model-config-empty">尚未添加模型</div>
+                    <div v-if="form.models.length === 0" class="model-config-empty">
+                      尚未添加模型
+                    </div>
                   </div>
                 </div>
               </div>
@@ -615,8 +683,15 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
                   @update:value="updateActiveModel"
                 />
               </NFormItem>
-              <div v-if="form.provider !== 'custom' && form.provider !== 'openai-codex'" class="provider-advanced">
-                <button type="button" class="provider-advanced-toggle" @click="advancedOpen = !advancedOpen">
+              <div
+                v-if="form.provider !== 'custom' && form.provider !== 'openai-codex'"
+                class="provider-advanced"
+              >
+                <button
+                  type="button"
+                  class="provider-advanced-toggle"
+                  @click="advancedOpen = !advancedOpen"
+                >
                   <ChevronDown :size="13" :class="{ 'provider-advanced-open': advancedOpen }" />
                   高级设置
                 </button>
@@ -627,7 +702,10 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
                   <NFormItem label="Base URL">
                     <div class="w-full">
                       <div class="flex items-center gap-2">
-                        <NInput v-model:value="form.baseUrl" placeholder="https://api.openai.com/v1" />
+                        <NInput
+                          v-model:value="form.baseUrl"
+                          placeholder="https://api.openai.com/v1"
+                        />
                         <NButton
                           quaternary
                           circle
@@ -653,14 +731,14 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
           </section>
         </div>
         <div class="provider-footer">
-          <NSelect
+          <NButton
             class="provider-add"
-            :value="null"
-            :options="addableProviderOptions"
-            filterable
-            placeholder="添加供应商"
-            @update:value="(value: string | null) => value && chooseProvider(value)"
-          />
+            secondary
+            :disabled="addableProviderOptions.length === 0"
+            @click="providerPickerOpen = true"
+          >
+            <Plus :size="14" /> 添加供应商
+          </NButton>
           <div class="provider-footer-actions">
             <NButton :loading="testing" :disabled="saving || activating" secondary @click="test">
               测试连接
@@ -705,26 +783,134 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
         <AiAgentSkillSettings ref="skillSettings" />
       </NTabPane>
     </NTabs>
-  </NModal>
+
+    <NModal
+      v-model:show="providerPickerOpen"
+      preset="card"
+      title="添加供应商"
+      class="provider-picker-modal"
+      :bordered="false"
+    >
+      <div v-if="addableProviderOptions.length" class="provider-picker-list app-scrollbar">
+        <button
+          v-for="provider in addableProviderOptions"
+          :key="provider.value"
+          type="button"
+          class="provider-picker-item"
+          @click="chooseProviderFromPicker(provider.value)"
+        >
+          <span>{{ provider.label }}</span>
+          <small v-if="provider.label !== provider.value">{{ provider.value }}</small>
+        </button>
+      </div>
+      <NEmpty v-else description="没有可添加的供应商" />
+    </NModal>
+  </div>
 </template>
 
 <style>
-.agent-settings-modal {
+.agent-settings-view {
   --provider-sidebar-width: 240px;
-  width: min(980px, calc(100vw - 28px));
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 14px 20px 18px;
+}
+
+.agent-settings-tabs {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.agent-settings-tabs .n-tabs-pane-wrapper {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.agent-settings-tabs .n-tab-pane {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.agent-settings-tabs .agent-model-settings-pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.provider-picker-modal {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.provider-picker-list {
+  display: grid;
+  max-height: min(520px, calc(100vh - 180px));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.provider-picker-item {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 13px 14px;
+  border: 1px solid var(--n-border-color);
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.provider-picker-item:hover {
+  border-color: var(--n-primary-color-hover);
+  background: color-mix(in srgb, var(--n-primary-color) 7%, transparent);
+}
+
+.provider-picker-item span {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-picker-item small {
+  overflow: hidden;
+  color: var(--n-text-color-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .provider-manager {
   display: grid;
+  min-height: 0;
+  flex: 1;
   grid-template-columns: var(--provider-sidebar-width) minmax(0, 1fr);
   gap: 16px;
   align-items: stretch;
+  overflow: hidden;
 }
 
 .provider-sidebar {
   display: flex;
+  min-height: 0;
   flex-direction: column;
   gap: 10px;
+  overflow: hidden;
 }
 
 .provider-list {
@@ -734,6 +920,8 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
   align-content: start;
   gap: 6px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .provider-item {
@@ -803,6 +991,7 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
 
 .provider-footer {
   display: grid;
+  flex: 0 0 auto;
   grid-template-columns: var(--provider-sidebar-width) minmax(0, 1fr);
   gap: 16px;
   align-items: center;
@@ -829,9 +1018,11 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
 }
 
 .provider-detail {
-  max-height: 520px;
+  min-height: 0;
   overflow-y: auto;
-  padding-right: 4px;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
 }
 
 .provider-detail-heading {
@@ -922,9 +1113,7 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
 
 .model-config-list {
   display: grid;
-  max-height: 224px;
   gap: 8px;
-  overflow-y: auto;
   padding-right: 3px;
 }
 
@@ -942,6 +1131,10 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
 }
 
 @media (max-width: 720px) {
+  .provider-picker-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .provider-manager {
     grid-template-columns: minmax(0, 1fr);
   }

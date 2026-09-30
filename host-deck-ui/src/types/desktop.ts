@@ -27,6 +27,7 @@ export type DesktopAppId =
   | 'runtime-sessions'
   | 'opencode'
   | 'ai-agent'
+  | 'ai-agent-settings'
   | 'iframe-app'
   | 'docker'
   | 'docker-image-pull'

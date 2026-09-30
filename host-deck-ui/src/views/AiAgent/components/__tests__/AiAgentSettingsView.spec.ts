@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { defineComponent } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAiAgentStore } from '@/stores/ai-agent'
-import AiAgentSettingsModal from '../AiAgentSettingsModal.vue'
+import AiAgentSettingsView from '../AiAgentSettingsView.vue'
 
 const apiMocks = vi.hoisted(() => ({
   getSettings: vi.fn(),
@@ -64,9 +64,8 @@ const anthropicProvider = {
   hasCredentials: true,
 }
 
-function mountModal() {
-  return mount(AiAgentSettingsModal, {
-    props: { show: true },
+function mountView() {
+  return mount(AiAgentSettingsView, {
     global: {
       stubs: {
         AiAgentOAuthLogin: { template: '<div />' },
@@ -95,7 +94,7 @@ function mountModal() {
         NSelect: {
           name: 'NSelect',
           props: ['options', 'value', 'tag'],
-          template: '<select :data-tag="tag ? \'true\' : \'false\'" />',
+          template: "<select :data-tag=\"tag ? 'true' : 'false'\" />",
         },
         NSwitch: {
           props: ['value'],
@@ -109,11 +108,11 @@ function mountModal() {
   })
 }
 
-function getButton(wrapper: ReturnType<typeof mountModal>, text: string) {
+function getButton(wrapper: ReturnType<typeof mountView>, text: string) {
   return wrapper.findAll('button').find((button) => button.text() === text)
 }
 
-describe('AiAgentSettingsModal', () => {
+describe('AiAgentSettingsView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
@@ -122,7 +121,7 @@ describe('AiAgentSettingsModal', () => {
   })
 
   it('disables saving while the selected provider is unchanged', async () => {
-    const wrapper = mountModal()
+    const wrapper = mountView()
     await flushPromises()
 
     expect(getButton(wrapper, '保存')?.attributes('disabled')).toBeDefined()
@@ -137,7 +136,7 @@ describe('AiAgentSettingsModal', () => {
         resolveSave = resolve
       }),
     )
-    const wrapper = mountModal()
+    const wrapper = mountView()
     await flushPromises()
     await wrapper.find('.provider-detail input').setValue('https://api.example.com/v2')
 
@@ -153,7 +152,6 @@ describe('AiAgentSettingsModal', () => {
     resolveSave({ ...structuredClone(settings), baseUrl: 'https://api.example.com/v2' })
     await flushPromises()
     expect(apiMocks.saveProvider).toHaveBeenCalledTimes(1)
-    expect(wrapper.emitted('update:show')).toBeUndefined()
   })
 
   it('restores an independently configured provider and activates it separately', async () => {
@@ -167,7 +165,7 @@ describe('AiAgentSettingsModal', () => {
       model: anthropicProvider.model,
       models: anthropicProvider.models,
     })
-    const wrapper = mountModal()
+    const wrapper = mountView()
     await flushPromises()
     ;(wrapper.vm as unknown as { selectProvider: (provider: string) => void }).selectProvider(
       'anthropic',
@@ -183,7 +181,6 @@ describe('AiAgentSettingsModal', () => {
       model: 'claude-test',
     })
     expect(apiMocks.saveProvider).not.toHaveBeenCalled()
-    expect(wrapper.emitted('update:show')).toEqual([[false]])
   })
 
   it('allows custom model IDs for catalog providers', async () => {
@@ -198,7 +195,7 @@ describe('AiAgentSettingsModal', () => {
       hasOAuth: false,
       hasCredentials: true,
     })
-    const wrapper = mountModal()
+    const wrapper = mountView()
     await flushPromises()
     const component = wrapper.vm as unknown as {
       selectProvider: (provider: string) => void
@@ -223,7 +220,7 @@ describe('AiAgentSettingsModal', () => {
     const store = useAiAgentStore()
     store.settings!.providers.push({ ...anthropicProvider })
     apiMocks.deleteProvider.mockResolvedValue(structuredClone(settings))
-    const wrapper = mountModal()
+    const wrapper = mountView()
     await flushPromises()
     ;(wrapper.vm as unknown as { selectProvider: (provider: string) => void }).selectProvider(
       'anthropic',
@@ -243,9 +240,44 @@ describe('AiAgentSettingsModal', () => {
   })
 
   it('does not offer deletion for the active provider', async () => {
-    const wrapper = mountModal()
+    const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('button[aria-label="删除配置"]').exists()).toBe(false)
     expect(getButton(wrapper, '设为当前')).toBeUndefined()
+  })
+
+  it('selects a new provider from the add-provider modal', async () => {
+    apiMocks.modelCatalog.mockResolvedValue([
+      {
+        id: 'anthropic',
+        name: 'Anthropic',
+        models: [anthropicProvider.models[0]],
+      },
+    ])
+    const wrapper = mountView()
+    await flushPromises()
+
+    await getButton(wrapper, '添加供应商')?.trigger('click')
+    expect(wrapper.find('.provider-picker-modal').exists()).toBe(true)
+
+    await wrapper.get('.provider-picker-item').trigger('click')
+    expect(wrapper.find('.provider-detail-heading').text()).toContain('Anthropic')
+    expect(wrapper.find('.provider-item-draft').exists()).toBe(true)
+  })
+
+  it('asks before switching sections when provider changes are unsaved', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.find('.provider-detail input').setValue('https://api.example.com/v2')
+
+    await wrapper.setProps({ initialTab: 'tools', tabRequestId: 1 })
+
+    expect(uiMocks.dialog.warning).toHaveBeenCalledOnce()
+    const options = uiMocks.dialog.warning.mock.calls[0]![0] as unknown as {
+      onPositiveClick: () => void
+    }
+    options.onPositiveClick()
+    await wrapper.vm.$nextTick()
+    expect((wrapper.vm as unknown as { activeTab: string }).activeTab).toBe('tools')
   })
 })

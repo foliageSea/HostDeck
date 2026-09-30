@@ -74,6 +74,22 @@ describe('desktop window management', () => {
     expect(store.openWindow('ai-agent')).toBe(firstWindowId)
   })
 
+  it('opens AI Agent settings as a child window', () => {
+    const store = useDesktopStore()
+    const parentId = store.openWindow('ai-agent')!
+    const settingsId = store.openWindow('ai-agent-settings', { initialTab: 'model' }, { parentId })!
+
+    expect(store.windows.find((window) => window.id === settingsId)).toMatchObject({
+      appId: 'ai-agent-settings',
+      height: 680,
+      maximizable: false,
+      minimizable: false,
+      parentId,
+      title: 'AI Agent 设置',
+    })
+    expect(store.apps['ai-agent-settings'].showInLaunchpad).not.toBe(true)
+  })
+
   it('opens configured multi-instance applications in separate windows', () => {
     const store = useDesktopStore()
     const settingsWindowId = store.openWindow('settings')!

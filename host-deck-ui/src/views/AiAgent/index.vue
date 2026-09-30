@@ -35,11 +35,11 @@ import {
 } from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
 import { MAX_SELECTED_SKILLS, useAiAgentStore } from '@/stores/ai-agent'
+import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import AiAgentMarkdown from './components/AiAgentMarkdown.vue'
 import AiAgentSkillPicker from './components/AiAgentSkillPicker.vue'
-import AiAgentSettingsModal from './components/AiAgentSettingsModal.vue'
 import AiAgentToolCall from './components/AiAgentToolCall.vue'
 import {
   filesToImageAttachments,
@@ -53,7 +53,10 @@ interface ConversationGroup {
   conversations: AiAgentConversation[]
 }
 
+const props = defineProps<{ windowId?: string }>()
+
 const agentStore = useAiAgentStore()
+const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 const sessionConnectionIds = new Set<string>()
@@ -81,10 +84,8 @@ const {
 const rootElement = ref<HTMLElement>()
 const compactLayout = ref(false)
 const sidebarOpen = ref(true)
-const settingsOpen = ref(false)
 const modeMenuOpen = ref(false)
 const modelMenuOpen = ref(false)
-const settingsSection = ref<'mcp' | 'model' | 'skills' | 'tools'>('model')
 const query = ref('')
 const input = ref('')
 const imageInput = ref<HTMLInputElement>()
@@ -217,9 +218,17 @@ const activeModelName = computed(() => {
   return activeModel?.name || settings.value?.model || '选择模型'
 })
 
+let settingsRequestId = 0
+
 function openSettings(section: 'mcp' | 'model' | 'skills' | 'tools' = 'model') {
-  settingsSection.value = section
-  settingsOpen.value = true
+  const windowProps = {
+    initialTab: section,
+    tabRequestId: ++settingsRequestId,
+  }
+  const settingsWindowId = desktopStore.openWindow('ai-agent-settings', windowProps, {
+    parentId: props.windowId,
+  })
+  if (settingsWindowId) desktopStore.updateWindowProps(settingsWindowId, windowProps)
 }
 
 function selectRunMode(mode: boolean) {
@@ -1198,8 +1207,6 @@ let resizeObserver: ResizeObserver | undefined
     >
       <X :size="17" />
     </button>
-
-    <AiAgentSettingsModal v-model:show="settingsOpen" :initial-tab="settingsSection" />
   </div>
 </template>
 

@@ -8,6 +8,7 @@ import type { AppIconKey, DesktopAppId } from '@/types/desktop'
 import { basename, normalize } from '@/utils/path'
 import DashboardView from '@/views/Dashboard/index.vue'
 import AiAgentView from '@/views/AiAgent/index.vue'
+import AiAgentSettingsView from '@/views/AiAgent/components/AiAgentSettingsView.vue'
 import DockerCreateContainerView from '@/views/Docker/components/DockerCreateContainerView.vue'
 import DockerCreateComposeView from '@/views/Docker/components/DockerCreateComposeView.vue'
 import DockerComposeServicesView from '@/views/Docker/components/DockerComposeServicesView.vue'
@@ -518,6 +519,20 @@ export const useDesktopStore = defineStore('desktop', {
         title: 'AI Agent',
         width: 1180,
         showInLaunchpad: true,
+      },
+      'ai-agent-settings': {
+        component: markRaw(AiAgentSettingsView),
+        height: 680,
+        hide: true,
+        icon: 'ai-agent',
+        id: 'ai-agent-settings',
+        maximizable: false,
+        minimizable: false,
+        minHeight: 520,
+        minWidth: 760,
+        singleInstance: true,
+        title: 'AI Agent 设置',
+        width: 1000,
       },
       'docker-create-container': {
         component: markRaw(DockerCreateContainerView),
@@ -1304,6 +1319,18 @@ export const useDesktopStore = defineStore('desktop', {
 
       targetWindow.x = x
       targetWindow.y = y
+    },
+
+    updateWindowProps(id: string, props: Record<string, unknown>) {
+      const targetWindow = this.windows.find((window) => window.id === id)
+      if (!targetWindow) {
+        return
+      }
+
+      targetWindow.props = {
+        ...targetWindow.props,
+        ...props,
+      }
     },
 
     updateWindowSize(id: string, width: number, height: number) {
