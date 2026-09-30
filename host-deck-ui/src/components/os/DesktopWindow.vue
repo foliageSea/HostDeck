@@ -32,6 +32,10 @@ const windowStyle = computed(() => {
   }
 
   return {
+    border:
+      settingsStore.isDark && settingsStore.darkWindowBorder
+        ? '1px solid var(--app-primary-color)'
+        : undefined,
     height: `${props.window.height}px`,
     left: `${props.window.x}px`,
     minHeight: `${props.window.minHeight}px`,
@@ -155,7 +159,7 @@ onUnmounted(() => {
 
 <template>
     <section
-      class="absolute flex flex-col overflow-hidden opacity-100 transition-[opacity,transform,box-shadow] duration-[240ms] ease-in-out"
+      class="absolute flex flex-col overflow-hidden opacity-100 transition-[opacity,transform,box-shadow,border-color] duration-[240ms] ease-in-out"
       :class="[
         settingsStore.isDark
           ? 'bg-transparent shadow-[0_22px_48px_rgba(0,0,0,0.56),0_8px_18px_rgba(0,0,0,0.34),0_0_0_1px_rgba(255,255,255,0.08)]'

@@ -257,6 +257,17 @@ async function exportLogs() {
                 />
               </div>
             </NFormItem>
+            <NFormItem label="暗色窗口边框">
+              <div class="flex w-full items-center justify-between gap-[16px]">
+                <span class="text-[12px] text-[rgba(148,163,184,0.96)]">
+                  使用主题色边框区分暗色模式下的窗口层次。
+                </span>
+                <NSwitch
+                  :value="settingsStore.darkWindowBorder"
+                  @update:value="settingsStore.setDarkWindowBorder"
+                />
+              </div>
+            </NFormItem>
             <NFormItem label="圆角风格">
               <NRadioGroup
                 :value="settingsStore.cornerStyle"

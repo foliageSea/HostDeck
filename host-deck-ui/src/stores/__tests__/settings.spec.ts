@@ -58,6 +58,17 @@ describe('settings window controls style', () => {
     expect(window.localStorage.getItem('host-deck-ui.windowBlur')).toBe('true')
   })
 
+  it('enables the dark window border by default and persists changes', async () => {
+    const settingsStore = useSettingsStore()
+
+    expect(settingsStore.darkWindowBorder).toBe(true)
+
+    settingsStore.setDarkWindowBorder(false)
+    await nextTick()
+
+    expect(window.localStorage.getItem('host-deck-ui.darkWindowBorder')).toBe('false')
+  })
+
   it('persists a custom window switch shortcut', async () => {
     const settingsStore = useSettingsStore()
 

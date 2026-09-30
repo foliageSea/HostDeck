@@ -23,6 +23,7 @@ const DESKTOP_WALLPAPER_STORAGE_KEY = 'host-deck-ui.desktopWallpaper'
 const LOGIN_WALLPAPER_STORAGE_KEY = 'host-deck-ui.loginWallpaper'
 const WINDOW_CONTROLS_STYLE_STORAGE_KEY = 'host-deck-ui.windowControlsStyle'
 const WINDOW_BLUR_STORAGE_KEY = 'host-deck-ui.windowBlur'
+const DARK_WINDOW_BORDER_STORAGE_KEY = 'host-deck-ui.darkWindowBorder'
 const CORNER_STYLE_STORAGE_KEY = 'host-deck-ui.cornerStyle'
 const DOCK_AUTO_HIDE_STORAGE_KEY = 'host-deck-ui.dockAutoHide'
 const WINDOW_SWITCH_SHORTCUT_STORAGE_KEY = 'host-deck-ui.windowSwitchShortcut'
@@ -67,6 +68,10 @@ function resolveStoredDockAutoHide(): boolean {
 
 function resolveStoredWindowBlur(): boolean {
   return window.localStorage.getItem(WINDOW_BLUR_STORAGE_KEY) === 'true'
+}
+
+function resolveStoredDarkWindowBorder(): boolean {
+  return window.localStorage.getItem(DARK_WINDOW_BORDER_STORAGE_KEY) !== 'false'
 }
 
 function resolveStoredWindowSwitchShortcut(): KeyboardShortcut {
@@ -232,6 +237,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const editorFontFamily = ref(resolveStoredEditorFontFamily())
   const windowControlsStyle = ref<WindowControlsStyle>(resolveStoredWindowControlsStyle())
   const windowBlur = ref(resolveStoredWindowBlur())
+  const darkWindowBorder = ref(resolveStoredDarkWindowBorder())
   const cornerStyle = ref<CornerStyle>(resolveStoredCornerStyle())
   const dockAutoHide = ref(resolveStoredDockAutoHide())
   const windowSwitchShortcut = ref(resolveStoredWindowSwitchShortcut())
@@ -384,6 +390,14 @@ export const useSettingsStore = defineStore('settings', () => {
   )
 
   watch(
+    darkWindowBorder,
+    (value) => {
+      window.localStorage.setItem(DARK_WINDOW_BORDER_STORAGE_KEY, String(value))
+    },
+    { immediate: true },
+  )
+
+  watch(
     cornerStyle,
     (value) => {
       window.localStorage.setItem(CORNER_STYLE_STORAGE_KEY, normalizeCornerStyle(value))
@@ -447,6 +461,10 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function setWindowBlur(value: boolean) {
     windowBlur.value = value
+  }
+
+  function setDarkWindowBorder(value: boolean) {
+    darkWindowBorder.value = value
   }
 
   function setCornerStyle(style: CornerStyle) {
@@ -524,6 +542,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     cornerStyle,
+    darkWindowBorder,
     desktopWallpaper,
     dockAutoHide,
     editorFontFamily,
@@ -545,6 +564,7 @@ export const useSettingsStore = defineStore('settings', () => {
     setLoginWallpaper,
     setCornerStyle,
     setDockAutoHide,
+    setDarkWindowBorder,
     setPrimaryColor,
     setWindowControlsStyle,
     setWindowBlur,

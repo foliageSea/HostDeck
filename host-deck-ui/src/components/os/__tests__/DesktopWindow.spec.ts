@@ -74,4 +74,34 @@ describe('DesktopWindow', () => {
     expect(wrapper.get('[data-window-title-bar]').classes()).toContain('bg-white')
     expect(wrapper.get('[data-window-body]').classes()).toContain('bg-white')
   })
+
+  it('adds a border to floating windows only in dark mode', async () => {
+    const desktopStore = useDesktopStore()
+    const settingsStore = useSettingsStore()
+    const windowId = desktopStore.openWindow('files')!
+    const desktopWindow = desktopStore.windows.find((window) => window.id === windowId)!
+    const wrapper = shallowMount(DesktopWindow, { props: { window: desktopWindow } })
+
+    settingsStore.setTheme('dark')
+    await nextTick()
+    expect(wrapper.get('section').attributes('style')).toContain(
+      'border: 1px solid var(--app-primary-color)',
+    )
+
+    settingsStore.setDarkWindowBorder(false)
+    await nextTick()
+    expect(wrapper.get('section').attributes('style')).not.toContain('--app-primary-color')
+
+    settingsStore.setDarkWindowBorder(true)
+    await nextTick()
+
+    desktopStore.maximizeWindow(windowId)
+    await nextTick()
+    expect(wrapper.get('section').attributes('style')).not.toContain('--app-primary-color')
+
+    desktopStore.maximizeWindow(windowId)
+    settingsStore.setTheme('light')
+    await nextTick()
+    expect(wrapper.get('section').attributes('style')).not.toContain('--app-primary-color')
+  })
 })
