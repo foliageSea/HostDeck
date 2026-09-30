@@ -6,18 +6,28 @@ const mocks = vi.hoisted(() => ({
   api: { oauthStatus: vi.fn(), oauthLogin: vi.fn(), oauthCancel: vi.fn(), oauthLogout: vi.fn() },
   store: { loadSettings: vi.fn(), settings: undefined as unknown },
   success: vi.fn(),
+  error: vi.fn(),
+  writeText: vi.fn(),
 }))
 vi.mock('@/api/ai-agent', () => ({ aiAgentApi: mocks.api }))
 vi.mock('@/stores/ai-agent', () => ({ useAiAgentStore: () => mocks.store }))
-vi.mock('@/lib/ui', () => ({ getUiApi: () => ({ message: { success: mocks.success } }) }))
+vi.mock('@/lib/ui', () => ({
+  getUiApi: () => ({ message: { error: mocks.error, success: mocks.success } }),
+}))
 
 function render() {
   return mount(AiAgentOAuthLogin, {
     props: { active: true },
-    global: { stubs: { NButton: {
-      props: ['loading', 'disabled'], emits: ['click'],
-      template: '<button :disabled="disabled || loading" @click="$emit(\'click\')"><slot /></button>',
-    } } },
+    global: {
+      stubs: {
+        NButton: {
+          props: ['loading', 'disabled', 'tag'],
+          emits: ['click'],
+          template:
+            '<component :is="tag || \'button\'" :disabled="disabled || loading" @click="$emit(\'click\')"><slot /></component>',
+        },
+      },
+    },
   })
 }
 
@@ -26,6 +36,11 @@ describe('OpenAI device login', () => {
     vi.resetAllMocks()
     vi.useFakeTimers()
     mocks.api.oauthStatus.mockResolvedValue({ status: 'idle', authenticated: false })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: mocks.writeText },
+    })
+    mocks.writeText.mockResolvedValue(undefined)
   })
   afterEach(() => { vi.useRealTimers() })
 
@@ -38,7 +53,14 @@ describe('OpenAI device login', () => {
     await wrapper.find('button').trigger('click')
     await flushPromises()
     expect(wrapper.find('code').text()).toBe('ABCD-1234')
-    expect(wrapper.find('a').attributes('href')).toBe('https://auth.openai.com/codex/device')
+    await wrapper.get('button[aria-label="复制设备码"]').trigger('click')
+    await flushPromises()
+    expect(mocks.writeText).toHaveBeenCalledWith('ABCD1234')
+    expect(mocks.success).toHaveBeenCalledWith('设备码已复制。')
+    const actions = wrapper.findAll('.agent-oauth-actions > *')
+    expect(actions.map((action) => action.text())).toEqual(['打开 OpenAI 授权页面', '取消登录'])
+    expect(actions[0]!.element.tagName).toBe('A')
+    expect(actions[0]!.attributes('href')).toBe('https://auth.openai.com/codex/device')
     mocks.api.oauthStatus.mockResolvedValue({ status: 'success', authenticated: true, id: 'login-1' })
     await vi.advanceTimersByTimeAsync(2000)
     await flushPromises()
@@ -57,7 +79,10 @@ describe('OpenAI device login', () => {
     mocks.api.oauthCancel.mockResolvedValue({ status: 'cancelled', authenticated: false, id: 'login-2' })
     const wrapper = render()
     await flushPromises()
-    await wrapper.find('button').trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '取消登录')!
+      .trigger('click')
     await flushPromises()
     expect(mocks.api.oauthCancel).toHaveBeenCalledWith('login-2')
     expect(wrapper.find('code').exists()).toBe(false)

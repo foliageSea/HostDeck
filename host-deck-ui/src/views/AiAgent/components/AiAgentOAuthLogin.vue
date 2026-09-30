@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { Copy } from '@lucide/vue'
 import { aiAgentApi, type AiAgentOAuthStatus } from '@/api/ai-agent'
 import { getUiApi } from '@/lib/ui'
 import { useAiAgentStore } from '@/stores/ai-agent'
@@ -82,6 +83,17 @@ async function logout() {
     busy.value = false
   }
 }
+
+async function copyUserCode() {
+  const userCode = status.value?.userCode
+  if (!userCode) return
+  try {
+    await navigator.clipboard.writeText(userCode.replaceAll('-', ''))
+    getUiApi().message.success('设备码已复制。')
+  } catch {
+    getUiApi().message.error('复制设备码失败，请手动复制。')
+  }
+}
 </script>
 
 <template>
@@ -92,15 +104,29 @@ async function logout() {
     <div v-if="pending" class="mb-3 text-xs" aria-live="polite">
       <template v-if="status?.userCode && status.verificationUri">
         <div>打开授权页面并输入设备码：</div>
-        <code class="my-2 block select-text text-lg font-bold tracking-widest">{{ status.userCode }}</code>
-        <a :href="status.verificationUri" target="_blank" rel="noopener noreferrer" class="underline">打开 OpenAI 授权页面</a>
+        <div class="my-2 flex items-center gap-2">
+          <code class="block select-text text-lg font-bold tracking-widest">{{ status.userCode }}</code>
+          <NButton quaternary circle size="small" aria-label="复制设备码" @click="copyUserCode">
+            <Copy :size="15" />
+          </NButton>
+        </div>
         <p class="mt-2 opacity-60">完成授权后自动更新。若页面要求，请在 ChatGPT 安全设置中启用设备码登录。</p>
       </template>
       <span v-else>正在获取设备码…</span>
     </div>
     <div v-if="error || status?.error" role="alert" class="mb-3 text-xs text-red-500">{{ error || status?.error }}</div>
-    <div class="flex gap-2">
+    <div class="agent-oauth-actions flex gap-2">
       <NButton v-if="!pending" size="small" :loading="busy" @click="login">{{ status?.authenticated ? '重新登录' : '登录 OpenAI' }}</NButton>
+      <NButton
+        v-if="pending && status?.verificationUri"
+        tag="a"
+        size="small"
+        :href="status.verificationUri"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        打开 OpenAI 授权页面
+      </NButton>
       <NButton v-if="pending" size="small" :loading="busy" @click="cancel">取消登录</NButton>
       <NButton v-if="status?.authenticated" size="small" :disabled="busy" @click="logout">退出登录</NButton>
     </div>
