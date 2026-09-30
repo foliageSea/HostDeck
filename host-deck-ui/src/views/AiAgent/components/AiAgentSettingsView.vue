@@ -514,6 +514,7 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
                 type="button"
                 class="provider-item"
                 :class="{ 'provider-item-active': provider.id === form.provider }"
+                :aria-pressed="provider.id === form.provider"
                 @click="chooseProvider(provider.id)"
               >
                 <span class="provider-item-main">
@@ -536,6 +537,7 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
                 v-if="isDraftProvider"
                 type="button"
                 class="provider-item provider-item-active provider-item-draft"
+                aria-pressed="true"
               >
                 <span class="provider-item-main">
                   <strong>{{ providerDisplayName(form.provider) }}</strong>
@@ -877,8 +879,8 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
 }
 
 .provider-picker-item:hover {
-  border-color: var(--n-primary-color-hover);
-  background: color-mix(in srgb, var(--n-primary-color) 7%, transparent);
+  border-color: var(--app-primary-border);
+  background: var(--app-primary-soft);
 }
 
 .provider-picker-item span {
@@ -939,12 +941,16 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
 }
 
 .provider-item:hover {
-  border-color: var(--n-primary-color-hover);
+  border-color: var(--app-primary-border);
 }
 
 .provider-item-active {
-  border-color: var(--n-primary-color);
-  background: color-mix(in srgb, var(--n-primary-color) 8%, transparent);
+  border-color: var(--app-primary-border-strong);
+  background: var(--app-primary-soft-strong);
+}
+
+.provider-item-active .provider-item-main strong {
+  color: var(--app-primary-color);
 }
 
 .provider-item-draft {
@@ -984,7 +990,7 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
   flex-shrink: 0;
   padding: 1px 6px;
   border-radius: 999px;
-  background: var(--n-primary-color);
+  background: var(--app-primary-color);
   color: #fff;
   font-size: 10px;
 }
@@ -1041,7 +1047,7 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
 }
 
 .provider-detail-badge-current {
-  background: var(--n-primary-color);
+  background: var(--app-primary-color);
   color: #fff;
 }
 
