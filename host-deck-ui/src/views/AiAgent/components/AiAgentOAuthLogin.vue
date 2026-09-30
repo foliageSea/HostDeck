@@ -136,7 +136,7 @@ async function copyUserCode() {
 
 <style scoped>
 .agent-oauth-panel {
-  border: 1px solid var(--n-border-color);
+  border: 1px solid var(--app-primary-border);
   border-radius: var(--app-radius-item);
   background: color-mix(in srgb, var(--n-color-embedded) 72%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, currentColor 3%, transparent);
@@ -146,7 +146,7 @@ async function copyUserCode() {
 }
 
 .agent-oauth-panel-authenticated {
-  border-color: color-mix(in srgb, #22c55e 28%, var(--n-border-color));
+  border-color: color-mix(in srgb, #22c55e 45%, transparent);
   background: color-mix(in srgb, #22c55e 4%, var(--n-color-embedded));
 }
 </style>
