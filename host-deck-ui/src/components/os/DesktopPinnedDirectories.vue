@@ -7,6 +7,10 @@ import { basename } from '@/utils/path'
 import { directoryTreeIconUrl } from '@/views/Files/components/fileIcons'
 import { Box } from '@lucide/vue'
 
+const emit = defineEmits<{
+  blankContextMenu: [position: { x: number; y: number }]
+}>()
+
 const DESKTOP_ICON_DRAG_THRESHOLD = 4
 const DESKTOP_ICON_HEIGHT = 108
 const DESKTOP_ICON_WIDTH = 96
@@ -595,6 +599,7 @@ function handleBlankContextMenu(event: MouseEvent) {
   closeContextMenu()
 
   if (selectedPaths.value.length === 0) {
+    emit('blankContextMenu', { x: event.clientX, y: event.clientY })
     return
   }
 

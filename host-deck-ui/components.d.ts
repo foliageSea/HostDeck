@@ -20,6 +20,7 @@ declare module 'vue' {
     DesktopPinnedDirectories: typeof import('./src/components/os/DesktopPinnedDirectories.vue')['default']
     DesktopShell: typeof import('./src/components/os/DesktopShell.vue')['default']
     DesktopTopBar: typeof import('./src/components/os/DesktopTopBar.vue')['default']
+    DesktopWidgets: typeof import('./src/components/widgets/DesktopWidgets.vue')['default']
     DesktopWindow: typeof import('./src/components/os/DesktopWindow.vue')['default']
     DesktopWindowSwitcher: typeof import('./src/components/os/DesktopWindowSwitcher.vue')['default']
     LoginScreen: typeof import('./src/components/os/LoginScreen.vue')['default']
@@ -67,7 +68,9 @@ declare module 'vue' {
     NTag: typeof import('naive-ui')['NTag']
     NTooltip: typeof import('naive-ui')['NTooltip']
     NTree: typeof import('naive-ui')['NTree']
+    PerformanceMonitorWidget: typeof import('./src/components/widgets/PerformanceMonitorWidget.vue')['default']
     RoundedButton: typeof import('./src/components/common/RoundedButton.vue')['default']
     UiApiBridge: typeof import('./src/components/common/UiApiBridge.vue')['default']
+    WidgetSparkline: typeof import('./src/components/widgets/WidgetSparkline.vue')['default']
   }
 }

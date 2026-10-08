@@ -25,6 +25,12 @@ import { useSshStore } from '@/stores/ssh'
 use([CanvasRenderer, GridComponent, LegendComponent, LineChart, TooltipComponent])
 
 type RangeKey = '1m' | '5m' | '10m'
+type DashboardTab = 'host' | 'performance'
+
+const props = defineProps<{
+  initialTab?: DashboardTab
+  viewRequestId?: number
+}>()
 
 const sshStore = useSshStore()
 const settingsStore = useSettingsStore()
@@ -39,7 +45,7 @@ const historyLoading = ref(true)
 const historyError = ref<string | null>(null)
 const selectedRange = ref<RangeKey>('5m')
 const smoothLines = ref(true)
-const activeTab = ref<'host' | 'performance'>('host')
+const activeTab = ref<DashboardTab>(props.initialTab ?? 'host')
 const showAddress = ref(true)
 const samples = ref<MonitorResponse[]>([])
 
@@ -122,6 +128,13 @@ const memoryPeakDisplay = computed(() => formatPercent(getPeak(memorySeries.valu
 const memoryAverageDisplay = computed(() => formatPercent(getAverage(memorySeries.value)))
 const uploadAverageDisplay = computed(() => formatSpeed(getAverage(uploadSeries.value)))
 const downloadAverageDisplay = computed(() => formatSpeed(getAverage(downloadSeries.value)))
+
+watch(
+  () => props.viewRequestId,
+  () => {
+    if (props.initialTab) activeTab.value = props.initialTab
+  },
+)
 
 watch(
   () => sshStore.monitorData,

@@ -1,23 +1,30 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import type { DropdownOption } from 'naive-ui'
+import { desktopWidgetDefinitions, desktopWidgetTypes } from '@/components/widgets/registry'
 import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { matchesKeyboardShortcut } from '@/lib/keyboard-shortcut'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
+import { useDesktopWidgetStore } from '@/stores/desktop-widget'
+import type { DesktopWidgetType } from '@/types/desktop-widget'
 import DesktopDock from '@/components/os/DesktopDock.vue'
 import DesktopLaunchpad from '@/components/os/DesktopLaunchpad.vue'
 import DesktopPinnedDirectories from '@/components/os/DesktopPinnedDirectories.vue'
 import DesktopTopBar from '@/components/os/DesktopTopBar.vue'
 import DesktopWindow from '@/components/os/DesktopWindow.vue'
 import DesktopWindowSwitcher from '@/components/os/DesktopWindowSwitcher.vue'
+import DesktopWidgets from '@/components/widgets/DesktopWidgets.vue'
 
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
+const widgetStore = useDesktopWidgetStore()
 const switcherVisible = ref(false)
 const launchpadVisible = ref(false)
 const switcherIndex = ref(0)
 const switcherWindows = ref<typeof desktopStore.windows>([])
 const directSwitchActive = ref(false)
+const desktopContextMenu = ref<{ x: number; y: number } | null>(null)
 
 const windows = computed(() => desktopStore.windows)
 const desktopDockSafeArea = computed(() =>
@@ -53,6 +60,34 @@ const desktopVideoWallpaperUrl = computed(() => {
     return wallpaperUrl
   }
 })
+const desktopContextMenuOptions = computed<DropdownOption[]>(() => [
+  {
+    key: 'widgets',
+    label: '添加小组件',
+    children: desktopWidgetTypes.map((type) => {
+      const definition = desktopWidgetDefinitions[type]
+      return {
+        disabled: Boolean(definition.singleInstance && widgetStore.hasWidget(type)),
+        key: `add-widget:${type}`,
+        label:
+          definition.singleInstance && widgetStore.hasWidget(type)
+            ? `${definition.title}（已添加）`
+            : definition.title,
+      }
+    }),
+  },
+])
+
+function showDesktopContextMenu(position: { x: number; y: number }) {
+  desktopContextMenu.value = position
+}
+
+function handleDesktopContextMenuSelect(key: string | number) {
+  if (typeof key === 'string' && key.startsWith('add-widget:')) {
+    widgetStore.addWidget(key.slice('add-widget:'.length) as DesktopWidgetType)
+  }
+  desktopContextMenu.value = null
+}
 
 function selectWindow(index: number) {
   const targetWindow = switcherWindows.value[index]
@@ -205,7 +240,8 @@ onUnmounted(() => {
     <DesktopTopBar />
 
     <main class="absolute z-0 [inset:var(--desktop-topbar-height)_0_var(--desktop-dock-safe-area)]">
-      <DesktopPinnedDirectories />
+      <DesktopPinnedDirectories @blank-context-menu="showDesktopContextMenu" />
+      <DesktopWidgets />
       <TransitionGroup name="desktop-window-anim" tag="div" class="relative h-full w-full">
         <DesktopWindow v-for="window in windows" :key="window.id" :window="window" />
       </TransitionGroup>
@@ -214,6 +250,17 @@ onUnmounted(() => {
     <DesktopDock @open-launchpad="launchpadVisible = true" />
 
     <DesktopLaunchpad :show="launchpadVisible" @close="launchpadVisible = false" />
+
+    <NDropdown
+      trigger="manual"
+      placement="bottom-start"
+      :show="Boolean(desktopContextMenu)"
+      :x="desktopContextMenu?.x ?? 0"
+      :y="desktopContextMenu?.y ?? 0"
+      :options="desktopContextMenuOptions"
+      @clickoutside="desktopContextMenu = null"
+      @select="handleDesktopContextMenuSelect"
+    />
 
     <DesktopWindowSwitcher
       v-if="switcherVisible"
