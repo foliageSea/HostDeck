@@ -62,8 +62,8 @@ describe('DesktopWidgets', () => {
     await wrapper.vm.$nextTick()
     const widget = wrapper.get('[data-desktop-widget-id="performance-monitor"]')
 
-    expect(widget.attributes('style')).toContain('left: 586px')
-    expect(widget.attributes('style')).toContain('top: 24px')
+    expect(widget.attributes('style')).toContain('left: 590px')
+    expect(widget.attributes('style')).toContain('top: 20px')
 
     const dragHandle = wrapper.get('[data-widget-drag-handle]')
     dispatchPointer(dragHandle.element, 'pointerdown', {
@@ -84,7 +84,7 @@ describe('DesktopWidgets', () => {
     })
     await wrapper.vm.$nextTick()
 
-    expect(widgetStore.widgets[0]).toMatchObject({ x: 486, y: 124 })
+    expect(widgetStore.widgets[0]).toMatchObject({ x: 516, y: 156 })
   })
 
   it('opens the registered details application', async () => {

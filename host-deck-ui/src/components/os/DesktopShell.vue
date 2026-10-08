@@ -25,6 +25,7 @@ const switcherIndex = ref(0)
 const switcherWindows = ref<typeof desktopStore.windows>([])
 const directSwitchActive = ref(false)
 const desktopContextMenu = ref<{ x: number; y: number } | null>(null)
+const shortcutGridCells = ref<string[]>([])
 
 const windows = computed(() => desktopStore.windows)
 const desktopDockSafeArea = computed(() =>
@@ -240,8 +241,11 @@ onUnmounted(() => {
     <DesktopTopBar />
 
     <main class="absolute z-0 [inset:var(--desktop-topbar-height)_0_var(--desktop-dock-safe-area)]">
-      <DesktopPinnedDirectories @blank-context-menu="showDesktopContextMenu" />
-      <DesktopWidgets />
+      <DesktopPinnedDirectories
+        @blank-context-menu="showDesktopContextMenu"
+        @grid-occupancy-change="shortcutGridCells = $event"
+      />
+      <DesktopWidgets :blocked-grid-cells="shortcutGridCells" />
       <TransitionGroup name="desktop-window-anim" tag="div" class="relative h-full w-full">
         <DesktopWindow v-for="window in windows" :key="window.id" :window="window" />
       </TransitionGroup>

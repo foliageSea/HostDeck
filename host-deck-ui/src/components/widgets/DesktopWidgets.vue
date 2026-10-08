@@ -3,13 +3,25 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ExternalLink } from '@lucide/vue'
 import type { DropdownOption } from 'naive-ui'
 import { desktopWidgetDefinitions } from './registry'
+import {
+  DESKTOP_GRID_PADDING,
+  getDesktopGridCellAtPosition,
+  getDesktopGridPosition,
+  getDesktopGridSpan,
+  occupyDesktopGridCells,
+  resolveDesktopGridCell,
+  snapDesktopGridPosition,
+  type DesktopGridCellKey,
+} from '@/lib/desktop-grid'
 import { useDesktopStore } from '@/stores/desktop'
 import { useDesktopWidgetStore } from '@/stores/desktop-widget'
 import { useSettingsStore } from '@/stores/settings'
 
-const edgeGap = 24
 const dragThreshold = 4
 let detailsRequestId = 0
+const props = defineProps<{
+  blockedGridCells?: DesktopGridCellKey[]
+}>()
 const desktopStore = useDesktopStore()
 const widgetStore = useDesktopWidgetStore()
 const settingsStore = useSettingsStore()
@@ -29,25 +41,59 @@ const dragState = ref<{
 } | null>(null)
 
 const renderedWidgets = computed(() =>
-  widgetStore.widgets.map((widget) => {
-    const definition = desktopWidgetDefinitions[widget.type]
-    const maxX = Math.max(edgeGap, bounds.value.width - definition.width - edgeGap)
-    const maxY = Math.max(edgeGap, bounds.value.height - definition.height - edgeGap)
-    const width =
-      bounds.value.width > 0
-        ? Math.min(definition.width, Math.max(0, bounds.value.width - edgeGap * 2))
-        : definition.width
-    const drag = dragState.value?.id === widget.id ? dragState.value : null
-    const desiredX = drag?.currentX ?? widget.x ?? maxX
-    const desiredY = drag?.currentY ?? widget.y ?? edgeGap
-    return {
-      definition,
-      instance: widget,
-      width,
-      x: Math.min(maxX, Math.max(edgeGap, desiredX)),
-      y: Math.min(maxY, Math.max(edgeGap, desiredY)),
-    }
-  }),
+  (() => {
+    const occupiedCells = new Set<DesktopGridCellKey>(props.blockedGridCells ?? [])
+
+    return widgetStore.widgets.map((widget) => {
+      const definition = desktopWidgetDefinitions[widget.type]
+      const width =
+        bounds.value.width > 0
+          ? Math.min(definition.width, Math.max(0, bounds.value.width - DESKTOP_GRID_PADDING * 2))
+          : definition.width
+      const maxX = Math.max(DESKTOP_GRID_PADDING, bounds.value.width - width - DESKTOP_GRID_PADDING)
+      const maxY = Math.max(
+        DESKTOP_GRID_PADDING,
+        bounds.value.height - definition.height - DESKTOP_GRID_PADDING,
+      )
+      const drag = dragState.value?.id === widget.id ? dragState.value : null
+      const desiredPosition = {
+        x: drag?.currentX ?? widget.x ?? maxX,
+        y: drag?.currentY ?? widget.y ?? DESKTOP_GRID_PADDING,
+      }
+      const snappedPosition = snapDesktopGridPosition(
+        desiredPosition.x,
+        desiredPosition.y,
+        width,
+        definition.height,
+        bounds.value.width,
+        bounds.value.height,
+      )
+      const span = getDesktopGridSpan(width, definition.height)
+      const cell = resolveDesktopGridCell(
+        getDesktopGridCellAtPosition(snappedPosition.x, snappedPosition.y, bounds.value.height),
+        span,
+        occupiedCells,
+        bounds.value.height,
+        widgetStore.widgets.length + 1,
+      )
+      occupyDesktopGridCells(occupiedCells, cell, span)
+      const position = getDesktopGridPosition(cell)
+
+      return {
+        definition,
+        instance: widget,
+        width,
+        x:
+          desiredPosition.x >= maxX
+            ? maxX
+            : Math.min(maxX, Math.max(DESKTOP_GRID_PADDING, position.x)),
+        y:
+          desiredPosition.y >= maxY
+            ? maxY
+            : Math.min(maxY, Math.max(DESKTOP_GRID_PADDING, position.y)),
+      }
+    })
+  })(),
 )
 const contextMenuOptions = computed<DropdownOption[]>(() => {
   const widget = widgetStore.widgets.find((item) => item.id === contextMenu.value?.id)
@@ -172,9 +218,7 @@ onUnmounted(() => {
       :data-desktop-widget-id="widget.instance.id"
       class="app-radius-card pointer-events-auto absolute flex overflow-hidden backdrop-blur-[18px]"
       :class="[
-        settingsStore.isDark
-          ? 'bg-[rgba(15,23,42,0.68)]'
-          : 'bg-[rgba(255,255,255,0.72)]',
+        settingsStore.isDark ? 'bg-[rgba(15,23,42,0.68)]' : 'bg-[rgba(255,255,255,0.72)]',
         dragState?.id === widget.instance.id ? 'cursor-grabbing opacity-90 transition-none' : '',
       ]"
       :style="{

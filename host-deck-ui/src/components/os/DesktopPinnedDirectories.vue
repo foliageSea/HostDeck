@@ -1,6 +1,23 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getUiApi } from '@/lib/ui'
+import {
+  DESKTOP_GRID_CELL_HEIGHT,
+  DESKTOP_GRID_CELL_WIDTH,
+  DESKTOP_GRID_GAP_X,
+  DESKTOP_GRID_GAP_Y,
+  DESKTOP_GRID_PADDING,
+  clampDesktopGridPosition,
+  getDesktopGridCellAtPosition,
+  getDesktopGridCells,
+  getDesktopGridPosition,
+  getDesktopGridPositionByIndex,
+  getDesktopGridRowCount,
+  occupyDesktopGridCells,
+  resolveDesktopGridCell,
+  snapDesktopGridPosition,
+  type DesktopGridCellKey,
+} from '@/lib/desktop-grid'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { basename } from '@/utils/path'
@@ -9,14 +26,10 @@ import { Box } from '@lucide/vue'
 
 const emit = defineEmits<{
   blankContextMenu: [position: { x: number; y: number }]
+  gridOccupancyChange: [cells: DesktopGridCellKey[]]
 }>()
 
 const DESKTOP_ICON_DRAG_THRESHOLD = 4
-const DESKTOP_ICON_HEIGHT = 108
-const DESKTOP_ICON_WIDTH = 96
-const DESKTOP_ICON_GAP_X = 28
-const DESKTOP_ICON_GAP_Y = 28
-const DESKTOP_ICON_PADDING = 20
 const DRAG_SUPPRESSION_WINDOW = 240
 
 interface DragState {
@@ -41,11 +54,6 @@ interface SelectionState {
   pointerId: number
   startX: number
   startY: number
-}
-
-interface GridPosition {
-  x: number
-  y: number
 }
 
 type DesktopItemType = 'directory' | 'port-link'
@@ -93,7 +101,7 @@ const desktopItems = computed<DesktopItem[]>(() => {
   const storedPortLinkPositions = desktopStore.getPinnedPortLinkPositions()
   const paths = desktopStore.getPinnedDirectories()
   const portLinks = desktopStore.getPinnedPortLinks()
-  const occupiedIndexes = new Set<number>()
+  const occupiedCells = new Set<DesktopGridCellKey>()
   const searchSpan = paths.length + portLinks.length + getGridRowCount()
 
   const directoryItems = paths.map((path, index) => {
@@ -104,8 +112,8 @@ const desktopItems = computed<DesktopItem[]>(() => {
     const position = activeDrag
       ? { x: activeDrag.currentX, y: activeDrag.currentY }
       : storedPosition
-        ? resolveGridPosition(storedPosition, occupiedIndexes, searchSpan)
-        : resolveGridPosition(defaultPosition, occupiedIndexes, searchSpan)
+        ? resolveGridPosition(storedPosition, occupiedCells, searchSpan)
+        : resolveGridPosition(defaultPosition, occupiedCells, searchSpan)
 
     return {
       icon: 'folder' as const,
@@ -127,8 +135,8 @@ const desktopItems = computed<DesktopItem[]>(() => {
     const position = activeDrag
       ? { x: activeDrag.currentX, y: activeDrag.currentY }
       : storedPosition
-        ? resolveGridPosition(storedPosition, occupiedIndexes, searchSpan)
-        : resolveGridPosition(defaultPosition, occupiedIndexes, searchSpan)
+        ? resolveGridPosition(storedPosition, occupiedCells, searchSpan)
+        : resolveGridPosition(defaultPosition, occupiedCells, searchSpan)
 
     return {
       icon: 'link' as const,
@@ -146,11 +154,11 @@ const desktopItems = computed<DesktopItem[]>(() => {
 })
 const canvasBounds = computed(() => {
   const maxRight = desktopItems.value.reduce(
-    (value, item) => Math.max(value, item.x + DESKTOP_ICON_WIDTH + DESKTOP_ICON_PADDING),
+    (value, item) => Math.max(value, item.x + DESKTOP_GRID_CELL_WIDTH + DESKTOP_GRID_PADDING),
     contentBounds.value.width,
   )
   const maxBottom = desktopItems.value.reduce(
-    (value, item) => Math.max(value, item.y + DESKTOP_ICON_HEIGHT + DESKTOP_ICON_PADDING),
+    (value, item) => Math.max(value, item.y + DESKTOP_GRID_CELL_HEIGHT + DESKTOP_GRID_PADDING),
     contentBounds.value.height,
   )
 
@@ -170,19 +178,26 @@ const dragPreviewPosition = computed(() => {
   }
 
   const desiredPosition = snapPosition(state.currentX, state.currentY)
-  const occupiedIndexes = new Set(
-    desktopItems.value
-      .filter((item) => item.id !== state.id)
-      .map((item) => getGridIndex(item.x, item.y)),
-  )
+  const occupiedCells = new Set<DesktopGridCellKey>()
+  for (const item of desktopItems.value.filter((item) => item.id !== state.id)) {
+    for (const cell of getDesktopGridCells(
+      { x: item.x, y: item.y },
+      DESKTOP_GRID_CELL_WIDTH,
+      DESKTOP_GRID_CELL_HEIGHT,
+      contentBounds.value.height,
+    )) {
+      occupiedCells.add(cell)
+    }
+  }
 
-  return getGridPositionByIndex(
-    resolveGridIndex(
-      getGridIndex(desiredPosition.x, desiredPosition.y),
-      occupiedIndexes,
-      desktopItems.value.length + getGridRowCount(),
-    ),
+  const cell = resolveDesktopGridCell(
+    getDesktopGridCellAtPosition(desiredPosition.x, desiredPosition.y, contentBounds.value.height),
+    { columns: 1, rows: 1 },
+    occupiedCells,
+    contentBounds.value.height,
+    desktopItems.value.length + getGridRowCount(),
   )
+  return getDesktopGridPosition(cell)
 })
 const contextMenuOptions = computed(() => {
   if (contextMenu.value?.scope === 'icon') {
@@ -209,8 +224,8 @@ const primaryRgb = computed(
 )
 const gridOverlayStyle = computed(() => ({
   backgroundImage: `radial-gradient(circle, rgba(${primaryRgb.value}, ${settingsStore.isDark ? '0.18' : '0.16'}) 1.5px, transparent 1.5px)`,
-  backgroundPosition: `${DESKTOP_ICON_PADDING + DESKTOP_ICON_WIDTH / 2}px ${DESKTOP_ICON_PADDING + DESKTOP_ICON_HEIGHT / 2}px`,
-  backgroundSize: `${DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X}px ${DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y}px`,
+  backgroundPosition: `${DESKTOP_GRID_PADDING + DESKTOP_GRID_CELL_WIDTH / 2}px ${DESKTOP_GRID_PADDING + DESKTOP_GRID_CELL_HEIGHT / 2}px`,
+  backgroundSize: `${DESKTOP_GRID_CELL_WIDTH + DESKTOP_GRID_GAP_X}px ${DESKTOP_GRID_CELL_HEIGHT + DESKTOP_GRID_GAP_Y}px`,
 }))
 const selectionBoxStyle = computed(() => {
   const state = selectionState.value
@@ -242,6 +257,25 @@ const showContextMenu = computed(
   () => Boolean(contextMenu.value) && contextMenuOptions.value.length > 0,
 )
 
+const gridOccupiedCells = computed(() => {
+  const occupiedCells = new Set<DesktopGridCellKey>()
+  for (const item of desktopItems.value) {
+    const position =
+      dragState.value?.id === item.id && dragPreviewPosition.value
+        ? dragPreviewPosition.value
+        : { x: item.x, y: item.y }
+    for (const cell of getDesktopGridCells(
+      position,
+      DESKTOP_GRID_CELL_WIDTH,
+      DESKTOP_GRID_CELL_HEIGHT,
+      contentBounds.value.height,
+    )) {
+      occupiedCells.add(cell)
+    }
+  }
+  return Array.from(occupiedCells)
+})
+
 watch(desktopItems, (items) => {
   const availablePaths = new Set(items.map((item) => item.id))
   selectedPaths.value = selectedPaths.value.filter((path) => availablePaths.has(path))
@@ -251,113 +285,62 @@ watch(desktopItems, (items) => {
   }
 })
 
+watch(
+  gridOccupiedCells,
+  (cells) => {
+    emit('gridOccupancyChange', cells)
+  },
+  { immediate: true },
+)
+
 function closeContextMenu() {
   contextMenu.value = null
 }
 
 function clampPosition(x: number, y: number) {
-  const maxX = Math.max(
-    DESKTOP_ICON_PADDING,
-    contentBounds.value.width - DESKTOP_ICON_WIDTH - DESKTOP_ICON_PADDING,
+  return clampDesktopGridPosition(
+    x,
+    y,
+    DESKTOP_GRID_CELL_WIDTH,
+    DESKTOP_GRID_CELL_HEIGHT,
+    contentBounds.value.width,
+    contentBounds.value.height,
   )
-  const maxY = Math.max(
-    DESKTOP_ICON_PADDING,
-    contentBounds.value.height - DESKTOP_ICON_HEIGHT - DESKTOP_ICON_PADDING,
-  )
-
-  return {
-    x: Math.min(Math.max(x, DESKTOP_ICON_PADDING), maxX),
-    y: Math.min(Math.max(y, DESKTOP_ICON_PADDING), maxY),
-  }
-}
-
-function getGridRowCount() {
-  const availableHeight = Math.max(
-    DESKTOP_ICON_HEIGHT,
-    contentBounds.value.height - DESKTOP_ICON_PADDING * 2,
-  )
-
-  return Math.max(1, Math.floor(availableHeight / (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)))
-}
-
-function getGridIndex(x: number, y: number) {
-  const rowCount = getGridRowCount()
-  const column = Math.max(
-    0,
-    Math.round((x - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)),
-  )
-  const row = Math.min(
-    rowCount - 1,
-    Math.max(
-      0,
-      Math.round((y - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)),
-    ),
-  )
-
-  return column * rowCount + row
-}
-
-function getGridPositionByIndex(index: number): GridPosition {
-  const rowCount = getGridRowCount()
-  const column = Math.max(0, Math.floor(index / rowCount))
-  const row = Math.max(0, index % rowCount)
-
-  return {
-    x: DESKTOP_ICON_PADDING + column * (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X),
-    y: DESKTOP_ICON_PADDING + row * (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y),
-  }
-}
-
-function resolveGridIndex(
-  preferredIndex: number,
-  occupiedIndexes: Set<number>,
-  searchSpan: number,
-) {
-  if (!occupiedIndexes.has(preferredIndex)) {
-    return preferredIndex
-  }
-
-  const maxDistance = Math.max(searchSpan, occupiedIndexes.size + 1)
-  for (let distance = 1; distance <= maxDistance; distance += 1) {
-    const nextIndex = preferredIndex + distance
-    if (!occupiedIndexes.has(nextIndex)) {
-      return nextIndex
-    }
-
-    const previousIndex = preferredIndex - distance
-    if (previousIndex >= 0 && !occupiedIndexes.has(previousIndex)) {
-      return previousIndex
-    }
-  }
-
-  return preferredIndex + maxDistance + 1
-}
-
-function resolveGridPosition(
-  position: GridPosition,
-  occupiedIndexes: Set<number>,
-  searchSpan: number,
-): GridPosition {
-  const index = resolveGridIndex(getGridIndex(position.x, position.y), occupiedIndexes, searchSpan)
-  occupiedIndexes.add(index)
-  return getGridPositionByIndex(index)
 }
 
 function snapPosition(x: number, y: number) {
-  const snappedX =
-    DESKTOP_ICON_PADDING +
-    Math.round((x - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)) *
-      (DESKTOP_ICON_WIDTH + DESKTOP_ICON_GAP_X)
-  const snappedY =
-    DESKTOP_ICON_PADDING +
-    Math.round((y - DESKTOP_ICON_PADDING) / (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)) *
-      (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP_Y)
-
-  return clampPosition(snappedX, snappedY)
+  return snapDesktopGridPosition(
+    x,
+    y,
+    DESKTOP_GRID_CELL_WIDTH,
+    DESKTOP_GRID_CELL_HEIGHT,
+    contentBounds.value.width,
+    contentBounds.value.height,
+  )
 }
 
 function getDefaultPosition(index: number) {
-  return getGridPositionByIndex(index)
+  return getDesktopGridPositionByIndex(index, contentBounds.value.height)
+}
+
+function getGridRowCount() {
+  return getDesktopGridRowCount(contentBounds.value.height)
+}
+
+function resolveGridPosition(
+  position: { x: number; y: number },
+  occupiedCells: Set<DesktopGridCellKey>,
+  searchSpan: number,
+) {
+  const cell = resolveDesktopGridCell(
+    getDesktopGridCellAtPosition(position.x, position.y, contentBounds.value.height),
+    { columns: 1, rows: 1 },
+    occupiedCells,
+    contentBounds.value.height,
+    searchSpan,
+  )
+  occupyDesktopGridCells(occupiedCells, cell, { columns: 1, rows: 1 })
+  return getDesktopGridPosition(cell)
 }
 
 function getDesktopItemId(type: DesktopItemType, value: string) {
@@ -758,8 +741,8 @@ onUnmounted(() => {
         :style="{
           left: `${dragPreviewPosition.x}px`,
           top: `${dragPreviewPosition.y}px`,
-          width: `${DESKTOP_ICON_WIDTH}px`,
-          minHeight: `${DESKTOP_ICON_HEIGHT}px`,
+          width: `${DESKTOP_GRID_CELL_WIDTH}px`,
+          minHeight: `${DESKTOP_GRID_CELL_HEIGHT}px`,
         }"
       />
 
