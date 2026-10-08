@@ -30,6 +30,9 @@ const points = computed(() => {
     })
     .join(' ')
 })
+const areaPoints = computed(() =>
+  points.value ? `${points.value} ${viewWidth},${viewHeight - 1} 0,${viewHeight - 1}` : '',
+)
 </script>
 
 <template>
@@ -46,6 +49,12 @@ const points = computed(() => {
       :y2="viewHeight - 1"
       stroke="currentColor"
       stroke-opacity="0.12"
+    />
+    <polygon
+      v-if="areaPoints"
+      :points="areaPoints"
+      :fill="color"
+      fill-opacity="0.16"
     />
     <polyline
       v-if="points"
