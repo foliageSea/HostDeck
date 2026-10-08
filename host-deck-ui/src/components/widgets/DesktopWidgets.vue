@@ -5,6 +5,7 @@ import type { DropdownOption } from 'naive-ui'
 import { desktopWidgetDefinitions } from './registry'
 import {
   DESKTOP_GRID_PADDING,
+  clampDesktopGridPosition,
   getDesktopGridCellAtPosition,
   getDesktopGridPosition,
   getDesktopGridSpan,
@@ -19,16 +20,8 @@ import { useSettingsStore } from '@/stores/settings'
 
 const dragThreshold = 4
 let detailsRequestId = 0
-const props = defineProps<{
-  blockedGridCells?: DesktopGridCellKey[]
-}>()
-const desktopStore = useDesktopStore()
-const widgetStore = useDesktopWidgetStore()
-const settingsStore = useSettingsStore()
-const layerRef = ref<HTMLElement | null>(null)
-const bounds = ref({ height: 0, width: 0 })
-const contextMenu = ref<{ id: string; x: number; y: number } | null>(null)
-const dragState = ref<{
+
+interface DragState {
   currentX: number
   currentY: number
   id: string
@@ -38,7 +31,25 @@ const dragState = ref<{
   startPointerY: number
   startX: number
   startY: number
-} | null>(null)
+}
+
+interface SettlingState {
+  id: string
+  offsetX: number
+  offsetY: number
+}
+
+const props = defineProps<{
+  blockedGridCells?: DesktopGridCellKey[]
+}>()
+const desktopStore = useDesktopStore()
+const widgetStore = useDesktopWidgetStore()
+const settingsStore = useSettingsStore()
+const layerRef = ref<HTMLElement | null>(null)
+const bounds = ref({ height: 0, width: 0 })
+const contextMenu = ref<{ id: string; x: number; y: number } | null>(null)
+const dragState = ref<DragState | null>(null)
+const settlingState = ref<SettlingState | null>(null)
 
 const renderedWidgets = computed(() =>
   (() => {
@@ -78,23 +89,41 @@ const renderedWidgets = computed(() =>
       )
       occupyDesktopGridCells(occupiedCells, cell, span)
       const position = getDesktopGridPosition(cell)
+      const dropX =
+        desiredPosition.x >= maxX
+          ? maxX
+          : Math.min(maxX, Math.max(DESKTOP_GRID_PADDING, position.x))
+      const dropY =
+        desiredPosition.y >= maxY
+          ? maxY
+          : Math.min(maxY, Math.max(DESKTOP_GRID_PADDING, position.y))
 
       return {
         definition,
+        dragOffsetX: drag ? drag.currentX - drag.startX : 0,
+        dragOffsetY: drag ? drag.currentY - drag.startY : 0,
+        dropX,
+        dropY,
         instance: widget,
         width,
-        x:
-          desiredPosition.x >= maxX
-            ? maxX
-            : Math.min(maxX, Math.max(DESKTOP_GRID_PADDING, position.x)),
-        y:
-          desiredPosition.y >= maxY
-            ? maxY
-            : Math.min(maxY, Math.max(DESKTOP_GRID_PADDING, position.y)),
+        x: drag?.startX ?? dropX,
+        y: drag?.startY ?? dropY,
       }
     })
   })(),
 )
+const dragPreview = computed(() => {
+  if (!dragState.value?.moved) return null
+  const widget = getRenderedWidget(dragState.value.id)
+  if (!widget) return null
+
+  return {
+    height: widget.definition.height,
+    width: widget.width,
+    x: widget.dropX,
+    y: widget.dropY,
+  }
+})
 const contextMenuOptions = computed<DropdownOption[]>(() => {
   const widget = widgetStore.widgets.find((item) => item.id === contextMenu.value?.id)
   if (!widget) return []
@@ -144,6 +173,7 @@ function startDrag(id: string, event: PointerEvent) {
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
   contextMenu.value = null
+  settlingState.value = null
   dragState.value = {
     currentX: widget.x,
     currentY: widget.y,
@@ -157,16 +187,30 @@ function startDrag(id: string, event: PointerEvent) {
   }
 }
 
-function moveDrag(event: PointerEvent) {
-  const state = dragState.value
-  if (!state || state.pointerId !== event.pointerId) return
-  const deltaX = event.clientX - state.startPointerX
-  const deltaY = event.clientY - state.startPointerY
+function updateDragPosition(state: DragState, clientX: number, clientY: number) {
+  const deltaX = clientX - state.startPointerX
+  const deltaY = clientY - state.startPointerY
   state.moved = state.moved || Math.hypot(deltaX, deltaY) >= dragThreshold
   if (!state.moved) return
 
-  state.currentX = state.startX + deltaX
-  state.currentY = state.startY + deltaY
+  const widget = getRenderedWidget(state.id)
+  if (!widget) return
+  const position = clampDesktopGridPosition(
+    state.startX + deltaX,
+    state.startY + deltaY,
+    widget.width,
+    widget.definition.height,
+    bounds.value.width,
+    bounds.value.height,
+  )
+  state.currentX = position.x
+  state.currentY = position.y
+}
+
+function moveDrag(event: PointerEvent) {
+  const state = dragState.value
+  if (!state || state.pointerId !== event.pointerId) return
+  updateDragPosition(state, event.clientX, event.clientY)
 }
 
 function finishDrag(event: PointerEvent) {
@@ -179,11 +223,25 @@ function finishDrag(event: PointerEvent) {
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
+  if (event.type === 'pointerup') {
+    updateDragPosition(state, event.clientX, event.clientY)
+  }
   if (state.moved) {
     const widget = getRenderedWidget(state.id)
-    if (widget) widgetStore.updateWidgetPosition(state.id, widget.x, widget.y)
+    if (widget) {
+      const offsetX = state.currentX - widget.dropX
+      const offsetY = state.currentY - widget.dropY
+      widgetStore.updateWidgetPosition(state.id, widget.dropX, widget.dropY)
+      settlingState.value = { id: state.id, offsetX, offsetY }
+    }
   }
   dragState.value = null
+}
+
+function finishSettling(id: string) {
+  if (settlingState.value?.id === id) {
+    settlingState.value = null
+  }
 }
 
 function showWidgetContextMenu(id: string, event: MouseEvent) {
@@ -207,29 +265,52 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', updateBounds)
   dragState.value = null
+  settlingState.value = null
 })
 </script>
 
 <template>
   <div ref="layerRef" class="pointer-events-none absolute inset-0 z-[8]">
+    <div
+      v-if="dragPreview"
+      data-widget-drop-preview
+      class="desktop-widget-drop-preview app-radius-card pointer-events-none absolute border border-dashed border-[var(--app-primary-border-strong)] bg-[rgba(var(--app-primary-rgb),0.1)]"
+      :style="{
+        height: `${dragPreview.height}px`,
+        left: `${dragPreview.x}px`,
+        top: `${dragPreview.y}px`,
+        width: `${dragPreview.width}px`,
+      }"
+    />
+
     <section
       v-for="widget in renderedWidgets"
       :key="widget.instance.id"
       :data-desktop-widget-id="widget.instance.id"
-      class="app-radius-card pointer-events-auto absolute flex overflow-hidden backdrop-blur-[18px]"
+      class="desktop-widget pointer-events-auto absolute"
       :class="[
-        settingsStore.isDark ? 'bg-[rgba(15,23,42,0.68)]' : 'bg-[rgba(255,255,255,0.72)]',
-        dragState?.id === widget.instance.id ? 'cursor-grabbing opacity-90 transition-none' : '',
+        dragState?.id === widget.instance.id ? 'desktop-widget--dragging cursor-grabbing' : '',
+        settlingState?.id === widget.instance.id ? 'desktop-widget--settling' : '',
       ]"
       :style="{
+        '--widget-drag-x': `${widget.dragOffsetX}px`,
+        '--widget-drag-y': `${widget.dragOffsetY}px`,
+        '--widget-settle-x':
+          settlingState?.id === widget.instance.id ? `${settlingState.offsetX}px` : '0px',
+        '--widget-settle-y':
+          settlingState?.id === widget.instance.id ? `${settlingState.offsetY}px` : '0px',
         height: `${widget.definition.height}px`,
         left: `${widget.x}px`,
         top: `${widget.y}px`,
         width: `${widget.width}px`,
       }"
       @contextmenu.stop="showWidgetContextMenu(widget.instance.id, $event)"
+      @animationend.self="finishSettling(widget.instance.id)"
     >
-      <div class="flex min-w-0 flex-1 flex-col">
+      <div
+        class="desktop-widget-surface app-radius-card flex h-full w-full min-w-0 flex-col overflow-hidden backdrop-blur-[18px]"
+        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.68)]' : 'bg-[rgba(255,255,255,0.72)]'"
+      >
         <header
           data-widget-drag-handle
           class="flex h-[42px] shrink-0 touch-none items-center justify-between border-b px-[14px] cursor-grab"
@@ -275,3 +356,79 @@ onUnmounted(() => {
     />
   </div>
 </template>
+
+<style scoped>
+.desktop-widget {
+  transform: translate3d(0, 0, 0);
+  transition:
+    left 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.desktop-widget--dragging {
+  z-index: 10;
+  transform: translate3d(var(--widget-drag-x), var(--widget-drag-y), 0);
+  transition: none;
+  will-change: transform;
+}
+
+.desktop-widget--dragging [data-widget-drag-handle] {
+  cursor: grabbing;
+}
+
+.desktop-widget--settling {
+  z-index: 10;
+  animation: desktop-widget-settle 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: none;
+  will-change: transform;
+}
+
+.desktop-widget-surface {
+  transform: scale(1);
+  transform-origin: center;
+  transition:
+    opacity 160ms ease,
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.desktop-widget--dragging .desktop-widget-surface {
+  opacity: 0.94;
+  transform: scale(1.018);
+  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.28);
+}
+
+.desktop-widget-drop-preview {
+  z-index: 9;
+  box-shadow:
+    0 0 0 1px rgba(var(--app-primary-rgb), 0.08),
+    0 12px 30px rgba(15, 23, 42, 0.12);
+  transition:
+    left 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes desktop-widget-settle {
+  from {
+    transform: translate3d(var(--widget-settle-x), var(--widget-settle-y), 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-widget,
+  .desktop-widget-surface,
+  .desktop-widget-drop-preview {
+    transition-duration: 1ms;
+  }
+
+  .desktop-widget--settling {
+    animation-duration: 1ms;
+  }
+}
+</style>
