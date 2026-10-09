@@ -16,6 +16,10 @@ import DesktopWindow from '@/components/os/DesktopWindow.vue'
 import DesktopWindowSwitcher from '@/components/os/DesktopWindowSwitcher.vue'
 import DesktopWidgets from '@/components/widgets/DesktopWidgets.vue'
 
+const emit = defineEmits<{
+  ready: []
+}>()
+
 const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const widgetStore = useDesktopWidgetStore()
@@ -207,6 +211,7 @@ function handleKeyUp(event: KeyboardEvent) {
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown, true)
   window.addEventListener('keyup', handleKeyUp, true)
+  emit('ready')
 })
 
 onUnmounted(() => {

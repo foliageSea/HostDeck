@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   dateZhCN,
   NConfigProvider,
@@ -12,6 +12,7 @@ import {
 } from 'naive-ui'
 import UiApiBridge from '@/components/common/UiApiBridge.vue'
 import DesktopShell from '@/components/os/DesktopShell.vue'
+import DesktopTransitionLoading from '@/components/os/DesktopTransitionLoading.vue'
 import LoginScreen from '@/components/os/LoginScreen.vue'
 import AccessLoginScreen from '@/components/os/AccessLoginScreen.vue'
 import { useAccessStore } from '@/stores/access'
@@ -25,7 +26,13 @@ const sshStore = useSshStore()
 const accessStore = useAccessStore()
 const desktopStore = useDesktopStore()
 const uploadCenterStore = useUploadCenterStore()
+const desktopTransitionVisible = ref(false)
+const desktopTransitionTarget = ref({ endpoint: '', serverName: '远程主机' })
+const desktopTransitionStartedAt = ref(0)
+const DESKTOP_TRANSITION_MIN_DURATION = 1200
+const DESKTOP_PRELOAD_MIN_DURATION = 600
 let unsubscribeElectronWindowState: (() => void) | undefined
+let desktopTransitionTimer: number | undefined
 
 useSuppressNativeTitles()
 const { theme, themeOverrides } = useTheme()
@@ -35,9 +42,39 @@ watch(
   (isConnected) => {
     if (!isConnected) {
       desktopStore.reset()
+      handleConnectionError()
     }
   },
 )
+
+function handleConnectionStart(target: { endpoint: string; serverName: string }) {
+  window.clearTimeout(desktopTransitionTimer)
+  desktopTransitionTimer = undefined
+  desktopTransitionTarget.value = target
+  desktopTransitionStartedAt.value = performance.now()
+  desktopTransitionVisible.value = true
+}
+
+function handleConnectionError() {
+  window.clearTimeout(desktopTransitionTimer)
+  desktopTransitionTimer = undefined
+  desktopTransitionVisible.value = false
+}
+
+function handleDesktopReady() {
+  if (!desktopTransitionVisible.value) return
+
+  const elapsed = performance.now() - desktopTransitionStartedAt.value
+  const remainingDuration = Math.max(
+    DESKTOP_PRELOAD_MIN_DURATION,
+    DESKTOP_TRANSITION_MIN_DURATION - elapsed,
+  )
+  window.clearTimeout(desktopTransitionTimer)
+  desktopTransitionTimer = window.setTimeout(() => {
+    desktopTransitionVisible.value = false
+    desktopTransitionTimer = undefined
+  }, remainingDuration)
+}
 
 function handleBeforeUnload(event: BeforeUnloadEvent) {
   if (uploadCenterStore.activeTaskCount <= 0) {
@@ -64,6 +101,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  window.clearTimeout(desktopTransitionTimer)
   unsubscribeElectronWindowState?.()
 })
 </script>
@@ -84,9 +122,18 @@ onBeforeUnmount(() => {
             <div class="app-root min-h-screen">
               <Transition name="fade" mode="out-in">
                 <AccessLoginScreen v-if="!accessStore.authenticated" />
-                <DesktopShell v-else-if="sshStore.isConnected" />
-                <LoginScreen v-else />
+                <DesktopShell v-else-if="sshStore.isConnected" @ready="handleDesktopReady" />
+                <LoginScreen
+                  v-else
+                  @connection-start="handleConnectionStart"
+                  @connection-error="handleConnectionError"
+                />
               </Transition>
+              <DesktopTransitionLoading
+                :show="desktopTransitionVisible"
+                :server-name="desktopTransitionTarget.serverName"
+                :endpoint="desktopTransitionTarget.endpoint"
+              />
             </div>
           </NMessageProvider>
         </NNotificationProvider>

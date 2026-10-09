@@ -20,6 +20,7 @@ declare module 'vue' {
     DesktopPinnedDirectories: typeof import('./src/components/os/DesktopPinnedDirectories.vue')['default']
     DesktopShell: typeof import('./src/components/os/DesktopShell.vue')['default']
     DesktopTopBar: typeof import('./src/components/os/DesktopTopBar.vue')['default']
+    DesktopTransitionLoading: typeof import('./src/components/os/DesktopTransitionLoading.vue')['default']
     DesktopWidgets: typeof import('./src/components/widgets/DesktopWidgets.vue')['default']
     DesktopWindow: typeof import('./src/components/os/DesktopWindow.vue')['default']
     DesktopWindowSwitcher: typeof import('./src/components/os/DesktopWindowSwitcher.vue')['default']

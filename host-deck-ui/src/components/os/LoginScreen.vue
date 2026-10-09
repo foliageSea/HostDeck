@@ -25,6 +25,11 @@ type ServerLatency = { status: 'checking' | 'online' | 'offline'; value?: number
 
 const LAST_SELECTED_SERVER_STORAGE_KEY = 'host-deck-ui.login.lastSelectedServerId'
 
+const emit = defineEmits<{
+  'connection-error': []
+  'connection-start': [target: { endpoint: string; serverName: string }]
+}>()
+
 const sshStore = useSshStore()
 const accessStore = useAccessStore()
 const settingsStore = useSettingsStore()
@@ -264,6 +269,7 @@ const connectMutation = useMutation<ConnectResponse, Error, ConnectParams>({
     )
   },
   onError: (error) => {
+    emit('connection-error')
     isShaking.value = true
     window.setTimeout(() => {
       isShaking.value = false
@@ -371,6 +377,12 @@ const canTestConnection = computed(
 const canConnect = computed(() =>
   Boolean(selectedServer.value?.id && connectionForm.host && connectionForm.username),
 )
+const connectionTargetName = computed(
+  () => selectedServer.value?.name || connectionForm.host || '远程主机',
+)
+const connectionTargetEndpoint = computed(
+  () => `${connectionForm.username}@${connectionForm.host}:${connectionForm.port}`,
+)
 
 function handleConnect() {
   if (!selectedServer.value) {
@@ -383,6 +395,10 @@ function handleConnect() {
     return
   }
 
+  emit('connection-start', {
+    endpoint: connectionTargetEndpoint.value,
+    serverName: connectionTargetName.value,
+  })
   connectMutation.mutate({
     serverId: selectedServer.value.id,
     host: connectionForm.host,
