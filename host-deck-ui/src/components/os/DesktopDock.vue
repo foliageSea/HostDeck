@@ -410,15 +410,8 @@ function openLaunchpad() {
                 <template #trigger>
                   <button
                     type="button"
-                    class="dock-item dock-child-window-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 cursor-pointer"
-                    :class="[
-                      desktopStore.activeWindowId === window.id
-                        ? settingsStore.isDark
-                          ? 'bg-[rgba(51,65,85,0.68)]'
-                          : 'bg-[rgba(255,255,255,0.58)]'
-                        : 'bg-transparent',
-                      { 'dock-child-window-minimized': window.isMinimized },
-                    ]"
+                    class="dock-item dock-child-window-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 bg-transparent p-0 cursor-pointer"
+                    :class="{ 'dock-child-window-minimized': window.isMinimized }"
                     :aria-label="`切换到${window.title}`"
                     @click="activateWindow(window.id)"
                   >
