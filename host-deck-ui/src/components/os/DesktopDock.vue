@@ -61,9 +61,15 @@ const dockApps = computed<AppConfig[]>(() =>
     .map((appId) => desktopStore.apps[appId])
     .filter((app): app is AppConfig => Boolean(app?.showInLaunchpad)),
 )
+const childWindows = computed(() =>
+  desktopStore.windows.filter((window) => window.parentId && !window.isClosing),
+)
 
 watch(
-  () => dockApps.value.map((app) => app.icon),
+  () => [
+    ...dockApps.value.map((app) => app.icon),
+    ...childWindows.value.map((window) => window.icon),
+  ],
   (icons) => {
     void preloadAppIcons(icons)
   },
@@ -378,6 +384,65 @@ function openLaunchpad() {
             />
           </div>
         </TransitionGroup>
+
+        <template v-if="childWindows.length > 0">
+          <span
+            class="dock-separator h-[34px] w-px shrink-0 bg-[rgba(148,163,184,0.3)]"
+            data-dock-slot
+            aria-hidden="true"
+          />
+
+          <TransitionGroup
+            name="dock-app"
+            tag="div"
+            class="dock-child-windows relative flex shrink-0 items-center gap-[12px]"
+            aria-label="已打开的子窗口"
+          >
+            <div
+              v-for="window in childWindows"
+              :key="window.id"
+              class="dock-entry dock-child-window-entry relative"
+              data-dock-slot
+              :data-dock-window-id="window.id"
+              :data-running="true"
+            >
+              <NTooltip>
+                <template #trigger>
+                  <button
+                    type="button"
+                    class="dock-item dock-child-window-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 p-0 cursor-pointer"
+                    :class="[
+                      desktopStore.activeWindowId === window.id
+                        ? settingsStore.isDark
+                          ? 'bg-[rgba(51,65,85,0.68)]'
+                          : 'bg-[rgba(255,255,255,0.58)]'
+                        : 'bg-transparent',
+                      { 'dock-child-window-minimized': window.isMinimized },
+                    ]"
+                    :aria-label="`切换到${window.title}`"
+                    @click="activateWindow(window.id)"
+                  >
+                    <span class="dock-artwork">
+                      <AppIcon :name="window.icon" :size="52" themed />
+                    </span>
+                  </button>
+                </template>
+                {{ window.title }}
+              </NTooltip>
+              <span
+                class="dock-running-indicator absolute bottom-[-7px] left-1/2 h-[5px] w-[5px] translate-x-[-50%] rounded-full"
+                :class="
+                  desktopStore.activeWindowId === window.id
+                    ? 'bg-[var(--app-primary-color)]'
+                    : settingsStore.isDark
+                      ? 'bg-[rgba(148,163,184,0.64)]'
+                      : 'bg-[rgba(100,116,139,0.58)]'
+                "
+                aria-hidden="true"
+              />
+            </div>
+          </TransitionGroup>
+        </template>
       </div>
 
       <Teleport to="body">
@@ -617,6 +682,11 @@ function openLaunchpad() {
   pointer-events: none;
 }
 
+.dock-child-window-minimized .dock-artwork {
+  opacity: 0.58;
+  filter: saturate(0.72);
+}
+
 .dock-item-bounce {
   animation: dock-bounce 0.38s ease;
 }
@@ -634,7 +704,8 @@ function openLaunchpad() {
 
 @media (max-width: 768px) {
   .dock-track,
-  .dock-apps {
+  .dock-apps,
+  .dock-child-windows {
     gap: 6px;
   }
 
