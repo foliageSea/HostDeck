@@ -60,6 +60,16 @@ const windowSwitchShortcutLabel = computed(() =>
 const windowSwitcherToggleShortcutLabel = computed(() =>
   formatKeyboardShortcut(settingsStore.windowSwitcherToggleShortcut),
 )
+const windowSwitchShortcutKeys = computed(() =>
+  getShortcutDisplayKeys(windowSwitchShortcutLabel.value),
+)
+const windowSwitcherToggleShortcutKeys = computed(() =>
+  getShortcutDisplayKeys(windowSwitcherToggleShortcutLabel.value),
+)
+
+function getShortcutDisplayKeys(label: string) {
+  return label.split(' + ').map((key) => (key === 'Command / Control' ? 'Cmd / Ctrl' : key))
+}
 
 function recordWindowSwitchShortcut(event: KeyboardEvent) {
   if (!recordingWindowSwitchShortcut.value) {
@@ -329,15 +339,30 @@ async function exportLogs() {
           <NForm label-placement="top">
             <NFormItem label="直接切换窗口快捷键">
               <div class="flex w-full flex-nowrap items-center gap-[10px]">
-                <NInput
+                <button
                   data-shortcut-recorder
-                  class="min-w-0 max-w-[240px] flex-1"
-                  readonly
-                  :value="recordingWindowSwitchShortcut ? '请按组合键' : windowSwitchShortcutLabel"
+                  type="button"
+                  class="shortcut-recorder"
+                  :class="{ 'shortcut-recorder--recording': recordingWindowSwitchShortcut }"
+                  :aria-label="
+                    recordingWindowSwitchShortcut
+                      ? '正在录入直接切换窗口快捷键，请按下组合键'
+                      : `直接切换窗口快捷键：${windowSwitchShortcutLabel}`
+                  "
                   @blur="recordingWindowSwitchShortcut = false"
                   @focus="recordingWindowSwitchShortcut = true"
                   @keydown="recordWindowSwitchShortcut"
-                />
+                >
+                  <span v-if="recordingWindowSwitchShortcut" class="shortcut-recorder__hint">
+                    请按组合键
+                  </span>
+                  <template v-else>
+                    <template v-for="(key, index) in windowSwitchShortcutKeys" :key="key">
+                      <span v-if="index" class="shortcut-recorder__plus" aria-hidden="true">+</span>
+                      <kbd class="shortcut-recorder__key">{{ key }}</kbd>
+                    </template>
+                  </template>
+                </button>
                 <NTooltip>
                   <template #trigger>
                     <NButton
@@ -358,19 +383,35 @@ async function exportLogs() {
             </NFormItem>
             <NFormItem label="打开/关闭窗口选择器快捷键">
               <div class="flex w-full flex-nowrap items-center gap-[10px]">
-                <NInput
+                <button
                   data-shortcut-recorder
-                  class="min-w-0 max-w-[240px] flex-1"
-                  readonly
-                  :value="
+                  type="button"
+                  class="shortcut-recorder"
+                  :class="{
+                    'shortcut-recorder--recording': recordingWindowSwitcherToggleShortcut,
+                  }"
+                  :aria-label="
                     recordingWindowSwitcherToggleShortcut
-                      ? '请按组合键'
-                      : windowSwitcherToggleShortcutLabel
+                      ? '正在录入窗口选择器快捷键，请按下组合键'
+                      : `打开/关闭窗口选择器快捷键：${windowSwitcherToggleShortcutLabel}`
                   "
                   @blur="recordingWindowSwitcherToggleShortcut = false"
                   @focus="recordingWindowSwitcherToggleShortcut = true"
                   @keydown="recordWindowSwitcherToggleShortcut"
-                />
+                >
+                  <span
+                    v-if="recordingWindowSwitcherToggleShortcut"
+                    class="shortcut-recorder__hint"
+                  >
+                    请按组合键
+                  </span>
+                  <template v-else>
+                    <template v-for="(key, index) in windowSwitcherToggleShortcutKeys" :key="key">
+                      <span v-if="index" class="shortcut-recorder__plus" aria-hidden="true">+</span>
+                      <kbd class="shortcut-recorder__key">{{ key }}</kbd>
+                    </template>
+                  </template>
+                </button>
                 <NTooltip>
                   <template #trigger>
                     <NButton
@@ -538,6 +579,84 @@ async function exportLogs() {
 
 .wallpaper-section + .wallpaper-section {
   padding-top: 4px;
+}
+
+.shortcut-recorder {
+  display: flex;
+  min-width: 0;
+  max-width: 240px;
+  min-height: 40px;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: var(--app-radius-control);
+  padding: 7px 12px;
+  color: inherit;
+  background: rgba(148, 163, 184, 0.1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  scrollbar-width: none;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.shortcut-recorder::-webkit-scrollbar {
+  display: none;
+}
+
+.shortcut-recorder:hover {
+  border-color: rgba(148, 163, 184, 0.42);
+  background: rgba(148, 163, 184, 0.14);
+}
+
+.shortcut-recorder:focus-visible {
+  outline: 0;
+  border-color: var(--app-primary-color);
+  box-shadow: 0 0 0 3px var(--app-primary-soft);
+}
+
+.shortcut-recorder--recording {
+  border-color: var(--app-primary-color);
+  background: var(--app-primary-soft);
+}
+
+.shortcut-recorder__key {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-bottom-color: rgba(148, 163, 184, 0.45);
+  border-radius: 6px;
+  padding: 1px 8px;
+  color: inherit;
+  background: rgba(15, 23, 42, 0.34);
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.24);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.shortcut-recorder__plus {
+  flex: 0 0 auto;
+  color: rgba(148, 163, 184, 0.72);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.shortcut-recorder__hint {
+  color: var(--app-primary-color);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .settings-tabs {
