@@ -42,11 +42,6 @@ const wallpaperPreviewClass = computed(() =>
 const headingTextClass = computed(() =>
   isDark.value ? 'text-[rgba(241,245,249,0.96)]' : 'text-[rgba(15,23,42,0.92)]',
 )
-const effectPanelClass = computed(() =>
-  isDark.value
-    ? 'border-[rgba(148,163,184,0.14)] bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.72))] shadow-[0_14px_32px_rgba(2,6,23,0.24)]'
-    : 'border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(241,245,249,0.9))] shadow-[0_12px_28px_rgba(148,163,184,0.12)]',
-)
 const sliderLabelClass = computed(() =>
   isDark.value ? 'text-[rgba(226,232,240,0.88)]' : 'text-[rgba(51,65,85,0.88)]',
 )
@@ -226,10 +221,7 @@ function resetWallpaperEffects() {
       </div>
     </div>
 
-    <div
-      class="app-radius-card mt-[20px] rounded-[18px] border p-[16px] backdrop-blur-[20px] lt-md:p-[14px]"
-      :class="effectPanelClass"
-    >
+    <div class="mt-[20px]">
       <div class="mb-[14px] flex items-start justify-between gap-[12px] lt-md:flex-col">
         <div>
           <h4 class="m-0 text-[0.96rem] font-600" :class="headingTextClass">背景效果</h4>
