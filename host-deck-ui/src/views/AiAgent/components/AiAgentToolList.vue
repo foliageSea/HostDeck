@@ -122,7 +122,10 @@ watch(
 
 <style scoped>
 .agent-tool-list-view {
-  min-height: 300px;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
 }
 .agent-tool-list-toolbar,
 .agent-tool-list-counts,
@@ -152,7 +155,8 @@ watch(
 }
 .agent-tool-list-state {
   display: grid;
-  min-height: 260px;
+  min-height: 0;
+  flex: 1;
   place-content: center;
   justify-items: center;
   gap: 9px;
@@ -161,7 +165,9 @@ watch(
 }
 .agent-tool-list-items {
   display: grid;
-  max-height: 410px;
+  min-height: 0;
+  flex: 1;
+  align-content: start;
   overflow: auto;
 }
 .agent-tool-list-item {

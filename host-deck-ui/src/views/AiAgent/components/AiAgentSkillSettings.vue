@@ -226,13 +226,17 @@ function remove(skill: AiAgentSkill) {
 <style scoped>
 .agent-skill-settings {
   display: grid;
-  min-height: 460px;
+  min-height: 0;
+  flex: 1;
   grid-template-columns: minmax(210px, 0.34fr) minmax(0, 1fr);
   gap: 14px;
 }
 
 .agent-skill-library {
+  display: flex;
   min-width: 0;
+  min-height: 0;
+  flex-direction: column;
   border-right: 1px solid var(--agent-border, rgba(100, 116, 139, 0.18));
   padding-right: 14px;
 }
@@ -250,7 +254,8 @@ function remove(skill: AiAgentSkill) {
 }
 
 .agent-skill-library-list {
-  max-height: 418px;
+  min-height: 0;
+  flex: 1;
   overflow-y: auto;
 }
 
@@ -300,7 +305,8 @@ function remove(skill: AiAgentSkill) {
 .agent-skill-library-state,
 .agent-skill-editor-state {
   display: flex;
-  min-height: 360px;
+  min-height: 0;
+  flex: 1;
   align-items: center;
   justify-content: center;
   flex-direction: column;
@@ -316,10 +322,18 @@ function remove(skill: AiAgentSkill) {
   min-height: 0;
 }
 
+.agent-skill-editor-pane {
+  display: flex;
+}
+
 .agent-skill-editor-workspace {
   display: grid;
-  height: 460px;
+  width: 100%;
   grid-template-rows: auto minmax(0, 1fr);
+}
+
+.agent-skill-editor-state {
+  width: 100%;
 }
 
 .agent-skill-markdown-editor {

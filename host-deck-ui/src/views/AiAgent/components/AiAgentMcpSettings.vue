@@ -233,7 +233,10 @@ function remove(server: AiAgentMcpServer) {
 
 <style scoped>
 .agent-mcp-settings {
-  min-height: 300px;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
 }
 .agent-mcp-json-editor {
   height: 280px;
@@ -247,7 +250,8 @@ function remove(server: AiAgentMcpServer) {
   font-size: 11px;
 }
 .agent-mcp-list {
-  max-height: 360px;
+  min-height: 0;
+  flex: 1;
   overflow: auto;
 }
 .agent-mcp-row {
@@ -295,7 +299,8 @@ function remove(server: AiAgentMcpServer) {
 }
 .agent-mcp-state {
   display: flex;
-  min-height: 260px;
+  min-height: 0;
+  flex: 1;
   align-items: center;
   justify-content: center;
   flex-direction: column;

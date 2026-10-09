@@ -765,13 +765,13 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
           </div>
         </div>
       </NTabPane>
-      <NTabPane name="mcp" tab="MCP">
+      <NTabPane name="mcp" tab="MCP" class="agent-fill-settings-pane">
         <AiAgentMcpSettings />
       </NTabPane>
-      <NTabPane name="tools" tab="工具">
+      <NTabPane name="tools" tab="工具" class="agent-fill-settings-pane">
         <AiAgentToolList :active="activeTab === 'tools'" />
       </NTabPane>
-      <NTabPane name="skills" tab="Skills">
+      <NTabPane name="skills" tab="Skills" class="agent-fill-settings-pane">
         <div class="skill-tab-toolbar">
           <span>远端主机 Skills</span>
           <NSwitch
@@ -830,6 +830,15 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
   flex-direction: column;
 }
 
+.agent-settings-tabs .n-tabs-wrapper,
+.agent-settings-tabs .n-tabs-content-holder,
+.agent-settings-tabs .n-tabs-content {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
 .agent-settings-tabs .n-tabs-pane-wrapper {
   width: 100%;
   min-width: 0;
@@ -847,6 +856,12 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
 }
 
 .agent-settings-tabs .agent-model-settings-pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-settings-tabs .agent-fill-settings-pane {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1019,6 +1034,7 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+  flex: 0 0 auto;
   margin-bottom: 10px;
   font-size: 12px;
 }
