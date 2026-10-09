@@ -124,7 +124,8 @@ onMounted(refresh)
 </script>
 
 <template>
-  <NCard title="Authenticator" size="large">
+  <section>
+    <h2 class="m-0 mb-[20px] text-[16px] font-600">Authenticator</h2>
     <NSpin :show="loading">
       <div class="flex flex-col gap-[16px]">
         <div class="flex flex-wrap items-center justify-between gap-[16px]">
@@ -177,7 +178,7 @@ onMounted(refresh)
         </NAlert>
       </div>
     </NSpin>
-  </NCard>
+  </section>
 
   <NModal v-model:show="dialogVisible" :mask-closable="!submitting" @after-leave="resetDialog">
     <NCard

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Renew } from '@vicons/carbon'
+import { AppWindow, Image as ImageIcon, Keyboard, Network, Palette, ShieldCheck } from '@lucide/vue'
 import { isAxiosError } from 'axios'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { settingsApi } from '@/api/settings'
@@ -175,11 +176,23 @@ async function exportLogs() {
 
 <template>
   <div
-    class="settings-view scrollbar-none h-full overflow-hidden px-[20px] pb-[20px] lt-md:px-[16px] lt-md:pb-[16px]"
+    class="settings-view scrollbar-none h-full overflow-hidden px-[20px] pt-[16px] pb-[20px] lt-md:px-[16px] lt-md:pb-[16px]"
   >
-    <NTabs type="line" animated class="settings-tabs h-full" @update:value="handleTabChange">
-      <NTabPane name="appearance" tab="外观">
-        <NCard title="基础设置" size="large">
+    <NTabs
+      type="line"
+      placement="left"
+      class="settings-tabs h-full"
+      @update:value="handleTabChange"
+    >
+      <NTabPane name="appearance">
+        <template #tab>
+          <span class="flex items-center gap-[8px]">
+            <Palette :size="16" class="shrink-0" aria-hidden="true" />
+            <span>外观</span>
+          </span>
+        </template>
+        <section>
+          <h2 class="m-0 mb-[20px] text-[16px] font-600">基础设置</h2>
           <NForm label-placement="top">
             <NFormItem label="主题模式">
               <NRadioGroup :value="settingsStore.themeMode" @update:value="settingsStore.setTheme">
@@ -292,11 +305,18 @@ async function exportLogs() {
               </div>
             </NFormItem>
           </NForm>
-        </NCard>
+        </section>
       </NTabPane>
 
-      <NTabPane name="shortcuts" tab="快捷键">
-        <NCard title="快捷键设置" size="large">
+      <NTabPane name="shortcuts">
+        <template #tab>
+          <span class="flex items-center gap-[8px]">
+            <Keyboard :size="16" class="shrink-0" aria-hidden="true" />
+            <span>快捷键</span>
+          </span>
+        </template>
+        <section>
+          <h2 class="m-0 mb-[20px] text-[16px] font-600">快捷键设置</h2>
           <NForm label-placement="top">
             <NFormItem label="直接切换窗口快捷键">
               <div class="flex w-full flex-nowrap items-center gap-[10px]">
@@ -361,11 +381,18 @@ async function exportLogs() {
               </div>
             </NFormItem>
           </NForm>
-        </NCard>
+        </section>
       </NTabPane>
 
-      <NTabPane name="wallpaper" tab="壁纸">
-        <NCard title="壁纸设置" size="large">
+      <NTabPane name="wallpaper">
+        <template #tab>
+          <span class="flex items-center gap-[8px]">
+            <ImageIcon :size="16" class="shrink-0" aria-hidden="true" />
+            <span>壁纸</span>
+          </span>
+        </template>
+        <section>
+          <h2 class="m-0 mb-[20px] text-[16px] font-600">壁纸设置</h2>
           <NSpace vertical :size="24">
             <WallpaperSection
               target="desktop"
@@ -373,19 +400,38 @@ async function exportLogs() {
               :controller="controller"
             />
           </NSpace>
-        </NCard>
+        </section>
       </NTabPane>
 
-      <NTabPane name="ports" tab="后端端口">
+      <NTabPane name="ports">
+        <template #tab>
+          <span class="flex items-center gap-[8px]">
+            <Network :size="16" class="shrink-0" aria-hidden="true" />
+            <span>后端端口</span>
+          </span>
+        </template>
         <BackendPortsSection ref="backendPortsSection" />
       </NTabPane>
 
-      <NTabPane name="security" tab="安全">
+      <NTabPane name="security">
+        <template #tab>
+          <span class="flex items-center gap-[8px]">
+            <ShieldCheck :size="16" class="shrink-0" aria-hidden="true" />
+            <span>安全</span>
+          </span>
+        </template>
         <TotpSecuritySection />
       </NTabPane>
 
-      <NTabPane name="app" tab="应用">
-        <NCard title="应用维护" size="large">
+      <NTabPane name="app">
+        <template #tab>
+          <span class="flex items-center gap-[8px]">
+            <AppWindow :size="16" class="shrink-0" aria-hidden="true" />
+            <span>应用</span>
+          </span>
+        </template>
+        <section>
+          <h2 class="m-0 mb-[20px] text-[16px] font-600">应用维护</h2>
           <div class="flex flex-col gap-[12px]">
             <div
               class="app-radius-item flex flex-wrap items-center justify-between gap-[16px] rounded-[14px] border border-[rgba(148,163,184,0.16)] p-[14px]"
@@ -463,13 +509,18 @@ async function exportLogs() {
               </NButton>
             </div>
           </div>
-        </NCard>
+        </section>
       </NTabPane>
     </NTabs>
   </div>
 </template>
 
 <style scoped>
+.settings-view {
+  box-sizing: border-box;
+  container-type: inline-size;
+}
+
 .settings-view::-webkit-scrollbar {
   width: 0;
   height: 0;
@@ -482,22 +533,57 @@ async function exportLogs() {
 
 .settings-tabs {
   display: flex;
-  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: row;
 }
 
-.settings-tabs :deep(.n-tabs-pane-wrapper) {
+.settings-tabs :deep(.n-tabs-nav--left) {
+  width: 128px;
+  flex: 0 0 128px;
+}
+
+.settings-tabs :deep(.n-tabs-tab-wrapper),
+.settings-tabs :deep(.n-tabs-tab) {
+  width: 100%;
+}
+
+.settings-tabs :deep(.n-tabs-tab) {
+  justify-content: flex-start;
+  padding: 6px 16px;
+}
+
+.settings-tabs :deep(.n-tabs-tab-pad) {
+  height: 4px;
+}
+
+.settings-tabs :deep(.n-tab-pane) {
+  box-sizing: border-box;
+  height: 100%;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
   flex: 1;
   scrollbar-width: none;
-  padding-top: 4px;
+  padding: 20px 24px;
 }
 
-.settings-tabs :deep(.n-tabs-pane-wrapper)::-webkit-scrollbar {
+.settings-tabs :deep(.n-tab-pane)::-webkit-scrollbar {
   display: none;
 }
 
-.settings-tabs :deep(.n-tabs-content) {
-  min-height: 0;
+@container (max-width: 520px) {
+  .settings-tabs :deep(.n-tabs-nav--left) {
+    width: 112px;
+    flex-basis: 112px;
+  }
+
+  .settings-tabs :deep(.n-tabs-tab) {
+    padding: 6px 10px;
+  }
+
+  .settings-tabs :deep(.n-tab-pane) {
+    padding: 16px;
+  }
 }
 </style>

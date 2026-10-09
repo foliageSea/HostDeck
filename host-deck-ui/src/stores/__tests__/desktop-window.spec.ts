@@ -47,10 +47,12 @@ describe('desktop window management', () => {
     store.updateWindowSize(restrictedWindowId!, 1000, 800)
 
     expect(restrictedWindow).toMatchObject({
-      height: 720,
+      height: 680,
       isMaximized: false,
       isMinimized: false,
-      width: 480,
+      minHeight: 460,
+      minWidth: 640,
+      width: 760,
     })
 
     expect(store.openWindow('settings')).toBe(restrictedWindowId)

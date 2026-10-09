@@ -40,8 +40,9 @@ onMounted(refresh)
 </script>
 
 <template>
-  <NCard title="后端端口" size="large">
-    <template #header-extra>
+  <section>
+    <div class="mb-[20px] flex items-center justify-between gap-[12px]">
+      <h2 class="m-0 text-[16px] font-600">后端端口</h2>
       <NTooltip>
         <template #trigger>
           <NButton circle secondary :loading="loading" aria-label="刷新后端端口" @click="refresh">
@@ -52,7 +53,7 @@ onMounted(refresh)
         </template>
         刷新
       </NTooltip>
-    </template>
+    </div>
 
     <div
       v-if="loading && ports.length === 0"
@@ -128,7 +129,7 @@ onMounted(refresh)
         </div>
       </div>
     </div>
-  </NCard>
+  </section>
 </template>
 
 <style scoped>

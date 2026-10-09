@@ -742,15 +742,15 @@ export const useDesktopStore = defineStore('desktop', {
       },
       settings: {
         component: markRaw(SettingsView),
-        height: 720,
+        height: 680,
         hide: true,
         icon: 'settings',
         id: 'settings',
         maximizable: false,
         minHeight: 460,
-        minWidth: 420,
+        minWidth: 640,
         title: '设置',
-        width: 480,
+        width: 760,
         showInLaunchpad: true,
       },
       'task-center': {
