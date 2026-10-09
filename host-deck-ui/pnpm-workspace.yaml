@@ -1,7 +1,7 @@
 allowBuilds:
-  core-js: set this to true or false
-  es5-ext: set this to true or false
-  vue-demi: set this to true or false
+  core-js: true
+  es5-ext: true
+  vue-demi: true
 onlyBuiltDependencies:
   - electron
   - core-js

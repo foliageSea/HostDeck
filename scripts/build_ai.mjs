@@ -8,8 +8,9 @@ const target = process.argv[2]
 if (!target) throw new Error('Usage: node scripts/build_ai.mjs <bundle-directory>')
 const [major, minor] = process.versions.node.split('.').map(Number)
 if (major < 22 || (major === 22 && minor < 19)) throw new Error('pi-ai requires Node.js >=22.19.0')
-for (const args of [['ci'], ['run', 'build']]) {
-  const result = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, {
+const packageManager = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+for (const args of [['install', '--frozen-lockfile'], ['run', 'build']]) {
+  const result = spawnSync(packageManager, args, {
     cwd: path.join(root, 'host-deck-ai'), stdio: 'inherit', shell: process.platform === 'win32',
   })
   if (result.status !== 0) process.exit(result.status || 1)

@@ -11,9 +11,9 @@ Requires Node.js **>=22.19.0**:
 
 ```sh
 cd host-deck-ai
-npm ci
-npm run build
-npm test
+pnpm install --frozen-lockfile
+pnpm run build
+pnpm test
 ```
 
 Start HostDeck normally afterwards. Rebuild this package after editing its source.

@@ -9,7 +9,7 @@ Flutter release 构建使用 `assets/web/` 作为静态前端资源目录。本�
 基本流程：
 
 ```bash
-pnpm --dir host-deck-ui build
+pnpm run build:web
 # 将 host-deck-ui/dist 的内容同步到 assets/web/
 flutter build windows --release
 ```
@@ -37,7 +37,7 @@ Electron Windows 打包链路会单独构建 `host-deck-electron/dist`，其中 
 也可以从前端目录脚本转发执行：
 
 ```bash
-pnpm --dir host-deck-ui release 1.0.1
+pnpm run release -- 1.0.1
 ```
 
 版本号可使用 `1.0.1+2` 这类带 build metadata 的格式；文件版本会写入完整版本号，Git tag 会使用去掉 `+...` 后的 `v1.0.1`，以避免 Docker tag 不支持 `+`。
@@ -55,7 +55,7 @@ pnpm --dir host-deck-ui release 1.0.1
 手动构建 CLI bundle：
 
 ```bash
-pnpm --dir host-deck-ui build
+pnpm run build:web
 flutter pub get
 APP_VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml)"
 dart build cli --target bin/server.dart --output build/server

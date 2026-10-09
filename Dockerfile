@@ -1,11 +1,11 @@
 ARG HOSTDECK_VERSION=dev
 ARG HOSTDECK_REVISION=unknown
 
-FROM node:20-bookworm-slim AS web-builder
+FROM node:22-bookworm-slim AS web-builder
 WORKDIR /src/host-deck-ui
 
 COPY host-deck-ui/package.json host-deck-ui/pnpm-lock.yaml* host-deck-ui/pnpm-workspace.yaml ./
-RUN npm install -g pnpm@10.34.5 && pnpm install
+RUN npm install -g pnpm@10.34.5 && pnpm install --frozen-lockfile
 
 COPY host-deck-ui/ ./
 COPY LICENSE THIRD_PARTY_NOTICES.md /src/
@@ -23,10 +23,10 @@ RUN dart build cli --target bin/server.dart -o build/server
 
 FROM node:22-bookworm-slim AS ai-builder
 WORKDIR /src/host-deck-ai
-COPY host-deck-ai/package.json host-deck-ai/package-lock.json ./
-RUN npm ci
+COPY host-deck-ai/package.json host-deck-ai/pnpm-lock.yaml host-deck-ai/pnpm-workspace.yaml ./
+RUN npm install -g pnpm@10.34.5 && pnpm install --frozen-lockfile
 COPY host-deck-ai/ ./
-RUN npm run build
+RUN pnpm run build
 
 FROM debian:bookworm-slim AS runtime
 ARG HOSTDECK_VERSION

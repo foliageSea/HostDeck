@@ -7,7 +7,7 @@
 安装依赖：
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 ```
 
 启动 Electron 开发模式：

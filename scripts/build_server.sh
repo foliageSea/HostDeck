@@ -6,7 +6,7 @@ BUILD_DIR="$ROOT_DIR/build/server"
 WEB_DIR="$ROOT_DIR/host-deck-ui/dist"
 
 echo "Building frontend..."
-pnpm --dir "$ROOT_DIR/host-deck-ui" install
+pnpm --dir "$ROOT_DIR/host-deck-ui" install --frozen-lockfile
 pnpm --dir "$ROOT_DIR/host-deck-ui" build
 
 echo "Resolving Dart dependencies..."

@@ -21,8 +21,8 @@ jobs:
       - name: Install Dependencies
         run: |
           cd host-deck-ui
-          npm install -g pnpm
-          pnpm install
+          npm install -g pnpm@10.34.5
+          pnpm install --frozen-lockfile
       - name: Build Web
         run: |
           cd host-deck-ui
@@ -30,9 +30,9 @@ jobs:
       - name: Verify pi-ai bridge
         working-directory: host-deck-ai
         run: |
-          npm ci
-          npm run build
-          npm test
+          pnpm install --frozen-lockfile
+          pnpm run build
+          pnpm test
       - name: Upload Web Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -248,8 +248,8 @@ jobs:
           channel: "stable"
       - name: Install Dependencies
         run: |
-          npm install -g pnpm
-          pnpm --dir host-deck-electron install
+          npm install -g pnpm@10.34.5
+          pnpm --dir host-deck-electron install --frozen-lockfile
       - name: Verify Web Artifact
         shell: pwsh
         run: |
@@ -285,8 +285,8 @@ jobs:
           channel: "stable"
       - name: Install Dependencies
         run: |
-          npm install -g pnpm
-          pnpm --dir host-deck-electron install
+          npm install -g pnpm@10.34.5
+          pnpm --dir host-deck-electron install --frozen-lockfile
       - name: Verify Web Artifact
         run: |
           test -f host-deck-ui/dist/index.html

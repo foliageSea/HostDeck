@@ -20,7 +20,7 @@ class AiAgentPiBridge {
       if (File(candidate).existsSync()) return p.normalize(candidate);
     }
     throw StateError(
-      'pi-ai bridge is missing. Run npm ci and npm run build in host-deck-ai.',
+      'pi-ai bridge is missing. Run pnpm install and pnpm run build in host-deck-ai.',
     );
   }
 

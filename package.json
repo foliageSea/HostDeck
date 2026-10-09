@@ -1,0 +1,28 @@
+{
+  "name": "host-deck",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=22.19.0 <23"
+  },
+  "scripts": {
+    "install:all": "pnpm --dir host-deck-ui install --frozen-lockfile && pnpm --dir host-deck-electron install --frozen-lockfile && pnpm --dir host-deck-ai install --frozen-lockfile",
+    "check:ui": "pnpm --dir host-deck-ui exec vue-tsc -p tsconfig.app.json --noEmit",
+    "check:ai": "pnpm --dir host-deck-ai test",
+    "check:dart": "fvm flutter analyze",
+    "check": "pnpm run check:ui && pnpm run check:ai && pnpm run check:dart",
+    "build:web": "pnpm --dir host-deck-ui build",
+    "build:ai": "pnpm --dir host-deck-ai build",
+    "build:server:unix": "bash scripts/build_server.sh",
+    "build:server:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_server.ps1",
+    "build:electron:win": "pnpm run build:web && pnpm --dir host-deck-electron electron:pack:win:prepared",
+    "build:electron:mac": "pnpm run build:web && pnpm --dir host-deck-electron electron:pack:mac:prepared",
+    "build:electron": "pnpm run build:electron:win",
+    "test:ui": "pnpm --dir host-deck-ui test",
+    "test:ai": "pnpm --dir host-deck-ai test",
+    "test:dart": "fvm flutter test",
+    "test": "pnpm run test:ui && pnpm run test:ai && pnpm run test:dart",
+    "release": "sh scripts/release.sh"
+  }
+}

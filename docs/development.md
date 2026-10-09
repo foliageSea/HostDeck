@@ -6,14 +6,14 @@
 
 - Flutter SDK
 - Node.js 22
-- pnpm
+- pnpm 10.34.5（仓库根目录 `package.json` 已固定版本）
 
 安装依赖：
 
 ```bash
 git submodule update --init --recursive
 flutter pub get
-pnpm --dir host-deck-ui install
+pnpm run install:all
 ```
 
 ## Flutter 桌面壳调试

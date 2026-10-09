@@ -24,6 +24,13 @@ flutter test test/monitor_service_test.dart
 flutter test --name "MonitorService parses system status correctly"
 ```
 
+仓库级 Node/Dart 校验入口：
+
+```bash
+pnpm run check
+pnpm test
+```
+
 ## 前端校验
 
 前端构建：

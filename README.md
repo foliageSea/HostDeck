@@ -78,14 +78,14 @@
 - Flutter SDK
 - FVM（推荐，用于锁定 Flutter/Dart 工具链）
 - Node.js 22
-- pnpm
+- pnpm 10.34.5（仓库根目录 `package.json` 已固定版本）
 
 先安装依赖：
 
 ```bash
 git submodule update --init --recursive
 fvm flutter pub get
-pnpm --dir host-deck-ui install
+pnpm run install:all
 ```
 
 ## 开发模式
@@ -129,7 +129,7 @@ fvm flutter run -d windows
 先构建前端，再启动 CLI 服务：
 
 ```bash
-pnpm --dir host-deck-ui build
+pnpm run build:web
 HOSTDECK_ACCESS_PASSWORD=replace-with-a-strong-password dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
 ```
 
@@ -167,7 +167,7 @@ Flutter release 构建会打包 `assets/web/` 里的静态资源，因此在本�
 基本流程：
 
 ```bash
-pnpm --dir host-deck-ui build
+pnpm run build:web
 # 将 host-deck-ui/dist 的内容同步到 assets/web/
 flutter build windows --release
 ```
@@ -189,8 +189,8 @@ Electron Windows 壳位于 `host-deck-electron/`，其中 `src/main/` 承载主�
 Electron 的服务构建脚本会执行 `flutter pub get`，若该步骤失败但 `.dart_tool/package_config.json` 已存在，会继续使用现有依赖配置执行 `dart compile exe`；因此 Electron 打包本身不强制依赖 `fvm` 命令可用。
 
 ```bash
-pnpm --dir host-deck-electron install
-pnpm --dir host-deck-electron electron:build:win
+pnpm --dir host-deck-electron install --frozen-lockfile
+pnpm run build:electron:win
 ```
 
 构建结果位于 `host-deck-electron/release/`。
@@ -334,6 +334,8 @@ host_deck/
 ├── lib/                 # Flutter 桌面壳与内置后端服务
 ├── host-deck-ui/        # 当前主前端工程
 ├── host-deck-electron/  # Electron Windows 桌面壳
+├── host-deck-ai/        # pi-ai Node bridge 工程
+├── package.json         # 仓库级 Node 命令编排入口
 ├── assets/web/          # Flutter release 打包使用的静态资源
 ├── scripts/             # 服务打包脚本
 ├── test/                # Flutter/Dart 测试
