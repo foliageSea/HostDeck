@@ -30,36 +30,42 @@ function mountPreview(
 }
 
 describe('FileMediaPreview', () => {
-  it('renders an image from the existing file read endpoint', () => {
+  it('uses the file icon instead of loading an image thumbnail', () => {
     const wrapper = mountPreview(baseFile)
-    const image = wrapper.get('img:not(.file-type-icon)')
+    const icon = wrapper.get('img.file-type-icon')
 
-    expect(image.attributes('src')).toBe(
-      '/api/files/read?connectionId=connection-1&path=%2Fhome%2Fmedia%2Fpreview.jpg',
-    )
-    expect(image.classes()).toContain('h-[60px]')
+    expect(wrapper.find('img:not(.file-type-icon)').exists()).toBe(false)
+    expect(wrapper.find('video').exists()).toBe(false)
+    expect(icon.attributes('src')).toContain('image-x-generic.svg')
+    expect(icon.classes()).toContain('h-[60px]')
   })
 
-  it('renders a muted metadata-only video for its opening frame', () => {
-    const wrapper = mountPreview({ ...baseFile, filename: 'clip.mp4' })
+  it('uses the file icon instead of loading a video first frame', () => {
+    const wrapper = mountPreview({ ...baseFile, filename: 'clip.mp4' }, 'connection-1', 'list')
+
+    expect(wrapper.find('video').exists()).toBe(false)
+    expect(wrapper.get('img.file-type-icon').attributes('src')).toContain('video-x-generic.svg')
+  })
+
+  it('uses compact file icon dimensions in list view', () => {
+    const wrapper = mountPreview(baseFile, 'connection-1', 'list')
+
+    expect(wrapper.get('img.file-type-icon').classes()).toContain('h-[28px]')
+  })
+
+  it('supports an explicit large media preview variant', () => {
+    const wrapper = mountPreview(baseFile, 'connection-1', 'preview')
+
+    expect(wrapper.get('img:not(.file-type-icon)').classes()).toContain('max-w-full')
+  })
+
+  it('renders video media only for an explicit preview variant', () => {
+    const wrapper = mountPreview({ ...baseFile, filename: 'clip.mp4' }, 'connection-1', 'preview')
     const video = wrapper.get('video')
 
     expect(video.attributes('preload')).toBe('metadata')
     expect((video.element as HTMLVideoElement).muted).toBe(true)
     expect(video.attributes()).toHaveProperty('playsinline')
-    expect(video.classes()).toContain('h-[60px]')
-  })
-
-  it('uses compact media dimensions in list view', () => {
-    const wrapper = mountPreview(baseFile, 'connection-1', 'list')
-
-    expect(wrapper.get('img:not(.file-type-icon)').classes()).toContain('h-[28px]')
-  })
-
-  it('supports a large preview variant', () => {
-    const wrapper = mountPreview(baseFile, 'connection-1', 'preview')
-
-    expect(wrapper.get('img:not(.file-type-icon)').classes()).toContain('max-w-full')
   })
 
   it('falls back to the file icon when no connection is available', () => {

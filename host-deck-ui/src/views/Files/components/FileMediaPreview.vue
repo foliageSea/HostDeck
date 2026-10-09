@@ -13,7 +13,10 @@ const props = defineProps<{
 
 const previewReady = ref(false)
 const previewFailed = ref(false)
-const previewType = computed(() => getFilePreviewType(props.file))
+const shouldPreviewMedia = computed(() => props.variant === 'preview')
+const previewType = computed(() =>
+  shouldPreviewMedia.value ? getFilePreviewType(props.file) : null,
+)
 const mediaUrl = computed(() => {
   if (!props.connectionId || !props.currentPath || !previewType.value) {
     return ''
