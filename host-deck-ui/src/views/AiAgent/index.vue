@@ -53,6 +53,19 @@ interface ConversationGroup {
   conversations: AiAgentConversation[]
 }
 
+interface ModelOption {
+  id: string
+  key: string
+  label: string
+  provider: string
+  hasCredentials: boolean
+}
+
+interface ModelGroup {
+  models: ModelOption[]
+  provider: string
+}
+
 const props = defineProps<{ windowId?: string }>()
 
 const agentStore = useAiAgentStore()
@@ -199,17 +212,26 @@ const runStatusLabel = computed(() => {
 const runToolCount = computed(() => toolCalls.value.length)
 
 const enabledMcpServers = computed(() => agentStore.mcpServers.filter((server) => server.enabled))
-const modelOptions = computed(() =>
+const modelOptions = computed<ModelOption[]>(() =>
   (settings.value?.providers ?? []).flatMap((provider) =>
     provider.models.map((model) => ({
       id: model.id,
       key: `${provider.id}:${model.id}`,
-      label: model.name,
+      label: model.name || model.id,
       provider: provider.id,
       hasCredentials: provider.hasCredentials,
     })),
   ),
 )
+const modelGroups = computed<ModelGroup[]>(() => {
+  const groups = new Map<string, ModelOption[]>()
+  for (const model of modelOptions.value) {
+    const models = groups.get(model.provider) ?? []
+    models.push(model)
+    groups.set(model.provider, models)
+  }
+  return [...groups].map(([provider, models]) => ({ models, provider }))
+})
 const activeModelName = computed(() => {
   const activeProvider = settings.value?.providers.find(
     (provider) => provider.id === settings.value?.provider,
@@ -1067,30 +1089,38 @@ let resizeObserver: ResizeObserver | undefined
                 </template>
                 <div class="agent-mode-menu agent-model-menu">
                   <div class="agent-mode-heading">选择模型</div>
-                  <button
-                    v-for="model in modelOptions"
-                    :key="model.key"
-                    type="button"
-                    class="agent-mode-option"
-                    :aria-pressed="settings?.provider === model.provider && settings?.model === model.id"
-                    :disabled="switchingModel || running || !model.hasCredentials"
-                    @click="selectModel(model.provider, model.id)"
-                  >
-                    <Bot :size="16" />
-                    <span class="agent-mode-copy">
-                      <strong>{{ model.label }}</strong>
-                      <span>{{ model.provider }} · {{ model.id }}</span>
-                    </span>
-                    <Check
-                      :size="16"
-                      :style="{
-                        visibility:
-                          settings?.provider === model.provider && settings?.model === model.id
-                            ? 'visible'
-                            : 'hidden',
-                      }"
-                    />
-                  </button>
+                  <div v-for="group in modelGroups" :key="group.provider" class="agent-model-group">
+                    <div class="agent-model-group-heading">
+                      <span>{{ group.provider }}</span>
+                      <span>{{ group.models.length }} 个模型</span>
+                    </div>
+                    <button
+                      v-for="model in group.models"
+                      :key="model.key"
+                      type="button"
+                      class="agent-mode-option"
+                      :aria-pressed="
+                        settings?.provider === model.provider && settings?.model === model.id
+                      "
+                      :disabled="switchingModel || running || !model.hasCredentials"
+                      @click="selectModel(model.provider, model.id)"
+                    >
+                      <Bot :size="16" />
+                      <span class="agent-mode-copy">
+                        <strong>{{ model.label }}</strong>
+                        <span>{{ model.id }}</span>
+                      </span>
+                      <Check
+                        :size="16"
+                        :style="{
+                          visibility:
+                            settings?.provider === model.provider && settings?.model === model.id
+                              ? 'visible'
+                              : 'hidden',
+                        }"
+                      />
+                    </button>
+                  </div>
                 </div>
               </NPopover>
               <AiAgentSkillPicker
@@ -2008,6 +2038,8 @@ let resizeObserver: ResizeObserver | undefined
 
 .agent-model-menu {
   width: min(360px, calc(100vw - 48px));
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
 }
 
 .agent-mcp-entry {
@@ -2062,6 +2094,29 @@ let resizeObserver: ResizeObserver | undefined
   padding: 2px 8px 8px;
   font-size: 11px;
   opacity: 0.55;
+}
+
+.agent-model-group + .agent-model-group {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--agent-border);
+}
+
+.agent-model-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 8px 5px;
+  color: var(--agent-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.agent-model-group-heading > span:last-child {
+  font-size: 9px;
+  font-weight: 400;
+  opacity: 0.7;
 }
 
 .agent-mode-option {
