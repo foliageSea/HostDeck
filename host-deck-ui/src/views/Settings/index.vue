@@ -205,14 +205,23 @@ async function exportLogs() {
             </NFormItem>
             <NFormItem label="主题色">
               <div class="flex flex-wrap items-center gap-[12px]">
-                <div class="w-[180px]">
-                  <NColorPicker
-                    :value="settingsStore.primaryColor"
-                    :show-alpha="false"
-                    :modes="['hex']"
-                    @update:value="settingsStore.setPrimaryColor"
-                  />
-                </div>
+                <NColorPicker
+                  :value="settingsStore.primaryColor"
+                  :show-alpha="false"
+                  :modes="['hex']"
+                  @update:value="settingsStore.setPrimaryColor"
+                >
+                  <template #trigger="{ value, onClick, ref: triggerRef }">
+                    <button
+                      :ref="triggerRef"
+                      type="button"
+                      class="h-[32px] w-[32px] shrink-0 cursor-pointer rounded-full border-2 border-solid border-white p-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-[transform,box-shadow] duration-[160ms] ease-in-out hover:scale-[1.08]"
+                      :style="{ backgroundColor: value || settingsStore.primaryColor }"
+                      :aria-label="`选择主题色，当前 ${value || settingsStore.primaryColor}`"
+                      @click="onClick"
+                    />
+                  </template>
+                </NColorPicker>
                 <div class="flex items-center gap-[8px]">
                   <button
                     v-for="color in primaryColorPresets"
