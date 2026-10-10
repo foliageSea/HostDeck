@@ -409,7 +409,6 @@ onMounted(() => {
           <div class="flow-title-icon"><Network :size="18" /></div>
           <div>
             <h1 class="m-0 text-[20px] font-700 leading-tight">端口转发</h1>
-            <div class="mt-[4px] text-[12px] opacity-60">将 SSH 主机上的远程服务转发到本地端口</div>
           </div>
         </div>
       </div>

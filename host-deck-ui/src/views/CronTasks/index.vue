@@ -224,7 +224,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex h-full min-h-0 flex-col gap-[14px] p-[18px]" :class="settingsStore.isDark ? 'text-[#e2e8f0]' : 'text-[#0f172a]'">
     <div class="flex flex-wrap items-center justify-between gap-[12px]">
-      <div><div class="text-[18px] font-700">定时任务</div><div class="mt-1 text-[12px] opacity-60">管理 HostDeck 托管的远端 crontab 与执行历史</div></div>
+      <div><div class="text-[18px] font-700">定时任务</div></div>
       <div class="flex gap-2"><NButton size="small" secondary :loading="loading" :disabled="!connected" @click="loadTasks"><RefreshCw :size="15" /></NButton><NDropdown trigger="click" :options="createOptions" @select="handleCreate"><NButton size="small" type="primary" :disabled="!connected"><template #icon><Plus :size="16" /></template>新增任务</NButton></NDropdown></div>
     </div>
     <NAlert v-if="!connected" type="warning" :show-icon="true">请使用已保存的服务器建立 SSH 连接。</NAlert>

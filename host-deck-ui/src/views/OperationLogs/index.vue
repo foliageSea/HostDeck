@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, ref } from 'vue'
+import { h, onMounted, ref } from 'vue'
 import { NButton, NDataTable, NTag, type DataTableColumns, type SelectOption } from 'naive-ui'
 import { Renew, TrashCan } from '@vicons/carbon'
 import {
@@ -121,8 +121,6 @@ const actionLabels: Record<string, string> = {
   volumeRemove: '删除卷',
   write: '写入文件',
 }
-
-const filteredSummary = computed(() => `${logs.value.length} 条记录，最多保留最近 1000 条`)
 
 function openPreview(title: string, content: string) {
   previewTitle.value = title
@@ -255,12 +253,6 @@ onMounted(() => {
     <div class="flex flex-wrap items-center justify-between gap-[12px]">
       <div>
         <div class="text-[18px] font-700">操作记录</div>
-        <div
-          class="text-[12px]"
-          :class="settingsStore.isDark ? 'text-[rgba(148,163,184,0.94)]' : 'text-[#64748b]'"
-        >
-          {{ filteredSummary }}
-        </div>
       </div>
       <div class="flex flex-wrap items-center gap-[8px]">
         <NSelect
