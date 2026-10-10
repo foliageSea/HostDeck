@@ -2,11 +2,20 @@
   "name": "host-deck-ai",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.19.0" },
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "scripts": {
     "build": "node build.mjs",
+    "format": "prettier --write . --ignore-path ../.prettierignore",
+    "format:check": "prettier --check . --ignore-path ../.prettierignore",
     "test": "node --test test/*.test.mjs"
   },
-  "dependencies": { "@earendil-works/pi-ai": "0.87.1" },
-  "devDependencies": { "esbuild": "0.25.12" }
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.87.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "prettier": "3.8.4"
+  }
 }

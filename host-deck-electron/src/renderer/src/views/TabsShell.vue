@@ -13,7 +13,7 @@ import {
   Plus,
   RefreshCw,
   Square,
-  X
+  X,
 } from 'lucide-vue-next'
 import { useDialog } from 'naive-ui'
 
@@ -23,7 +23,7 @@ const dialog = useDialog()
 const currentState = ref({
   activeTabId: null,
   tabBarPosition: 'top',
-  tabs: []
+  tabs: [],
 })
 const dragState = ref(null)
 const editingTabId = ref(null)
@@ -42,7 +42,7 @@ const tabs = computed(() => currentState.value.tabs)
 const nextTabBarPosition = computed(() => (isVertical.value ? 'top' : 'left'))
 const sidebarStyle = computed(() => ({ '--sidebar-width': `${sidebarWidth.value}px` }))
 const nextTabBarLabel = computed(() =>
-  nextTabBarPosition.value === 'left' ? '切换垂直标签栏' : '切换顶部标签栏'
+  nextTabBarPosition.value === 'left' ? '切换垂直标签栏' : '切换顶部标签栏',
 )
 const nextTabBarIcon = computed(() => (nextTabBarPosition.value === 'left' ? PanelLeft : PanelTop))
 const toolbarMenuLabel = computed(() => {
@@ -123,7 +123,7 @@ async function requestClose(tabId) {
     maskClosable: false,
     closeOnEsc: false,
     onPositiveClick: confirmClose,
-    onNegativeClick: cancelClose
+    onNegativeClick: cancelClose,
   })
 }
 
@@ -163,7 +163,7 @@ function handleDragStart(event, tabId) {
     element: event.currentTarget,
     id: tabId,
     placement: null,
-    targetId: null
+    targetId: null,
   }
   event.currentTarget.classList.add('dragging')
   event.dataTransfer.effectAllowed = 'move'
@@ -283,7 +283,7 @@ onBeforeUnmount(() => {
         left: `${contentPreview.bounds.x}px`,
         top: `${contentPreview.bounds.y}px`,
         width: `${contentPreview.bounds.width}px`,
-        height: `${contentPreview.bounds.height}px`
+        height: `${contentPreview.bounds.height}px`,
       }"
       alt=""
       aria-hidden="true"

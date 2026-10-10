@@ -1,0 +1,21 @@
+# Dependencies and build output
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/out/
+**/release/
+**/coverage/
+**/*.log
+
+# Lockfiles and generated declarations
+**/pnpm-lock.yaml
+host-deck-ui/auto-imports.d.ts
+host-deck-ui/components.d.ts
+
+# Third-party assets (Git submodule)
+host-deck-ui/src/assets/mac-tahoe/
+
+# Preserve existing Electron exclusions
+host-deck-electron/LICENSE.md
+host-deck-electron/tsconfig.json
+host-deck-electron/tsconfig.*.json

@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import type { AiAgentMessage, AiAgentRunStep } from '@/api/ai-agent'
 import { buildTimelineEntries } from '../timeline'
 
-function message(id: string, role: AiAgentMessage['role'], createdAt: number, extra: Partial<AiAgentMessage> = {}): AiAgentMessage {
+function message(
+  id: string,
+  role: AiAgentMessage['role'],
+  createdAt: number,
+  extra: Partial<AiAgentMessage> = {},
+): AiAgentMessage {
   return {
     attachments: [],
     content: '',
@@ -93,19 +98,17 @@ describe('buildTimelineEntries', () => {
 
     const entries = buildTimelineEntries([], steps)
 
-    expect(entries.map((entry) => (entry.kind === 'step' ? entry.step.stepId : entry.message.id))).toEqual([
-      'restored-call-1',
-      'model-after-tool',
-    ])
+    expect(
+      entries.map((entry) => (entry.kind === 'step' ? entry.step.stepId : entry.message.id)),
+    ).toEqual(['restored-call-1', 'model-after-tool'])
   })
 
   it('returns plain messages when there are no steps', () => {
-    const entries = buildTimelineEntries(
-      [message('user-1', 'user', 1, { content: 'hi' })],
-      [],
-    )
+    const entries = buildTimelineEntries([message('user-1', 'user', 1, { content: 'hi' })], [])
 
-    expect(entries).toEqual([{ kind: 'message', message: expect.objectContaining({ id: 'user-1' }) }])
+    expect(entries).toEqual([
+      { kind: 'message', message: expect.objectContaining({ id: 'user-1' }) },
+    ])
   })
 
   it('merges restored tool steps between messages by timestamp', () => {
@@ -127,14 +130,9 @@ describe('buildTimelineEntries', () => {
       'step',
       'message',
     ])
-    expect(entries.map((entry) => (entry.kind === 'message' ? entry.message.id : entry.step.callId))).toEqual([
-      'user-1',
-      'call-1',
-      'assistant-1',
-      'user-2',
-      'call-9',
-      'assistant-2',
-    ])
+    expect(
+      entries.map((entry) => (entry.kind === 'message' ? entry.message.id : entry.step.callId)),
+    ).toEqual(['user-1', 'call-1', 'assistant-1', 'user-2', 'call-9', 'assistant-2'])
   })
 
   it('keeps live steps appended after messages', () => {
@@ -147,7 +145,10 @@ describe('buildTimelineEntries', () => {
     const entries = buildTimelineEntries(messages, steps)
 
     expect(entries.map((entry) => entry.kind)).toEqual(['message', 'step', 'step'])
-    expect(entries[0]).toMatchObject({ kind: 'message', message: expect.objectContaining({ id: 'user-1' }) })
+    expect(entries[0]).toMatchObject({
+      kind: 'message',
+      message: expect.objectContaining({ id: 'user-1' }),
+    })
   })
 
   it('places a message before restored steps that share its timestamp', () => {
@@ -162,10 +163,8 @@ describe('buildTimelineEntries', () => {
 
     const entries = buildTimelineEntries(messages, steps)
 
-    expect(entries.map((entry) => (entry.kind === 'message' ? entry.message.id : entry.step.callId))).toEqual([
-      'user-1',
-      'assistant-tool',
-      'call-1',
-    ])
+    expect(
+      entries.map((entry) => (entry.kind === 'message' ? entry.message.id : entry.step.callId)),
+    ).toEqual(['user-1', 'assistant-tool', 'call-1'])
   })
 })

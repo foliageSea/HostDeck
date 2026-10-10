@@ -149,8 +149,7 @@ const flowNodes = computed<Node<RuntimeNodeData>[]>(() => {
       position: { x: 378, y: groupTop + (sessionAreaHeight - 96) / 2 },
       data: {
         connectionId: client.connectionId,
-        sshTarget:
-          client.username && client.host ? `${client.username}@${client.host}` : undefined,
+        sshTarget: client.username && client.host ? `${client.username}@${client.host}` : undefined,
         isClosed: client.isClosed,
         sessionCount: client.sessionCount,
         isSynthetic: client.isSynthetic,
@@ -415,7 +414,9 @@ onBeforeUnmount(() => {
               {{ data.sshTarget ?? 'SSH 连接' }}
             </div>
             <div class="node-footer">
-              <span class="secondary-id" :title="data.connectionId">ID {{ data.connectionId }}</span>
+              <span class="secondary-id" :title="data.connectionId"
+                >ID {{ data.connectionId }}</span
+              >
               <span>{{ data.sessionCount }} 个会话</span>
             </div>
             <Handle type="source" :position="Position.Right" />

@@ -66,9 +66,7 @@ async function submit() {
     credential.value = ''
     await settingsStore.initialize()
   } catch {
-    errorMessage.value = useTotp.value
-      ? 'Authenticator 验证码不正确'
-      : '访问凭据不正确'
+    errorMessage.value = useTotp.value ? 'Authenticator 验证码不正确' : '访问凭据不正确'
   } finally {
     submitting.value = false
   }
@@ -117,9 +115,7 @@ async function submit() {
             <p
               class="mb-0 mt-[3px] text-[0.82rem]"
               :class="
-                settingsStore.isDark
-                  ? 'text-[rgba(203,213,225,0.7)]'
-                  : 'text-[rgba(51,65,85,0.76)]'
+                settingsStore.isDark ? 'text-[rgba(203,213,225,0.7)]' : 'text-[rgba(51,65,85,0.76)]'
               "
             >
               管理访问验证

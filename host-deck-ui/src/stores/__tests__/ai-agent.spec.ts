@@ -436,14 +436,14 @@ describe('AI Agent store', () => {
           toolCallId: 'call-2',
           toolStatus: 'failed',
         },
-          {
-            attachments: [],
-            content: 'Checking.Done.',
-            createdAt: 5,
-            id: 'm-final-1',
-            role: 'assistant',
-            usage: { promptTokens: 120, responseTokens: 30, totalTokens: 150 },
-          },
+        {
+          attachments: [],
+          content: 'Checking.Done.',
+          createdAt: 5,
+          id: 'm-final-1',
+          role: 'assistant',
+          usage: { promptTokens: 120, responseTokens: 30, totalTokens: 150 },
+        },
         { attachments: [], content: 'clean up', createdAt: 6, id: 'm-user-2', role: 'user' },
         {
           attachments: [],
@@ -582,7 +582,7 @@ describe('AI Agent store', () => {
     await store.cancelRun()
     expect(store.running).toBe(false)
     expect(store.selectedSkillIds).toEqual([])
-      expect(store.toolCalls[0]).toMatchObject({ approvalPending: false, status: 'cancelled' })
+    expect(store.toolCalls[0]).toMatchObject({ approvalPending: false, status: 'cancelled' })
 
     finishRun()
   })
@@ -675,7 +675,9 @@ describe('AI Agent store', () => {
       name: 'logs',
       source: 'hostdeck',
     }
-    apiMocks.listSkills.mockResolvedValueOnce([managedSkill]).mockRejectedValueOnce(new Error('SFTP down'))
+    apiMocks.listSkills
+      .mockResolvedValueOnce([managedSkill])
+      .mockRejectedValueOnce(new Error('SFTP down'))
     apiMocks.listManagedSkills.mockResolvedValue([])
     const store = useAiAgentStore()
     await store.loadSkills('connection-1')
@@ -690,8 +692,14 @@ describe('AI Agent store', () => {
   it('ignores an older managed skill listing after a later refresh', async () => {
     let resolveOld!: (value: never[]) => void
     apiMocks.listManagedSkills
-      .mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
-      .mockResolvedValueOnce([{ id: 'hostdeck:7', name: 'logs', description: 'Logs', source: 'hostdeck', editable: true }])
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOld = resolve
+        }),
+      )
+      .mockResolvedValueOnce([
+        { id: 'hostdeck:7', name: 'logs', description: 'Logs', source: 'hostdeck', editable: true },
+      ])
     const store = useAiAgentStore()
     const older = store.loadManagedSkills()
     await store.loadManagedSkills()

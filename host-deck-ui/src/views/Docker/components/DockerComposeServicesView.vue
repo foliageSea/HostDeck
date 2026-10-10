@@ -27,9 +27,14 @@ const filteredServices = computed(() => {
   if (!keyword) return services.value
 
   return services.value.filter((service) =>
-    [service.service, service.name, service.image, service.state, service.status, service.ports].some(
-      (value) => value.toLowerCase().includes(keyword),
-    ),
+    [
+      service.service,
+      service.name,
+      service.image,
+      service.state,
+      service.status,
+      service.ports,
+    ].some((value) => value.toLowerCase().includes(keyword)),
   )
 })
 
@@ -121,9 +126,7 @@ onMounted(() => void load())
           description="没有匹配的服务"
         />
         <div v-else class="compose-service-list app-scrollbar app-scrollbar-compact">
-          <div class="compose-service-list__summary">
-            共 {{ filteredServices.length }} 个服务
-          </div>
+          <div class="compose-service-list__summary">共 {{ filteredServices.length }} 个服务</div>
 
           <article
             v-for="service in filteredServices"

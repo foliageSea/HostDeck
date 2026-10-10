@@ -299,7 +299,13 @@ function disconnect() {
       >
         <NTooltip placement="bottom">
           <template #trigger>
-            <NButton size="small" quaternary circle aria-label="打开任务中心" @click="openTaskCenter">
+            <NButton
+              size="small"
+              quaternary
+              circle
+              aria-label="打开任务中心"
+              @click="openTaskCenter"
+            >
               <template #icon>
                 <NIcon :size="14">
                   <ListChecked />

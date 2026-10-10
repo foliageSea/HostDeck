@@ -9,7 +9,8 @@
   },
   "scripts": {
     "dev": "vite --config vite.config.mjs",
-    "format": "prettier --write .",
+    "format": "prettier --write . --ignore-path ../.prettierignore",
+    "format:check": "prettier --check . --ignore-path ../.prettierignore",
     "electron:dev": "node src/scripts/start-dev.cjs",
     "electron:preview": "pnpm electron:build:renderer && cross-env HOST_DECK_ELECTRON_MODE=preview electron .",
     "electron:build:web": "pnpm --dir ../host-deck-ui build",
@@ -28,7 +29,7 @@
     "cross-env": "^10.1.0",
     "electron": "^39.2.7",
     "electron-builder": "^26.8.1",
-    "prettier": "^3.8.4",
+    "prettier": "3.8.4",
     "vite": "^8.0.4",
     "vue": "^3.5.32"
   },

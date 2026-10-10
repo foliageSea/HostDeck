@@ -28,7 +28,7 @@ importers:
         specifier: ^26.8.1
         version: 26.15.3(electron-builder-squirrel-windows@26.15.3)
       prettier:
-        specifier: ^3.8.4
+        specifier: 3.8.4
         version: 3.8.4
       vite:
         specifier: ^8.0.4

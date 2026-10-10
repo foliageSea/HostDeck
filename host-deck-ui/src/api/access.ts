@@ -21,7 +21,9 @@ export interface TotpSetup {
 export const accessApi = {
   getState: () => http.get<AccessState>('/api/access/state').then((response) => response.data),
   login: (credential: { password?: string; code?: string }) =>
-    http.post<{ authenticated: boolean }>('/api/access/login', credential).then((response) => response.data),
+    http
+      .post<{ authenticated: boolean }>('/api/access/login', credential)
+      .then((response) => response.data),
   beginTotpSetup: (currentCode?: string) =>
     http
       .post<TotpSetup>('/api/access/totp/setup', currentCode ? { currentCode } : {})

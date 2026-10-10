@@ -50,12 +50,7 @@ const areaPoints = computed(() =>
       stroke="currentColor"
       stroke-opacity="0.12"
     />
-    <polygon
-      v-if="areaPoints"
-      :points="areaPoints"
-      :fill="color"
-      fill-opacity="0.16"
-    />
+    <polygon v-if="areaPoints" :points="areaPoints" :fill="color" fill-opacity="0.16" />
     <polyline
       v-if="points"
       :points="points"

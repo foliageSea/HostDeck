@@ -76,7 +76,14 @@ watch(
         <NInput v-model:value="query" clearable size="small" placeholder="搜索工具">
           <template #prefix><Search :size="14" /></template>
         </NInput>
-        <NButton quaternary circle size="small" :loading="store.loadingTools" aria-label="刷新工具列表" @click="load(true)">
+        <NButton
+          quaternary
+          circle
+          size="small"
+          :loading="store.loadingTools"
+          aria-label="刷新工具列表"
+          @click="load(true)"
+        >
           <template #icon><RefreshCw :size="14" /></template>
         </NButton>
       </div>
@@ -92,7 +99,10 @@ watch(
     </div>
     <div v-else class="agent-tool-list-items app-scrollbar">
       <article v-for="tool in filteredTools" :key="tool.name" class="agent-tool-list-item">
-        <div class="agent-tool-list-icon" :class="{ 'agent-tool-list-icon-mcp': tool.source === 'mcp' }">
+        <div
+          class="agent-tool-list-icon"
+          :class="{ 'agent-tool-list-icon-mcp': tool.source === 'mcp' }"
+        >
           <PlugZap v-if="tool.source === 'mcp'" :size="16" />
           <Wrench v-else :size="16" />
         </div>
@@ -110,7 +120,11 @@ watch(
               <ShieldCheck :size="12" /> 执行前需批准
             </span>
             <span v-else class="agent-tool-list-direct">可直接执行</span>
-            <span v-for="argument in argumentNames(tool.inputSchema)" :key="argument" class="agent-tool-list-argument">
+            <span
+              v-for="argument in argumentNames(tool.inputSchema)"
+              :key="argument"
+              class="agent-tool-list-argument"
+            >
               {{ argument }}
             </span>
           </div>

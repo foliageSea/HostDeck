@@ -157,9 +157,9 @@ function restoreConversation(loaded: AiAgentMessage[]) {
     }
   }
 
-  const restoredUsage = [...loaded]
-    .reverse()
-    .find((message) => message.role === 'assistant' && message.usage)?.usage ?? null
+  const restoredUsage =
+    [...loaded].reverse().find((message) => message.role === 'assistant' && message.usage)?.usage ??
+    null
 
   return { messages, steps, tools, usage: restoredUsage }
 }
@@ -364,7 +364,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   async function deleteManagedSkill(id: number) {
     await aiAgentApi.deleteManagedSkill(id)
     managedSkills.value = managedSkills.value.filter((skill) => skill.id !== `hostdeck:${id}`)
-    selectedSkillIds.value = selectedSkillIds.value.filter((skillId) => skillId !== `hostdeck:${id}`)
+    selectedSkillIds.value = selectedSkillIds.value.filter(
+      (skillId) => skillId !== `hostdeck:${id}`,
+    )
     skills.value = skills.value.filter((skill) => skill.id !== `hostdeck:${id}`)
     await refreshSkillsAfterManage()
   }
@@ -570,12 +572,12 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     const content =
       event.event === 'message-reset'
         ? ''
-        : existing?.content ??
+        : (existing?.content ??
           ('text' in event
             ? event.text
             : 'message' in event && typeof event.message === 'string'
               ? localizeRunMessage(event.message)
-              : undefined)
+              : undefined))
     const step: AiAgentRunStep = {
       completedAt: event.completedAt,
       messageId: 'messageId' in event ? event.messageId : existing?.messageId,
@@ -594,8 +596,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         event.event === 'message-reset'
           ? ''
           : existing?.content !== undefined && 'text' in event
-          ? `${existing.content}${event.text}`
-          : content,
+            ? `${existing.content}${event.text}`
+            : content,
     }
     runSteps.value = existing
       ? runSteps.value.map((item) => (item.stepId === step.stepId ? step : item))

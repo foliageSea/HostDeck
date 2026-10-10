@@ -159,12 +159,16 @@ const resourceItems = computed(() => [
           <ChevronRight :size="14" class="ov-stat-chevron" aria-hidden="true" />
         </span>
         <span class="ov-stat-body">
-          <span class="ov-stat-icon"><component :is="stat.icon" :size="20" aria-hidden="true" /></span>
+          <span class="ov-stat-icon"
+            ><component :is="stat.icon" :size="20" aria-hidden="true"
+          /></span>
           <span class="ov-stat-main">
             <span class="ov-stat-sub ov-muted">{{ stat.sub }}</span>
             <strong class="ov-stat-value">
               {{ stat.value
-              }}<span v-if="stat.total !== undefined" class="ov-stat-total">/ {{ stat.total }}</span>
+              }}<span v-if="stat.total !== undefined" class="ov-stat-total"
+                >/ {{ stat.total }}</span
+              >
             </strong>
           </span>
           <span class="ov-stat-detail ov-muted">{{ stat.detail }}</span>
@@ -174,9 +178,7 @@ const resourceItems = computed(() => [
       <section class="ov-card ov-card-wide" aria-labelledby="ov-resource-title">
         <header class="ov-card-header">
           <h2 id="ov-resource-title">资源明细</h2>
-          <span class="ov-health ov-muted">
-            <span class="ov-state-dot" />服务响应正常
-          </span>
+          <span class="ov-health ov-muted"> <span class="ov-state-dot" />服务响应正常 </span>
         </header>
         <div class="ov-resource-list">
           <button

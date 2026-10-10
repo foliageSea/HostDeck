@@ -9,14 +9,16 @@ describe('serverMetricsApi.stream', () => {
   })
 
   it('parses valid samples and ignores malformed samples', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        'event: connected\nretry: 3000\ndata: {}\n\n' +
-          'event: metrics\ndata: {"timestamp":1000,"uptimeMs":2000,"rssBytes":3000,"peakRssBytes":4000,"cpuPercent":12.5,"eventLoopLagMs":1.25}\n\n' +
-          'event: metrics\ndata: {"rssBytes":"invalid"}\n\n',
-        { headers: { 'Content-Type': 'text/event-stream' } },
-      ),
-    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          'event: connected\nretry: 3000\ndata: {}\n\n' +
+            'event: metrics\ndata: {"timestamp":1000,"uptimeMs":2000,"rssBytes":3000,"peakRssBytes":4000,"cpuPercent":12.5,"eventLoopLagMs":1.25}\n\n' +
+            'event: metrics\ndata: {"rssBytes":"invalid"}\n\n',
+          { headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+      )
     vi.stubGlobal('fetch', fetchMock)
     const events: unknown[] = []
 

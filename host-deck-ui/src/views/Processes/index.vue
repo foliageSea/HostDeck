@@ -187,9 +187,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    class="process-view flex h-full flex-col gap-[16px] overflow-hidden p-[20px]"
-  >
+  <div class="process-view flex h-full flex-col gap-[16px] overflow-hidden p-[20px]">
     <div class="flex flex-wrap items-start justify-between gap-[12px]">
       <div>
         <div class="text-[24px] font-700 leading-tight">进程管理</div>
@@ -218,7 +216,9 @@ onBeforeUnmount(() => {
       </NCard>
       <NCard size="small">
         <div class="text-[12px] text-[rgba(100,116,139,0.86)]">最近刷新</div>
-        <div class="mt-[8px] text-[26px] font-700 leading-tight">{{ formatRefreshAt(refreshAt) }}</div>
+        <div class="mt-[8px] text-[26px] font-700 leading-tight">
+          {{ formatRefreshAt(refreshAt) }}
+        </div>
       </NCard>
     </div>
 

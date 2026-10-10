@@ -279,10 +279,9 @@ function handleRowAction(key: string | number, batch: UploadBatch) {
 <style scoped>
 .task-row {
   display: grid;
-  grid-template-columns: minmax(200px, 2fr) minmax(190px, 1.2fr) minmax(110px, 0.7fr) minmax(
-      88px,
-      0.55fr
-    ) 40px;
+  grid-template-columns:
+    minmax(200px, 2fr) minmax(190px, 1.2fr) minmax(110px, 0.7fr) minmax(88px, 0.55fr)
+    40px;
   align-items: center;
   min-height: 56px;
   padding: 8px 14px;

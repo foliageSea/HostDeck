@@ -13,8 +13,12 @@ export async function loginCodex(emit, signal, oauth = codexOAuth) {
     },
     notify: (event) => {
       if (event.type === 'device_code') {
-        emit({ type: 'auth', userCode: event.userCode,
-          verificationUri: event.verificationUri, expiresInSeconds: event.expiresInSeconds ?? 900 })
+        emit({
+          type: 'auth',
+          userCode: event.userCode,
+          verificationUri: event.verificationUri,
+          expiresInSeconds: event.expiresInSeconds ?? 900,
+        })
       }
     },
   })

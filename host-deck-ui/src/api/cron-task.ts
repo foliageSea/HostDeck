@@ -40,15 +40,21 @@ export interface CronExecutionHistory {
 
 export const cronTaskApi = {
   async list(serverId: number, connectionId: string) {
-    const response = await http.get<CronTask[]>('/api/cron-tasks', { params: { serverId, connectionId } })
+    const response = await http.get<CronTask[]>('/api/cron-tasks', {
+      params: { serverId, connectionId },
+    })
     return response.data
   },
   async create(payload: CronTaskPayload, connectionId: string) {
-    const response = await http.post<CronTask>('/api/cron-tasks', payload, { params: { connectionId } })
+    const response = await http.post<CronTask>('/api/cron-tasks', payload, {
+      params: { connectionId },
+    })
     return response.data
   },
   async update(id: number, payload: CronTaskPayload, connectionId: string) {
-    const response = await http.put<CronTask>(`/api/cron-tasks/${id}`, payload, { params: { connectionId } })
+    const response = await http.put<CronTask>(`/api/cron-tasks/${id}`, payload, {
+      params: { connectionId },
+    })
     return response.data
   },
   async delete(id: number, serverId: number, connectionId: string) {
@@ -70,9 +76,13 @@ export const cronTaskApi = {
     return response.data
   },
   async syncHistory(id: number, serverId: number, connectionId: string) {
-    const response = await http.post<{ imported: number }>(`/api/cron-tasks/${id}/history/sync`, null, {
-      params: { serverId, connectionId },
-    })
+    const response = await http.post<{ imported: number }>(
+      `/api/cron-tasks/${id}/history/sync`,
+      null,
+      {
+        params: { serverId, connectionId },
+      },
+    )
     return response.data
   },
   async closeSession(connectionId: string) {

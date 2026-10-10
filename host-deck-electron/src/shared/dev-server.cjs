@@ -25,7 +25,7 @@ async function resolveConfiguredDevUrl({ configFile, envVarName, fallbackPort })
         configFile,
         root: path.dirname(configFile),
       },
-      'serve'
+      'serve',
     )
     return portToUrl(config.server?.port, fallbackPort)
   } catch (error) {

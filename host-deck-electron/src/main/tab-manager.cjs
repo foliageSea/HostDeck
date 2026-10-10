@@ -5,7 +5,7 @@ function createTabManager({
   preloadPath,
   readSettings,
   shell,
-  writeSettings
+  writeSettings,
 }) {
   const tabBarHeight = 42
   const defaultTabBarWidth = 220
@@ -56,8 +56,8 @@ function createTabManager({
           isActive: tab.id === activeTabId,
           isLoading: tab.isLoading,
           title: tab.title,
-          url: tab.view.webContents.getURL()
-        }))
+          url: tab.view.webContents.getURL(),
+        })),
     }
   }
 
@@ -88,7 +88,7 @@ function createTabManager({
       x: layout.x,
       y: layout.y,
       width: Math.max(0, bounds.width - layout.width),
-      height: Math.max(0, bounds.height - layout.height)
+      height: Math.max(0, bounds.height - layout.height),
     })
   }
 
@@ -154,15 +154,15 @@ function createTabManager({
         preload: preloadPath,
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true
-      }
+        sandbox: true,
+      },
     })
     const tab = {
       customTitle: null,
       id,
       isLoading: true,
       title: 'HostDeck',
-      view
+      view,
     }
 
     tabs.set(id, tab)
@@ -350,10 +350,10 @@ function createTabManager({
     setTabBarPosition,
     setContentVisible,
     setSidebarWidth,
-    suspendContent
+    suspendContent,
   }
 }
 
 module.exports = {
-  createTabManager
+  createTabManager,
 }

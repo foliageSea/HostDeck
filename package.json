@@ -8,6 +8,8 @@
   },
   "scripts": {
     "install:all": "pnpm --dir host-deck-ui install --frozen-lockfile && pnpm --dir host-deck-electron install --frozen-lockfile && pnpm --dir host-deck-ai install --frozen-lockfile",
+    "format": "pnpm --dir host-deck-ui format && pnpm --dir host-deck-electron format && pnpm --dir host-deck-ai format",
+    "format:check": "pnpm --dir host-deck-ui format:check && pnpm --dir host-deck-electron format:check && pnpm --dir host-deck-ai format:check",
     "check:ui": "pnpm --dir host-deck-ui exec vue-tsc -p tsconfig.app.json --noEmit",
     "check:ai": "pnpm --dir host-deck-ai test",
     "check:dart": "fvm flutter analyze",

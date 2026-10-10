@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('hostDeck', {
     forceReload: () => ipcRenderer.invoke('app:force-reload'),
     clearBrowserCache: () => ipcRenderer.invoke('app:clear-browser-cache'),
     getExternalAccess: () => ipcRenderer.invoke('app:get-external-access'),
-    setExternalAccess: (enabled) => ipcRenderer.invoke('app:set-external-access', enabled)
+    setExternalAccess: (enabled) => ipcRenderer.invoke('app:set-external-access', enabled),
   },
   platform: process.platform,
   shellMode: 'native-tabs',
@@ -21,6 +21,6 @@ contextBridge.exposeInMainWorld('hostDeck', {
       const listener = (_event, state) => callback(state)
       ipcRenderer.on('window:state-changed', listener)
       return () => ipcRenderer.removeListener('window:state-changed', listener)
-    }
-  }
+    },
+  },
 })

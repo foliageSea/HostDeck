@@ -205,7 +205,13 @@ function remove(skill: AiAgentSkill) {
       <div v-if="hasEditor" class="agent-skill-editor-workspace">
         <div class="agent-skill-editor-toolbar">
           <span>{{ editingId === null ? '新建 SKILL.md' : editingName }}</span>
-          <NButton size="small" type="primary" :loading="saving" :disabled="loadingDetail || (editingId !== null && content === savedContent)" @click="save">
+          <NButton
+            size="small"
+            type="primary"
+            :loading="saving"
+            :disabled="loadingDetail || (editingId !== null && content === savedContent)"
+            @click="save"
+          >
             <template #icon><Save :size="14" /></template>
             保存
           </NButton>

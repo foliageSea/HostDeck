@@ -73,10 +73,7 @@ onMounted(refresh)
 
     <NEmpty v-else-if="ports.length === 0" class="py-[64px]" description="当前没有运行端口" />
 
-    <div
-      v-else
-      class="backend-ports-list overflow-hidden border-y border-[rgba(148,163,184,0.16)]"
-    >
+    <div v-else class="backend-ports-list overflow-hidden border-y border-[rgba(148,163,184,0.16)]">
       <div
         v-for="portInfo in ports"
         :key="portInfo.id"

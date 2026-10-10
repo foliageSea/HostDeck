@@ -71,7 +71,7 @@ function createServerRuntime({ app, frontendRoot, isPackaged, readSettings, repo
     const port = await resolveFreePort(host)
     writeServerLog(
       logStream,
-      `[${new Date().toISOString()}] Preferred port ${preferredPort} is unavailable; using ${port}\n`
+      `[${new Date().toISOString()}] Preferred port ${preferredPort} is unavailable; using ${port}\n`,
     )
     return port
   }
@@ -107,7 +107,7 @@ function createServerRuntime({ app, frontendRoot, isPackaged, readSettings, repo
     serverProcess = spawn(command, args, {
       cwd: packaged ? process.resourcesPath : repoRoot,
       stdio: packaged ? ['ignore', 'pipe', 'pipe'] : 'inherit',
-      windowsHide: true
+      windowsHide: true,
     })
     const child = serverProcess
 
@@ -120,7 +120,7 @@ function createServerRuntime({ app, frontendRoot, isPackaged, readSettings, repo
       if (logStream) {
         writeServerLog(
           logStream,
-          `[${new Date().toISOString()}] Failed to start HostDeck server: ${error.stack || error}\n`
+          `[${new Date().toISOString()}] Failed to start HostDeck server: ${error.stack || error}\n`,
         )
         closeServerLogStream(logStream)
       } else {
@@ -132,7 +132,7 @@ function createServerRuntime({ app, frontendRoot, isPackaged, readSettings, repo
       if (logStream) {
         writeServerLog(
           logStream,
-          `[${new Date().toISOString()}] HostDeck server exited: code=${code} signal=${signal}\n`
+          `[${new Date().toISOString()}] HostDeck server exited: code=${code} signal=${signal}\n`,
         )
         closeServerLogStream(logStream)
       }
@@ -168,10 +168,10 @@ function createServerRuntime({ app, frontendRoot, isPackaged, readSettings, repo
 
   return {
     start,
-    stop
+    stop,
   }
 }
 
 module.exports = {
-  createServerRuntime
+  createServerRuntime,
 }

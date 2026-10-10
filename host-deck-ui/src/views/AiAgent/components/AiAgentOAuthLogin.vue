@@ -34,10 +34,14 @@ async function poll(version: number) {
   }
 }
 
-watch(() => props.active, (active) => {
-  stopPolling()
-  if (active) void poll(generation)
-}, { immediate: true })
+watch(
+  () => props.active,
+  (active) => {
+    stopPolling()
+    if (active) void poll(generation)
+  },
+  { immediate: true },
+)
 onBeforeUnmount(stopPolling)
 
 async function login() {
@@ -97,26 +101,41 @@ async function copyUserCode() {
 </script>
 
 <template>
-  <div class="agent-oauth-panel mb-4 p-3" :class="{ 'agent-oauth-panel-authenticated': status?.authenticated }">
+  <div
+    class="agent-oauth-panel mb-4 p-3"
+    :class="{ 'agent-oauth-panel-authenticated': status?.authenticated }"
+  >
     <div class="mb-2 text-sm font-medium">OpenAI / ChatGPT 账号登录</div>
-    <p class="mb-3 text-xs opacity-60">使用支持 Codex 的 ChatGPT 订阅，通过设备码授权，无需 API Key。</p>
-    <div v-if="status?.authenticated" class="mb-3 text-xs text-green-500">已登录，凭据将自动刷新。</div>
+    <p class="mb-3 text-xs opacity-60">
+      使用支持 Codex 的 ChatGPT 订阅，通过设备码授权，无需 API Key。
+    </p>
+    <div v-if="status?.authenticated" class="mb-3 text-xs text-green-500">
+      已登录，凭据将自动刷新。
+    </div>
     <div v-if="pending" class="mb-3 text-xs" aria-live="polite">
       <template v-if="status?.userCode && status.verificationUri">
         <div>打开授权页面并输入设备码：</div>
         <div class="my-2 flex items-center gap-2">
-          <code class="block select-text text-lg font-bold tracking-widest">{{ status.userCode }}</code>
+          <code class="block select-text text-lg font-bold tracking-widest">{{
+            status.userCode
+          }}</code>
           <NButton quaternary circle size="small" aria-label="复制设备码" @click="copyUserCode">
             <Copy :size="15" />
           </NButton>
         </div>
-        <p class="mt-2 opacity-60">完成授权后自动更新。若页面要求，请在 ChatGPT 安全设置中启用设备码登录。</p>
+        <p class="mt-2 opacity-60">
+          完成授权后自动更新。若页面要求，请在 ChatGPT 安全设置中启用设备码登录。
+        </p>
       </template>
       <span v-else>正在获取设备码…</span>
     </div>
-    <div v-if="error || status?.error" role="alert" class="mb-3 text-xs text-red-500">{{ error || status?.error }}</div>
+    <div v-if="error || status?.error" role="alert" class="mb-3 text-xs text-red-500">
+      {{ error || status?.error }}
+    </div>
     <div class="agent-oauth-actions flex gap-2">
-      <NButton v-if="!pending" size="small" :loading="busy" @click="login">{{ status?.authenticated ? '重新登录' : '登录 OpenAI' }}</NButton>
+      <NButton v-if="!pending" size="small" :loading="busy" @click="login">{{
+        status?.authenticated ? '重新登录' : '登录 OpenAI'
+      }}</NButton>
       <NButton
         v-if="pending && status?.verificationUri"
         tag="a"
@@ -128,7 +147,9 @@ async function copyUserCode() {
         打开 OpenAI 授权页面
       </NButton>
       <NButton v-if="pending" size="small" :loading="busy" @click="cancel">取消登录</NButton>
-      <NButton v-if="status?.authenticated" size="small" :disabled="busy" @click="logout">退出登录</NButton>
+      <NButton v-if="status?.authenticated" size="small" :disabled="busy" @click="logout"
+        >退出登录</NButton
+      >
     </div>
     <p class="mt-2 text-xs opacity-60">登录后保存模型设置，即可开始对话。</p>
   </div>

@@ -122,7 +122,11 @@ export const filesApi = {
     type: FileTaskType,
     items: Array<{ sourcePath: string; targetPath?: string }>,
   ) => {
-    const response = await http.post<FileTask>('/api/files/tasks', { items, type }, { params: { connectionId } })
+    const response = await http.post<FileTask>(
+      '/api/files/tasks',
+      { items, type },
+      { params: { connectionId } },
+    )
     return response.data
   },
 
@@ -132,15 +136,13 @@ export const filesApi = {
   },
 
   cancelTask: async (taskId: string) => {
-    const response = await http.post<FileTask>(`/api/files/tasks/${encodeURIComponent(taskId)}/cancel`)
+    const response = await http.post<FileTask>(
+      `/api/files/tasks/${encodeURIComponent(taskId)}/cancel`,
+    )
     return response.data
   },
 
-  watchTask: async (
-    taskId: string,
-    onTask: (task: FileTask) => void,
-    signal?: AbortSignal,
-  ) => {
+  watchTask: async (taskId: string, onTask: (task: FileTask) => void, signal?: AbortSignal) => {
     const response = await fetch(`/api/files/tasks/${encodeURIComponent(taskId)}/events`, {
       credentials: 'same-origin',
       headers: { Accept: 'text/event-stream' },

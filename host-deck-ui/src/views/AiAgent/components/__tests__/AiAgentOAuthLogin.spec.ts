@@ -42,14 +42,25 @@ describe('OpenAI device login', () => {
     })
     mocks.writeText.mockResolvedValue(undefined)
   })
-  afterEach(() => { vi.useRealTimers() })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
 
   it('displays device code and updates readiness after authorization', async () => {
     const wrapper = render()
     await flushPromises()
-    mocks.api.oauthLogin.mockResolvedValue({ status: 'starting', authenticated: false, id: 'login-1' })
-    mocks.api.oauthStatus.mockResolvedValue({ status: 'pending', authenticated: false, id: 'login-1',
-      userCode: 'ABCD-1234', verificationUri: 'https://auth.openai.com/codex/device' })
+    mocks.api.oauthLogin.mockResolvedValue({
+      status: 'starting',
+      authenticated: false,
+      id: 'login-1',
+    })
+    mocks.api.oauthStatus.mockResolvedValue({
+      status: 'pending',
+      authenticated: false,
+      id: 'login-1',
+      userCode: 'ABCD-1234',
+      verificationUri: 'https://auth.openai.com/codex/device',
+    })
     await wrapper.find('button').trigger('click')
     await flushPromises()
     expect(wrapper.find('code').text()).toBe('ABCD-1234')
@@ -61,7 +72,11 @@ describe('OpenAI device login', () => {
     expect(actions.map((action) => action.text())).toEqual(['打开 OpenAI 授权页面', '取消登录'])
     expect(actions[0]!.element.tagName).toBe('A')
     expect(actions[0]!.attributes('href')).toBe('https://auth.openai.com/codex/device')
-    mocks.api.oauthStatus.mockResolvedValue({ status: 'success', authenticated: true, id: 'login-1' })
+    mocks.api.oauthStatus.mockResolvedValue({
+      status: 'success',
+      authenticated: true,
+      id: 'login-1',
+    })
     await vi.advanceTimersByTimeAsync(2000)
     await flushPromises()
     expect(mocks.store.loadSettings).toHaveBeenCalledOnce()
@@ -74,9 +89,18 @@ describe('OpenAI device login', () => {
   })
 
   it('cancels the displayed login and stops polling when hidden', async () => {
-    mocks.api.oauthStatus.mockResolvedValue({ status: 'pending', authenticated: false, id: 'login-2',
-      userCode: 'CODE', verificationUri: 'https://auth.openai.com/codex/device' })
-    mocks.api.oauthCancel.mockResolvedValue({ status: 'cancelled', authenticated: false, id: 'login-2' })
+    mocks.api.oauthStatus.mockResolvedValue({
+      status: 'pending',
+      authenticated: false,
+      id: 'login-2',
+      userCode: 'CODE',
+      verificationUri: 'https://auth.openai.com/codex/device',
+    })
+    mocks.api.oauthCancel.mockResolvedValue({
+      status: 'cancelled',
+      authenticated: false,
+      id: 'login-2',
+    })
     const wrapper = render()
     await flushPromises()
     await wrapper
@@ -99,7 +123,10 @@ describe('OpenAI device login', () => {
     mocks.api.oauthLogout.mockResolvedValue(settings)
     const wrapper = render()
     await flushPromises()
-    await wrapper.findAll('button').find((button) => button.text() === '退出登录')!.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '退出登录')!
+      .trigger('click')
     await flushPromises()
     expect(mocks.store.settings).toEqual(settings)
     expect(wrapper.text()).not.toContain('已登录')

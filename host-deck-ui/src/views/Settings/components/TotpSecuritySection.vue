@@ -148,11 +148,7 @@ onMounted(refresh)
           </div>
 
           <div class="flex flex-wrap gap-[8px]">
-            <NButton
-              v-if="state?.totpLoginEnabled"
-              secondary
-              @click="openSetup"
-            >
+            <NButton v-if="state?.totpLoginEnabled" secondary @click="openSetup">
               <template #icon><RefreshCw :size="16" /></template>
               轮换
             </NButton>
@@ -169,11 +165,7 @@ onMounted(refresh)
           </div>
         </div>
 
-        <NAlert
-          v-if="state?.totpSource === 'environment'"
-          type="info"
-          :show-icon="false"
-        >
+        <NAlert v-if="state?.totpSource === 'environment'" type="info" :show-icon="false">
           当前 Secret 由环境变量管理。可轮换为应用管理的 Secret；停用需移除环境变量并重启服务。
         </NAlert>
       </div>
@@ -183,7 +175,15 @@ onMounted(refresh)
   <NModal v-model:show="dialogVisible" :mask-closable="!submitting" @after-leave="resetDialog">
     <NCard
       class="totp-dialog"
-      :title="dialogMode === 'disable' ? '停用 Authenticator' : dialogMode === 'recovery' ? '保存恢复码' : state?.totpLoginEnabled ? '轮换 Authenticator' : '绑定 Authenticator'"
+      :title="
+        dialogMode === 'disable'
+          ? '停用 Authenticator'
+          : dialogMode === 'recovery'
+            ? '保存恢复码'
+            : state?.totpLoginEnabled
+              ? '轮换 Authenticator'
+              : '绑定 Authenticator'
+      "
       closable
       @close="dialogVisible = false"
     >
@@ -233,7 +233,9 @@ onMounted(refresh)
         <div class="setup-grid">
           <img class="qr-code" :src="qrCodeUrl" alt="Authenticator 绑定二维码" />
           <div class="min-w-0">
-            <div class="text-[13px] font-600">{{ state?.totpIssuer }} · {{ state?.totpAccount }}</div>
+            <div class="text-[13px] font-600">
+              {{ state?.totpIssuer }} · {{ state?.totpAccount }}
+            </div>
             <div class="secret-row">
               <code>{{ setup.secret }}</code>
               <NButton

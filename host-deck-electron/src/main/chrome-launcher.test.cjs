@@ -9,22 +9,22 @@ test('parseLaunchRequest accepts only HTTP targets and valid local proxy ports',
     parseLaunchRequest({
       profileId: 'tunnel_1',
       proxyPort: 49152,
-      url: 'https://vault.internal/ui'
+      url: 'https://vault.internal/ui',
     }),
-    { profileId: 'tunnel_1', proxyPort: 49152, url: 'https://vault.internal/ui' }
+    { profileId: 'tunnel_1', proxyPort: 49152, url: 'https://vault.internal/ui' },
   )
   assert.throws(
     () => parseLaunchRequest({ profileId: 'tunnel_1', proxyPort: 49152, url: 'file:///tmp/a' }),
-    /INVALID_URL/
+    /INVALID_URL/,
   )
   assert.deepEqual(parseLaunchRequest({ profileId: 'tunnel_1', proxyPort: 49152 }), {
     profileId: 'tunnel_1',
     proxyPort: 49152,
-    url: 'about:blank'
+    url: 'about:blank',
   })
   assert.throws(
     () => parseLaunchRequest({ profileId: '../escape', proxyPort: 49152, url: 'http://x/' }),
-    /INVALID_PROFILE/
+    /INVALID_PROFILE/,
   )
 })
 
@@ -37,7 +37,7 @@ test('launch starts an isolated Chrome instance with a fail-closed SOCKS proxy',
     fileSystem: {
       constants: { X_OK: 1 },
       accessSync: () => undefined,
-      mkdirSync: (...args) => calls.push(['mkdir', ...args])
+      mkdirSync: (...args) => calls.push(['mkdir', ...args]),
     },
     processEnv: { HOME: '/user' },
     processPlatform: 'darwin',
@@ -45,11 +45,11 @@ test('launch starts an isolated Chrome instance with a fail-closed SOCKS proxy',
       calls.push(['spawn', ...args])
       queueMicrotask(() => child.emit('spawn'))
       return child
-    }
+    },
   })
 
   assert.deepEqual(await launcher.launch({ profileId: 'tunnel-1', proxyPort: 49152 }), {
-    success: true
+    success: true,
   })
   const spawnCall = calls.find((call) => call[0] === 'spawn')
   assert.ok(spawnCall)
@@ -68,15 +68,15 @@ test('launch reports when Chrome is unavailable', async () => {
       constants: { X_OK: 1 },
       accessSync: () => {
         throw new Error('missing')
-      }
+      },
     },
     processEnv: {},
-    processPlatform: 'linux'
+    processPlatform: 'linux',
   })
 
   assert.deepEqual(await launcher.launch({ profileId: 'tunnel-1', proxyPort: 49152 }), {
     success: false,
     reason: 'not-installed',
-    message: '未检测到 Google Chrome。'
+    message: '未检测到 Google Chrome。',
   })
 })

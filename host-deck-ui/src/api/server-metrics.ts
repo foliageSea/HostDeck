@@ -62,10 +62,7 @@ async function getErrorMessage(response: Response) {
 }
 
 export const serverMetricsApi = {
-  async stream(
-    onEvent: (event: ServerMetricsStreamEvent) => void,
-    signal?: AbortSignal,
-  ) {
+  async stream(onEvent: (event: ServerMetricsStreamEvent) => void, signal?: AbortSignal) {
     const response = await fetch('/api/server/metrics/stream', {
       credentials: 'same-origin',
       headers: { Accept: 'text/event-stream' },
@@ -75,8 +72,7 @@ export const serverMetricsApi = {
       if (response.status === 401) {
         handleAccessUnauthorized()
       }
-      const message =
-        (await getErrorMessage(response)) || `连接服务指标失败 (${response.status})`
+      const message = (await getErrorMessage(response)) || `连接服务指标失败 (${response.status})`
       throw new ServerMetricsStreamHttpError(message, response.status)
     }
     if (!response.body) {

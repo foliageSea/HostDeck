@@ -28,7 +28,7 @@ contextBridge.exposeInMainWorld('hostDeckTabs', {
       const listener = (_event, state) => callback(state)
       ipcRenderer.on('window:state-changed', listener)
       return () => ipcRenderer.removeListener('window:state-changed', listener)
-    }
+    },
   },
-  platform: process.platform
+  platform: process.platform,
 })

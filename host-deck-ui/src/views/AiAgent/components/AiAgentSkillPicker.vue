@@ -77,6 +77,8 @@ function skillDisabled(id: string) {
       <div class="agent-skill-header">
         <div class="agent-skill-title">Agent Skills</div>
         <div class="agent-skill-header-actions">
+          <!-- Keep the semicolon so Vue recognizes a multi-statement event handler. -->
+          <!-- prettier-ignore-attribute @click -->
           <button
             type="button"
             class="agent-skill-refresh"

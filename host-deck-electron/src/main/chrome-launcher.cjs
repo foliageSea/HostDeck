@@ -43,7 +43,7 @@ function chromeCandidates(platform, env) {
       env['PROGRAMFILES(X86)'] &&
         path.join(env['PROGRAMFILES(X86)'], 'Google', 'Chrome', 'Application', 'chrome.exe'),
       env.LOCALAPPDATA &&
-        path.join(env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe')
+        path.join(env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe'),
     ].filter(Boolean)
   }
   if (platform === 'darwin') {
@@ -56,8 +56,8 @@ function chromeCandidates(platform, env) {
           'Google Chrome.app',
           'Contents',
           'MacOS',
-          'Google Chrome'
-        )
+          'Google Chrome',
+        ),
     ].filter(Boolean)
   }
   return ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/local/bin/google-chrome']
@@ -68,7 +68,7 @@ function createChromeLauncher({
   fileSystem = fs,
   processEnv = process.env,
   processPlatform = process.platform,
-  spawnProcess = spawn
+  spawnProcess = spawn,
 }) {
   function findChrome() {
     return chromeCandidates(processPlatform, processEnv).find((candidate) => {
@@ -97,7 +97,7 @@ function createChromeLauncher({
     const profileDirectory = path.join(
       app.getPath('userData'),
       'secure-browser-profiles',
-      parsed.profileId
+      parsed.profileId,
     )
     fileSystem.mkdirSync(profileDirectory, { recursive: true })
     const args = [
@@ -107,14 +107,14 @@ function createChromeLauncher({
       '--no-first-run',
       '--no-default-browser-check',
       '--new-window',
-      parsed.url
+      parsed.url,
     ]
 
     try {
       const child = spawnProcess(executable, args, {
         detached: true,
         stdio: 'ignore',
-        windowsHide: true
+        windowsHide: true,
       })
       await new Promise((resolve, reject) => {
         child.once('error', reject)
@@ -126,7 +126,7 @@ function createChromeLauncher({
       return {
         success: false,
         reason: 'launch-failed',
-        message: error instanceof Error ? error.message : String(error)
+        message: error instanceof Error ? error.message : String(error),
       }
     }
   }

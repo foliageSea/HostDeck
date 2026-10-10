@@ -50,7 +50,9 @@ describe('docker output store', () => {
         taskId,
         ({ signal }) =>
           new Promise((_resolve, reject) => {
-            signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+            signal.addEventListener('abort', () =>
+              reject(new DOMException('Aborted', 'AbortError')),
+            )
           }),
       )
     const firstRun = runUntilAborted(firstTaskId)

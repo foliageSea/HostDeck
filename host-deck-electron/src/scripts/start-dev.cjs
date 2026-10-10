@@ -101,7 +101,7 @@ async function main() {
         HOST_DECK_ELECTRON_APP_DEV_URL: appDevUrl,
         HOST_DECK_ELECTRON_SHELL_DEV_URL: shellDevUrl,
       },
-      projectRoot
+      projectRoot,
     )
 
     electron.on('exit', (code) => {
@@ -134,7 +134,7 @@ async function main() {
       HOST_DECK_ELECTRON_APP_DEV_URL: appDevUrl,
       HOST_DECK_ELECTRON_SHELL_DEV_URL: shellDevUrl,
     },
-    projectRoot
+    projectRoot,
   )
 
   electron.on('exit', (code) => {

@@ -52,11 +52,8 @@ describe('dockerApi.streamContainerLogs', () => {
     vi.stubGlobal('fetch', fetchMock)
     const events: DockerContainerLogStreamEvent[] = []
 
-    await dockerApi.streamContainerLogs(
-      'conn-1',
-      'container-1',
-      { timestamps: true },
-      (event) => events.push(event),
+    await dockerApi.streamContainerLogs('conn-1', 'container-1', { timestamps: true }, (event) =>
+      events.push(event),
     )
 
     expect(fetchMock).toHaveBeenCalledWith(

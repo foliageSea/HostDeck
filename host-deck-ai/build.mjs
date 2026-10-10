@@ -8,5 +8,7 @@ await build({
   platform: 'node',
   target: 'node22',
   format: 'esm',
-  banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" },
+  banner: {
+    js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
+  },
 })

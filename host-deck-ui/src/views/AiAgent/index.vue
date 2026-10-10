@@ -648,7 +648,11 @@ let resizeObserver: ResizeObserver | undefined
           {{ query ? '没有匹配的对话' : '还没有对话' }}
         </div>
         <div v-else>
-          <section v-for="group in conversationGroups" :key="group.label" class="agent-history-group">
+          <section
+            v-for="group in conversationGroups"
+            :key="group.label"
+            class="agent-history-group"
+          >
             <h2>{{ group.label }}</h2>
             <div
               v-for="conversation in group.conversations"
@@ -730,7 +734,10 @@ let resizeObserver: ResizeObserver | undefined
           <div class="flex min-w-0 items-center gap-1.5 text-[10px] opacity-55">
             <span class="truncate">{{ hostLabel }}</span>
             <span>·</span>
-            <span class="truncate">{{ settings?.provider === 'custom' ? '自定义' : settings?.provider }} · {{ settings?.model || '未配置模型' }}</span>
+            <span class="truncate"
+              >{{ settings?.provider === 'custom' ? '自定义' : settings?.provider }} ·
+              {{ settings?.model || '未配置模型' }}</span
+            >
           </div>
         </div>
         <button
@@ -743,11 +750,7 @@ let resizeObserver: ResizeObserver | undefined
         </button>
       </header>
 
-      <div
-        ref="messageScroller"
-        class="agent-messages app-scrollbar"
-        @scroll="handleMessageScroll"
-      >
+      <div ref="messageScroller" class="agent-messages app-scrollbar" @scroll="handleMessageScroll">
         <div v-if="loadingConversation" class="agent-loading">
           <NSpin size="small" /> 正在加载对话
         </div>
@@ -945,7 +948,11 @@ let resizeObserver: ResizeObserver | undefined
           class="agent-configure"
           @click="openSettings()"
         >
-          {{ settings?.provider === 'openai-codex' ? '登录 OpenAI Codex 后开始对话' : '配置 API Key 后开始对话' }}
+          {{
+            settings?.provider === 'openai-codex'
+              ? '登录 OpenAI Codex 后开始对话'
+              : '配置 API Key 后开始对话'
+          }}
         </button>
         <div v-if="running" class="agent-run-phase" aria-live="polite">
           <span class="agent-run-phase-dot" />
@@ -1191,9 +1198,7 @@ let resizeObserver: ResizeObserver | undefined
                     <span class="agent-mode-copy">
                       <strong>{{ mode ? '自动运行' : '按需审批' }}</strong>
                       <span>{{
-                        mode
-                          ? '自动批准所有受保护的工具调用'
-                          : '受保护的工具调用前请求批准'
+                        mode ? '自动批准所有受保护的工具调用' : '受保护的工具调用前请求批准'
                       }}</span>
                     </span>
                     <Check

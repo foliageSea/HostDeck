@@ -6,7 +6,7 @@ function registerIpcHandlers({
   session,
   settingsStore,
   shell,
-  tabManager
+  tabManager,
 }) {
   function requireApplicationSender(event) {
     if (!tabManager.isApplicationSender(event.sender)) {
@@ -16,7 +16,7 @@ function registerIpcHandlers({
   ipcMain.handle('window:get-state', (event) => {
     const window = getWindowFromSender(event.sender)
     return {
-      isMaximized: window?.isMaximized() === true
+      isMaximized: window?.isMaximized() === true,
     }
   })
 
@@ -93,7 +93,7 @@ function registerIpcHandlers({
   ipcMain.handle('tabs:close', (_event, id) => tabManager.closeTab(id))
   ipcMain.handle('tabs:rename', (_event, id, title) => tabManager.renameTab(id, title))
   ipcMain.handle('tabs:reorder', (_event, id, targetId, placement) =>
-    tabManager.reorderTab(id, targetId, placement)
+    tabManager.reorderTab(id, targetId, placement),
   )
   ipcMain.handle('tabs:reload-active', () => {
     tabManager.requireActiveTab().view.webContents.reloadIgnoringCache()
@@ -106,15 +106,15 @@ function registerIpcHandlers({
     if (url) await shell.openExternal(url)
   })
   ipcMain.handle('tabs:set-bar-position', (_event, position) =>
-    tabManager.setTabBarPosition(position)
+    tabManager.setTabBarPosition(position),
   )
   ipcMain.handle('tabs:set-content-visible', (_event, visible) =>
-    tabManager.setContentVisible(visible)
+    tabManager.setContentVisible(visible),
   )
   ipcMain.handle('tabs:suspend-content', () => tabManager.suspendContent())
   ipcMain.handle('tabs:set-sidebar-width', (_event, width) => tabManager.setSidebarWidth(width))
 }
 
 module.exports = {
-  registerIpcHandlers
+  registerIpcHandlers,
 }

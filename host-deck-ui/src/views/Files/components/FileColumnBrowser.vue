@@ -254,14 +254,13 @@ onBeforeUnmount(stopColumnResize)
             :class="
               isSelected(column, file) && !file.isDirectory
                 ? 'file-column-item-selected file-column-item-file-selected bg-[var(--app-primary-color)] text-white shadow-[0_1px_3px_rgba(0,0,0,0.18)]'
-                : (isSelected(column, file) && file.isDirectory) ||
-                    isActiveDirectory(column, file)
+                : (isSelected(column, file) && file.isDirectory) || isActiveDirectory(column, file)
                   ? 'file-column-item-selected file-column-item-directory-selected bg-[var(--app-primary-soft)] text-[var(--app-primary-color)] shadow-[inset_0_0_0_1px_var(--app-primary-border-strong)]'
-                : isExpanded(column, file)
-                  ? 'bg-[var(--app-primary-soft)] text-[var(--app-primary-color)]'
-                  : settingsStore.isDark
-                    ? 'bg-transparent hover:bg-[rgba(51,65,85,0.78)]'
-                    : 'bg-transparent hover:bg-[rgba(226,232,240,0.8)]'
+                  : isExpanded(column, file)
+                    ? 'bg-[var(--app-primary-soft)] text-[var(--app-primary-color)]'
+                    : settingsStore.isDark
+                      ? 'bg-transparent hover:bg-[rgba(51,65,85,0.78)]'
+                      : 'bg-transparent hover:bg-[rgba(226,232,240,0.8)]'
             "
             @click="handleClick(column, file, $event)"
             @contextmenu.prevent="emit('contextFile', column.path, column.files, file, $event)"

@@ -58,9 +58,7 @@ export function buildTimelineEntries(
 
   const sortedSteps = [...runSteps].sort((a, b) => a.sequence - b.sequence)
   const toolStepCallIds = new Set(
-    sortedSteps
-      .filter((step) => step.type === 'tool' && step.callId)
-      .map((step) => step.callId),
+    sortedSteps.filter((step) => step.type === 'tool' && step.callId).map((step) => step.callId),
   )
   const stepEntries = sortedSteps
     .filter((step, index) => {

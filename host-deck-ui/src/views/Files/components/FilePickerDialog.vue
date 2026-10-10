@@ -507,12 +507,7 @@ function confirmSelection() {
         </div>
         <div class="flex justify-end gap-[8px]">
           <NButton quaternary @click="handleShowUpdate(false)">取消</NButton>
-          <NButton
-            quaternary
-            type="primary"
-            :disabled="confirmDisabled"
-            @click="confirmSelection"
-          >
+          <NButton quaternary type="primary" :disabled="confirmDisabled" @click="confirmSelection">
             {{ confirmText }}
           </NButton>
         </div>

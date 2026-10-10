@@ -444,11 +444,7 @@ async function exportLogs() {
         <section>
           <h2 class="m-0 mb-[20px] text-[16px] font-600">壁纸设置</h2>
           <NSpace vertical :size="24">
-            <WallpaperSection
-              target="desktop"
-              title="桌面与登录页壁纸"
-              :controller="controller"
-            />
+            <WallpaperSection target="desktop" title="桌面与登录页壁纸" :controller="controller" />
           </NSpace>
         </section>
       </NTabPane>
@@ -488,9 +484,7 @@ async function exportLogs() {
             >
               <div>
                 <div class="text-[14px] font-600">前端版本</div>
-                <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">
-                  当前 UI 版本
-                </div>
+                <div class="mt-[4px] text-[12px] text-[rgba(148,163,184,0.96)]">当前 UI 版本</div>
               </div>
               <NTag type="info" size="small" :bordered="false">v{{ uiVersion }}</NTag>
             </div>
@@ -505,7 +499,13 @@ async function exportLogs() {
                 </div>
               </div>
               <NTag type="success" size="small" :bordered="false">
-                {{ serviceVersionLoading ? '获取中' : serviceVersion ? `v${serviceVersion}` : '获取失败' }}
+                {{
+                  serviceVersionLoading
+                    ? '获取中'
+                    : serviceVersion
+                      ? `v${serviceVersion}`
+                      : '获取失败'
+                }}
               </NTag>
             </div>
 

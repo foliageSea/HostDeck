@@ -13,7 +13,7 @@ function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
     shell: process.platform === 'win32',
-    stdio: 'inherit'
+    stdio: 'inherit',
   })
 
   if (result.status !== 0 && !options.allowFailure) {

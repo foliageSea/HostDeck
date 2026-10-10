@@ -9,7 +9,7 @@ createApp({
       NConfigProvider,
       { theme: darkTheme },
       {
-        default: () => h(NDialogProvider, null, { default: () => h(TabsShell) })
-      }
-    )
+        default: () => h(NDialogProvider, null, { default: () => h(TabsShell) }),
+      },
+    ),
 }).mount('#app')

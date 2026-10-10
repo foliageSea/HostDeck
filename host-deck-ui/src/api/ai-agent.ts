@@ -471,7 +471,11 @@ export const aiAgentApi = {
     return (await http.post<AiAgentOAuthStatus>('/api/ai-agent/oauth/openai-codex/login')).data
   },
   async oauthCancel(id: string) {
-    return (await http.delete<AiAgentOAuthStatus>(`/api/ai-agent/oauth/openai-codex/login/${encodeURIComponent(id)}`)).data
+    return (
+      await http.delete<AiAgentOAuthStatus>(
+        `/api/ai-agent/oauth/openai-codex/login/${encodeURIComponent(id)}`,
+      )
+    ).data
   },
   async oauthLogout() {
     return (await http.delete<AiAgentSettings>('/api/ai-agent/oauth/openai-codex')).data
@@ -488,11 +492,18 @@ export const aiAgentApi = {
   },
 
   async saveProvider(provider: string, payload: AiAgentProviderUpdate) {
-    return (await http.put<AiAgentSettings>(`/api/ai-agent/providers/${encodeURIComponent(provider)}`, payload)).data
+    return (
+      await http.put<AiAgentSettings>(
+        `/api/ai-agent/providers/${encodeURIComponent(provider)}`,
+        payload,
+      )
+    ).data
   },
 
   async deleteProvider(provider: string) {
-    return (await http.delete<AiAgentSettings>(`/api/ai-agent/providers/${encodeURIComponent(provider)}`)).data
+    return (
+      await http.delete<AiAgentSettings>(`/api/ai-agent/providers/${encodeURIComponent(provider)}`)
+    ).data
   },
 
   async activateModel(payload: { provider: string; model?: string }) {

@@ -15,6 +15,9 @@ importers:
       esbuild:
         specifier: 0.25.12
         version: 0.25.12
+      prettier:
+        specifier: 3.8.4
+        version: 3.8.4
 
 packages:
 
@@ -473,6 +476,11 @@ packages:
 
   partial-json@0.1.7:
     resolution: {integrity: sha512-Njv/59hHaokb/hRUjce3Hdv12wd60MtM9Z5Olmn+nehe0QDAsRtRbJPvJ0Z91TusF0SuZRIvnM+S4l6EIP8leA==}
+
+  prettier@3.8.4:
+    resolution: {integrity: sha512-N2MylSdi48+5N/6S5j+maeHbUSIzzZ5uOcX5Hm4QpV8Dkb1HFjfAKTKX6yNPJQD9AhcT3ifHNB66tWTTJDi11Q==}
+    engines: {node: '>=14'}
+    hasBin: true
 
   protobufjs@7.6.6:
     resolution: {integrity: sha512-dYDWdjSl5RNb7SgPxGQcRU+GtvP7s2fpkrY0r432PcOIaZ0/rBcxEZnQN67iJhFuQiVw754JDoPruPCNdGsbjg==}
@@ -1049,6 +1057,8 @@ snapshots:
       retry: 0.13.1
 
   partial-json@0.1.7: {}
+
+  prettier@3.8.4: {}
 
   protobufjs@7.6.6:
     dependencies:

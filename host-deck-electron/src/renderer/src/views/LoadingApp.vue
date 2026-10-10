@@ -11,7 +11,13 @@
 <style scoped>
 :global(:root) {
   color-scheme: dark;
-  font-family: Inter, 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    Inter,
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   background: #0f172a;
   color: #f8fafc;
 }
