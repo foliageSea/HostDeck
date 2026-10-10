@@ -66,8 +66,14 @@ const inlineOutput = computed(() => {
   const value = outputText.value.trim()
   if (!value) return ''
   const lines = value.split('\n')
-  if (lines.length > 5) return `${lines.slice(0, 5).join('\n')}\n…`
-  return value.length > 360 ? `${value.slice(0, 360)}…` : value
+  // Keep the compact preview short enough for the transcript. The complete
+  // output remains available in the details modal below.
+  if (lines.length > 4) return `${lines.slice(0, 4).join('\n')}\n…`
+  return value.length > 480 ? `${value.slice(0, 480)}…` : value
+})
+const hasMoreOutput = computed(() => {
+  const value = outputText.value.trim()
+  return Boolean(value && inlineOutput.value !== value)
 })
 const approvalPreview = computed(() => {
   const args = props.tool.arguments
@@ -178,7 +184,22 @@ async function copyOutput() {
           <span class="agent-tool-summary">{{ toolLabel }}</span>
         </span>
       </button>
-      <pre v-if="inlineOutput" class="agent-tool-inline-output">{{ inlineOutput }}</pre>
+      <div
+        v-if="inlineOutput"
+        class="agent-tool-inline-output-wrap"
+        :class="{ 'agent-tool-inline-output-wrap-has-more': hasMoreOutput }"
+      >
+        <pre class="agent-tool-inline-output">{{ inlineOutput }}</pre>
+        <button
+          v-if="hasMoreOutput"
+          type="button"
+          class="agent-tool-inline-more"
+          aria-label="查看完整工具结果"
+          @click="openModal"
+        >
+          查看完整结果
+        </button>
+      </div>
     </template>
 
     <NModal
@@ -397,9 +418,15 @@ async function copyOutput() {
   font-size: 11px;
 }
 
+.agent-tool-inline-output-wrap {
+  position: relative;
+  margin: 2px 8px 6px 33px;
+  min-width: 0;
+}
+
 .agent-tool-inline-output {
   max-height: 118px;
-  margin: 2px 8px 6px 33px;
+  margin: 0;
   overflow: hidden;
   padding: 6px 8px;
   border-left: 2px solid var(--agent-border);
@@ -409,6 +436,31 @@ async function copyOutput() {
   font:
     10px/1.5 'Maple Mono',
     monospace;
+}
+
+.agent-tool-inline-output-wrap-has-more .agent-tool-inline-output {
+  padding-bottom: 22px;
+  mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 28px), transparent 100%);
+}
+
+.agent-tool-inline-more {
+  position: absolute;
+  right: 7px;
+  bottom: 3px;
+  z-index: 1;
+  padding: 1px 5px;
+  border: 0;
+  border-radius: var(--app-radius-control);
+  color: var(--app-primary-color);
+  background: color-mix(in srgb, var(--agent-bg) 88%, transparent);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.agent-tool-inline-more:hover {
+  background: var(--app-primary-soft);
 }
 
 .agent-tool-label {

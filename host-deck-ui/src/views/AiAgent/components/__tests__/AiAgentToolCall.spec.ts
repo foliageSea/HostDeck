@@ -49,6 +49,34 @@ describe('AiAgentToolCall', () => {
     expect(wrapper.find('.agent-tool-modal-empty').exists()).toBe(false)
   })
 
+  it('offers a full-result action when the inline preview is truncated', async () => {
+    const wrapper = mount(AiAgentToolCall, {
+      props: {
+        tool: {
+          ...completed,
+          result: {
+            ...completed.result,
+            content: 'line one\nline two\nline three\nline four',
+            structured: { hostname: 'foliage', uptime: '1 week, 1 day' },
+          },
+        },
+      },
+      global: {
+        stubs: {
+          NButton: { template: '<button type="button"><slot /></button>' },
+          NModal: {
+            props: ['show'],
+            template: '<div v-if="show"><slot /></div>',
+          },
+        },
+      },
+    })
+
+    expect(wrapper.find('.agent-tool-inline-more').exists()).toBe(true)
+    await wrapper.get('.agent-tool-inline-more').trigger('click')
+    expect(wrapper.find('.agent-tool-modal-body').exists()).toBe(true)
+  })
+
   it('reveals safe argument text and emits exact approval actions', async () => {
     const wrapper = mount(AiAgentToolCall, {
       props: { tool: approval },
