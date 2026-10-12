@@ -1,12 +1,8 @@
-import { computed, ref, watch } from 'vue'
-import { defineStore } from 'pinia'
+import { computed, onScopeDispose, ref, watch } from 'vue'
+import { defineStore, storeToRefs } from 'pinia'
 import { settingsApi } from '@/api/settings'
-import {
-  createDefaultWindowSwitchShortcut,
-  createDefaultWindowSwitcherToggleShortcut,
-  normalizeKeyboardShortcut,
-  type KeyboardShortcut,
-} from '@/lib/keyboard-shortcut'
+import { useDesktopPreferencesStore } from './desktop-preferences'
+export type { CornerStyle } from './desktop-preferences'
 import {
   createDefaultWallpaperSettings,
   type WallpaperSettings,
@@ -21,13 +17,6 @@ const EDITOR_FONT_SIZE_STORAGE_KEY = 'host-deck-ui.editorFontSize'
 const EDITOR_FONT_FAMILY_STORAGE_KEY = 'host-deck-ui.editorFontFamily'
 const DESKTOP_WALLPAPER_STORAGE_KEY = 'host-deck-ui.desktopWallpaper'
 const LOGIN_WALLPAPER_STORAGE_KEY = 'host-deck-ui.loginWallpaper'
-const WINDOW_CONTROLS_STYLE_STORAGE_KEY = 'host-deck-ui.windowControlsStyle'
-const WINDOW_BLUR_STORAGE_KEY = 'host-deck-ui.windowBlur'
-const DARK_WINDOW_BORDER_STORAGE_KEY = 'host-deck-ui.darkWindowBorder'
-const CORNER_STYLE_STORAGE_KEY = 'host-deck-ui.cornerStyle'
-const DOCK_AUTO_HIDE_STORAGE_KEY = 'host-deck-ui.dockAutoHide'
-const WINDOW_SWITCH_SHORTCUT_STORAGE_KEY = 'host-deck-ui.windowSwitchShortcut'
-const WINDOW_SWITCHER_TOGGLE_SHORTCUT_STORAGE_KEY = 'host-deck-ui.windowSwitcherToggleShortcut'
 
 const DEFAULT_TERMINAL_FONT_SIZE = 14
 const DEFAULT_TERMINAL_FONT_FAMILY = '"Maple Mono"'
@@ -37,69 +26,6 @@ const DEFAULT_PRIMARY_COLOR = '#0891b2'
 const WALLPAPER_PERSIST_DEBOUNCE_MS = 300
 
 type ThemeMode = 'dark' | 'light' | 'system'
-type WindowControlsStyle = 'mac' | 'win'
-export type CornerStyle = 'square' | 'soft' | 'rounded'
-
-function normalizeCornerStyle(value: unknown): CornerStyle {
-  if (value === 'square' || value === 'soft' || value === 'rounded') {
-    return value
-  }
-
-  return 'rounded'
-}
-
-function resolveStoredWindowControlsStyle(): WindowControlsStyle {
-  const value = window.localStorage.getItem(WINDOW_CONTROLS_STYLE_STORAGE_KEY)
-  if (value === 'mac' || value === 'win') {
-    return value
-  }
-
-  const platform = `${navigator.platform} ${navigator.userAgent}`
-  return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'mac' : 'win'
-}
-
-function resolveStoredCornerStyle(): CornerStyle {
-  return normalizeCornerStyle(window.localStorage.getItem(CORNER_STYLE_STORAGE_KEY))
-}
-
-function resolveStoredDockAutoHide(): boolean {
-  return window.localStorage.getItem(DOCK_AUTO_HIDE_STORAGE_KEY) === 'true'
-}
-
-function resolveStoredWindowBlur(): boolean {
-  return window.localStorage.getItem(WINDOW_BLUR_STORAGE_KEY) === 'true'
-}
-
-function resolveStoredDarkWindowBorder(): boolean {
-  return window.localStorage.getItem(DARK_WINDOW_BORDER_STORAGE_KEY) !== 'false'
-}
-
-function resolveStoredWindowSwitchShortcut(): KeyboardShortcut {
-  const value = window.localStorage.getItem(WINDOW_SWITCH_SHORTCUT_STORAGE_KEY)
-  if (!value) {
-    return createDefaultWindowSwitchShortcut()
-  }
-
-  try {
-    return normalizeKeyboardShortcut(JSON.parse(value))
-  } catch {
-    return createDefaultWindowSwitchShortcut()
-  }
-}
-
-function resolveStoredWindowSwitcherToggleShortcut(): KeyboardShortcut {
-  const defaultShortcut = createDefaultWindowSwitcherToggleShortcut()
-  const value = window.localStorage.getItem(WINDOW_SWITCHER_TOGGLE_SHORTCUT_STORAGE_KEY)
-  if (!value) {
-    return defaultShortcut
-  }
-
-  try {
-    return normalizeKeyboardShortcut(JSON.parse(value), defaultShortcut)
-  } catch {
-    return defaultShortcut
-  }
-}
 
 function normalizeWallpaperEffectValue(value: unknown): number {
   const numericValue = typeof value === 'number' ? value : Number(value)
@@ -228,6 +154,27 @@ function serializeWallpaperSettings(value: WallpaperSettings): WallpaperSettings
 }
 
 export const useSettingsStore = defineStore('settings', () => {
+  const desktopPreferences = useDesktopPreferencesStore()
+  const {
+    windowControlsStyle,
+    windowBlur,
+    darkWindowBorder,
+    cornerStyle,
+    dockAutoHide,
+    windowSwitchShortcut,
+    windowSwitcherToggleShortcut,
+  } = storeToRefs(desktopPreferences)
+  const {
+    setWindowControlsStyle,
+    setWindowBlur,
+    setDarkWindowBorder,
+    setCornerStyle,
+    setDockAutoHide,
+    setWindowSwitchShortcut,
+    resetWindowSwitchShortcut,
+    setWindowSwitcherToggleShortcut,
+    resetWindowSwitcherToggleShortcut,
+  } = desktopPreferences
   const themeMode = ref<ThemeMode>(resolveStoredMode())
   const primaryColor = ref(resolveStoredPrimaryColor())
   const prefersDark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -235,13 +182,6 @@ export const useSettingsStore = defineStore('settings', () => {
   const terminalFontFamily = ref(resolveStoredFontFamily())
   const editorFontSize = ref(resolveStoredEditorFontSize())
   const editorFontFamily = ref(resolveStoredEditorFontFamily())
-  const windowControlsStyle = ref<WindowControlsStyle>(resolveStoredWindowControlsStyle())
-  const windowBlur = ref(resolveStoredWindowBlur())
-  const darkWindowBorder = ref(resolveStoredDarkWindowBorder())
-  const cornerStyle = ref<CornerStyle>(resolveStoredCornerStyle())
-  const dockAutoHide = ref(resolveStoredDockAutoHide())
-  const windowSwitchShortcut = ref(resolveStoredWindowSwitchShortcut())
-  const windowSwitcherToggleShortcut = ref(resolveStoredWindowSwitcherToggleShortcut())
   const desktopWallpaper = ref<WallpaperSettings>(
     resolveStoredWallpaper(DESKTOP_WALLPAPER_STORAGE_KEY),
   )
@@ -267,6 +207,10 @@ export const useSettingsStore = defineStore('settings', () => {
   if ('addEventListener' in mediaQuery) {
     mediaQuery.addEventListener('change', handleThemeChange)
   }
+  onScopeDispose(() => {
+    mediaQuery.removeEventListener?.('change', handleThemeChange)
+    if (wallpaperPersistTimer !== null) window.clearTimeout(wallpaperPersistTimer)
+  })
 
   async function syncWallpaperStorage(target: WallpaperTarget, value: WallpaperSettings) {
     window.localStorage.setItem(
@@ -374,65 +318,6 @@ export const useSettingsStore = defineStore('settings', () => {
   )
 
   watch(
-    windowControlsStyle,
-    (value) => {
-      window.localStorage.setItem(WINDOW_CONTROLS_STYLE_STORAGE_KEY, value)
-    },
-    { immediate: true },
-  )
-
-  watch(
-    windowBlur,
-    (value) => {
-      window.localStorage.setItem(WINDOW_BLUR_STORAGE_KEY, String(value))
-    },
-    { immediate: true },
-  )
-
-  watch(
-    darkWindowBorder,
-    (value) => {
-      window.localStorage.setItem(DARK_WINDOW_BORDER_STORAGE_KEY, String(value))
-    },
-    { immediate: true },
-  )
-
-  watch(
-    cornerStyle,
-    (value) => {
-      window.localStorage.setItem(CORNER_STYLE_STORAGE_KEY, normalizeCornerStyle(value))
-    },
-    { immediate: true },
-  )
-
-  watch(
-    dockAutoHide,
-    (value) => {
-      window.localStorage.setItem(DOCK_AUTO_HIDE_STORAGE_KEY, String(value))
-    },
-    { immediate: true },
-  )
-
-  watch(
-    windowSwitchShortcut,
-    (value) => {
-      window.localStorage.setItem(WINDOW_SWITCH_SHORTCUT_STORAGE_KEY, JSON.stringify(value))
-    },
-    { deep: true, immediate: true },
-  )
-
-  watch(
-    windowSwitcherToggleShortcut,
-    (value) => {
-      window.localStorage.setItem(
-        WINDOW_SWITCHER_TOGGLE_SHORTCUT_STORAGE_KEY,
-        JSON.stringify(value),
-      )
-    },
-    { deep: true, immediate: true },
-  )
-
-  watch(
     desktopWallpaper,
     (value) => {
       void syncWallpaperStorage('desktop', value)
@@ -453,45 +338,6 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function setPrimaryColor(color: string) {
     primaryColor.value = normalizePrimaryColor(color)
-  }
-
-  function setWindowControlsStyle(style: WindowControlsStyle) {
-    windowControlsStyle.value = style
-  }
-
-  function setWindowBlur(value: boolean) {
-    windowBlur.value = value
-  }
-
-  function setDarkWindowBorder(value: boolean) {
-    darkWindowBorder.value = value
-  }
-
-  function setCornerStyle(style: CornerStyle) {
-    cornerStyle.value = normalizeCornerStyle(style)
-  }
-
-  function setDockAutoHide(value: boolean) {
-    dockAutoHide.value = value
-  }
-
-  function setWindowSwitchShortcut(shortcut: KeyboardShortcut) {
-    windowSwitchShortcut.value = normalizeKeyboardShortcut(shortcut)
-  }
-
-  function resetWindowSwitchShortcut() {
-    windowSwitchShortcut.value = createDefaultWindowSwitchShortcut()
-  }
-
-  function setWindowSwitcherToggleShortcut(shortcut: KeyboardShortcut) {
-    windowSwitcherToggleShortcut.value = normalizeKeyboardShortcut(
-      shortcut,
-      createDefaultWindowSwitcherToggleShortcut(),
-    )
-  }
-
-  function resetWindowSwitcherToggleShortcut() {
-    windowSwitcherToggleShortcut.value = createDefaultWindowSwitcherToggleShortcut()
   }
 
   function resetPrimaryColor() {

@@ -26,9 +26,9 @@ describe('DesktopWidgets', () => {
   function mountWidgets() {
     return mount(DesktopWidgets, {
       global: {
-        components: {
-          NButton: { template: '<button><slot name="icon" /><slot /></button>' },
-          NDropdown: {
+        stubs: {
+          Button: { template: '<button><slot name="icon" /><slot /></button>' },
+          Dropdown: {
             name: 'NDropdown',
             emits: ['select'],
             template: '<div />',

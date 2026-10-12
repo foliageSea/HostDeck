@@ -27,6 +27,11 @@ jobs:
         run: |
           cd host-deck-ui
           pnpm build
+      - name: Verify reusable desktop package
+        working-directory: host-deck-ui
+        run: |
+          pnpm test:webos
+          pnpm verify:webos-package
       - name: Verify pi-ai bridge
         working-directory: host-deck-ai
         run: |

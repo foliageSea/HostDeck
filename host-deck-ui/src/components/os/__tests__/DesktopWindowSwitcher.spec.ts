@@ -1,7 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import AppIcon from '@/components/common/AppIcon.vue'
 import type { WindowState } from '@/stores/desktop'
 import DesktopWindowSwitcher from '../DesktopWindowSwitcher.vue'
 
@@ -29,7 +28,7 @@ describe('DesktopWindowSwitcher', () => {
       props: { selectedIndex: 0, windows: [windowState] },
     })
 
-    expect(wrapper.getComponent(AppIcon).props()).toMatchObject({
+    expect(wrapper.getComponent({ name: 'AppIcon' }).props()).toMatchObject({
       name: 'terminal',
       size: 52,
       themed: true,

@@ -5,7 +5,7 @@ import {
   createKeyboardShortcut,
   formatKeyboardShortcut,
   matchesKeyboardShortcut,
-} from '@/lib/keyboard-shortcut'
+} from '../keyboard-shortcut'
 
 describe('keyboard shortcuts', () => {
   it('uses Shift only for toggling the window switcher', () => {

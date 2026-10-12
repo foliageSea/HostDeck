@@ -10,6 +10,8 @@ export default defineConfig({
     },
   },
   test: {
+    name: 'host',
+    include: ['src/**/*.spec.ts'],
     environment: 'jsdom',
     globals: true,
   },

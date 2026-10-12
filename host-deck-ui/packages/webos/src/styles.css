@@ -1,0 +1,95 @@
+.webos-root {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  line-height: 1.5;
+  font-family: system-ui, sans-serif;
+  color: #0f172a;
+  --desktop-topbar-height: 40px;
+  --desktop-window-edge-gap: 16px;
+  --desktop-dock-bottom-gap: 2px;
+  --desktop-dock-height: 74px;
+}
+.webos-root[data-theme='dark'] {
+  color: #e5e7eb;
+  color-scheme: dark;
+}
+.webos-root *,
+.webos-root *::before,
+.webos-root *::after {
+  box-sizing: border-box;
+}
+.webos-root button,
+.webos-root input {
+  font: inherit;
+}
+.webos-root .app-radius-card {
+  border-radius: var(--app-radius-card);
+}
+.webos-root .app-radius-surface {
+  border-radius: var(--app-radius-surface);
+}
+.webos-root .app-radius-item {
+  border-radius: var(--app-radius-item);
+}
+.webos-root .app-radius-control {
+  border-radius: var(--app-radius-control);
+}
+.webos-root .webos-topbar {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--desktop-topbar-height);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: rgb(255 255 255 / 58%);
+  backdrop-filter: blur(16px);
+}
+.webos-root[data-theme='dark'] .webos-topbar {
+  background: rgb(15 23 42 / 45%);
+}
+.webos-root .webos-switcher {
+  z-index: 100000;
+}
+.webos-root .webos-context-menu {
+  z-index: 100001;
+}
+.webos-root .webos-widget-body {
+  padding: 12px;
+  border-radius: var(--app-radius-card);
+  background: rgb(255 255 255 / 75%);
+  backdrop-filter: blur(16px);
+}
+.webos-root[data-theme='dark'] .webos-widget-body {
+  background: rgb(15 23 42 / 75%);
+}
+.webos-root .webos-shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 96px;
+  min-height: 108px;
+  padding: 8px 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.webos-root .webos-shortcut-label {
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .webos-root *,
+  .webos-root *::before,
+  .webos-root *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

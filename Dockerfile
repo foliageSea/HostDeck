@@ -5,6 +5,8 @@ FROM node:22-bookworm-slim AS web-builder
 WORKDIR /src/host-deck-ui
 
 COPY host-deck-ui/package.json host-deck-ui/pnpm-lock.yaml* host-deck-ui/pnpm-workspace.yaml ./
+COPY host-deck-ui/packages/webos/package.json ./packages/webos/package.json
+COPY host-deck-ui/examples/webos-demo/package.json ./examples/webos-demo/package.json
 RUN npm install -g pnpm@10.34.5 && pnpm install --frozen-lockfile
 
 COPY host-deck-ui/ ./

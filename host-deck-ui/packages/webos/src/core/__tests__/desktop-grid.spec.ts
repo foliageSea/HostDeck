@@ -11,7 +11,7 @@ import {
   getDesktopGridSpan,
   occupyDesktopGridCells,
   resolveDesktopGridCell,
-} from '@/lib/desktop-grid'
+} from '../desktop-grid'
 
 const contentHeight = 700
 

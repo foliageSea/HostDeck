@@ -28,8 +28,8 @@ describe('DesktopDock', () => {
       global: {
         stubs: {
           AppIcon: { template: '<span />' },
-          NDropdown: true,
-          NTooltip: { template: '<div><slot name="trigger" /><slot /></div>' },
+          Dropdown: true,
+          Tooltip: { template: '<div><slot name="trigger" /><slot /></div>' },
         },
       },
     })

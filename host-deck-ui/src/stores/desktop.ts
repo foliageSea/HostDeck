@@ -1,85 +1,29 @@
-import { markRaw, type Component } from 'vue'
+import { computed, markRaw, onScopeDispose, ref, toRef } from 'vue'
 import { defineStore } from 'pinia'
+import { createDesktop, type OpenWindowOptions } from '@host-deck/webos'
 import { getUiApi } from '@/lib/ui'
+import {
+  createHostDesktopApps,
+  defaultDockAppIds,
+  maxSessionWindows,
+  sessionWindowAppIds,
+} from '@/lib/host-desktop-apps'
 import { useSshStore } from '@/stores/ssh'
 import { useSettingsStore } from '@/stores/settings'
 import { useWindowSessionStore } from '@/stores/window-session'
-import type { AppIconKey, DesktopAppId } from '@/types/desktop'
+import type { DesktopAppId } from '@/types/desktop'
 import { basename, normalize } from '@/utils/path'
-import DashboardView from '@/views/Dashboard/index.vue'
-import AiAgentView from '@/views/AiAgent/index.vue'
-import AiAgentSettingsView from '@/views/AiAgent/components/AiAgentSettingsView.vue'
-import DockerCreateContainerView from '@/views/Docker/components/DockerCreateContainerView.vue'
-import DockerCreateComposeView from '@/views/Docker/components/DockerCreateComposeView.vue'
-import DockerComposeServicesView from '@/views/Docker/components/DockerComposeServicesView.vue'
-import DockerImagePullView from '@/views/Docker/components/DockerImagePullView.vue'
-import DockerOutputView from '@/views/Docker/components/DockerOutputView.vue'
-import DockerContainerLogsView from '@/views/Docker/components/DockerContainerLogsView.vue'
-import DockerContainerStatsView from '@/views/Docker/components/DockerContainerStatsView.vue'
-import DockerView from '@/views/Docker/index.vue'
-import CronTasksView from '@/views/CronTasks/index.vue'
-import FilesView from '@/views/Files/index.vue'
-import IframeAppView from '@/views/IframeApp/index.vue'
-import MediaViewerView from '@/views/MediaViewer/index.vue'
-import OperationLogsView from '@/views/OperationLogs/index.vue'
-import RealtimeLogsView from '@/views/RealtimeLogs/index.vue'
-import PortForwardView from '@/views/PortForward/index.vue'
-import SecureBrowserView from '@/views/SecureBrowser/index.vue'
-import ProcessesView from '@/views/Processes/index.vue'
-import RuntimeSessionsView from '@/views/RuntimeSessions/index.vue'
-import SettingsView from '@/views/Settings/index.vue'
-import TerminalView from '@/views/Terminal/index.vue'
-import TextEditorView from '@/views/TextEditor/index.vue'
-import TaskCenterView from '@/views/TaskCenter/index.vue'
 
-export const maxSessionWindows = 8
-const windowCloseAnimationMs = 220
-const maximizeUiWindowWhenElectronWindowed =
-  import.meta.env.VITE_ELECTRON_MAXIMIZE_UI_WHEN_WINDOWED === 'true'
-
-const PINNED_DIRECTORIES_STORAGE_KEY = 'host-deck:desktop:pinned-directories'
-const PINNED_DIRECTORY_POSITIONS_STORAGE_KEY = 'host-deck:desktop:pinned-directory-positions'
-const PINNED_PORT_LINKS_STORAGE_KEY = 'host-deck:desktop:pinned-port-links'
-const PINNED_PORT_LINK_POSITIONS_STORAGE_KEY = 'host-deck:desktop:pinned-port-link-positions'
+export { defaultDockAppIds, maxSessionWindows }
+export type { AppConfig, OpenWindowOptions, WindowState } from '@host-deck/webos'
 export const DOCK_APPS_STORAGE_KEY = 'host-deck:desktop:dock-apps'
 export const DOCK_AI_AGENT_MIGRATION_KEY = 'host-deck:desktop:dock-ai-agent-v1'
-
-export const defaultDockAppIds: DesktopAppId[] = [
-  'terminal',
-  'files',
-  'docker',
-  'opencode',
-  'ai-agent',
-  'port-forward',
-  'secure-browser',
-  'operation-logs',
-  'realtime-logs',
-  'cron-tasks',
-  'processes',
-  'dashboard',
-]
-
-const launchpadAppIds = new Set<DesktopAppId>([
-  ...defaultDockAppIds,
-  'runtime-sessions',
-  'cron-tasks',
-  'settings',
-  'task-center',
-])
-
-const sessionWindowAppIds = new Set<DesktopAppId>(['terminal', 'opencode'])
-
-type PinnedDirectoriesByConnection = Record<string, string[]>
-type PinnedDirectoryPositions = Record<
-  string,
-  {
-    x: number
-    y: number
-  }
->
-type WindowBeforeCloseHandler = () => boolean | Promise<boolean>
-type PinnedDirectoryPositionsByConnection = Record<string, PinnedDirectoryPositions>
-
+const directoryKey = 'host-deck:desktop:pinned-directories'
+const directoryPositionsKey = 'host-deck:desktop:pinned-directory-positions'
+const portLinksKey = 'host-deck:desktop:pinned-port-links'
+const portPositionsKey = 'host-deck:desktop:pinned-port-link-positions'
+type Positions = Record<string, { x: number; y: number }>
+type PositionsByConnection = Record<string, Positions>
 export interface PinnedPortLink {
   host: string
   id: string
@@ -89,1258 +33,351 @@ export interface PinnedPortLink {
   url: string
 }
 
-type PinnedPortLinksByConnection = Record<string, PinnedPortLink[]>
-type PinnedPortLinkPositionsByConnection = Record<string, PinnedDirectoryPositions>
-
-function normalizePinnedDirectoriesRecord(value: unknown): PinnedDirectoriesByConnection {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {}
-  }
-
-  return Object.fromEntries(
-    Object.entries(value).map(([key, paths]) => [
-      key,
-      Array.isArray(paths)
-        ? Array.from(
-            new Set(
-              paths
-                .filter((path): path is string => typeof path === 'string')
-                .map((path) => normalize(path)),
-            ),
-          )
-        : [],
-    ]),
-  )
-}
-
-function loadPinnedDirectories(): PinnedDirectoriesByConnection {
-  if (typeof window === 'undefined') {
-    return {}
-  }
-
+function loadRecord(key: string): Record<string, unknown> {
   try {
-    const rawValue = window.localStorage.getItem(PINNED_DIRECTORIES_STORAGE_KEY)
-    if (!rawValue) {
-      return {}
-    }
-
-    return normalizePinnedDirectoriesRecord(JSON.parse(rawValue))
+    const value: unknown = JSON.parse(window.localStorage.getItem(key) ?? '{}')
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {}
   } catch {
     return {}
   }
 }
 
-function normalizePinnedPortLinksRecord(value: unknown): PinnedPortLinksByConnection {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {}
-  }
-
+function loadPositions(key: string): PositionsByConnection {
   return Object.fromEntries(
-    Object.entries(value).map(([key, links]) => [
-      key,
-      Array.isArray(links)
-        ? links
-            .filter((link): link is PinnedPortLink => {
-              if (!link || typeof link !== 'object' || Array.isArray(link)) {
-                return false
-              }
-
-              const candidate = link as Partial<PinnedPortLink>
-              return (
-                typeof candidate.id === 'string' &&
-                typeof candidate.label === 'string' &&
-                typeof candidate.url === 'string'
+    Object.entries(loadRecord(key)).map(([connection, value]) => [
+      connection,
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? Object.fromEntries(
+            Object.entries(value)
+              .filter(
+                ([, position]) =>
+                  position && Number.isFinite(position.x) && Number.isFinite(position.y),
               )
-            })
-            .map((link) => ({
-              host: typeof link.host === 'string' ? link.host : '',
-              id: link.id,
-              label: link.label,
-              port: typeof link.port === 'string' ? link.port : '',
-              portText: typeof link.portText === 'string' ? link.portText : link.url,
-              url: link.url,
-            }))
-        : [],
+              .map(([id, position]) => [
+                id,
+                { x: Math.round(position.x), y: Math.round(position.y) },
+              ]),
+          )
+        : {},
     ]),
   )
 }
 
-function loadPinnedPortLinks(): PinnedPortLinksByConnection {
-  if (typeof window === 'undefined') {
-    return {}
-  }
-
+function persist(key: string, value: unknown) {
   try {
-    const rawValue = window.localStorage.getItem(PINNED_PORT_LINKS_STORAGE_KEY)
-    if (!rawValue) {
-      return {}
-    }
-
-    return normalizePinnedPortLinksRecord(JSON.parse(rawValue))
+    window.localStorage.setItem(key, JSON.stringify(value))
   } catch {
-    return {}
+    /* Local persistence is best effort. */
   }
 }
 
-function normalizePinnedDirectoryPositionsRecord(
-  value: unknown,
-): PinnedDirectoryPositionsByConnection {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {}
-  }
-
-  return Object.fromEntries(
-    Object.entries(value).map(([connectionKey, positions]) => {
-      if (!positions || typeof positions !== 'object' || Array.isArray(positions)) {
-        return [connectionKey, {}]
-      }
-
-      return [
-        connectionKey,
-        Object.fromEntries(
-          Object.entries(positions)
-            .filter(([path, position]) => {
-              if (
-                typeof path !== 'string' ||
-                !position ||
-                typeof position !== 'object' ||
-                Array.isArray(position)
-              ) {
-                return false
-              }
-
-              const x = 'x' in position ? position.x : null
-              const y = 'y' in position ? position.y : null
-              return Number.isFinite(x) && Number.isFinite(y)
-            })
-            .map(([path, position]) => {
-              const nextPosition = position as { x: number; y: number }
-
-              return [
-                normalize(path),
-                {
-                  x: Math.round(nextPosition.x),
-                  y: Math.round(nextPosition.y),
-                },
-              ]
-            }),
-        ),
-      ]
-    }),
-  )
-}
-
-function loadPinnedDirectoryPositions(): PinnedDirectoryPositionsByConnection {
-  if (typeof window === 'undefined') {
-    return {}
-  }
-
+function migrateDock(apps: ReturnType<typeof createHostDesktopApps>) {
   try {
-    const rawValue = window.localStorage.getItem(PINNED_DIRECTORY_POSITIONS_STORAGE_KEY)
-    if (!rawValue) {
-      return {}
-    }
-
-    return normalizePinnedDirectoryPositionsRecord(JSON.parse(rawValue))
-  } catch {
-    return {}
-  }
-}
-
-function loadPinnedPortLinkPositions(): PinnedPortLinkPositionsByConnection {
-  if (typeof window === 'undefined') {
-    return {}
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(PINNED_PORT_LINK_POSITIONS_STORAGE_KEY)
-    if (!rawValue) {
-      return {}
-    }
-
-    return normalizePinnedDirectoryPositionsRecord(JSON.parse(rawValue))
-  } catch {
-    return {}
-  }
-}
-
-function persistPinnedDirectories(value: PinnedDirectoriesByConnection) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  window.localStorage.setItem(PINNED_DIRECTORIES_STORAGE_KEY, JSON.stringify(value))
-}
-
-function persistPinnedDirectoryPositions(value: PinnedDirectoryPositionsByConnection) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  window.localStorage.setItem(PINNED_DIRECTORY_POSITIONS_STORAGE_KEY, JSON.stringify(value))
-}
-
-function persistPinnedPortLinks(value: PinnedPortLinksByConnection) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  window.localStorage.setItem(PINNED_PORT_LINKS_STORAGE_KEY, JSON.stringify(value))
-}
-
-function persistPinnedPortLinkPositions(value: PinnedPortLinkPositionsByConnection) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  window.localStorage.setItem(PINNED_PORT_LINK_POSITIONS_STORAGE_KEY, JSON.stringify(value))
-}
-
-function loadDockAppIds() {
-  if (typeof window === 'undefined') {
-    return [...defaultDockAppIds]
-  }
-
-  try {
-    const value: unknown = JSON.parse(window.localStorage.getItem(DOCK_APPS_STORAGE_KEY) ?? 'null')
-    if (!Array.isArray(value)) {
+    const saved: unknown = JSON.parse(window.localStorage.getItem(DOCK_APPS_STORAGE_KEY) ?? 'null')
+    if (!Array.isArray(saved)) {
       window.localStorage.setItem(DOCK_AI_AGENT_MIGRATION_KEY, 'done')
-      return [...defaultDockAppIds]
-    }
-
-    const appIds = Array.from(
-      new Set(
-        value.filter(
-          (appId): appId is DesktopAppId =>
-            typeof appId === 'string' && launchpadAppIds.has(appId as DesktopAppId),
-        ),
-      ),
-    )
-    if (
-      appIds.length > 0 &&
-      !appIds.includes('ai-agent') &&
-      window.localStorage.getItem(DOCK_AI_AGENT_MIGRATION_KEY) !== 'done'
-    ) {
-      const opencodeIndex = appIds.indexOf('opencode')
-      appIds.splice(opencodeIndex < 0 ? appIds.length : opencodeIndex + 1, 0, 'ai-agent')
-      window.localStorage.setItem(DOCK_APPS_STORAGE_KEY, JSON.stringify(appIds))
-    }
-    window.localStorage.setItem(DOCK_AI_AGENT_MIGRATION_KEY, 'done')
-    return value.length > 0 && appIds.length === 0 ? [...defaultDockAppIds] : appIds
-  } catch {
-    return [...defaultDockAppIds]
-  }
-}
-
-function persistDockAppIds(appIds: DesktopAppId[]) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  window.localStorage.setItem(DOCK_APPS_STORAGE_KEY, JSON.stringify(appIds))
-}
-
-function getPinnedDirectoryConnectionKey() {
-  const sshStore = useSshStore()
-  const host = sshStore.host.trim()
-  const username = sshStore.username.trim()
-  const port = sshStore.port
-
-  if (!host || !username || port === null) {
-    return null
-  }
-
-  return `${username}@${host}:${port}`
-}
-
-function formatPinnedDirectoryTitle(path: string) {
-  return path === '/' ? '文件管理 · 根目录' : `文件管理 · ${basename(path)}`
-}
-
-function isSessionWindowAppId(appId: DesktopAppId) {
-  return sessionWindowAppIds.has(appId)
-}
-
-function buildOpenCodeWebUrl() {
-  const host = useSshStore().host.trim() || window.location.hostname
-  return `http://${host}:4096`
-}
-
-export interface AppConfig {
-  id: DesktopAppId
-  title: string
-  icon: AppIconKey
-  component: Component
-  width?: number
-  height?: number
-  minWidth?: number
-  minHeight?: number
-  maximizable?: boolean
-  minimizable?: boolean
-  resizable?: boolean
-  singleInstance?: boolean
-  hide?: boolean
-  showInLaunchpad?: boolean
-}
-
-export interface OpenWindowOptions {
-  maximizable?: boolean
-  minimizable?: boolean
-  parentId?: string
-  resizable?: boolean
-}
-
-export interface WindowState {
-  id: string
-  appId: DesktopAppId
-  title: string
-  component: Component
-  icon: AppIconKey
-  x: number
-  y: number
-  width: number
-  height: number
-  minWidth: number
-  minHeight: number
-  maximizable: boolean
-  minimizable: boolean
-  resizable: boolean
-  parentId?: string
-  isMinimized: boolean
-  isMaximized: boolean
-  zIndex: number
-  isClosing: boolean
-  isClosePending: boolean
-  beforeClose?: WindowBeforeCloseHandler
-  props?: Record<string, unknown>
-}
-
-function getTopVisibleWindow(windows: WindowState[]) {
-  return [...windows]
-    .filter((window) => !window.isMinimized && !window.isClosing)
-    .sort((left, right) => right.zIndex - left.zIndex)[0]
-}
-
-function getWindowTree(windows: WindowState[], rootId: string) {
-  const result: WindowState[] = []
-  const visited = new Set<string>()
-
-  function visit(windowId: string) {
-    if (visited.has(windowId)) {
       return
     }
-
-    visited.add(windowId)
-    windows.filter((window) => window.parentId === windowId).forEach((window) => visit(window.id))
-
-    const targetWindow = windows.find((window) => window.id === windowId)
-    if (targetWindow) {
-      result.push(targetWindow)
+    const available = new Set(apps.filter((app) => app.showInLaunchpad).map((app) => app.id))
+    const ids = Array.from(
+      new Set(saved.filter((id): id is string => typeof id === 'string' && available.has(id))),
+    )
+    if (saved.length && !ids.length) ids.push(...defaultDockAppIds)
+    if (
+      ids.length &&
+      !ids.includes('ai-agent') &&
+      window.localStorage.getItem(DOCK_AI_AGENT_MIGRATION_KEY) !== 'done'
+    ) {
+      const index = ids.indexOf('opencode')
+      ids.splice(index < 0 ? ids.length : index + 1, 0, 'ai-agent')
     }
+    persist(DOCK_APPS_STORAGE_KEY, ids)
+    window.localStorage.setItem(DOCK_AI_AGENT_MIGRATION_KEY, 'done')
+  } catch {
+    /* The package falls back to the default Dock. */
   }
-
-  visit(rootId)
-  return result
 }
 
-export const useDesktopStore = defineStore('desktop', {
-  state: () => ({
-    activeWindowId: null as string | null,
-    electronWindowState: {
-      isMaximized: false,
-    },
-    apps: {
-      terminal: {
-        component: markRaw(TerminalView),
-        height: 560,
-        icon: 'terminal',
-        id: 'terminal',
-        minHeight: 360,
-        minWidth: 640,
-        title: '终端',
-        width: 920,
-        showInLaunchpad: true,
-        singleInstance: false,
-      },
-      'iframe-app': {
-        component: markRaw(IframeAppView),
-        height: 760,
-        hide: true,
-        icon: 'link',
-        id: 'iframe-app',
-        minHeight: 520,
-        minWidth: 760,
-        title: 'Web 应用',
-        width: 1180,
-      },
-      files: {
-        component: markRaw(FilesView),
-        height: 720,
-        icon: 'folder',
-        id: 'files',
-        minHeight: 560,
-        minWidth: 900,
-        title: '文件管理',
-        width: 1280,
-        showInLaunchpad: true,
-        singleInstance: false,
-      },
-      docker: {
-        component: markRaw(DockerView),
-        height: 760,
-        icon: 'docker',
-        id: 'docker',
-        minHeight: 560,
-        minWidth: 900,
-        title: 'Docker 管理',
-        width: 1180,
-        hide: false,
-        showInLaunchpad: true,
-      },
-      opencode: {
-        component: markRaw(TerminalView),
-        height: 560,
-        icon: 'opencode',
-        id: 'opencode',
-        minHeight: 360,
-        minWidth: 640,
-        title: 'OpenCode',
-        width: 920,
-        showInLaunchpad: true,
-      },
-      'ai-agent': {
-        component: markRaw(AiAgentView),
-        height: 760,
-        icon: 'ai-agent',
-        id: 'ai-agent',
-        minHeight: 520,
-        minWidth: 620,
-        singleInstance: true,
-        title: 'AI Agent',
-        width: 1180,
-        showInLaunchpad: true,
-      },
-      'ai-agent-settings': {
-        component: markRaw(AiAgentSettingsView),
-        height: 680,
-        hide: true,
-        icon: 'ai-agent',
-        id: 'ai-agent-settings',
-        maximizable: false,
-        minimizable: false,
-        minHeight: 520,
-        minWidth: 760,
-        singleInstance: true,
-        title: 'AI Agent 设置',
-        width: 1000,
-      },
-      'docker-create-container': {
-        component: markRaw(DockerCreateContainerView),
-        height: 700,
-        hide: true,
-        icon: 'docker',
-        id: 'docker-create-container',
-        minimizable: false,
-        minHeight: 560,
-        minWidth: 720,
-        title: '新建容器',
-        width: 820,
-      },
-      'docker-image-pull': {
-        component: markRaw(DockerImagePullView),
-        height: 520,
-        hide: true,
-        icon: 'docker',
-        id: 'docker-image-pull',
-        minHeight: 360,
-        minWidth: 620,
-        title: '拉取镜像',
-        width: 780,
-      },
-      'docker-create-compose': {
-        component: markRaw(DockerCreateComposeView),
-        height: 720,
-        hide: true,
-        icon: 'docker',
-        id: 'docker-create-compose',
-        minimizable: false,
-        minHeight: 560,
-        minWidth: 760,
-        title: '新建编排',
-        width: 860,
-      },
-      'docker-compose-services': {
-        component: markRaw(DockerComposeServicesView),
-        height: 680,
-        hide: true,
-        icon: 'docker',
-        id: 'docker-compose-services',
-        minimizable: false,
-        minHeight: 480,
-        minWidth: 760,
-        title: '编排服务',
-        width: 960,
-      },
-      'docker-output': {
-        component: markRaw(DockerOutputView),
-        height: 520,
-        hide: true,
-        icon: 'docker',
-        id: 'docker-output',
-        minHeight: 360,
-        minWidth: 620,
-        title: 'Docker 执行输出',
-        width: 780,
-      },
-      'docker-container-logs': {
-        component: markRaw(DockerContainerLogsView),
-        height: 700,
-        hide: true,
-        icon: 'docker',
-        id: 'docker-container-logs',
-        minHeight: 420,
-        minWidth: 720,
-        title: '容器日志',
-        width: 1080,
-      },
-      'docker-container-stats': {
-        component: markRaw(DockerContainerStatsView),
-        height: 760,
-        hide: true,
-        icon: 'docker',
-        id: 'docker-container-stats',
-        minHeight: 620,
-        minWidth: 880,
-        title: '容器资源监控',
-        width: 1180,
-      },
-      'port-forward': {
-        component: markRaw(PortForwardView),
-        height: 680,
-        icon: 'port-forward',
-        id: 'port-forward',
-        minHeight: 520,
-        minWidth: 840,
-        title: '端口转发',
-        width: 1040,
-        showInLaunchpad: true,
-      },
-      'secure-browser': {
-        component: markRaw(SecureBrowserView),
-        height: 520,
-        icon: 'secure-browser',
-        id: 'secure-browser',
-        minHeight: 440,
-        minWidth: 560,
-        title: '安全浏览器',
-        width: 680,
-        showInLaunchpad: true,
-        maximizable: false,
-      },
-      'operation-logs': {
-        component: markRaw(OperationLogsView),
-        height: 680,
-        icon: 'operation-log',
-        id: 'operation-logs',
-        minHeight: 480,
-        minWidth: 820,
-        title: '操作记录',
-        width: 1080,
-        showInLaunchpad: true,
-      },
-      'realtime-logs': {
-        component: markRaw(RealtimeLogsView),
-        height: 700,
-        icon: 'realtime-log',
-        id: 'realtime-logs',
-        minHeight: 420,
-        minWidth: 720,
-        title: '实时日志',
-        width: 1160,
-        showInLaunchpad: true,
-      },
-      'cron-tasks': {
-        component: markRaw(CronTasksView),
-        height: 700,
-        icon: 'cron-task',
-        id: 'cron-tasks',
-        minHeight: 520,
-        minWidth: 880,
-        title: '定时任务',
-        width: 1120,
-        showInLaunchpad: true,
-      },
-      processes: {
-        component: markRaw(ProcessesView),
-        height: 720,
-        icon: 'process',
-        id: 'processes',
-        minHeight: 520,
-        minWidth: 860,
-        title: '进程管理',
-        width: 1120,
-        showInLaunchpad: true,
-      },
-      dashboard: {
-        component: markRaw(DashboardView),
-        height: 760,
-        icon: 'dashboard',
-        id: 'dashboard',
-        minHeight: 620,
-        minWidth: 880,
-        title: '性能监控',
-        width: 1180,
-        hide: false,
-        showInLaunchpad: true,
-      },
-      'runtime-sessions': {
-        component: markRaw(RuntimeSessionsView),
-        height: 720,
-        hide: true,
-        icon: 'runtime',
-        id: 'runtime-sessions',
-        minHeight: 520,
-        minWidth: 860,
-        title: '运行态会话',
-        width: 1120,
-        showInLaunchpad: true,
-      },
-      editor: {
-        component: markRaw(TextEditorView),
-        height: 720,
-        hide: true,
-        icon: 'editor',
-        id: 'editor',
-        minimizable: false,
-        minHeight: 480,
-        minWidth: 720,
-        singleInstance: false,
-        title: '文本编辑器',
-        width: 980,
-      },
-      logout: {
-        component: markRaw({ render: () => null }),
-        height: 0,
-        icon: 'logout',
-        id: 'logout',
-        title: '断开连接',
-        width: 0,
-        hide: true,
-      },
-      'media-viewer': {
-        component: markRaw(MediaViewerView),
-        height: 760,
-        hide: true,
-        icon: 'media',
-        id: 'media-viewer',
-        minimizable: false,
-        minHeight: 480,
-        minWidth: 720,
-        singleInstance: false,
-        title: '媒体预览',
-        width: 1080,
-      },
-      settings: {
-        component: markRaw(SettingsView),
-        height: 680,
-        hide: true,
-        icon: 'settings',
-        id: 'settings',
-        maximizable: false,
-        minHeight: 460,
-        minWidth: 640,
-        title: '设置',
-        width: 760,
-        showInLaunchpad: true,
-      },
-      'task-center': {
-        component: markRaw(TaskCenterView),
-        height: 620,
-        icon: 'task-center',
-        id: 'task-center',
-        minHeight: 420,
-        minWidth: 680,
-        title: '任务中心',
-        width: 1040,
-        showInLaunchpad: true,
-      },
-    } as Record<DesktopAppId, AppConfig>,
-    nextZIndex: 100,
-    dockAppIds: loadDockAppIds() as DesktopAppId[],
-    pinnedDirectoriesByConnection: loadPinnedDirectories() as PinnedDirectoriesByConnection,
-    pinnedDirectoryPositionsByConnection:
-      loadPinnedDirectoryPositions() as PinnedDirectoryPositionsByConnection,
-    pinnedPortLinkPositionsByConnection:
-      loadPinnedPortLinkPositions() as PinnedPortLinkPositionsByConnection,
-    pinnedPortLinksByConnection: loadPinnedPortLinks() as PinnedPortLinksByConnection,
-    windows: [] as WindowState[],
-  }),
-
-  getters: {
-    sessionWindowCount: (state): number =>
-      state.windows.filter((window) => isSessionWindowAppId(window.appId) && !window.isClosing)
+/** Compatibility facade: window operations belong to WebOS, remote shortcuts belong to HostDeck. */
+export const useDesktopStore = defineStore('desktop', () => {
+  const windowSessionStore = useWindowSessionStore()
+  const electronWindowState = ref({ isMaximized: false })
+  const apps = createHostDesktopApps()
+  migrateDock(apps)
+  const runtime = createDesktop({
+    apps,
+    defaultDockAppIds,
+    storageKey: DOCK_APPS_STORAGE_KEY,
+    getBounds: () => ({
+      width: window.innerWidth,
+      height: Math.max(0, window.innerHeight - 40 - (useSettingsStore().dockAutoHide ? 12 : 84)),
+    }),
+    canOpen: (app, windows) =>
+      !sessionWindowAppIds.has(app.id) ||
+      windows.filter((window) => sessionWindowAppIds.has(window.appId) && !window.isClosing)
+        .length < maxSessionWindows,
+    onOpenRejected: () =>
+      getUiApi().message.warning(`最多只能打开 ${maxSessionWindows} 个会话窗口。`),
+    shouldMaximize: () =>
+      import.meta.env.VITE_ELECTRON_MAXIMIZE_UI_WHEN_WINDOWED === 'true' &&
+      Boolean(window.hostDeck?.window) &&
+      !electronWindowState.value.isMaximized,
+    onWindowClosed: (window) => windowSessionStore.disconnectWindow(window.id),
+    onLifecycleError: (error) => console.error('Desktop lifecycle failed', error),
+  })
+  runtime.apps['iframe-app']!.actions = [
+    { id: 'refresh', label: '刷新', run: (window) => refreshIframeWindow(window.id) },
+  ]
+  onScopeDispose(() => runtime.dispose())
+  const sessionWindowCount = computed(
+    () =>
+      runtime.windows.filter((window) => sessionWindowAppIds.has(window.appId) && !window.isClosing)
         .length,
-  },
+  )
+  const pinnedDirectoriesByConnection = ref<Record<string, string[]>>(
+    Object.fromEntries(
+      Object.entries(loadRecord(directoryKey)).map(([key, paths]) => [
+        key,
+        Array.isArray(paths)
+          ? Array.from(
+              new Set(
+                paths.filter((path): path is string => typeof path === 'string').map(normalize),
+              ),
+            )
+          : [],
+      ]),
+    ),
+  )
+  const pinnedDirectoryPositionsByConnection = ref(loadPositions(directoryPositionsKey))
+  const pinnedPortLinkPositionsByConnection = ref(loadPositions(portPositionsKey))
+  const pinnedPortLinksByConnection = ref<Record<string, PinnedPortLink[]>>(
+    Object.fromEntries(
+      Object.entries(loadRecord(portLinksKey)).map(([key, links]) => [
+        key,
+        Array.isArray(links)
+          ? links
+              .filter(
+                (link) =>
+                  link &&
+                  typeof link.id === 'string' &&
+                  typeof link.label === 'string' &&
+                  typeof link.url === 'string',
+              )
+              .map((link) => ({
+                id: link.id,
+                label: link.label,
+                url: link.url,
+                host: typeof link.host === 'string' ? link.host : '',
+                port: typeof link.port === 'string' ? link.port : '',
+                portText: typeof link.portText === 'string' ? link.portText : link.url,
+              }))
+          : [],
+      ]),
+    ),
+  )
 
-  actions: {
-    canOpenWindow(appId: DesktopAppId) {
-      const app = this.apps[appId]
-      if (!app) {
-        return false
-      }
-
-      if (
-        (app.singleInstance ?? true) &&
-        this.windows.some((window) => window.appId === appId && !window.isClosing)
-      ) {
-        return false
-      }
-
-      return !isSessionWindowAppId(appId) || this.sessionWindowCount < maxSessionWindows
-    },
-
-    isAppPinnedToDock(appId: DesktopAppId) {
-      return this.dockAppIds.includes(appId)
-    },
-
-    pinAppToDock(appId: DesktopAppId) {
-      if (!this.apps[appId]?.showInLaunchpad || this.isAppPinnedToDock(appId)) {
-        return false
-      }
-
-      this.dockAppIds = [...this.dockAppIds, appId]
-      persistDockAppIds(this.dockAppIds)
-      return true
-    },
-
-    unpinAppFromDock(appId: DesktopAppId) {
-      if (!this.isAppPinnedToDock(appId)) {
-        return false
-      }
-
-      this.dockAppIds = this.dockAppIds.filter((id) => id !== appId)
-      persistDockAppIds(this.dockAppIds)
-      return true
-    },
-
-    moveDockApp(appId: DesktopAppId, targetAppId: DesktopAppId) {
-      const fromIndex = this.dockAppIds.indexOf(appId)
-      const targetIndex = this.dockAppIds.indexOf(targetAppId)
-      if (fromIndex === -1 || targetIndex === -1 || fromIndex === targetIndex) {
-        return false
-      }
-
-      const nextAppIds = [...this.dockAppIds]
-      nextAppIds.splice(fromIndex, 1)
-      nextAppIds.splice(targetIndex, 0, appId)
-      this.dockAppIds = nextAppIds
-      persistDockAppIds(nextAppIds)
-      return true
-    },
-
+  function connectionKey() {
+    const ssh = useSshStore()
+    const host = ssh.host.trim()
+    const username = ssh.username.trim()
+    return host && username && ssh.port !== null ? `${username}@${host}:${ssh.port}` : null
+  }
+  function getPinnedDirectories() {
+    const key = connectionKey()
+    return key ? (pinnedDirectoriesByConnection.value[key] ?? []) : []
+  }
+  function getPinnedDirectoryPositions() {
+    const key = connectionKey()
+    return key ? (pinnedDirectoryPositionsByConnection.value[key] ?? {}) : {}
+  }
+  function getPinnedPortLinks() {
+    const key = connectionKey()
+    return key ? (pinnedPortLinksByConnection.value[key] ?? []) : []
+  }
+  function getPinnedPortLinkPositions() {
+    const key = connectionKey()
+    return key ? (pinnedPortLinkPositionsByConnection.value[key] ?? {}) : {}
+  }
+  function isDirectoryPinned(path: string) {
+    return getPinnedDirectories().includes(normalize(path))
+  }
+  function isPortLinkPinned(url: string) {
+    return getPinnedPortLinks().some((link) => link.url === url)
+  }
+  function setPinnedDirectories(paths: string[]) {
+    const key = connectionKey()
+    if (!key) return
+    const normalizedPaths = Array.from(new Set(paths.map(normalize)))
+    const directories = { ...pinnedDirectoriesByConnection.value }
+    const positions = { ...pinnedDirectoryPositionsByConnection.value }
+    if (!normalizedPaths.length) {
+      delete directories[key]
+      delete positions[key]
+    } else {
+      directories[key] = normalizedPaths
+      const retained = Object.fromEntries(
+        Object.entries(positions[key] ?? {}).filter(([path]) => normalizedPaths.includes(path)),
+      )
+      if (Object.keys(retained).length) positions[key] = retained
+      else delete positions[key]
+    }
+    pinnedDirectoriesByConnection.value = directories
+    pinnedDirectoryPositionsByConnection.value = positions
+    persist(directoryKey, directories)
+    persist(directoryPositionsKey, positions)
+  }
+  function pinDirectoryToDesktop(path: string) {
+    const target = normalize(path)
+    if (isDirectoryPinned(target)) return false
+    setPinnedDirectories([...getPinnedDirectories(), target])
+    return true
+  }
+  function unpinDirectoryFromDesktop(paths: string | string[]) {
+    const targets = new Set((Array.isArray(paths) ? paths : [paths]).map(normalize))
+    setPinnedDirectories(getPinnedDirectories().filter((path) => !targets.has(path)))
+  }
+  function toggleDirectoryPin(path: string) {
+    if (isDirectoryPinned(path)) {
+      unpinDirectoryFromDesktop(path)
+      return false
+    }
+    return pinDirectoryToDesktop(path)
+  }
+  function pinPortLinkToDesktop(link: PinnedPortLink) {
+    const key = connectionKey()
+    if (!key || isPortLinkPinned(link.url)) return false
+    pinnedPortLinksByConnection.value = {
+      ...pinnedPortLinksByConnection.value,
+      [key]: [...getPinnedPortLinks(), link],
+    }
+    persist(portLinksKey, pinnedPortLinksByConnection.value)
+    return true
+  }
+  function unpinPortLinkFromDesktop(ids: string | string[]) {
+    const key = connectionKey()
+    if (!key) return
+    const targets = new Set(Array.isArray(ids) ? ids : [ids])
+    const links = getPinnedPortLinks().filter((link) => !targets.has(link.id))
+    const records = { ...pinnedPortLinksByConnection.value }
+    const positions = { ...pinnedPortLinkPositionsByConnection.value }
+    if (!links.length) {
+      delete records[key]
+      delete positions[key]
+    } else {
+      records[key] = links
+      const retained = Object.fromEntries(
+        Object.entries(positions[key] ?? {}).filter(([id]) => !targets.has(id)),
+      )
+      if (Object.keys(retained).length) positions[key] = retained
+      else delete positions[key]
+    }
+    pinnedPortLinksByConnection.value = records
+    pinnedPortLinkPositionsByConnection.value = positions
+    persist(portLinksKey, records)
+    persist(portPositionsKey, positions)
+  }
+  function togglePortLinkPin(link: PinnedPortLink) {
+    if (isPortLinkPinned(link.url)) {
+      unpinPortLinkFromDesktop(
+        getPinnedPortLinks()
+          .filter((item) => item.url === link.url)
+          .map((item) => item.id),
+      )
+      return false
+    }
+    return pinPortLinkToDesktop(link)
+  }
+  function setPinnedDirectoryPosition(path: string, x: number, y: number) {
+    const key = connectionKey()
+    if (!key || !isDirectoryPinned(path) || !Number.isFinite(x) || !Number.isFinite(y)) return
+    pinnedDirectoryPositionsByConnection.value = {
+      ...pinnedDirectoryPositionsByConnection.value,
+      [key]: {
+        ...getPinnedDirectoryPositions(),
+        [normalize(path)]: { x: Math.round(x), y: Math.round(y) },
+      },
+    }
+    persist(directoryPositionsKey, pinnedDirectoryPositionsByConnection.value)
+  }
+  function setPinnedPortLinkPosition(id: string, x: number, y: number) {
+    const key = connectionKey()
+    if (
+      !key ||
+      !getPinnedPortLinks().some((link) => link.id === id) ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(y)
+    )
+      return
+    pinnedPortLinkPositionsByConnection.value = {
+      ...pinnedPortLinkPositionsByConnection.value,
+      [key]: { ...getPinnedPortLinkPositions(), [id]: { x: Math.round(x), y: Math.round(y) } },
+    }
+    persist(portPositionsKey, pinnedPortLinkPositionsByConnection.value)
+  }
+  function openPinnedDirectory(path: string) {
+    const target = normalize(path)
+    return runtime.openWindow('files', {
+      path: target,
+      title: target === '/' ? '文件管理 · 根目录' : `文件管理 · ${basename(target)}`,
+    })
+  }
+  function openPinnedPortLink(id: string) {
+    const link = getPinnedPortLinks().find((item) => item.id === id)
+    if (link) window.open(link.url, '_blank', 'noopener')
+  }
+  function refreshIframeWindow(id: string) {
+    if (runtime.windows.find((window) => window.id === id)?.appId === 'iframe-app')
+      runtime.updateWindowProps(id, { refreshToken: Date.now() })
+  }
+  function openWindow(
+    appId: DesktopAppId,
+    props?: Record<string, unknown>,
+    options: OpenWindowOptions = {},
+  ) {
+    if (appId === 'logout') {
+      runtime.reset()
+      void useSshStore().clearSession()
+      return
+    }
+    return runtime.openWindow(appId, props, options)
+  }
+  return {
+    ...runtime,
+    runtime: markRaw(runtime),
+    apps: toRef(runtime, 'apps'),
+    windows: toRef(runtime, 'windows'),
+    activeWindowId: toRef(runtime, 'activeWindowId'),
+    nextZIndex: toRef(runtime, 'nextZIndex'),
+    dockAppIds: toRef(runtime, 'dockAppIds'),
+    electronWindowState,
+    sessionWindowCount,
+    openWindow,
+    refreshIframeWindow,
     setElectronWindowState(state: { isMaximized: boolean }) {
-      this.electronWindowState = {
-        isMaximized: state.isMaximized,
-      }
+      electronWindowState.value = { isMaximized: state.isMaximized }
     },
-
-    getPinnedDirectories() {
-      const connectionKey = getPinnedDirectoryConnectionKey()
-      return connectionKey ? (this.pinnedDirectoriesByConnection[connectionKey] ?? []) : []
-    },
-
-    getPinnedDirectoryPositions() {
-      const connectionKey = getPinnedDirectoryConnectionKey()
-      return connectionKey ? (this.pinnedDirectoryPositionsByConnection[connectionKey] ?? {}) : {}
-    },
-
-    getPinnedPortLinkPositions() {
-      const connectionKey = getPinnedDirectoryConnectionKey()
-      return connectionKey ? (this.pinnedPortLinkPositionsByConnection[connectionKey] ?? {}) : {}
-    },
-
-    getPinnedPortLinks() {
-      const connectionKey = getPinnedDirectoryConnectionKey()
-      return connectionKey ? (this.pinnedPortLinksByConnection[connectionKey] ?? []) : []
-    },
-
-    isDirectoryPinned(path: string) {
-      return this.getPinnedDirectories().includes(normalize(path))
-    },
-
-    isPortLinkPinned(url: string) {
-      return this.getPinnedPortLinks().some((link) => link.url === url)
-    },
-
-    openPinnedDirectory(path: string) {
-      const targetPath = normalize(path)
-      this.openWindow('files', {
-        path: targetPath,
-        title: formatPinnedDirectoryTitle(targetPath),
-      })
-    },
-
-    openPinnedPortLink(id: string) {
-      const link = this.getPinnedPortLinks().find((item) => item.id === id)
-      if (!link) {
-        return
-      }
-
-      window.open(link.url, '_blank', 'noopener')
-    },
-
-    pinDirectoryToDesktop(path: string) {
-      const targetPath = normalize(path)
-      if (this.isDirectoryPinned(targetPath)) {
-        return false
-      }
-
-      this.setPinnedDirectories([...this.getPinnedDirectories(), targetPath])
-      return true
-    },
-
-    pinPortLinkToDesktop(link: PinnedPortLink) {
-      const connectionKey = getPinnedDirectoryConnectionKey()
-      if (!connectionKey) {
-        return false
-      }
-
-      const currentLinks = this.pinnedPortLinksByConnection[connectionKey] ?? []
-      if (currentLinks.some((item) => item.url === link.url)) {
-        return false
-      }
-
-      const nextPinnedPortLinks = {
-        ...this.pinnedPortLinksByConnection,
-        [connectionKey]: [...currentLinks, link],
-      }
-      this.pinnedPortLinksByConnection = nextPinnedPortLinks
-      persistPinnedPortLinks(nextPinnedPortLinks)
-      return true
-    },
-
-    setPinnedDirectories(paths: string[]) {
-      const connectionKey = getPinnedDirectoryConnectionKey()
-      if (!connectionKey) {
-        return
-      }
-
-      const normalizedPaths = Array.from(new Set(paths.map((path) => normalize(path))))
-      const nextPinnedDirectories = { ...this.pinnedDirectoriesByConnection }
-      const nextPinnedDirectoryPositions = { ...this.pinnedDirectoryPositionsByConnection }
-      const currentPositions = this.pinnedDirectoryPositionsByConnection[connectionKey] ?? {}
-      const retainedPositions = Object.fromEntries(
-        Object.entries(currentPositions).filter(([path]) => normalizedPaths.includes(path)),
-      )
-
-      if (normalizedPaths.length === 0) {
-        delete nextPinnedDirectories[connectionKey]
-        delete nextPinnedDirectoryPositions[connectionKey]
-      } else {
-        nextPinnedDirectories[connectionKey] = normalizedPaths
-        if (Object.keys(retainedPositions).length > 0) {
-          nextPinnedDirectoryPositions[connectionKey] = retainedPositions
-        } else {
-          delete nextPinnedDirectoryPositions[connectionKey]
-        }
-      }
-
-      this.pinnedDirectoriesByConnection = nextPinnedDirectories
-      this.pinnedDirectoryPositionsByConnection = nextPinnedDirectoryPositions
-      persistPinnedDirectories(nextPinnedDirectories)
-      persistPinnedDirectoryPositions(nextPinnedDirectoryPositions)
-    },
-
-    setPinnedDirectoryPosition(path: string, x: number, y: number) {
-      const connectionKey = getPinnedDirectoryConnectionKey()
-      if (!connectionKey || !this.isDirectoryPinned(path)) {
-        return
-      }
-
-      const targetPath = normalize(path)
-      const nextPinnedDirectoryPositions = {
-        ...this.pinnedDirectoryPositionsByConnection,
-        [connectionKey]: {
-          ...(this.pinnedDirectoryPositionsByConnection[connectionKey] ?? {}),
-          [targetPath]: {
-            x: Math.round(x),
-            y: Math.round(y),
-          },
-        },
-      }
-
-      this.pinnedDirectoryPositionsByConnection = nextPinnedDirectoryPositions
-      persistPinnedDirectoryPositions(nextPinnedDirectoryPositions)
-    },
-
-    setPinnedPortLinkPosition(id: string, x: number, y: number) {
-      const connectionKey = getPinnedDirectoryConnectionKey()
-      if (!connectionKey || !this.getPinnedPortLinks().some((link) => link.id === id)) {
-        return
-      }
-
-      const nextPinnedPortLinkPositions = {
-        ...this.pinnedPortLinkPositionsByConnection,
-        [connectionKey]: {
-          ...(this.pinnedPortLinkPositionsByConnection[connectionKey] ?? {}),
-          [id]: {
-            x: Math.round(x),
-            y: Math.round(y),
-          },
-        },
-      }
-
-      this.pinnedPortLinkPositionsByConnection = nextPinnedPortLinkPositions
-      persistPinnedPortLinkPositions(nextPinnedPortLinkPositions)
-    },
-
-    toggleDirectoryPin(path: string) {
-      const targetPath = normalize(path)
-      if (this.isDirectoryPinned(targetPath)) {
-        this.unpinDirectoryFromDesktop(targetPath)
-        return false
-      }
-
-      this.pinDirectoryToDesktop(targetPath)
-      return true
-    },
-
-    togglePortLinkPin(link: PinnedPortLink) {
-      if (this.isPortLinkPinned(link.url)) {
-        this.unpinPortLinkFromDesktop(
-          this.getPinnedPortLinks()
-            .filter((item) => item.url === link.url)
-            .map((item) => item.id),
-        )
-        return false
-      }
-
-      this.pinPortLinkToDesktop(link)
-      return true
-    },
-
-    unpinDirectoryFromDesktop(paths: string | string[]) {
-      const targetPaths = new Set(
-        (Array.isArray(paths) ? paths : [paths]).map((path) => normalize(path)),
-      )
-      this.setPinnedDirectories(
-        this.getPinnedDirectories().filter((path) => !targetPaths.has(path)),
-      )
-    },
-
-    unpinPortLinkFromDesktop(ids: string | string[]) {
-      const connectionKey = getPinnedDirectoryConnectionKey()
-      if (!connectionKey) {
-        return
-      }
-
-      const targetIds = new Set(Array.isArray(ids) ? ids : [ids])
-      const nextLinks = this.getPinnedPortLinks().filter((link) => !targetIds.has(link.id))
-      const nextPinnedPortLinks = { ...this.pinnedPortLinksByConnection }
-      const nextPinnedPortLinkPositions = { ...this.pinnedPortLinkPositionsByConnection }
-      const retainedPositions = Object.fromEntries(
-        Object.entries(nextPinnedPortLinkPositions[connectionKey] ?? {}).filter(
-          ([id]) => !targetIds.has(id),
-        ),
-      )
-
-      if (nextLinks.length === 0) {
-        delete nextPinnedPortLinks[connectionKey]
-        delete nextPinnedPortLinkPositions[connectionKey]
-      } else {
-        nextPinnedPortLinks[connectionKey] = nextLinks
-        if (Object.keys(retainedPositions).length > 0) {
-          nextPinnedPortLinkPositions[connectionKey] = retainedPositions
-        } else {
-          delete nextPinnedPortLinkPositions[connectionKey]
-        }
-      }
-
-      this.pinnedPortLinksByConnection = nextPinnedPortLinks
-      this.pinnedPortLinkPositionsByConnection = nextPinnedPortLinkPositions
-      persistPinnedPortLinks(nextPinnedPortLinks)
-      persistPinnedPortLinkPositions(nextPinnedPortLinkPositions)
-    },
-
-    closeAppWindows(appId: DesktopAppId) {
-      this.windows
-        .filter((window) => window.appId === appId)
-        .forEach((window) => {
-          void this.requestCloseWindow(window.id)
-        })
-    },
-
-    async requestCloseWindow(id: string) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow || targetWindow.isClosing || targetWindow.isClosePending) {
-        return
-      }
-
-      const windowTree = getWindowTree(this.windows, id)
-      if (windowTree.some((window) => window.isClosePending)) {
-        return
-      }
-
-      windowTree.forEach((window) => {
-        window.isClosePending = true
-      })
-
-      try {
-        for (const window of windowTree) {
-          if (window.beforeClose) {
-            const canClose = await window.beforeClose()
-            if (!canClose) {
-              return
-            }
-          }
-        }
-
-        this.closeWindow(id)
-      } finally {
-        windowTree.forEach((window) => {
-          window.isClosePending = false
-        })
-      }
-    },
-
-    closeWindow(id: string) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow || targetWindow.isClosing) {
-        return
-      }
-
-      const windowIds = new Set(getWindowTree(this.windows, id).map((window) => window.id))
-      this.windows.forEach((window) => {
-        if (windowIds.has(window.id)) {
-          window.isClosing = true
-          window.isClosePending = false
-        }
-      })
-
-      if (this.activeWindowId && windowIds.has(this.activeWindowId)) {
-        const nextActiveWindow = getTopVisibleWindow(this.windows)
-        this.activeWindowId = nextActiveWindow?.id ?? null
-      }
-
-      globalThis.setTimeout(() => {
-        this.windows = this.windows.filter((window) => !windowIds.has(window.id))
-        const windowSessionStore = useWindowSessionStore()
-        windowIds.forEach((windowId) => {
-          void windowSessionStore.disconnectWindow(windowId)
-        })
-
-        if (this.activeWindowId && windowIds.has(this.activeWindowId)) {
-          const nextActiveWindow = getTopVisibleWindow(this.windows)
-          this.activeWindowId = nextActiveWindow?.id ?? null
-        }
-      }, windowCloseAnimationMs)
-    },
-
-    focusWindow(id: string) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow || targetWindow.isClosing) {
-        return
-      }
-
-      if (targetWindow.isMinimized) {
-        targetWindow.isMinimized = false
-      }
-
-      targetWindow.zIndex = this.nextZIndex++
-      this.activeWindowId = id
-    },
-
-    maximizeWindow(id: string) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow || targetWindow.isClosing || !targetWindow.maximizable) {
-        return
-      }
-
-      targetWindow.isMaximized = !targetWindow.isMaximized
-      this.focusWindow(id)
-    },
-
-    minimizeWindow(id: string) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow || targetWindow.isClosing || !targetWindow.minimizable) {
-        return
-      }
-
-      targetWindow.isMinimized = true
-      if (this.activeWindowId === id) {
-        const nextActiveWindow = getTopVisibleWindow(this.windows)
-        this.activeWindowId = nextActiveWindow?.id ?? null
-      }
-    },
-
-    openWindow(
-      appId: DesktopAppId,
-      props?: Record<string, unknown>,
-      options: OpenWindowOptions = {},
-    ) {
-      if (appId === 'logout') {
-        void useSshStore().clearSession()
-        this.windows = []
-        this.activeWindowId = null
-        return
-      }
-
-      const app = this.apps[appId]
-      if (!app) {
-        return
-      }
-
-      const parentWindow = options.parentId
-        ? this.windows.find((window) => window.id === options.parentId)
-        : undefined
-      if (
-        options.parentId &&
-        (!parentWindow || parentWindow.isClosing || parentWindow.isClosePending)
-      ) {
-        return
-      }
-
-      if (app.singleInstance ?? true) {
-        const existingWindow = this.windows.find(
-          (window) => window.appId === appId && !window.isClosing,
-        )
-        if (existingWindow) {
-          this.restoreWindow(existingWindow.id)
-          return existingWindow.id
-        }
-      }
-
-      if (!this.canOpenWindow(appId)) {
-        getUiApi().message.warning(`最多只能打开 ${maxSessionWindows} 个会话窗口。`)
-        return
-      }
-
-      const windowId = `${appId}-${Date.now()}-${this.nextZIndex}`
-      const minWidth = app.minWidth ?? 320
-      const minHeight = app.minHeight ?? 240
-      const width = Math.max(app.width ?? 800, minWidth)
-      const height = Math.max(app.height ?? 600, minHeight)
-      const topBarHeight = 40
-      const dockSafeArea = useSettingsStore().dockAutoHide ? 12 : 84
-      const edgeGap = 16
-      const availableHeight = Math.max(0, window.innerHeight - topBarHeight - dockSafeArea)
-      const centeredX = Math.round((window.innerWidth - width) / 2)
-      const centeredY = Math.round((availableHeight - height) / 2)
-      const maximizable = options.maximizable ?? app.maximizable ?? true
-      const windowState: WindowState = {
-        appId,
-        component: app.component,
-        height,
-        icon: app.icon,
-        isClosing: false,
-        isClosePending: false,
-        id: windowId,
-        isMaximized:
-          maximizable &&
-          maximizeUiWindowWhenElectronWindowed &&
-          Boolean(window.hostDeck?.window) &&
-          !this.electronWindowState.isMaximized,
-        isMinimized: false,
-        maximizable,
-        minimizable: options.minimizable ?? app.minimizable ?? true,
-        minHeight,
-        minWidth,
-        parentId: options.parentId,
-        props:
-          appId === 'opencode'
-            ? {
-                openIframeAfterMs: 2000,
-                openIframeTitle: 'OpenCode Web',
-                openIframeUrl: buildOpenCodeWebUrl(),
-                shutdownCommand: "pkill -f 'opencode web .*--port 4096' || true",
-                startupCommand: 'opencode web --hostname 0.0.0.0 --port 4096',
-                ...props,
-              }
-            : props,
-        resizable: maximizable && (options.resizable ?? app.resizable ?? true),
-        title: typeof props?.title === 'string' ? props.title : app.title,
-        width,
-        x: Math.max(edgeGap, centeredX),
-        y: Math.max(edgeGap, centeredY),
-        zIndex: this.nextZIndex++,
-      }
-
-      this.windows.push(windowState)
-      this.activeWindowId = windowId
-      return windowId
-    },
-
-    reset() {
-      const windowSessionStore = useWindowSessionStore()
-      this.windows.forEach((window) => {
-        void windowSessionStore.disconnectWindow(window.id)
-      })
-      this.windows = []
-      this.activeWindowId = null
-      this.nextZIndex = 100
-    },
-
-    restoreWindow(id: string) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow) {
-        return
-      }
-
-      targetWindow.isMinimized = false
-      this.focusWindow(id)
-    },
-
-    refreshIframeWindow(id: string) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow || targetWindow.appId !== 'iframe-app') {
-        return
-      }
-
-      targetWindow.props = {
-        ...targetWindow.props,
-        refreshToken: Date.now(),
-      }
-    },
-
-    setWindowBeforeClose(id: string, handler?: WindowBeforeCloseHandler) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow) {
-        return
-      }
-
-      targetWindow.beforeClose = handler
-    },
-
-    updateWindowPosition(id: string, x: number, y: number) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow) {
-        return
-      }
-
-      targetWindow.x = x
-      targetWindow.y = y
-    },
-
-    updateWindowProps(id: string, props: Record<string, unknown>) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow) {
-        return
-      }
-
-      targetWindow.props = {
-        ...targetWindow.props,
-        ...props,
-      }
-    },
-
-    updateWindowSize(id: string, width: number, height: number) {
-      const targetWindow = this.windows.find((window) => window.id === id)
-      if (!targetWindow || !targetWindow.resizable) {
-        return
-      }
-
-      targetWindow.width = Math.max(targetWindow.minWidth, width)
-      targetWindow.height = Math.max(targetWindow.minHeight, height)
-    },
-  },
+    pinnedDirectoriesByConnection,
+    pinnedDirectoryPositionsByConnection,
+    pinnedPortLinksByConnection,
+    pinnedPortLinkPositionsByConnection,
+    getPinnedDirectories,
+    getPinnedDirectoryPositions,
+    getPinnedPortLinks,
+    getPinnedPortLinkPositions,
+    isDirectoryPinned,
+    isPortLinkPinned,
+    setPinnedDirectories,
+    pinDirectoryToDesktop,
+    unpinDirectoryFromDesktop,
+    toggleDirectoryPin,
+    pinPortLinkToDesktop,
+    unpinPortLinkFromDesktop,
+    togglePortLinkPin,
+    setPinnedDirectoryPosition,
+    setPinnedPortLinkPosition,
+    openPinnedDirectory,
+    openPinnedPortLink,
+  }
 })

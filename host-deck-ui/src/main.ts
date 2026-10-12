@@ -5,6 +5,7 @@ import App from './App.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useAccessStore } from '@/stores/access'
 import './style.css'
+import '@host-deck/webos/style.css'
 import 'virtual:uno.css'
 
 const app = createApp(App)

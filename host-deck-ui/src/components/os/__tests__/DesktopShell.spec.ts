@@ -3,7 +3,10 @@ import { shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
-import DesktopShell from '../DesktopShell.vue'
+import { DesktopShell as PackageDesktopShell } from '@host-deck/webos'
+import { withHostDesktop } from '@/lib/host-desktop-context'
+
+const DesktopShell = withHostDesktop(PackageDesktopShell)
 
 vi.mock('@/components/os/DesktopDock.vue', () => ({ default: { template: '<div />' } }))
 vi.mock('@/components/os/DesktopLaunchpad.vue', () => ({ default: { template: '<div />' } }))

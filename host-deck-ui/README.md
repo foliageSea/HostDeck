@@ -27,6 +27,14 @@
 
 ## 目录说明
 
+桌面内核已抽离为 workspace package，HostDeck 仅负责业务组装：
+
+- `packages/webos/`：通用 Vue 桌面运行时和组件，详见其 `README.md`。
+- `examples/webos-demo/`：独立宿主，只消费 package 的构建产物。
+- `src/lib/host-desktop-apps.ts`：HostDeck 应用注册和默认参数。
+- `src/stores/desktop.ts`：兼容原入口，保留 SSH 资源清理、Electron 策略和远程快捷方式。
+- `src/stores/desktop-preferences.ts`：本地桌面偏好；业务设置和壁纸 API 仍在 `settings.ts`。
+
 ```text
 src/
   api/              API 请求封装
@@ -90,4 +98,11 @@ pnpm exec vue-tsc -p tsconfig.app.json --noEmit
 ```bash
 pnpm build
 pnpm exec vue-tsc -p tsconfig.app.json --noEmit
+pnpm test
+pnpm test:webos
+pnpm build:webos-demo
+pnpm test:webos-demo
+pnpm verify:webos-package
 ```
+
+`pnpm dev`、`pnpm build`、`pnpm test` 会先构建桌面 package。直接调用 `vite`、`vue-tsc` 或 `vitest` 前需先执行 `pnpm build:webos`。开发 package 后需要重新构建它；`pnpm dev:webos-demo` 可启动独立示例（端口 5180）。
