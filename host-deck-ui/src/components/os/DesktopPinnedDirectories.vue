@@ -751,16 +751,17 @@ onUnmounted(() => {
         :key="item.id"
         :data-desktop-item-id="item.id"
         :title="item.title"
+        :aria-pressed="isDirectorySelected(item.id)"
         type="button"
-        class="app-radius-card group absolute flex min-h-[108px] w-[96px] flex-col items-center justify-center gap-[10px] rounded-[18px] border px-[10px] py-[12px] text-center text-inherit transition-[background-color,border-color,transform,box-shadow] duration-[180ms] ease-in-out cursor-pointer"
+        class="desktop-shortcut app-radius-card group absolute flex min-h-[108px] w-[96px] flex-col items-center justify-center gap-[10px] rounded-[18px] border px-[10px] py-[12px] text-center text-inherit transition-[background-color,border-color,transform,box-shadow] duration-[180ms] ease-in-out cursor-pointer"
         :class="[
           settingsStore.isDark
             ? 'border-transparent bg-transparent text-[#e2e8f0]'
             : 'border-transparent bg-transparent text-[#0f172a]',
           isDirectorySelected(item.id)
             ? settingsStore.isDark
-              ? 'border-[rgba(148,163,184,0.26)] bg-[rgba(15,23,42,0.46)] outline outline-1 outline-offset-2 outline-[var(--app-primary-border)]'
-              : 'border-[rgba(100,116,139,0.36)] bg-[var(--app-primary-soft-strong)] outline outline-1 outline-offset-2 outline-[var(--app-primary-border)]'
+              ? 'border-[rgba(148,163,184,0.26)] bg-[rgba(15,23,42,0.46)]'
+              : 'border-[rgba(100,116,139,0.36)] bg-[var(--app-primary-soft-strong)]'
             : '',
           dragState?.id === item.id
             ? 'z-[7] cursor-grabbing opacity-80 shadow-[0_20px_40px_rgba(15,23,42,0.18)] transition-none'
@@ -836,3 +837,10 @@ onUnmounted(() => {
     />
   </div>
 </template>
+
+<style scoped>
+.desktop-shortcut:focus-visible {
+  outline: 1px solid var(--app-primary-border);
+  outline-offset: 2px;
+}
+</style>
