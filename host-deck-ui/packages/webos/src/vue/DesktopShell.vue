@@ -1,9 +1,18 @@
+<script lang="ts">
+const desktopRoots = new Set<HTMLElement>()
+let activeDesktopRoot: HTMLElement | null = null
+</script>
+
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import DesktopMenu from './DesktopMenu.vue'
 import type { DesktopMenuOption } from './menu-options'
 import type { CSSProperties } from 'vue'
-import { matchesKeyboardShortcut } from '../core/keyboard-shortcut'
+import {
+  createDefaultAppSearchShortcut,
+  matchesKeyboardShortcut,
+  type KeyboardShortcut,
+} from '../core/keyboard-shortcut'
 import { desktopThemeStyle } from '../core/preferences'
 import {
   useDesktopContext,
@@ -15,19 +24,21 @@ import DesktopLaunchpad from './DesktopLaunchpad.vue'
 import DesktopWindow from './DesktopWindow.vue'
 import DesktopWindowSwitcher from './DesktopWindowSwitcher.vue'
 import DesktopWidgets from './DesktopWidgets.vue'
+import DesktopAppSearch from './DesktopAppSearch.vue'
 
 const props = defineProps<{
   wallpaperStyle?: CSSProperties
   wallpaperFilter?: string
   videoWallpaperUrl?: string
   wallpaperClass?: string
+  appSearchShortcut?: KeyboardShortcut | null
 }>()
 const context = useDesktopContext()
 const rootElement = ref<HTMLElement | null>(null)
 const contentElement = ref<HTMLElement | null>(null)
 const themeStyle = desktopThemeStyle(context.preferences)
 let resizeObserver: ResizeObserver | undefined
-let isActive = true
+const defaultAppSearchShortcut = createDefaultAppSearchShortcut()
 
 const emit = defineEmits<{
   ready: []
@@ -38,6 +49,7 @@ const settingsStore = useSettingsStore()
 const widgetStore = context.widgets
 const switcherVisible = ref(false)
 const launchpadVisible = ref(false)
+const appSearchVisible = ref(false)
 const switcherIndex = ref(0)
 const switcherWindows = ref<typeof desktopStore.windows>([])
 const directSwitchActive = ref(false)
@@ -108,10 +120,43 @@ async function closeSwitcherWindow(id: string) {
 }
 
 function handleKeyDown(event: KeyboardEvent) {
-  if (!isActive) return
+  if (
+    activeDesktopRoot !== rootElement.value ||
+    event.defaultPrevented ||
+    event.isComposing ||
+    event.keyCode === 229
+  )
+    return
   if (event.target instanceof Element && event.target.closest('[data-shortcut-recorder]')) {
     return
   }
+
+  const isSwitcherToggleKey = matchesKeyboardShortcut(
+    event,
+    settingsStore.windowSwitcherToggleShortcut,
+  )
+  const isDirectSwitchKey = matchesKeyboardShortcut(event, settingsStore.windowSwitchShortcut)
+  const searchShortcut =
+    props.appSearchShortcut === undefined ? defaultAppSearchShortcut : props.appSearchShortcut
+  if (
+    searchShortcut &&
+    !isSwitcherToggleKey &&
+    !isDirectSwitchKey &&
+    matchesKeyboardShortcut(event, searchShortcut)
+  ) {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!event.repeat) {
+      launchpadVisible.value = false
+      switcherVisible.value = false
+      directSwitchActive.value = false
+      desktopContextMenu.value = null
+      appSearchVisible.value = true
+    }
+    return
+  }
+
+  if (appSearchVisible.value) return
 
   if (event.key === 'Escape' && launchpadVisible.value) {
     event.preventDefault()
@@ -132,11 +177,6 @@ function handleKeyDown(event: KeyboardEvent) {
     return
   }
 
-  const isSwitcherToggleKey = matchesKeyboardShortcut(
-    event,
-    settingsStore.windowSwitcherToggleShortcut,
-  )
-  const isDirectSwitchKey = matchesKeyboardShortcut(event, settingsStore.windowSwitchShortcut)
   if (!isSwitcherToggleKey && !isDirectSwitchKey) {
     return
   }
@@ -181,7 +221,11 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 function handleKeyUp(event: KeyboardEvent) {
-  if (!directSwitchActive.value || !switcherVisible.value) {
+  if (
+    activeDesktopRoot !== rootElement.value ||
+    !directSwitchActive.value ||
+    !switcherVisible.value
+  ) {
     return
   }
 
@@ -201,11 +245,25 @@ function updateBounds() {
   if (element) desktopStore.setBounds(element.clientWidth, element.clientHeight)
 }
 
-function handlePointerDown(event: PointerEvent) {
-  isActive = event.target instanceof Node && Boolean(rootElement.value?.contains(event.target))
+function handleActivation(event: Event) {
+  const target = event.target instanceof Element ? event.target : null
+  const root = target?.closest<HTMLElement>('.webos-root')
+  activeDesktopRoot = root && desktopRoots.has(root) ? root : null
+}
+
+function openLaunchpad() {
+  appSearchVisible.value = false
+  switcherVisible.value = false
+  directSwitchActive.value = false
+  desktopContextMenu.value = null
+  launchpadVisible.value = true
 }
 
 onMounted(() => {
+  if (rootElement.value) {
+    desktopRoots.add(rootElement.value)
+    activeDesktopRoot ??= rootElement.value
+  }
   if (context.overlayTarget) context.overlayTarget.value = rootElement.value
   updateBounds()
   if (typeof ResizeObserver !== 'undefined' && contentElement.value) {
@@ -213,17 +271,22 @@ onMounted(() => {
     resizeObserver.observe(contentElement.value)
   }
   window.addEventListener('resize', updateBounds)
-  document.addEventListener('pointerdown', handlePointerDown, true)
+  document.addEventListener('pointerdown', handleActivation, true)
+  document.addEventListener('focusin', handleActivation, true)
   window.addEventListener('keydown', handleKeyDown, true)
   window.addEventListener('keyup', handleKeyUp, true)
   emit('ready')
 })
 
 onBeforeUnmount(() => {
+  if (rootElement.value) desktopRoots.delete(rootElement.value)
+  if (activeDesktopRoot === rootElement.value)
+    activeDesktopRoot = desktopRoots.values().next().value ?? null
   resizeObserver?.disconnect()
   if (context.overlayTarget?.value === rootElement.value) context.overlayTarget.value = null
   window.removeEventListener('resize', updateBounds)
-  document.removeEventListener('pointerdown', handlePointerDown, true)
+  document.removeEventListener('pointerdown', handleActivation, true)
+  document.removeEventListener('focusin', handleActivation, true)
   window.removeEventListener('keydown', handleKeyDown, true)
   window.removeEventListener('keyup', handleKeyUp, true)
 })
@@ -274,9 +337,11 @@ onBeforeUnmount(() => {
       </TransitionGroup>
     </main>
 
-    <DesktopDock @open-launchpad="launchpadVisible = true" />
+    <DesktopDock @open-launchpad="openLaunchpad" />
 
     <DesktopLaunchpad :show="launchpadVisible" @close="launchpadVisible = false" />
+
+    <DesktopAppSearch :show="appSearchVisible" @close="appSearchVisible = false" />
 
     <DesktopMenu
       :show="Boolean(desktopContextMenu)"

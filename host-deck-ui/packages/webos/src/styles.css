@@ -112,6 +112,24 @@
 .webos-root .webos-danger {
   color: var(--webos-danger-color);
 }
+.webos-root .webos-app-search {
+  color: inherit;
+  background: var(--webos-overlay-bg);
+  border: 1px solid var(--webos-overlay-border);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 24%);
+  backdrop-filter: blur(24px);
+}
+.webos-root .webos-app-search-item {
+  cursor: pointer;
+  user-select: none;
+}
+.webos-root .webos-app-search-item[data-highlighted] {
+  background: var(--webos-control-hover);
+}
+.webos-root .webos-app-search-item[data-disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
 .webos-root .webos-widget-body {
   padding: 12px;
   border-radius: var(--app-radius-card);

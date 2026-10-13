@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@lucide/vue": "^1.21.0",
+    "pinyin-pro": "^3.29.5",
     "reka-ui": "^2.11.0"
   },
   "devDependencies": {

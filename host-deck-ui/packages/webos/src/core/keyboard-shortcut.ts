@@ -45,6 +45,18 @@ export function createDefaultWindowSwitcherToggleShortcut(): KeyboardShortcut {
   }
 }
 
+export function createDefaultAppSearchShortcut(): KeyboardShortcut {
+  return {
+    altKey: false,
+    code: 'KeyK',
+    ctrlKey: false,
+    ctrlOrMeta: true,
+    key: 'k',
+    metaKey: false,
+    shiftKey: false,
+  }
+}
+
 export function normalizeKeyboardShortcut(
   value: unknown,
   defaultShortcut = createDefaultWindowSwitchShortcut(),

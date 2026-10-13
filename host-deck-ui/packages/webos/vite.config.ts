@@ -35,7 +35,7 @@ export default defineConfig({
       cssFileName: 'webos',
     },
     rolldownOptions: {
-      external: ['vue', 'reka-ui', '@lucide/vue'],
+      external: ['vue', 'reka-ui', '@lucide/vue', 'pinyin-pro'],
     },
   },
 })

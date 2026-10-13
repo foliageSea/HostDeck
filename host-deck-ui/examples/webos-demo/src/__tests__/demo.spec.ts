@@ -6,8 +6,13 @@ import { createDemoDesktop } from '../desktop'
 import App from '../App.vue'
 
 describe('demo consumes built WebOS package', () => {
+  const scrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')
   beforeEach(() => {
     vi.useFakeTimers()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    })
     localStorage.clear()
     vi.stubGlobal(
       'matchMedia',
@@ -23,6 +28,9 @@ describe('demo consumes built WebOS package', () => {
     )
   })
   afterEach(() => {
+    if (scrollIntoView)
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', scrollIntoView)
+    else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
     vi.useRealTimers()
     vi.unstubAllGlobals()
   })
@@ -55,6 +63,55 @@ describe('demo consumes built WebOS package', () => {
     expect(context.widgets?.widgets[0]?.type).toBe('clock')
     expect(context.desktop.apps).not.toHaveProperty('terminal')
     context.desktop.dispose()
+  })
+
+  it('launches and restores apps through Ctrl+K search from the distributed package', async () => {
+    const wrapper = mount(App, { attachTo: document.body })
+    try {
+      const openSearch = async () => {
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'k',
+            code: 'KeyK',
+            ctrlKey: true,
+            bubbles: true,
+            cancelable: true,
+          }),
+        )
+        await nextTick()
+        await vi.dynamicImportSettled()
+        await vi.advanceTimersByTimeAsync(50)
+      }
+      await openSearch()
+      expect(wrapper.get('.webos-app-search').element.closest('.webos-root')).toBe(
+        wrapper.get('.webos-root').element,
+      )
+      const input = wrapper.get('[role="combobox"]')
+      expect(document.activeElement).toBe(input.element)
+      await input.setValue('bjq')
+      await vi.advanceTimersByTimeAsync(50)
+      expect(wrapper.get('[role="option"]').text()).toBe('编辑器')
+      await input.setValue('EDITOR')
+      await vi.advanceTimersByTimeAsync(50)
+      await input.trigger('keydown', { key: 'Enter' })
+      await vi.advanceTimersByTimeAsync(50)
+      expect(wrapper.findAll('[data-window-body]')).toHaveLength(1)
+      expect(wrapper.get('[data-window-body]').find('textarea').exists()).toBe(true)
+      const windowElement = wrapper.get<HTMLElement>('[data-desktop-window-id]').element
+      expect(document.activeElement).toBe(windowElement)
+      await openSearch()
+      await wrapper.get('[role="combobox"]').setValue('editor')
+      await vi.advanceTimersByTimeAsync(50)
+      expect(wrapper.get('[role="option"]').text()).toContain('已打开')
+      await wrapper.get('[role="option"]').trigger('click')
+      await vi.advanceTimersByTimeAsync(50)
+      expect(wrapper.findAll('[data-window-body]')).toHaveLength(1)
+      expect(document.activeElement).toBe(windowElement)
+      expect(wrapper.find('.webos-app-search').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+      await vi.runOnlyPendingTimersAsync()
+    }
   })
 
   it('uses dock, widget and desktop menus without a host UI provider', async () => {

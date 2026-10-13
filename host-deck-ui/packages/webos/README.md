@@ -57,6 +57,10 @@ const context = createDesktopContext(
 - `createWidgets({ definitions, defaultTypes, storage?, storageKey? })`：宿主注册小组件，也可以用运行时的 `registerWidget(definition)` 追加类型。`DesktopContext.widgets` 提供给 `DesktopWidgets`。
 - `DesktopShortcuts`：接收 `{ id, title, icon, x?, y?, open }[]`，通过 `move(id, x, y)` 向宿主报告位置，不解释目录或端口等业务数据。
 - `DesktopShell` 的 `topbar`、`brand`、`status`、`desktop` 插槽：提供宿主布局扩展；`desktop` 插槽提供 `showContextMenu(position)`。
+- `DesktopShell` 内置 `Ctrl+K` / `Command+K` 快捷搜索：按应用名称或 ID 搜索，方向键选择、Enter 启动、Escape 关闭；已有窗口会恢复并聚焦。只展示 `showInLaunchpad && !hide` 的应用，遵守运行时打开限制。
+- `DesktopShell.appSearchShortcut`：可传 `KeyboardShortcut` 自定义搜索快捷键，传 `null` 禁用；默认使用 `createDefaultAppSearchShortcut()`。与窗口切换快捷键冲突时，窗口切换优先。快捷键仅作用于当前激活的桌面，不拦截输入法组合输入或快捷键录制。
+- `DesktopAppSearch`：可单独使用的应用搜索组件，接收 `show` 并通过 `close` 事件请求关闭；使用 `DesktopContext` 的应用注册表、主题和浮层容器。
+- 快捷搜索支持中文全拼、首字母和跳字母匹配，例如“文件管理”可用 `wenjianguanli`、`wjgl`、`wgl` 搜索；忽略大小写和空白。拼音词库通过 `pinyin-pro` 在首次打开搜索时按需加载，索引随应用注册或重命名更新；词库加载失败时仍可按名称和 ID 搜索。
 - `DesktopContext.resolveIcon`：将图标名转换为 URL 或 Vue 组件；不提供时 `icon` 本身作为 URL。`preloadIcons` 可选。
 - `wallpaperStyle`、`wallpaperClass`、`wallpaperFilter`、`videoWallpaperUrl`：展示宿主提供的壁纸，上传和 URL 解析属于宿主。
 
