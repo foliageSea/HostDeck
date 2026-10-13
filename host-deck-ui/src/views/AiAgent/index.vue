@@ -706,15 +706,6 @@ let resizeObserver: ResizeObserver | undefined
         </div>
       </div>
 
-      <button type="button" class="agent-settings-entry" @click="openSettings()">
-        <Settings :size="16" />
-        <span class="min-w-0 flex-1 text-left">
-          <strong class="block text-[12px] font-medium">模型设置</strong>
-          <small class="block truncate text-[10px] opacity-55">{{
-            settings?.model || '尚未配置'
-          }}</small>
-        </span>
-      </button>
     </aside>
 
     <main class="agent-main">
@@ -1475,26 +1466,6 @@ let resizeObserver: ResizeObserver | undefined
   color: var(--agent-muted);
   text-align: center;
   font-size: 11px;
-}
-
-.agent-settings-entry {
-  display: flex;
-  min-height: 52px;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 10px;
-  margin: 7px;
-  padding: 7px 10px;
-  border: 1px solid var(--agent-border);
-  border-radius: var(--app-radius-item);
-  color: inherit;
-  background: var(--agent-elevated);
-  cursor: pointer;
-}
-
-.agent-settings-entry:hover {
-  border-color: var(--app-primary-border);
-  background: var(--app-primary-soft);
 }
 
 .agent-main {
