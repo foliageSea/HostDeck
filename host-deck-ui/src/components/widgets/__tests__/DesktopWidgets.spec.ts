@@ -27,9 +27,8 @@ describe('DesktopWidgets', () => {
     return mount(DesktopWidgets, {
       global: {
         stubs: {
-          Button: { template: '<button><slot name="icon" /><slot /></button>' },
-          Dropdown: {
-            name: 'NDropdown',
+          DesktopMenu: {
+            name: 'DesktopMenu',
             emits: ['select'],
             template: '<div />',
           },
@@ -125,7 +124,7 @@ describe('DesktopWidgets', () => {
       new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 200 }),
     )
     await wrapper.vm.$nextTick()
-    wrapper.findComponent({ name: 'NDropdown' }).vm.$emit('select', 'remove')
+    wrapper.findComponent({ name: 'DesktopMenu' }).vm.$emit('select', 'remove')
     await wrapper.vm.$nextTick()
 
     expect(widgetStore.widgets).toEqual([])

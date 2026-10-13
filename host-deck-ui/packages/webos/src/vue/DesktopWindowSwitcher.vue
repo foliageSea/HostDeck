@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
 import { nextTick, onMounted, ref } from 'vue'
-import { NIcon } from 'naive-ui'
 import { useDesktopPreferences as useSettingsStore } from './context'
 import AppIcon from './AppIcon.vue'
 import type { WindowState } from '../core/types'
@@ -139,7 +138,7 @@ onMounted(() => {
             :aria-label="`关闭${window.title}`"
             @click="$emit('close', window.id)"
           >
-            <NIcon :size="14"><X /></NIcon>
+            <X :size="14" aria-hidden="true" />
           </button>
         </div>
       </div>

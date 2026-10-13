@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@host-deck/webos": "workspace:*",
-    "naive-ui": "^2.44.1",
     "vue": "^3.5.32"
   },
   "devDependencies": {

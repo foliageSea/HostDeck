@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive } from 'vue'
-import { NConfigProvider, darkTheme } from 'naive-ui'
+import { onBeforeUnmount, reactive } from 'vue'
 import {
   DesktopProvider,
   DesktopShell,
@@ -23,7 +22,6 @@ const shortcuts = reactive<DesktopShortcut[]>([
     },
   },
 ])
-const theme = computed(() => (context.preferences.isDark ? darkTheme : null))
 function moveShortcut(id: string, x: number, y: number) {
   const item = shortcuts.find((shortcut) => shortcut.id === id)
   if (item) {
@@ -35,24 +33,22 @@ onBeforeUnmount(() => context.desktop.dispose())
 </script>
 
 <template>
-  <NConfigProvider :theme="theme">
-    <div class="demo-desktop">
-      <DesktopProvider :context="context">
-        <DesktopShell>
-          <template #brand>WebOS Demo</template>
-          <template #status>
-            <button type="button" @click="context.preferences.isDark = !context.preferences.isDark">
-              切换主题
-            </button>
-          </template>
-          <template #desktop>
-            <DesktopShortcuts :shortcuts="shortcuts" @move="moveShortcut" />
-            <DesktopWidgets />
-          </template>
-        </DesktopShell>
-      </DesktopProvider>
-    </div>
-  </NConfigProvider>
+  <div class="demo-desktop">
+    <DesktopProvider :context="context">
+      <DesktopShell>
+        <template #brand>WebOS Demo</template>
+        <template #status>
+          <button type="button" @click="context.preferences.isDark = !context.preferences.isDark">
+            切换主题
+          </button>
+        </template>
+        <template #desktop>
+          <DesktopShortcuts :shortcuts="shortcuts" @move="moveShortcut" />
+          <DesktopWidgets />
+        </template>
+      </DesktopShell>
+    </DesktopProvider>
+  </div>
 </template>
 
 <style>

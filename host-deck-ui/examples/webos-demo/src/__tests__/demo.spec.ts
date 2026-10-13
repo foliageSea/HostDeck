@@ -57,6 +57,54 @@ describe('demo consumes built WebOS package', () => {
     context.desktop.dispose()
   })
 
+  it('uses dock, widget and desktop menus without a host UI provider', async () => {
+    const wrapper = mount(App, { attachTo: document.body })
+    try {
+      const dockApp = wrapper.get<HTMLButtonElement>('[aria-label="计数器"]')
+      await dockApp.trigger('click')
+      dockApp.element.focus()
+      await dockApp.trigger('keydown', { key: 'F10', shiftKey: true })
+      await vi.advanceTimersByTimeAsync(50)
+      const newWindow = wrapper
+        .findAll('[role="menuitem"]')
+        .find((item) => item.text() === '新建窗口')!
+      expect(newWindow.element.closest('.webos-root')).toBe(wrapper.get('.webos-root').element)
+      await newWindow.trigger('click')
+      await vi.advanceTimersByTimeAsync(50)
+      expect(wrapper.findAll('[data-window-body]')).toHaveLength(2)
+
+      wrapper
+        .get('[data-desktop-widget-id]')
+        .element.dispatchEvent(
+          new MouseEvent('contextmenu', { clientX: 100, clientY: 100, bubbles: true }),
+        )
+      await vi.advanceTimersByTimeAsync(50)
+      await wrapper.get('[role="menuitem"]').trigger('click')
+      await vi.advanceTimersByTimeAsync(50)
+      expect(wrapper.find('[data-desktop-widget-id]').exists()).toBe(false)
+
+      wrapper
+        .get('main')
+        .element.dispatchEvent(
+          new MouseEvent('contextmenu', { clientX: 100, clientY: 100, bubbles: true }),
+        )
+      await vi.advanceTimersByTimeAsync(50)
+      await wrapper.get('[aria-haspopup="menu"]').trigger('click')
+      await vi.advanceTimersByTimeAsync(50)
+      const addClock = wrapper
+        .findAll('[role="menuitem"]')
+        .find((item) => item.text() === '自定义时钟')!
+      expect(addClock.element.closest('.webos-root')).toBe(wrapper.get('.webos-root').element)
+      await addClock.trigger('click')
+      await vi.advanceTimersByTimeAsync(50)
+      expect(wrapper.findAll('[data-desktop-widget-id]')).toHaveLength(1)
+      expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+      await vi.runOnlyPendingTimersAsync()
+    }
+  })
+
   it('runs the editor close guard from the distributed component', async () => {
     const context = createDemoDesktop(null)
     const id = context.desktop.openWindow('editor')!

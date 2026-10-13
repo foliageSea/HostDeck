@@ -34,6 +34,9 @@ const consumer = join(work, 'consumer')
 await mkdir(consumer)
 await run(['pack', '--pack-destination', work], packageRoot)
 const pkg = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'))
+if (pkg.dependencies?.['naive-ui'] || pkg.peerDependencies?.['naive-ui']) {
+  throw new Error('The WebOS package must not require Naive UI.')
+}
 const tarball = join(work, `host-deck-webos-${pkg.version}.tgz`)
 const demo = JSON.parse(await readFile(join(demoRoot, 'package.json'), 'utf8'))
 demo.dependencies['@host-deck/webos'] = `file:${tarball}`
@@ -50,6 +53,9 @@ if (!css.includes('.webos-root') || /(^|[}])(?:body|html|:root|\*)\s*[{]/.test(c
   throw new Error('WebOS CSS is missing its scope or includes a global reset.')
 }
 const js = await readFile(join(consumer, 'node_modules/@host-deck/webos/dist/webos.js'), 'utf8')
+if (/['"]naive-ui['"]/.test(js)) {
+  throw new Error('The distributed package still imports Naive UI.')
+}
 if (/['"]@\/|\/api\/|window\.hostDeck|VITE_DEV_PROXY_TARGET|opencode web/.test(js)) {
   throw new Error('The distributed package contains HostDeck-specific dependencies.')
 }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { LayoutGrid } from '@lucide/vue'
-import { NButton, NDropdown, NTooltip } from 'naive-ui'
+import DesktopMenu from './DesktopMenu.vue'
+import DesktopTooltip from './DesktopTooltip.vue'
 import AppIcon from './AppIcon.vue'
 import { useDockMagnification } from './useDockMagnification'
 import {
@@ -57,9 +58,7 @@ const contextMenuOptions = computed(() => {
       disabled: appIndex === -1 || appIndex >= desktopStore.dockAppIds.length - 1,
     },
     { key: 'unpin', label: '从 Dock 移除' },
-    ...(hasWindows
-      ? [{ key: 'close-all', label: '关闭全部窗口', props: { style: 'color: #dc2626;' } }]
-      : []),
+    ...(hasWindows ? [{ key: 'close-all', label: '关闭全部窗口', danger: true }] : []),
   ]
 })
 
@@ -314,7 +313,7 @@ function openLaunchpad() {
       @contextmenu.prevent
     >
       <div class="dock-track">
-        <NTooltip :to="context.overlayTarget?.value ?? false">
+        <DesktopTooltip>
           <template #trigger>
             <button
               type="button"
@@ -332,7 +331,7 @@ function openLaunchpad() {
             </button>
           </template>
           启动台
-        </NTooltip>
+        </DesktopTooltip>
 
         <span
           class="dock-separator h-[34px] w-px shrink-0 bg-[rgba(148,163,184,0.3)]"
@@ -364,7 +363,7 @@ function openLaunchpad() {
             @drop="handleDrop($event, app.id)"
             @dragend="handleDragEnd"
           >
-            <NTooltip :to="context.overlayTarget?.value ?? false">
+            <DesktopTooltip>
               <template #trigger>
                 <button
                   class="dock-item relative flex h-[52px] w-[52px] items-center justify-center border-0 bg-transparent p-0 cursor-pointer"
@@ -383,7 +382,7 @@ function openLaunchpad() {
                 </button>
               </template>
               {{ app.title }}
-            </NTooltip>
+            </DesktopTooltip>
             <span
               v-if="isAppOpen(app.id)"
               class="dock-running-indicator absolute bottom-[-7px] left-1/2 h-[5px] w-[5px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]"
@@ -413,7 +412,7 @@ function openLaunchpad() {
               :data-dock-window-id="window.id"
               :data-running="true"
             >
-              <NTooltip :to="context.overlayTarget?.value ?? false">
+              <DesktopTooltip>
                 <template #trigger>
                   <button
                     type="button"
@@ -428,7 +427,7 @@ function openLaunchpad() {
                   </button>
                 </template>
                 {{ window.title }}
-              </NTooltip>
+              </DesktopTooltip>
               <span
                 class="dock-running-indicator absolute bottom-[-7px] left-1/2 h-[5px] w-[5px] translate-x-[-50%] rounded-full"
                 :class="
@@ -490,29 +489,31 @@ function openLaunchpad() {
             />
           </button>
           <div class="mt-[8px] flex gap-[8px]">
-            <NButton
-              secondary
-              size="small"
+            <button
+              type="button"
+              class="webos-button rounded-[6px] px-[10px] py-[4px]"
               :disabled="!desktopStore.canOpenWindow(selectorAppId)"
               @click="openNewWindow(selectorAppId)"
-              >新建窗口</NButton
             >
-            <NButton tertiary size="small" type="error" @click="closeAppWindows(selectorAppId)"
-              >关闭全部</NButton
+              新建窗口
+            </button>
+            <button
+              type="button"
+              class="webos-button webos-danger rounded-[6px] px-[10px] py-[4px]"
+              @click="closeAppWindows(selectorAppId)"
             >
+              关闭全部
+            </button>
           </div>
         </div>
       </Teleport>
 
-      <NDropdown
-        :to="context.overlayTarget?.value ?? false"
-        placement="bottom-start"
-        trigger="manual"
+      <DesktopMenu
         :show="Boolean(contextMenu)"
         :x="contextMenu?.x ?? 0"
         :y="contextMenu?.y ?? 0"
         :options="contextMenuOptions"
-        @clickoutside="closeContextMenu"
+        @close="closeContextMenu"
         @select="handleContextMenuSelect"
       />
     </footer>

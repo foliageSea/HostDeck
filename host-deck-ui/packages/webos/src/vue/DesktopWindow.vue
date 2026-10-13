@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
 import { Minus, Square, X } from '@lucide/vue'
-import { NIcon } from 'naive-ui'
 import { useDesktop as useDesktopStore, useDesktopPreferences as useSettingsStore } from './context'
 import type { WindowState } from '../core/types'
 
@@ -279,9 +278,7 @@ onUnmounted(() => {
             :aria-label="window.minimizable ? '最小化' : '最小化不可用'"
             @click="minimizeWindow"
           >
-            <NIcon :size="16">
-              <Minus />
-            </NIcon>
+            <Minus :size="16" aria-hidden="true" />
           </button>
           <button
             data-window-control-action
@@ -299,9 +296,7 @@ onUnmounted(() => {
             "
             @click="maximizeWindow"
           >
-            <NIcon :size="14">
-              <Square />
-            </NIcon>
+            <Square :size="14" aria-hidden="true" />
           </button>
           <button
             data-window-control-action
@@ -316,9 +311,7 @@ onUnmounted(() => {
             aria-label="关闭"
             @click="closeWindow"
           >
-            <NIcon :size="16">
-              <X />
-            </NIcon>
+            <X :size="16" aria-hidden="true" />
           </button>
         </template>
       </div>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ExternalLink } from '@lucide/vue'
-import { NButton, NDropdown, type DropdownOption } from 'naive-ui'
+import DesktopMenu from './DesktopMenu.vue'
+import type { DesktopMenuOption } from './menu-options'
 import {
   DESKTOP_GRID_PADDING,
   clampDesktopGridPosition,
@@ -132,13 +133,13 @@ const dragPreview = computed(() => {
     y: widget.dropY,
   }
 })
-const contextMenuOptions = computed<DropdownOption[]>(() => {
+const contextMenuOptions = computed<DesktopMenuOption[]>(() => {
   const widget = widgetStore.widgets.find((item) => item.id === contextMenu.value?.id)
   if (!widget) return []
   const definition = desktopWidgetDefinitions[widget.type]
   return [
     ...(definition.detailsAppId ? [{ key: 'details', label: '查看详情' }] : []),
-    { key: 'remove', label: '移除小组件', props: { style: 'color: #dc2626;' } },
+    { key: 'remove', label: '移除小组件', danger: true },
   ]
 })
 
@@ -338,18 +339,17 @@ onUnmounted(() => {
           @pointercancel="finishDrag"
         >
           <span class="text-[12px] font-700">{{ widget.definition.title }}</span>
-          <NButton
+          <button
             v-if="widget.definition.detailsAppId"
-            quaternary
-            circle
-            size="tiny"
+            type="button"
+            class="webos-icon-button inline-flex h-[22px] w-[22px] items-center justify-center rounded-full border-0 bg-transparent p-0 text-inherit cursor-pointer"
             title="查看详情"
             aria-label="查看详情"
             @pointerdown.stop
             @click.stop="openDetails(widget.instance.id)"
           >
-            <template #icon><ExternalLink :size="14" /></template>
-          </NButton>
+            <ExternalLink :size="14" aria-hidden="true" />
+          </button>
         </header>
         <div class="min-h-0 flex-1">
           <component :is="widget.definition.component" />
@@ -357,15 +357,12 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <NDropdown
-      :to="context.overlayTarget?.value ?? false"
-      trigger="manual"
-      placement="bottom-start"
+    <DesktopMenu
       :show="Boolean(contextMenu)"
       :x="contextMenu?.x ?? 0"
       :y="contextMenu?.y ?? 0"
       :options="contextMenuOptions"
-      @clickoutside="contextMenu = null"
+      @close="contextMenu = null"
       @select="handleContextMenuSelect"
     />
   </div>

@@ -4,7 +4,7 @@ Vue 3 桌面交互组件包：窗口生命周期、父子窗口、关闭确认�
 
 ## 使用
 
-依赖 Vue `^3.5` 和 Naive UI `^2.44`。消费编译后的 ES module、类型声明和 CSS，不需要 UnoCSS、自动导入或路径别名。
+宿主只需提供 Vue `^3.5`；菜单和提示使用包内依赖 Reka UI，不依赖 Naive UI。消费编译后的 ES module、类型声明和 CSS，不需要 UnoCSS、Tailwind CSS、自动导入或路径别名。
 
 ```vue
 <script setup lang="ts">
@@ -40,7 +40,7 @@ const context = createDesktopContext(
 </template>
 ```
 
-包的 CSS 限定在 `.webos-root` 内，不接管 `body`、字体文件、页面 reset 或全局主题。可用 Naive UI 的 `NConfigProvider` 为内部控件设置主题；无需消息或对话框 Provider。浮层保持在桌面根节点内。
+包的 CSS 限定在 `.webos-root` 内，不接管 `body`、字体文件、页面 reset 或全局主题。内部控件跟随 `context.preferences.isDark`，无需额外的 UI Provider。菜单（含子菜单）和提示浮层保持在桌面根节点内。
 
 ## API 与扩展
 

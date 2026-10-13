@@ -87,7 +87,7 @@ pnpm exec vue-tsc -p tsconfig.app.json --noEmit
 ## 约定
 
 - 优先复用 `src/api`、`src/stores`、`src/composables` 一类业务逻辑
-- 视图层统一使用 Naive UI 重写，不再引入旧项目的 shadcn/radix 依赖
+- 业务视图使用 Naive UI；独立 `@host-deck/webos` 桌面组件包使用 Reka UI + UnoCSS，不要求宿主提供 Naive UI
 - 普通 JSON API 默认经过 `src/lib/http.ts` 的统一解包与错误处理
 - 全局消息、通知、确认框统一经由 `src/lib/ui.ts`
 

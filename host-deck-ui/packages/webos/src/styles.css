@@ -11,10 +11,20 @@
   --desktop-window-edge-gap: 16px;
   --desktop-dock-bottom-gap: 2px;
   --desktop-dock-height: 74px;
+  --webos-overlay-bg: rgb(255 255 255 / 96%);
+  --webos-overlay-border: rgb(148 163 184 / 24%);
+  --webos-control-bg: rgb(148 163 184 / 12%);
+  --webos-control-hover: rgb(148 163 184 / 22%);
+  --webos-danger-color: #dc2626;
 }
 .webos-root[data-theme='dark'] {
   color: #e5e7eb;
   color-scheme: dark;
+  --webos-overlay-bg: rgb(15 23 42 / 96%);
+  --webos-overlay-border: rgb(148 163 184 / 20%);
+  --webos-control-bg: rgb(148 163 184 / 16%);
+  --webos-control-hover: rgb(148 163 184 / 26%);
+  --webos-danger-color: #f87171;
 }
 .webos-root *,
 .webos-root *::before,
@@ -57,6 +67,50 @@
 }
 .webos-root .webos-context-menu {
   z-index: 100001;
+}
+.webos-root .webos-menu-surface,
+.webos-root .webos-tooltip {
+  color: inherit;
+  background: var(--webos-overlay-bg);
+  border: 1px solid var(--webos-overlay-border);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 16%);
+  backdrop-filter: blur(16px);
+  max-height: var(--reka-popper-available-height);
+  overflow-y: auto;
+}
+.webos-root .webos-tooltip {
+  z-index: 100002;
+  max-width: min(280px, var(--reka-popper-available-width));
+  overflow-wrap: anywhere;
+}
+.webos-root .webos-menu-item {
+  cursor: default;
+  user-select: none;
+}
+.webos-root .webos-menu-item[data-highlighted],
+.webos-root .webos-button:enabled:hover,
+.webos-root .webos-icon-button:hover {
+  background: var(--webos-control-hover);
+}
+.webos-root .webos-menu-item[data-disabled],
+.webos-root .webos-button:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.webos-root .webos-button {
+  color: inherit;
+  font-size: 12px;
+  border: 1px solid var(--webos-overlay-border);
+  background: var(--webos-control-bg);
+  cursor: pointer;
+}
+.webos-root .webos-button:focus-visible,
+.webos-root .webos-icon-button:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+}
+.webos-root .webos-danger {
+  color: var(--webos-danger-color);
 }
 .webos-root .webos-widget-body {
   padding: 12px;

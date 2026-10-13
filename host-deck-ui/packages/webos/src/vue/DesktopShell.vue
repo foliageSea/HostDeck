@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { NDropdown, type DropdownOption } from 'naive-ui'
+import DesktopMenu from './DesktopMenu.vue'
+import type { DesktopMenuOption } from './menu-options'
 import type { CSSProperties } from 'vue'
 import { matchesKeyboardShortcut } from '../core/keyboard-shortcut'
 import { desktopThemeStyle } from '../core/preferences'
@@ -48,7 +49,7 @@ const desktopDockSafeArea = computed(() =>
     ? 'var(--desktop-dock-bottom-gap)'
     : 'calc(var(--desktop-dock-bottom-gap) + var(--desktop-dock-height))',
 )
-const desktopContextMenuOptions = computed<DropdownOption[]>(() => [
+const desktopContextMenuOptions = computed<DesktopMenuOption[]>(() => [
   {
     key: 'widgets',
     label: '添加小组件',
@@ -277,15 +278,12 @@ onBeforeUnmount(() => {
 
     <DesktopLaunchpad :show="launchpadVisible" @close="launchpadVisible = false" />
 
-    <NDropdown
-      :to="context.overlayTarget?.value ?? false"
-      trigger="manual"
-      placement="bottom-start"
+    <DesktopMenu
       :show="Boolean(desktopContextMenu)"
       :x="desktopContextMenu?.x ?? 0"
       :y="desktopContextMenu?.y ?? 0"
       :options="desktopContextMenuOptions"
-      @clickoutside="desktopContextMenu = null"
+      @close="desktopContextMenu = null"
       @select="handleDesktopContextMenuSelect"
     />
 
