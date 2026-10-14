@@ -24,31 +24,11 @@ const isDark = computed(() => props.controller.settingsStore.isDark)
 const defaultWallpaperPreviewStyle = computed(() => ({
   background: getDefaultWallpaperBackground(isDark.value),
 }))
-const wallpaperOptionCardClass = computed(() =>
-  isDark.value
-    ? 'border-[rgba(148,163,184,0.14)] bg-[linear-gradient(180deg,rgba(30,41,59,0.76),rgba(15,23,42,0.72))] text-[rgba(226,232,240,0.92)] shadow-[0_12px_28px_rgba(2,6,23,0.26)] hover:border-[rgba(96,165,250,0.24)] hover:shadow-[0_16px_32px_rgba(15,23,42,0.3)]'
-    : 'border-[rgba(148,163,184,0.18)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.84))] text-[rgba(30,41,59,0.9)] shadow-[0_10px_24px_rgba(15,23,42,0.05)] hover:border-[rgba(96,165,250,0.24)] hover:shadow-[0_16px_30px_rgba(148,163,184,0.16)]',
-)
-const wallpaperOptionCardActiveClass = computed(() =>
-  isDark.value
-    ? 'border-[rgba(96,165,250,0.44)] shadow-[0_0_0_1px_rgba(96,165,250,0.26),0_18px_36px_rgba(30,64,175,0.18)]'
-    : 'border-[rgba(59,130,246,0.42)] shadow-[0_0_0_1px_rgba(96,165,250,0.22),0_18px_34px_rgba(59,130,246,0.12)]',
-)
-const wallpaperPreviewClass = computed(() =>
-  isDark.value
-    ? 'bg-[rgba(51,65,85,0.34)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-    : 'bg-[rgba(148,163,184,0.14)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]',
-)
 const headingTextClass = computed(() =>
   isDark.value ? 'text-[rgba(241,245,249,0.96)]' : 'text-[rgba(15,23,42,0.92)]',
 )
 const sliderLabelClass = computed(() =>
   isDark.value ? 'text-[rgba(226,232,240,0.88)]' : 'text-[rgba(51,65,85,0.88)]',
-)
-const customEmptyMaskClass = computed(() =>
-  isDark.value
-    ? 'bg-[rgba(15,23,42,0.52)] text-[rgba(148,163,184,0.94)]'
-    : 'bg-[rgba(255,255,255,0.46)] text-[rgba(71,85,105,0.9)]',
 )
 
 function updateWallpaperSettings(nextValue: WallpaperSettings) {
@@ -136,23 +116,19 @@ function resetWallpaperEffects() {
       @change="controller.handleWallpaperUpload(target, $event)"
     />
 
-    <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-[14px]">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[12px]">
       <button
         type="button"
-        class="app-radius-surface cursor-pointer rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-1px]"
-        :class="[
-          wallpaperOptionCardClass,
-          controller.isDefaultActive(target) ? wallpaperOptionCardActiveClass : '',
-        ]"
+        class="wallpaper-card wallpaper-card--clickable app-radius-item"
+        :class="{ 'wallpaper-card--active': controller.isDefaultActive(target) }"
         @click="controller.resetWallpaper(target)"
       >
         <div
-          class="app-radius-item wallpaper-preview-default relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
-          :class="[wallpaperPreviewClass, 'default-wallpaper-motion']"
+          class="wallpaper-card__preview default-wallpaper-motion"
           :style="defaultWallpaperPreviewStyle"
         />
-        <div class="mt-[10px]">
-          <strong class="text-[0.94rem]" :class="headingTextClass">默认</strong>
+        <div class="wallpaper-card__label">
+          <strong class="text-[0.88rem] font-500" :class="headingTextClass">默认</strong>
         </div>
       </button>
 
@@ -160,33 +136,24 @@ function resetWallpaperEffects() {
         v-for="preset in wallpaperPresets"
         :key="`${target}-${preset.id}`"
         type="button"
-        class="app-radius-surface cursor-pointer rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out hover:translate-y-[-1px]"
-        :class="[
-          wallpaperOptionCardClass,
-          controller.isPresetActive(target, preset.id) ? wallpaperOptionCardActiveClass : '',
-        ]"
+        class="wallpaper-card wallpaper-card--clickable app-radius-item"
+        :class="{ 'wallpaper-card--active': controller.isPresetActive(target, preset.id) }"
         @click="controller.setPresetWallpaper(target, preset.id)"
       >
-        <div
-          class="app-radius-item relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
-          :class="wallpaperPreviewClass"
-          :style="{ background: preset.background }"
-        />
-        <div class="mt-[10px]">
-          <strong class="text-[0.94rem]" :class="headingTextClass">{{ preset.label }}</strong>
+        <div class="wallpaper-card__preview" :style="{ background: preset.background }" />
+        <div class="wallpaper-card__label">
+          <strong class="text-[0.88rem] font-500" :class="headingTextClass">{{
+            preset.label
+          }}</strong>
         </div>
       </button>
 
       <div
-        class="app-radius-surface cursor-default rounded-[16px] border p-[10px] text-left text-inherit backdrop-blur-[18px] transition-[border-color,transform,box-shadow] duration-[180ms] ease-in-out"
-        :class="[
-          wallpaperOptionCardClass,
-          controller.isCustomActive(target) ? wallpaperOptionCardActiveClass : '',
-        ]"
+        class="wallpaper-card app-radius-item"
+        :class="{ 'wallpaper-card--active': controller.isCustomActive(target) }"
       >
         <div
-          class="app-radius-item relative h-[92px] overflow-hidden rounded-[12px] bg-cover bg-center bg-no-repeat"
-          :class="wallpaperPreviewClass"
+          class="wallpaper-card__preview"
           :style="
             wallpaperSettings.customDataUrl && wallpaperSettings.customType !== 'video'
               ? {
@@ -208,15 +175,12 @@ function resetWallpaperEffects() {
             loop
             playsinline
           />
-          <span
-            v-if="!wallpaperSettings.customDataUrl"
-            class="absolute inset-0 flex items-center justify-center text-[0.84rem]"
-            :class="customEmptyMaskClass"
-            >未上传</span
-          >
+          <span v-if="!wallpaperSettings.customDataUrl" class="wallpaper-card__empty">
+            未上传
+          </span>
         </div>
-        <div class="mt-[10px]">
-          <strong class="text-[0.94rem]" :class="headingTextClass">自定义媒体</strong>
+        <div class="wallpaper-card__label">
+          <strong class="text-[0.88rem] font-500" :class="headingTextClass">自定义媒体</strong>
         </div>
       </div>
     </div>
@@ -278,3 +242,61 @@ function resetWallpaperEffects() {
     </div>
   </section>
 </template>
+
+<style scoped>
+.wallpaper-card {
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  padding: 8px;
+  color: inherit;
+  background: rgba(148, 163, 184, 0.06);
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.wallpaper-card--clickable {
+  cursor: pointer;
+}
+
+.wallpaper-card--clickable:hover {
+  border-color: rgba(148, 163, 184, 0.36);
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.wallpaper-card--active,
+.wallpaper-card--active:hover {
+  border-color: var(--app-primary-color);
+  background: var(--app-primary-soft);
+  box-shadow: 0 0 0 3px var(--app-primary-soft);
+}
+
+.wallpaper-card__preview {
+  position: relative;
+  height: 88px;
+  overflow: hidden;
+  border-radius: calc(var(--app-radius-item) - 4px);
+  background-color: rgba(148, 163, 184, 0.12);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.wallpaper-card__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 0.8rem;
+}
+
+.wallpaper-card__label {
+  margin-top: 8px;
+  padding: 0 2px;
+}
+</style>
