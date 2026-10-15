@@ -2,6 +2,7 @@ function createTabManager({
   WebContentsView,
   getApplicationUrl,
   getMainWindow,
+  onStateChanged,
   preloadPath,
   readSettings,
   shell,
@@ -63,8 +64,11 @@ function createTabManager({
 
   function sendTabsChanged() {
     const mainWindow = getMainWindow()
-    if (!mainWindow || mainWindow.isDestroyed()) return
-    mainWindow.webContents.send('tabs:changed', serializeTabs())
+    const state = serializeTabs()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('tabs:changed', state)
+    }
+    onStateChanged?.(state)
   }
 
   function broadcastWindowState(state) {

@@ -56,6 +56,7 @@ const tabManager = createTabManager({
   WebContentsView,
   getApplicationUrl: () => applicationUrl,
   getMainWindow: () => mainWindow,
+  onStateChanged: updateTrayMenu,
   preloadPath: path.join(__dirname, '..', 'preload', 'host-deck.cjs'),
   readSettings: settingsStore.read,
   shell,
@@ -86,6 +87,46 @@ function createTrayIcon() {
   return process.platform === 'darwin' ? icon.resize({ width: 16, height: 16 }) : icon
 }
 
+function createTrayMenu() {
+  const activeTab = tabManager.getActiveTab()
+
+  return Menu.buildFromTemplate([
+    { label: '显示主窗口', click: showMainWindow },
+    { type: 'separator' },
+    { label: '新建 Tab', click: () => tabManager.createTab() },
+    {
+      label: '刷新当前 Tab',
+      enabled: Boolean(activeTab),
+      click: () => activeTab?.view.webContents.reloadIgnoringCache(),
+    },
+    {
+      label: '外部浏览器打开',
+      enabled: Boolean(activeTab),
+      click: async () => {
+        const url = activeTab?.view.webContents.getURL()
+        if (url) await shell.openExternal(url)
+      },
+    },
+    {
+      label: '开发者工具',
+      enabled: Boolean(activeTab),
+      click: () => activeTab?.view.webContents.openDevTools({ mode: 'detach' }),
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        isQuitting = true
+        app.quit()
+      },
+    },
+  ])
+}
+
+function updateTrayMenu() {
+  if (tray) tray.setContextMenu(createTrayMenu())
+}
+
 function showMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   if (mainWindow.isMinimized()) mainWindow.restore()
@@ -105,18 +146,7 @@ function ensureTray() {
 
   tray = new Tray(createTrayIcon())
   tray.setToolTip('HostDeck')
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: '显示主窗口', click: showMainWindow },
-      {
-        label: '退出',
-        click: () => {
-          isQuitting = true
-          app.quit()
-        },
-      },
-    ]),
-  )
+  updateTrayMenu()
   tray.on('double-click', showMainWindow)
   tray.on('click', showMainWindow)
 

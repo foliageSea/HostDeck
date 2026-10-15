@@ -1,20 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import {
-  ChevronDown,
-  ChevronUp,
-  CodeXml,
-  Ellipsis,
-  ExternalLink,
-  Minus,
-  Monitor,
-  PanelLeft,
-  PanelTop,
-  Plus,
-  RefreshCw,
-  Square,
-  X,
-} from 'lucide-vue-next'
+import { Minus, Monitor, PanelLeft, PanelTop, Plus, Square, X } from 'lucide-vue-next'
 import { useDialog } from 'naive-ui'
 
 const api = window.hostDeckTabs
@@ -28,7 +14,6 @@ const currentState = ref({
 const dragState = ref(null)
 const editingTabId = ref(null)
 const editingTitle = ref('')
-const toolbarExpanded = ref(false)
 const sidebarWidth = ref(220)
 const minSidebarWidth = 160
 const maxSidebarWidth = 220
@@ -39,20 +24,12 @@ const contentPreview = ref(null)
 const isMac = api?.platform === 'darwin'
 const isVertical = computed(() => currentState.value.tabBarPosition === 'left')
 const tabs = computed(() => currentState.value.tabs)
-const nextTabBarPosition = computed(() => (isVertical.value ? 'top' : 'left'))
 const sidebarStyle = computed(() => ({ '--sidebar-width': `${sidebarWidth.value}px` }))
+const nextTabBarPosition = computed(() => (isVertical.value ? 'top' : 'left'))
 const nextTabBarLabel = computed(() =>
   nextTabBarPosition.value === 'left' ? '切换垂直标签栏' : '切换顶部标签栏',
 )
 const nextTabBarIcon = computed(() => (nextTabBarPosition.value === 'left' ? PanelLeft : PanelTop))
-const toolbarMenuLabel = computed(() => {
-  if (!isVertical.value) return '更多操作'
-  return toolbarExpanded.value ? '收起菜单' : '展开菜单'
-})
-const toolbarMenuIcon = computed(() => {
-  if (!isVertical.value) return Ellipsis
-  return toolbarExpanded.value ? ChevronDown : ChevronUp
-})
 
 let unsubscribe = null
 
@@ -191,30 +168,12 @@ async function handleDrop(event, tabId) {
   await api.reorder(id, tabId, placement)
 }
 
-function setToolbarActionsVisible(visible) {
-  toolbarExpanded.value = visible
-}
-
-function runToolbarAction(action) {
-  action()
-  setToolbarActionsVisible(false)
-}
-
 async function toggleTabBarPosition() {
   await api.setBarPosition(nextTabBarPosition.value)
-  setToolbarActionsVisible(false)
-}
-
-function handleDocumentClick(event) {
-  const toolbar = document.querySelector('.toolbar')
-  if (!toolbar?.contains(event.target instanceof Node ? event.target : null)) {
-    setToolbarActionsVisible(false)
-  }
 }
 
 function handleDocumentKeydown(event) {
   if (event.key === 'Escape') {
-    setToolbarActionsVisible(false)
     if (editingTabId.value) stopEditing()
   }
 }
@@ -260,7 +219,6 @@ onMounted(async () => {
   if (!api) return
   unsubscribe = api.onChanged(render)
   render(await api.list())
-  document.addEventListener('click', handleDocumentClick)
   document.addEventListener('keydown', handleDocumentKeydown)
 })
 
@@ -268,7 +226,6 @@ onBeforeUnmount(() => {
   api?.setContentVisible(true)
   contentPreview.value = null
   unsubscribe?.()
-  document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('keydown', handleDocumentKeydown)
 })
 </script>
@@ -354,59 +311,7 @@ onBeforeUnmount(() => {
 
           <button class="new-tab" type="button" aria-label="新建 Tab" @click="api.create()">
             <Plus class="icon button-icon" />
-            <span class="toolbar-label">新建 Tab</span>
-          </button>
-        </div>
-
-        <div class="toolbar">
-          <div class="toolbar-actions" :hidden="!toolbarExpanded">
-            <button
-              class="toolbar-button"
-              type="button"
-              aria-label="刷新当前 Tab"
-              @click="runToolbarAction(api.reloadActive)"
-            >
-              <RefreshCw class="icon button-icon" />
-              <span class="toolbar-label">刷新当前 Tab</span>
-            </button>
-            <button
-              class="toolbar-button"
-              type="button"
-              aria-label="在外部浏览器打开"
-              @click="runToolbarAction(api.openActiveInBrowser)"
-            >
-              <ExternalLink class="icon button-icon" />
-              <span class="toolbar-label">外部浏览器打开</span>
-            </button>
-            <button
-              class="toolbar-button"
-              type="button"
-              aria-label="打开当前 Tab 开发者工具"
-              @click="runToolbarAction(api.openActiveDevTools)"
-            >
-              <CodeXml class="icon button-icon devtools-icon" />
-              <span class="toolbar-label">开发者工具</span>
-            </button>
-            <button
-              class="toolbar-button"
-              type="button"
-              :aria-label="nextTabBarLabel"
-              @click="toggleTabBarPosition"
-            >
-              <PanelLeft class="icon button-icon" />
-              <span class="toolbar-label">{{ nextTabBarLabel }}</span>
-            </button>
-          </div>
-
-          <button
-            class="toolbar-button"
-            :aria-expanded="String(toolbarExpanded)"
-            :aria-label="toolbarMenuLabel"
-            type="button"
-            @click="setToolbarActionsVisible(!toolbarExpanded)"
-          >
-            <component :is="toolbarMenuIcon" class="icon button-icon" />
-            <span class="toolbar-label">{{ toolbarMenuLabel }}</span>
+            <span class="button-label">新建 Tab</span>
           </button>
         </div>
       </template>
@@ -496,59 +401,7 @@ onBeforeUnmount(() => {
 
         <button class="new-tab" type="button" aria-label="新建 Tab" @click="api.create()">
           <Plus class="icon button-icon" />
-          <span class="toolbar-label">新建 Tab</span>
-        </button>
-      </div>
-
-      <div class="toolbar">
-        <div class="toolbar-actions" :hidden="!toolbarExpanded">
-          <button
-            class="toolbar-button"
-            type="button"
-            aria-label="刷新当前 Tab"
-            @click="runToolbarAction(api.reloadActive)"
-          >
-            <RefreshCw class="icon button-icon" />
-            <span class="toolbar-label">刷新当前 Tab</span>
-          </button>
-          <button
-            class="toolbar-button"
-            type="button"
-            aria-label="在外部浏览器打开"
-            @click="runToolbarAction(api.openActiveInBrowser)"
-          >
-            <ExternalLink class="icon button-icon" />
-            <span class="toolbar-label">外部浏览器打开</span>
-          </button>
-          <button
-            class="toolbar-button"
-            type="button"
-            aria-label="打开当前 Tab 开发者工具"
-            @click="runToolbarAction(api.openActiveDevTools)"
-          >
-            <CodeXml class="icon button-icon devtools-icon" />
-            <span class="toolbar-label">开发者工具</span>
-          </button>
-          <button
-            class="toolbar-button"
-            type="button"
-            :aria-label="nextTabBarLabel"
-            @click="toggleTabBarPosition"
-          >
-            <PanelLeft class="icon button-icon" />
-            <span class="toolbar-label">{{ nextTabBarLabel }}</span>
-          </button>
-        </div>
-
-        <button
-          class="toolbar-button"
-          :aria-expanded="String(toolbarExpanded)"
-          :aria-label="toolbarMenuLabel"
-          type="button"
-          @click="setToolbarActionsVisible(!toolbarExpanded)"
-        >
-          <component :is="toolbarMenuIcon" class="icon button-icon" />
-          <span class="toolbar-label">{{ toolbarMenuLabel }}</span>
+          <span class="button-label">新建 Tab</span>
         </button>
       </div>
 
@@ -652,6 +505,10 @@ onBeforeUnmount(() => {
   -webkit-app-region: no-drag;
 }
 
+.shell.is-mac .tab-position-toggle {
+  margin-left: var(--mac-traffic-light-space);
+}
+
 .tab-position-toggle:hover {
   background: rgba(148, 163, 184, 0.18);
   color: #f8fafc;
@@ -666,10 +523,6 @@ onBeforeUnmount(() => {
   width: 17px;
   height: 17px;
   stroke-width: 1.8;
-}
-
-.shell.is-mac .tab-position-toggle {
-  margin-left: var(--mac-traffic-light-space);
 }
 
 .shell.left .tab-shell {
@@ -989,7 +842,6 @@ onBeforeUnmount(() => {
 }
 
 .tab-close,
-.toolbar-button,
 .new-tab {
   display: inline-flex;
   align-items: center;
@@ -1019,8 +871,7 @@ onBeforeUnmount(() => {
   opacity: 1;
 }
 
-.new-tab,
-.toolbar-button {
+.new-tab {
   width: 32px;
   height: 32px;
   padding: 0;
@@ -1030,8 +881,7 @@ onBeforeUnmount(() => {
   opacity: 0.76;
 }
 
-.shell.left .new-tab,
-.shell.left .toolbar-button {
+.shell.left .new-tab {
   width: 100%;
   justify-content: flex-start;
   padding: 0 12px;
@@ -1042,49 +892,12 @@ onBeforeUnmount(() => {
   flex: none;
 }
 
-.devtools-icon {
-  width: 18px;
-  height: 18px;
-}
-
-.new-tab:hover,
-.toolbar-button:hover {
+.new-tab:hover {
   background: rgba(148, 163, 184, 0.14);
   opacity: 1;
 }
 
-.toolbar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 2px;
-  padding: 3px 10px 3px 0;
-  -webkit-app-region: no-drag;
-}
-
-.shell.left .toolbar {
-  width: 100%;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  padding: 0 10px 12px;
-}
-
-.toolbar-actions {
-  display: flex;
-  gap: 2px;
-}
-
-.shell.left .toolbar-actions {
-  flex-direction: column;
-  gap: 8px;
-}
-
-.toolbar-actions[hidden] {
-  display: none;
-}
-
-.toolbar-label {
+.button-label {
   display: none;
   margin-left: 10px;
   font-size: 12px;
@@ -1092,7 +905,7 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 
-.shell.left .toolbar-label {
+.shell.left .button-label {
   display: inline;
 }
 
