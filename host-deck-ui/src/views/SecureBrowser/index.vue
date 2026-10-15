@@ -153,13 +153,8 @@ onMounted(() => {
     <section class="sb-control-card" aria-labelledby="sb-title">
       <header class="sb-card-header">
         <div class="sb-title-group">
-          <div class="sb-title-icon" aria-hidden="true">
-            <ShieldCheck :size="22" />
-          </div>
-          <div>
-            <h1 id="sb-title">安全浏览器</h1>
-            <p>通过 SSH 隔离访问远程网络</p>
-          </div>
+          <ShieldCheck :size="18" aria-hidden="true" />
+          <h1 id="sb-title">安全浏览器</h1>
         </div>
         <NTooltip>
           <template #trigger>
@@ -178,41 +173,25 @@ onMounted(() => {
         </NTooltip>
       </header>
 
-      <div class="sb-status-panel" :class="{ 'sb-status-active': activeTunnel }">
-        <div class="sb-status-icon" aria-hidden="true">
-          <AppWindow :size="28" />
+      <div class="sb-body">
+        <div class="sb-status-panel" :class="{ 'sb-status-active': activeTunnel }">
+          <div class="sb-status-icon" aria-hidden="true">
+            <AppWindow :size="22" />
+          </div>
+          <div class="sb-status-copy">
+            <strong>{{ activeTunnel ? '浏览器正在运行' : '浏览器尚未启动' }}</strong>
+            <span class="sb-muted">
+              {{
+                activeTunnel
+                  ? `代理 ${activeTunnel.bindHost}:${activeTunnel.bindPort} · 已启动 ${formatTime(activeTunnel.startedAt)}`
+                  : connectionText
+              }}
+            </span>
+          </div>
         </div>
-        <div class="sb-status-copy">
-          <span class="sb-eyebrow">会话状态</span>
-          <strong>{{ activeTunnel ? '浏览器正在运行' : '浏览器尚未启动' }}</strong>
-          <span class="sb-muted">
-            {{
-              activeTunnel
-                ? `代理 ${activeTunnel.bindHost}:${activeTunnel.bindPort} · 已启动 ${formatTime(activeTunnel.startedAt)}`
-                : hasConnection
-                  ? '启动后将打开独立的 Chrome 窗口'
-                  : '请先连接 SSH'
-            }}
-          </span>
-        </div>
-        <span class="sb-status-badge" :class="{ 'sb-status-badge-active': activeTunnel }">
-          <span class="sb-status-dot" />{{ activeTunnel ? '运行中' : '未启动' }}
-        </span>
-      </div>
 
-      <div class="sb-connection-row">
-        <div class="sb-connection-heading">
-          <span class="sb-eyebrow">SSH 连接</span>
-          <strong :class="{ 'sb-text-muted': !hasConnection }">{{ connectionText }}</strong>
-        </div>
-        <span class="sb-capability-text" :class="{ 'sb-text-muted': !canLaunch }">
-          {{ capabilityText }}
-        </span>
-      </div>
-
-      <div class="sb-action-area">
         <NButton
-          class="sb-main-action"
+          block
           size="large"
           :type="activeTunnel ? 'error' : 'primary'"
           :disabled="!activeTunnel && !canLaunch"
@@ -225,10 +204,7 @@ onMounted(() => {
           </template>
           {{ activeTunnel ? '停止安全浏览器' : '启动安全浏览器' }}
         </NButton>
-        <small v-if="!hasConnection" class="sb-action-hint"> 建立 SSH 连接后即可启动 </small>
-        <small v-else-if="!canLaunch" class="sb-action-hint">
-          当前服务未启用安全浏览器启动功能
-        </small>
+        <small v-if="!canLaunch && !activeTunnel" class="sb-action-hint">{{ capabilityText }}</small>
       </div>
     </section>
   </div>
@@ -238,10 +214,8 @@ onMounted(() => {
 .secure-browser-view {
   --sb-border: rgba(148, 163, 184, 0.2);
   --sb-surface: rgba(255, 255, 255, 0.76);
-  --sb-header: rgba(148, 163, 184, 0.06);
   --sb-muted: #64748b;
   --sb-primary: #2563eb;
-  --sb-primary-soft: rgba(37, 99, 235, 0.12);
   --sb-ok: #15803d;
   --sb-ok-soft: rgba(34, 197, 94, 0.11);
   display: grid;
@@ -255,16 +229,14 @@ onMounted(() => {
 .secure-browser-dark {
   --sb-border: rgba(148, 163, 184, 0.14);
   --sb-surface: rgba(30, 32, 42, 0.72);
-  --sb-header: rgba(255, 255, 255, 0.025);
   --sb-muted: #a1a1aa;
   --sb-primary: #60a5fa;
-  --sb-primary-soft: rgba(96, 165, 250, 0.14);
   --sb-ok: #4ade80;
   --sb-ok-soft: rgba(34, 197, 94, 0.12);
 }
 
 .sb-control-card {
-  width: min(100%, 600px);
+  width: min(100%, 480px);
   overflow: hidden;
   border: 1px solid var(--sb-border);
   border-radius: var(--app-radius-card, 12px);
@@ -281,49 +253,40 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 22px 24px;
+  gap: 12px;
+  padding: 12px 16px 12px 20px;
   border-bottom: 1px solid var(--sb-border);
-  background: var(--sb-header);
 }
 
 .sb-title-group {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 13px;
+  gap: 8px;
 }
 
-.sb-title-icon {
-  display: grid;
-  flex: none;
-  width: 44px;
-  height: 44px;
+.sb-title-group svg {
   color: var(--sb-primary);
-  border-radius: 12px;
-  background: var(--sb-primary-soft);
-  place-items: center;
 }
 
 .sb-card-header h1 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 15px;
+  font-weight: 650;
 }
 
-.sb-card-header p {
-  margin: 5px 0 0;
-  color: var(--sb-muted);
-  font-size: 12px;
+.sb-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
 }
 
 .sb-status-panel {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: 20px 24px 0;
-  padding: 16px;
+  padding: 14px 16px;
   border: 1px solid var(--sb-border);
   border-radius: 10px;
   background: rgba(148, 163, 184, 0.06);
@@ -337,8 +300,8 @@ onMounted(() => {
 .sb-status-icon {
   display: grid;
   flex: none;
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   color: var(--sb-muted);
   border-radius: 50%;
   background: rgba(148, 163, 184, 0.13);
@@ -355,7 +318,7 @@ onMounted(() => {
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .sb-status-copy strong {
@@ -365,132 +328,21 @@ onMounted(() => {
 
 .sb-status-copy .sb-muted {
   overflow: hidden;
+  color: var(--sb-muted);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.sb-eyebrow {
-  color: var(--sb-muted);
-  font-size: 11px;
-  line-height: 1.2;
-}
-
-.sb-status-badge {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 9px;
-  color: var(--sb-muted);
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.12);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.sb-status-badge-active {
-  color: var(--sb-ok);
-  background: rgba(34, 197, 94, 0.12);
-}
-
-.sb-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.sb-connection-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 20px 24px 0;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--sb-border);
-}
-
-.sb-connection-heading {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.sb-connection-heading strong {
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sb-capability-text {
-  flex: none;
-  color: var(--sb-ok);
-  font-size: 12px;
-}
-
-.sb-text-muted {
-  color: var(--sb-muted);
-}
-
-.sb-muted {
-  color: var(--sb-muted);
-}
-
-.sb-action-area {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 9px;
-  padding: 24px;
-}
-
-.sb-main-action {
-  width: min(100%, 280px);
 }
 
 .sb-action-hint {
   color: var(--sb-muted);
-  font-size: 11px;
+  font-size: 12px;
+  text-align: center;
 }
 
 @media (max-width: 560px) {
   .secure-browser-view {
     padding: 12px;
-  }
-
-  .sb-card-header,
-  .sb-status-panel,
-  .sb-connection-row,
-  .sb-action-area {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-
-  .sb-status-panel,
-  .sb-connection-row {
-    margin-left: 16px;
-    margin-right: 16px;
-  }
-
-  .sb-connection-row {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-  }
-}
-
-@media (max-width: 400px) {
-  .sb-status-panel {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .sb-status-badge {
-    margin-left: 60px;
   }
 }
 </style>
