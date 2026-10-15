@@ -210,6 +210,7 @@ function disconnect() {
           aria-label="打开 HostDeck 菜单"
         >
           <img
+            data-desktop-logo
             class="h-[18px] w-[18px] flex-none object-contain"
             src="/favicon.png"
             alt="HostDeck"

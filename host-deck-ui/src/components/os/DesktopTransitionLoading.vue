@@ -4,10 +4,56 @@ defineProps<{
   serverName: string
   show: boolean
 }>()
+
+const FLY_DURATION = 640
+const FLY_EASING = 'cubic-bezier(0.65, 0, 0.35, 1)'
+
+function handleLeave(el: Element, done: () => void) {
+  const root = el as HTMLElement
+  const logo = root.querySelector<HTMLElement>('.desktop-loading-logo-image')
+  const target = document.querySelector<HTMLElement>('[data-desktop-logo]')
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  if (!logo || !target || reduceMotion) {
+    root.animate({ opacity: [1, 0] }, { duration: 320, easing: 'ease' }).finished.then(done, done)
+    return
+  }
+
+  const from = logo.getBoundingClientRect()
+  const to = target.getBoundingClientRect()
+  const dx = to.left + to.width / 2 - (from.left + from.width / 2)
+  const dy = to.top + to.height / 2 - (from.top + from.height / 2)
+  const scale = to.width / from.width
+  const timing = { duration: FLY_DURATION, easing: FLY_EASING, fill: 'forwards' as const }
+
+  const animations = [
+    logo.animate(
+      [
+        { transform: 'translate(0, 0) scale(1)' },
+        { transform: `translate(${dx}px, ${dy}px) scale(${scale})` },
+      ],
+      timing,
+    ),
+    ...Array.from(
+      root.querySelectorAll<HTMLElement>(
+        '.desktop-loading-fade, .desktop-loading-ring, .desktop-loading-plate',
+      ),
+    ).map((item) =>
+      item.animate({ opacity: [1, 0] }, { ...timing, duration: FLY_DURATION * 0.5 }),
+    ),
+    root
+      .querySelector<HTMLElement>('.desktop-loading-backdrop')!
+      .animate({ opacity: [1, 0] }, timing),
+  ]
+
+  Promise.all(animations.map((animation) => animation.finished)).then(
+    () => logo.animate({ opacity: [1, 0] }, { duration: 120, fill: 'forwards' }).finished,
+  ).then(done, done)
+}
 </script>
 
 <template>
-  <Transition name="desktop-loading">
+  <Transition name="desktop-loading" @leave="handleLeave">
     <div
       v-if="show"
       class="desktop-transition-loading fixed inset-0 z-[9999] grid place-items-center overflow-hidden"
@@ -15,29 +61,36 @@ defineProps<{
       aria-live="polite"
       aria-busy="true"
     >
-      <div class="desktop-loading-glow desktop-loading-glow-primary" />
-      <div class="desktop-loading-glow desktop-loading-glow-secondary" />
+      <div class="desktop-loading-backdrop">
+        <div class="desktop-loading-glow desktop-loading-glow-primary" />
+        <div class="desktop-loading-glow desktop-loading-glow-secondary" />
+      </div>
 
       <div class="relative z-1 flex max-w-[min(420px,calc(100vw-48px))] flex-col items-center">
         <div class="desktop-loading-mark" aria-hidden="true">
           <div class="desktop-loading-ring desktop-loading-ring-outer" />
           <div class="desktop-loading-ring desktop-loading-ring-inner" />
           <div class="desktop-loading-logo">
-            <img src="/favicon.png" alt="" />
+            <div class="desktop-loading-plate" />
+            <img class="desktop-loading-logo-image" src="/favicon.png" alt="" />
           </div>
         </div>
 
-        <h2 class="mb-0 mt-[30px] text-center text-[1.2rem] font-700 tracking-[0.02em]">
-          正在进入 HostDeck
+        <h2
+          class="desktop-loading-fade mb-0 mt-[30px] text-center text-[1.2rem] font-700 tracking-[0.02em]"
+        >
+          HostDeck
         </h2>
-        <p class="mb-0 mt-[10px] max-w-full truncate text-center text-[0.9rem] opacity-72">
-          正在连接 {{ serverName }}
-        </p>
-        <p class="mb-0 mt-[5px] max-w-full truncate text-center text-[0.76rem] opacity-48">
-          {{ endpoint }}
+        <p
+          class="desktop-loading-fade mb-0 mt-[8px] max-w-full truncate text-center text-[0.84rem] opacity-60"
+        >
+          {{ endpoint || serverName }}
         </p>
 
-        <div class="desktop-loading-dots mt-[24px] flex items-center gap-[7px]" aria-hidden="true">
+        <div
+          class="desktop-loading-dots desktop-loading-fade mt-[22px] flex items-center gap-[7px]"
+          aria-hidden="true"
+        >
           <span />
           <span />
           <span />
@@ -50,6 +103,12 @@ defineProps<{
 <style scoped>
 .desktop-transition-loading {
   color: #f8fafc;
+}
+
+.desktop-loading-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
   background:
     linear-gradient(rgba(2, 6, 23, 0.72), rgba(2, 6, 23, 0.82)),
     radial-gradient(circle at 50% 42%, rgba(var(--app-primary-rgb), 0.28), transparent 34%), #020617;
@@ -58,6 +117,9 @@ defineProps<{
 
 :global(:root[data-theme='light']) .desktop-transition-loading {
   color: #0f172a;
+}
+
+:global(:root[data-theme='light']) .desktop-loading-backdrop {
   background:
     linear-gradient(rgba(241, 245, 249, 0.78), rgba(226, 232, 240, 0.86)),
     radial-gradient(circle at 50% 42%, rgba(var(--app-primary-rgb), 0.2), transparent 34%), #e2e8f0;
@@ -96,10 +158,16 @@ defineProps<{
 }
 
 .desktop-loading-logo {
+  position: relative;
   display: grid;
   width: 72px;
   height: 72px;
   place-items: center;
+}
+
+.desktop-loading-plate {
+  position: absolute;
+  inset: 0;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 24px;
   background: rgba(15, 23, 42, 0.42);
@@ -109,7 +177,7 @@ defineProps<{
   backdrop-filter: blur(12px);
 }
 
-:global(:root[data-theme='light']) .desktop-loading-logo {
+:global(:root[data-theme='light']) .desktop-loading-plate {
   border-color: rgba(255, 255, 255, 0.68);
   background: rgba(255, 255, 255, 0.46);
   box-shadow:
@@ -117,7 +185,8 @@ defineProps<{
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.desktop-loading-logo img {
+.desktop-loading-logo-image {
+  position: relative;
   width: 52px;
   height: 52px;
   object-fit: contain;
@@ -160,8 +229,7 @@ defineProps<{
   animation-delay: 0.28s;
 }
 
-.desktop-loading-enter-active,
-.desktop-loading-leave-active {
+.desktop-loading-enter-active {
   transition: opacity 0.32s ease;
 }
 
@@ -175,7 +243,6 @@ defineProps<{
 }
 
 .desktop-loading-enter-from,
-.desktop-loading-leave-to,
 .desktop-loading-enter-from .desktop-loading-mark,
 .desktop-loading-enter-from h2,
 .desktop-loading-enter-from p,
