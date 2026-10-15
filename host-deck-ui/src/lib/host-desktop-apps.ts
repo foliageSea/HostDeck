@@ -30,13 +30,13 @@ import TaskCenterView from '@/views/TaskCenter/index.vue'
 export const maxSessionWindows = 8
 export const sessionWindowAppIds = new Set<string>(['terminal', 'opencode'])
 export const defaultDockAppIds: DesktopAppId[] = [
-  'terminal',
+  'secure-browser',
   'files',
+  'terminal',
   'docker',
   'opencode',
   'ai-agent',
   'port-forward',
-  'secure-browser',
   'operation-logs',
   'realtime-logs',
   'cron-tasks',
