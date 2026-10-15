@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
-import { LogoDocker } from '@vicons/ionicons5'
+import {
+  CubeOutline,
+  DiscOutline,
+  GitNetworkOutline,
+  LayersOutline,
+  LogoDocker,
+  ServerOutline,
+  SettingsOutline,
+  SpeedometerOutline,
+} from '@vicons/ionicons5'
 import { useSettingsStore } from '@/stores/settings'
 import DockerContainersTab from './components/DockerContainersTab.vue'
 import DockerComposeTab from './components/DockerComposeTab.vue'
@@ -65,31 +74,73 @@ const controller: DockerViewController = reactive(useDockerView(props))
         class="docker-tabs"
         @update:value="controller.setActiveTab"
       >
-        <NTabPane name="overview" tab="概览">
+        <NTabPane name="overview">
+          <template #tab>
+            <span class="docker-tab-label">
+              <NIcon :size="16"><SpeedometerOutline /></NIcon>
+              <span>概览</span>
+            </span>
+          </template>
           <DockerOverviewTab :controller="controller" />
         </NTabPane>
 
-        <NTabPane name="containers" tab="容器">
+        <NTabPane name="containers">
+          <template #tab>
+            <span class="docker-tab-label">
+              <NIcon :size="16"><CubeOutline /></NIcon>
+              <span>容器</span>
+            </span>
+          </template>
           <DockerContainersTab :controller="controller" />
         </NTabPane>
 
-        <NTabPane name="compose" tab="编排" class="docker-internal-scroll-pane">
+        <NTabPane name="compose" class="docker-internal-scroll-pane">
+          <template #tab>
+            <span class="docker-tab-label">
+              <NIcon :size="16"><LayersOutline /></NIcon>
+              <span>编排</span>
+            </span>
+          </template>
           <DockerComposeTab :controller="controller" />
         </NTabPane>
 
-        <NTabPane name="images" tab="镜像">
+        <NTabPane name="images">
+          <template #tab>
+            <span class="docker-tab-label">
+              <NIcon :size="16"><DiscOutline /></NIcon>
+              <span>镜像</span>
+            </span>
+          </template>
           <DockerImagesTab :controller="controller" />
         </NTabPane>
 
-        <NTabPane name="networks" tab="网络" class="docker-internal-scroll-pane">
+        <NTabPane name="networks" class="docker-internal-scroll-pane">
+          <template #tab>
+            <span class="docker-tab-label">
+              <NIcon :size="16"><GitNetworkOutline /></NIcon>
+              <span>网络</span>
+            </span>
+          </template>
           <DockerNetworksTab :controller="controller" />
         </NTabPane>
 
-        <NTabPane name="volumes" tab="存储" class="docker-internal-scroll-pane">
+        <NTabPane name="volumes" class="docker-internal-scroll-pane">
+          <template #tab>
+            <span class="docker-tab-label">
+              <NIcon :size="16"><ServerOutline /></NIcon>
+              <span>存储</span>
+            </span>
+          </template>
           <DockerVolumesTab :controller="controller" />
         </NTabPane>
 
-        <NTabPane name="settings" tab="设置">
+        <NTabPane name="settings">
+          <template #tab>
+            <span class="docker-tab-label">
+              <NIcon :size="16"><SettingsOutline /></NIcon>
+              <span>设置</span>
+            </span>
+          </template>
           <DockerSettingsTab
             :connection-id="controller.requireConnectionId()"
             :window-id="props.windowId"
@@ -121,6 +172,12 @@ const controller: DockerViewController = reactive(useDockerView(props))
   --docker-text-secondary: rgba(71, 85, 105, 0.88);
   --docker-text-muted: rgba(100, 116, 139, 0.78);
   --docker-text-subtle: rgba(100, 116, 139, 0.64);
+}
+
+.docker-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .docker-body {
@@ -189,8 +246,8 @@ const controller: DockerViewController = reactive(useDockerView(props))
 
 @media (min-width: 768px) {
   .docker-tabs :deep(.n-tabs-nav--left) {
-    width: 96px;
-    flex: 0 0 96px;
+    width: 128px;
+    flex: 0 0 128px;
   }
 
   .docker-tabs :deep(.n-tabs-nav-scroll-wrapper) {
