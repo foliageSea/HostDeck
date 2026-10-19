@@ -160,7 +160,7 @@ function skillDisabled(id: string) {
   border-radius: var(--app-radius-control);
   color: var(--agent-muted, #64748b);
   background: var(--agent-hover, rgba(100, 116, 139, 0.09));
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1;
   cursor: pointer;
 }

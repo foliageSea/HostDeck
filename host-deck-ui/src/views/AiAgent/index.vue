@@ -2010,7 +2010,7 @@ let resizeObserver: ResizeObserver | undefined
   border-radius: calc(var(--app-radius-control) - 2px);
   color: var(--agent-muted);
   background: transparent;
-  font-size: 9px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -2056,7 +2056,7 @@ let resizeObserver: ResizeObserver | undefined
   border-radius: var(--app-radius-control);
   color: var(--agent-muted);
   background: var(--agent-hover);
-  font-size: 9px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -2076,7 +2076,7 @@ let resizeObserver: ResizeObserver | undefined
   border-radius: var(--app-radius-control);
   color: var(--agent-muted);
   background: var(--agent-hover);
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
 }
 
