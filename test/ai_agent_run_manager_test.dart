@@ -142,6 +142,55 @@ void main() {
     );
   });
 
+  test(
+    'reports invalid tool arguments to the model without approval or aborting',
+    () async {
+      tools.invalidArgumentsMessage = 'Bad schedule.';
+      model.responses = const [
+        AiAgentModelResponse(
+          text: '',
+          toolCalls: [
+            AiAgentToolCall(
+              id: 'call-1',
+              name: 'cron_create',
+              arguments: {'schedule': 'nope'},
+            ),
+          ],
+        ),
+        AiAgentModelResponse(text: 'Retrying with a valid schedule'),
+      ];
+      final run = manager.start(
+        conversationId: 'conversation-1',
+        connectionId: 'connection-1',
+        targetKey: 'server:7',
+        ownerId: 'browser:test',
+        input: 'schedule a backup',
+      );
+
+      final body = await _collect(
+        run.stream,
+      ).done.future.timeout(const Duration(seconds: 2));
+
+      expect(body, isNot(contains('event: approval-required')));
+      expect(body, contains('Invalid tool arguments: Bad schedule.'));
+      expect(body, contains('"status":"success"'));
+      expect(tools.executeCount, 0);
+      expect(
+        model.inputs.last.last.content,
+        'Invalid tool arguments: Bad schedule.',
+      );
+      expect(model.inputs.last.last.isError, isTrue);
+      final stored = repository.listMessages('conversation-1');
+      expect(stored.map((message) => message.role), [
+        'user',
+        'assistant',
+        'tool',
+        'assistant',
+      ]);
+      expect(stored[2].toolStatus, 'failed');
+    },
+  );
+
   test('forwards model text deltas before the run completes', () async {
     model.responses = const [AiAgentModelResponse(text: 'First second')];
     model.textDeltas = const [
@@ -527,6 +576,7 @@ class _FakeModel implements AiAgentModel {
 }
 
 class _FakeToolExecutor implements AiAgentToolExecutor {
+  String? invalidArgumentsMessage;
   int executeCount = 0;
   int resolveCount = 0;
 
@@ -546,7 +596,11 @@ class _FakeToolExecutor implements AiAgentToolExecutor {
   Map<String, dynamic> normalizeArguments(
     String name,
     Map<String, dynamic> arguments,
-  ) => Map.unmodifiable(arguments);
+  ) {
+    final message = invalidArgumentsMessage;
+    if (message != null) throw ArgumentError(message);
+    return Map.unmodifiable(arguments);
+  }
 
   @override
   Future<AiAgentToolResult> execute({

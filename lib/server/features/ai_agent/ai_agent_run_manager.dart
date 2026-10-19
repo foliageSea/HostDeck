@@ -319,10 +319,22 @@ inspected or changed the host. Do not expose secrets.
             throw StateError('Tool call limit exceeded.');
           }
           final summary = _toolService.summary(call.name);
-          final normalizedArguments = _toolService.normalizeArguments(
-            call.name,
-            call.arguments,
-          );
+          var normalizedArguments = const <String, dynamic>{};
+          AiAgentToolResult? invalidArguments;
+          try {
+            normalizedArguments = _toolService.normalizeArguments(
+              call.name,
+              call.arguments,
+            );
+          } on ArgumentError catch (error) {
+            // A malformed call is reported back to the model instead of
+            // aborting the whole run, so it can correct the arguments.
+            invalidArguments = AiAgentToolResult(
+              success: false,
+              content: 'Invalid tool arguments: ${error.message}',
+              summary: '$summary rejected invalid arguments',
+            );
+          }
           final toolStepId = _newId();
           run.emit(
             'tool-start',
@@ -340,7 +352,9 @@ inspected or changed the host. Do not expose secrets.
           AiAgentToolResult result;
           var rejected = false;
           var expired = false;
-          if (_toolService.requiresApproval(call.name)) {
+          if (invalidArguments != null) {
+            result = invalidArguments;
+          } else if (_toolService.requiresApproval(call.name)) {
             final approval = _PendingApproval(
               callId: call.id,
               arguments: normalizedArguments,
