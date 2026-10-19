@@ -265,6 +265,8 @@ class ServerContainer {
         getIt<MonitorService>(),
         getIt<ProcessService>(),
         getIt<OperationLogService>(),
+        getIt<PortForwardRepository>(),
+        getIt<PortForwardService>(),
       ),
     );
     getIt.registerLazySingleton<AiAgentMcpToolService>(

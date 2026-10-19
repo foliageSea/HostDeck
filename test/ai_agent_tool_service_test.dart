@@ -15,6 +15,8 @@ import 'package:host_deck/server/features/files/file_item.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_repository.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 import 'package:host_deck/server/features/processes/process_service.dart';
+import 'package:host_deck/server/features/port_forwards/port_forward_repository.dart';
+import 'package:host_deck/server/features/port_forwards/port_forward_service.dart';
 import 'package:host_deck/server/features/system/monitor_service.dart';
 
 void main() {
@@ -34,6 +36,10 @@ void main() {
       MonitorService(repository),
       processService,
       operationLogs,
+      PortForwardRepository(
+        DatabaseService(dataDir: '/tmp/hostdeck-ai-tool-port-forward-unused'),
+      ),
+      PortForwardService(SshService()),
     );
   });
 
