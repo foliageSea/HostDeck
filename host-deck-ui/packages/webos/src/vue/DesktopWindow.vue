@@ -180,7 +180,7 @@ onUnmounted(() => {
   >
     <header
       data-window-title-bar
-      class="relative flex h-[48px] items-center justify-between gap-[12px] border-b px-[14px]"
+      class="relative flex h-[48px] items-center justify-between gap-[12px] border-b border-b-solid px-[14px]"
       :class="[
         settingsStore.isDark
           ? settingsStore.windowBlur
