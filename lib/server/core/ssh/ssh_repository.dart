@@ -114,6 +114,9 @@ class SshRepository {
     return result;
   }
 
+  /// Runs [command] through `sh`. By default a login shell (`-l`) is used so
+  /// the user's profile environment is available. Pass `login: false` for
+  /// commands that do not need it, so a broken `~/.profile` cannot break them.
   Future<SshExecResult> execWithResult(
     SshOperationContext session,
     String command, {
@@ -121,6 +124,7 @@ class SshRepository {
     Duration? timeout,
     String? stdin,
     int? maxOutputBytes,
+    bool login = true,
   }) async {
     final stopwatch = Stopwatch()..start();
     final script = cwd == null || cwd.trim().isEmpty
@@ -132,7 +136,7 @@ class SshRepository {
       final result = await session
           .runOperation(() async {
             sshSession = await session.client.execute(
-              'sh -lc ${_shellQuote(script)}',
+              '${login ? 'sh -lc' : 'sh -c'} ${_shellQuote(script)}',
             );
 
             if (stdin != null) {

@@ -74,7 +74,76 @@ class CronTask {
     ).hasMatch(value)) {
       return true;
     }
-    return value.split(RegExp(r'\s+')).length == 5;
+    final fields = value.split(RegExp(r'\s+'));
+    if (fields.length != 5) return false;
+    return _isValidField(fields[0], 0, 59) &&
+        _isValidField(fields[1], 0, 23) &&
+        _isValidField(fields[2], 1, 31) &&
+        _isValidField(fields[3], 1, 12, names: _monthNames) &&
+        _isValidField(fields[4], 0, 7, names: _weekdayNames);
+  }
+
+  static const _monthNames = {
+    'jan': 1,
+    'feb': 2,
+    'mar': 3,
+    'apr': 4,
+    'may': 5,
+    'jun': 6,
+    'jul': 7,
+    'aug': 8,
+    'sep': 9,
+    'oct': 10,
+    'nov': 11,
+    'dec': 12,
+  };
+  static const _weekdayNames = {
+    'sun': 0,
+    'mon': 1,
+    'tue': 2,
+    'wed': 3,
+    'thu': 4,
+    'fri': 5,
+    'sat': 6,
+  };
+
+  /// Validates one cron field: comma lists of `*`, values or ranges with an
+  /// optional `/step`.
+  static bool _isValidField(
+    String field,
+    int min,
+    int max, {
+    Map<String, int> names = const {},
+  }) {
+    if (field.isEmpty) return false;
+    int? parse(String token) {
+      final named = names[token.toLowerCase()];
+      if (named != null) return named;
+      if (!RegExp(r'^\d{1,2}$').hasMatch(token)) return null;
+      return int.parse(token);
+    }
+
+    for (final item in field.split(',')) {
+      final stepParts = item.split('/');
+      if (stepParts.length > 2) return false;
+      if (stepParts.length == 2) {
+        final step = int.tryParse(stepParts[1]);
+        if (!RegExp(r'^\d{1,3}$').hasMatch(stepParts[1]) ||
+            step == null ||
+            step < 1) {
+          return false;
+        }
+      }
+      final range = stepParts[0];
+      if (range == '*') continue;
+      final bounds = range.split('-');
+      if (bounds.length > 2) return false;
+      final start = parse(bounds[0]);
+      final end = bounds.length == 2 ? parse(bounds[1]) : start;
+      if (start == null || end == null) return false;
+      if (start < min || end > max || start > end) return false;
+    }
+    return true;
   }
 
   static bool _hasLineBreak(String value) =>

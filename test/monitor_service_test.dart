@@ -123,6 +123,7 @@ uptimeSeconds=1307520
     int? maxOutputBytes,
     Duration? timeout,
     String? stdin,
+    bool login = true,
   }) {
     // TODO: implement execWithResult
     throw UnimplementedError();

@@ -182,6 +182,7 @@ class _FakeSshRepository extends SshRepository {
     int? maxOutputBytes,
     Duration? timeout,
     String? stdin,
+    bool login = true,
   }) async {
     commands.add(command);
     stdinValues.add(stdin);
