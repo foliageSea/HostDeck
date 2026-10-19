@@ -50,6 +50,9 @@ importers:
       echarts:
         specifier: ^6.0.0
         version: 6.0.0
+      highlight.js:
+        specifier: ^11.11.1
+        version: 11.11.1
       marked:
         specifier: ^18.0.13
         version: 18.0.13
