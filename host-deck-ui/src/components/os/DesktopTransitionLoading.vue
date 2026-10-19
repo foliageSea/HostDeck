@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { useSettingsStore } from '@/stores/settings'
+
 defineProps<{
   endpoint: string
   serverName: string
   show: boolean
 }>()
+
+const settingsStore = useSettingsStore()
 
 const FLY_DURATION = 640
 const FLY_EASING = 'cubic-bezier(0.65, 0, 0.35, 1)'
@@ -57,6 +61,7 @@ function handleLeave(el: Element, done: () => void) {
     <div
       v-if="show"
       class="desktop-transition-loading fixed inset-0 z-[9999] grid place-items-center overflow-hidden"
+      :class="{ 'desktop-transition-loading-light': !settingsStore.isDark }"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -115,11 +120,11 @@ function handleLeave(el: Element, done: () => void) {
   backdrop-filter: blur(22px) saturate(125%);
 }
 
-:global(:root[data-theme='light']) .desktop-transition-loading {
+.desktop-transition-loading-light {
   color: #0f172a;
 }
 
-:global(:root[data-theme='light']) .desktop-loading-backdrop {
+.desktop-transition-loading-light .desktop-loading-backdrop {
   background:
     linear-gradient(rgba(241, 245, 249, 0.78), rgba(226, 232, 240, 0.86)),
     radial-gradient(circle at 50% 42%, rgba(var(--app-primary-rgb), 0.2), transparent 34%), #e2e8f0;
@@ -177,7 +182,7 @@ function handleLeave(el: Element, done: () => void) {
   backdrop-filter: blur(12px);
 }
 
-:global(:root[data-theme='light']) .desktop-loading-plate {
+.desktop-transition-loading-light .desktop-loading-plate {
   border-color: rgba(255, 255, 255, 0.68);
   background: rgba(255, 255, 255, 0.46);
   box-shadow:
