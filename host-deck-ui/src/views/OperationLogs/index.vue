@@ -99,6 +99,7 @@ const actionLabels: Record<string, string> = {
   imageTag: '镜像打标',
   kill: '结束进程',
   mkdir: '新建目录',
+  operation_log_list: '查看操作记录',
   process_kill: '结束进程',
   process_list: '读取进程列表',
   networkConnect: '连接网络',

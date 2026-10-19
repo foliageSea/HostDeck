@@ -29,6 +29,7 @@ const labels: Record<string, { description: string; title: string }> = {
     description: '启动已保存的本地 SSH TCP 端口转发',
     title: '启动端口转发',
   },
+  operation_log_list: { description: '查看 HostDeck 最近的操作记录（只读）', title: '操作记录' },
   port_forward_list: {
     description: '查看已保存端口转发及其运行状态',
     title: '端口转发列表',

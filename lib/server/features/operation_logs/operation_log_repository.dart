@@ -61,6 +61,7 @@ class OperationLogRepository {
     int offset = 0,
     String? category,
     String? status,
+    String? connectionId,
   }) {
     final safeLimit = limit.clamp(1, 200).toInt();
     final safeOffset = offset < 0 ? 0 : offset;
@@ -74,6 +75,11 @@ class OperationLogRepository {
     if (status != null && status.isNotEmpty) {
       where.add('status = ?');
       args.add(status);
+    }
+
+    if (connectionId != null && connectionId.isNotEmpty) {
+      where.add('connectionId = ?');
+      args.add(connectionId);
     }
 
     final whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';

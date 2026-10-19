@@ -15,6 +15,7 @@ import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_controller.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_cron_tool_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_operation_log_tool_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_mcp_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
@@ -280,9 +281,16 @@ class ServerContainer {
         getIt<OperationLogService>(),
       ),
     );
+    getIt.registerLazySingleton<AiAgentOperationLogToolService>(
+      () => AiAgentOperationLogToolService(
+        getIt<AiAgentCronToolService>(),
+        getIt<OperationLogRepository>(),
+        getIt<OperationLogService>(),
+      ),
+    );
     getIt.registerLazySingleton<AiAgentMcpToolService>(
       () => AiAgentMcpToolService(
-        getIt<AiAgentCronToolService>(),
+        getIt<AiAgentOperationLogToolService>(),
         getIt<AiAgentMcpRepository>(),
         getIt<AiAgentMcpClient>(),
         getIt<OperationLogService>(),

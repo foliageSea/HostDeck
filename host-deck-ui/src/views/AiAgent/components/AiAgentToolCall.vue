@@ -44,6 +44,7 @@ const toolLabel = computed(() => {
     file_write: '写入远程文件',
     port_forward_create: '创建端口转发',
     port_forward_start: '启动端口转发',
+    operation_log_list: '查看操作记录',
     port_forward_list: '查看端口转发列表',
     port_forward_status: '查看端口转发状态',
     port_forward_stop: '停止端口转发',
