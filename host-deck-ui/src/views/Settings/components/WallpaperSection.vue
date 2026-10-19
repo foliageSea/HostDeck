@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Renew, Upload } from '@vicons/carbon'
 import { computed } from 'vue'
 import {
   getDefaultWallpaperBackground,
@@ -66,36 +65,28 @@ function resetWallpaperEffects() {
         <NTooltip>
           <template #trigger>
             <NButton
-              circle
+              size="small"
               secondary
               aria-label="上传壁纸"
               @click="controller.openWallpaperPicker(target)"
             >
-              <template #icon>
-                <NIcon>
-                  <Upload />
-                </NIcon>
-              </template>
+              上传壁纸
             </NButton>
           </template>
-          上传
+          上传图片或视频作为壁纸
         </NTooltip>
         <NTooltip>
           <template #trigger>
             <NButton
-              circle
+              size="small"
               tertiary
               aria-label="恢复默认壁纸"
               @click="controller.resetWallpaper(target)"
             >
-              <template #icon>
-                <NIcon>
-                  <Renew />
-                </NIcon>
-              </template>
+              恢复默认
             </NButton>
           </template>
-          恢复
+          恢复默认壁纸
         </NTooltip>
       </div>
     </div>
@@ -192,15 +183,11 @@ function resetWallpaperEffects() {
         </div>
         <NTooltip>
           <template #trigger>
-            <NButton circle tertiary aria-label="重置背景效果" @click="resetWallpaperEffects">
-              <template #icon>
-                <NIcon>
-                  <Renew />
-                </NIcon>
-              </template>
+            <NButton size="small" tertiary aria-label="重置背景效果" @click="resetWallpaperEffects">
+              重置效果
             </NButton>
           </template>
-          重置效果
+          将亮度和对比度恢复为 100%
         </NTooltip>
       </div>
 

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Renew } from '@vicons/carbon'
 import { AppWindow, Image as ImageIcon, Keyboard, Network, Palette, ShieldCheck } from '@lucide/vue'
 import { isAxiosError } from 'axios'
 import { computed, nextTick, onMounted, ref } from 'vue'
@@ -187,6 +186,7 @@ async function exportLogs() {
 <template>
   <div
     class="settings-view scrollbar-none h-full overflow-hidden px-[20px] pt-[16px] pb-[20px] lt-md:px-[16px] lt-md:pb-[16px]"
+    :class="{ 'settings-view--light': !settingsStore.isDark }"
   >
     <NTabs
       type="line"
@@ -251,19 +251,15 @@ async function exportLogs() {
                 <NTooltip>
                   <template #trigger>
                     <NButton
-                      circle
+                      size="small"
                       secondary
                       aria-label="恢复默认主题色"
                       @click="settingsStore.resetPrimaryColor"
                     >
-                      <template #icon>
-                        <NIcon>
-                          <Renew />
-                        </NIcon>
-                      </template>
+                      恢复默认
                     </NButton>
                   </template>
-                  恢复默认
+                  恢复默认主题色
                 </NTooltip>
               </div>
             </NFormItem>
@@ -367,17 +363,15 @@ async function exportLogs() {
                   <template #trigger>
                     <NButton
                       class="shrink-0"
-                      circle
+                      size="small"
                       secondary
                       aria-label="恢复默认直接切换窗口快捷键"
                       @click="settingsStore.resetWindowSwitchShortcut"
                     >
-                      <template #icon>
-                        <NIcon><Renew /></NIcon>
-                      </template>
+                      恢复默认
                     </NButton>
                   </template>
-                  恢复默认
+                  恢复默认直接切换窗口快捷键
                 </NTooltip>
               </div>
             </NFormItem>
@@ -416,17 +410,15 @@ async function exportLogs() {
                   <template #trigger>
                     <NButton
                       class="shrink-0"
-                      circle
+                      size="small"
                       secondary
                       aria-label="恢复默认窗口选择器快捷键"
                       @click="settingsStore.resetWindowSwitcherToggleShortcut"
                     >
-                      <template #icon>
-                        <NIcon><Renew /></NIcon>
-                      </template>
+                      恢复默认
                     </NButton>
                   </template>
-                  恢复默认
+                  恢复默认窗口选择器快捷键
                 </NTooltip>
               </div>
             </NFormItem>
@@ -650,6 +642,18 @@ async function exportLogs() {
   color: rgba(148, 163, 184, 0.72);
   font-size: 12px;
   font-weight: 500;
+}
+
+.settings-view--light .shortcut-recorder__key {
+  border-color: #cbd5e1;
+  border-bottom-color: #94a3b8;
+  color: #334155;
+  background: #fff;
+  box-shadow: 0 2px 0 rgba(148, 163, 184, 0.24);
+}
+
+.settings-view--light .shortcut-recorder__plus {
+  color: #64748b;
 }
 
 .shortcut-recorder__hint {
