@@ -1944,6 +1944,17 @@ let resizeObserver: ResizeObserver | undefined
   padding: 4px 7px 7px 12px;
 }
 
+.agent-composer-footer > .flex {
+  align-items: center;
+}
+
+.agent-attachment-button,
+.agent-ai-mode button,
+.agent-mcp-entry,
+.agent-mode-trigger {
+  line-height: 1;
+}
+
 .agent-image-input {
   position: absolute;
   width: 1px;
@@ -2037,7 +2048,7 @@ let resizeObserver: ResizeObserver | undefined
 
 .agent-mcp-entry {
   display: inline-flex;
-  height: 23px;
+  height: 25px;
   align-items: center;
   gap: 4px;
   padding: 0 7px;

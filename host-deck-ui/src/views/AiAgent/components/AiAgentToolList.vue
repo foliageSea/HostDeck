@@ -14,6 +14,30 @@ const labels: Record<string, { description: string; title: string }> = {
   file_delete: { description: '删除单个远程文件，不会删除目录', title: '删除文件' },
   file_read: { description: '读取远程文本文件内容', title: '读取文件' },
   file_write: { description: '覆盖写入远程文本文件', title: '写入文件' },
+  port_forward_create: {
+    description: '创建并启动本地 SSH TCP 端口转发',
+    title: '创建端口转发',
+  },
+  port_forward_start: {
+    description: '启动已保存的本地 SSH TCP 端口转发',
+    title: '启动端口转发',
+  },
+  port_forward_list: {
+    description: '查看已保存端口转发及其运行状态',
+    title: '端口转发列表',
+  },
+  port_forward_status: {
+    description: '查看端口转发的运行状态',
+    title: '端口转发状态',
+  },
+  port_forward_stop: {
+    description: '停止端口转发并释放本地监听端口',
+    title: '停止端口转发',
+  },
+  port_forward_delete: {
+    description: '删除已停止的端口转发规则',
+    title: '删除端口转发',
+  },
   process_kill: { description: '向远程进程发送 SIGTERM', title: '结束进程' },
   process_list: { description: '读取按 CPU 和内存排序的进程列表', title: '进程列表' },
   shell_execute: { description: '在远程主机执行 Shell 命令', title: '执行命令' },

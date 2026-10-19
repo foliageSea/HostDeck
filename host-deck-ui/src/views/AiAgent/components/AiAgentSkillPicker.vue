@@ -161,6 +161,7 @@ function skillDisabled(id: string) {
   color: var(--agent-muted, #64748b);
   background: var(--agent-hover, rgba(100, 116, 139, 0.09));
   font-size: 9px;
+  line-height: 1;
   cursor: pointer;
 }
 
