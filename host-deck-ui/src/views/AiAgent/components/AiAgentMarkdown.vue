@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
+import { getUiApi } from '@/lib/ui'
 
 const props = defineProps<{
   content: string
 }>()
+
+const markdownElement = ref<HTMLElement>()
 
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   if (node.tagName === 'A') {
@@ -22,10 +25,57 @@ const rendered = computed(() =>
     FORBID_TAGS: ['style', 'form', 'input', 'button', 'iframe', 'script'],
   }),
 )
+
+async function copyCode(code: HTMLElement, button: HTMLButtonElement) {
+  try {
+    await navigator.clipboard.writeText(code.textContent ?? '')
+    getUiApi().message.success('代码已复制。')
+    button.textContent = '已复制'
+    window.setTimeout(() => {
+      if (button.isConnected) button.textContent = '复制'
+    }, 1200)
+  } catch (error) {
+    console.error('Failed to copy code block', error)
+    getUiApi().message.error('复制代码失败，请检查剪贴板权限。')
+  }
+}
+
+function trimSingleLineTrailingBreak(code: HTMLElement) {
+  const source = code.textContent ?? ''
+  const content = source.replace(/(?:\r\n|\r|\n)+$/, '')
+  if (!/[\r\n]/.test(content)) code.textContent = content
+}
+
+function addCodeCopyButtons() {
+  const root = markdownElement.value
+  if (!root) return
+
+  root.querySelectorAll<HTMLPreElement>('pre').forEach((pre) => {
+    const code = pre.querySelector<HTMLElement>('code')
+    if (!code || pre.querySelector('.agent-code-copy')) return
+
+    trimSingleLineTrailingBreak(code)
+    pre.classList.add('agent-code-block')
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'agent-code-copy'
+    button.setAttribute('aria-label', '复制代码')
+    button.title = '复制代码'
+    button.textContent = '复制'
+    button.addEventListener('click', () => void copyCode(code, button))
+    pre.append(button)
+  })
+}
+
+watch(rendered, () => {
+  void nextTick(addCodeCopyButtons)
+})
+
+onMounted(addCodeCopyButtons)
 </script>
 
 <template>
-  <div class="agent-markdown" v-html="rendered" />
+  <div ref="markdownElement" class="agent-markdown" v-html="rendered" />
 </template>
 
 <style scoped>
@@ -86,16 +136,65 @@ const rendered = computed(() =>
 }
 
 .agent-markdown :deep(pre) {
-  overflow: auto;
-  padding: 10px 12px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 12px 14px;
   border: 1px solid var(--agent-border);
   border-radius: var(--app-radius-item);
   background: var(--agent-code-bg);
+  scrollbar-color: color-mix(in srgb, var(--agent-muted) 45%, transparent) transparent;
+  scrollbar-width: thin;
 }
 
-.agent-markdown :deep(pre code) {
-  padding: 0;
+.agent-markdown :deep(pre.agent-code-block) {
+  position: relative;
+  padding: 34px 14px 12px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--agent-text) 4%, transparent);
+}
+
+.agent-markdown :deep(pre.agent-code-block::after) {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--agent-border);
+  content: '';
+  pointer-events: none;
+}
+
+.agent-markdown :deep(.agent-code-copy) {
+  position: absolute;
+  top: 3px;
+  right: 9px;
+  z-index: 1;
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 2px 7px;
+  border: 0;
+  border-radius: var(--app-radius-control);
   background: transparent;
+  color: var(--agent-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  user-select: none;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.agent-markdown :deep(.agent-code-copy:hover) {
+  background: var(--agent-hover);
+  color: var(--agent-text);
+}
+
+.agent-markdown :deep(.agent-code-copy:focus-visible) {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 1px;
 }
 
 .agent-markdown :deep(blockquote) {

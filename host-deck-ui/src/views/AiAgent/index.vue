@@ -1242,7 +1242,7 @@ let resizeObserver: ResizeObserver | undefined
   --agent-sidebar-bg: transparent;
   --agent-elevated: #ffffff;
   --agent-tool-bg: rgba(241, 245, 249, 0.75);
-  --agent-code-bg: #e8edf3;
+  --agent-code-bg: color-mix(in srgb, var(--app-primary-soft) 24%, var(--agent-elevated));
   --agent-text: #182233;
   --agent-muted: #64748b;
   --agent-border: rgba(100, 116, 139, 0.18);
@@ -1263,7 +1263,7 @@ let resizeObserver: ResizeObserver | undefined
   --agent-sidebar-bg: transparent;
   --agent-elevated: #1b212a;
   --agent-tool-bg: rgba(30, 37, 47, 0.82);
-  --agent-code-bg: #10141a;
+  --agent-code-bg: color-mix(in srgb, var(--app-primary-soft) 24%, var(--agent-elevated));
   --agent-text: #e6eaf0;
   --agent-muted: #8b96a8;
   --agent-border: rgba(148, 163, 184, 0.14);
