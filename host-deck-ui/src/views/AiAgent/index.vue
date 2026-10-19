@@ -1242,7 +1242,10 @@ let resizeObserver: ResizeObserver | undefined
   --agent-sidebar-bg: transparent;
   --agent-elevated: #ffffff;
   --agent-tool-bg: rgba(241, 245, 249, 0.75);
-  --agent-code-bg: color-mix(in srgb, var(--app-primary-soft) 24%, var(--agent-elevated));
+  --agent-code-bg: #f8fafc;
+  --agent-code-toolbar-bg: rgba(37, 99, 235, 0.08);
+  --agent-code-toolbar-text: #1d4ed8;
+  --agent-code-text: #1e293b;
   --agent-text: #182233;
   --agent-muted: #64748b;
   --agent-border: rgba(100, 116, 139, 0.18);
@@ -1263,7 +1266,10 @@ let resizeObserver: ResizeObserver | undefined
   --agent-sidebar-bg: transparent;
   --agent-elevated: #1b212a;
   --agent-tool-bg: rgba(30, 37, 47, 0.82);
-  --agent-code-bg: color-mix(in srgb, var(--app-primary-soft) 24%, var(--agent-elevated));
+  --agent-code-bg: #111827;
+  --agent-code-toolbar-bg: rgba(96, 165, 250, 0.14);
+  --agent-code-toolbar-text: #93c5fd;
+  --agent-code-text: #e2e8f0;
   --agent-text: #e6eaf0;
   --agent-muted: #8b96a8;
   --agent-border: rgba(148, 163, 184, 0.14);

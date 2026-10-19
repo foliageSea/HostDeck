@@ -142,6 +142,7 @@ onMounted(addCodeCopyButtons)
   padding: 12px 14px;
   border: 1px solid var(--agent-border);
   border-radius: var(--app-radius-item);
+  color: var(--agent-code-text);
   background: var(--agent-code-bg);
   scrollbar-color: color-mix(in srgb, var(--agent-muted) 45%, transparent) transparent;
   scrollbar-width: thin;
@@ -151,6 +152,16 @@ onMounted(addCodeCopyButtons)
   position: relative;
   padding: 34px 14px 12px;
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--agent-text) 4%, transparent);
+}
+
+.agent-markdown :deep(pre.agent-code-block::before) {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 29px;
+  border-radius: var(--app-radius-item) var(--app-radius-item) 0 0;
+  background: var(--agent-code-toolbar-bg);
+  content: '';
+  pointer-events: none;
 }
 
 .agent-markdown :deep(pre.agent-code-block::after) {
@@ -176,10 +187,11 @@ onMounted(addCodeCopyButtons)
   border: 0;
   border-radius: var(--app-radius-control);
   background: transparent;
-  color: var(--agent-muted);
+  color: var(--agent-code-toolbar-text);
   cursor: pointer;
   font: inherit;
   font-size: 11px;
+  font-weight: 600;
   line-height: 1.5;
   user-select: none;
   transition:
@@ -188,8 +200,8 @@ onMounted(addCodeCopyButtons)
 }
 
 .agent-markdown :deep(.agent-code-copy:hover) {
-  background: var(--agent-hover);
-  color: var(--agent-text);
+  background: var(--agent-code-toolbar-bg);
+  color: var(--agent-code-toolbar-text);
 }
 
 .agent-markdown :deep(.agent-code-copy:focus-visible) {
