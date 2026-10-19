@@ -10,6 +10,13 @@ const props = defineProps<{ active: boolean }>()
 
 const labels: Record<string, { description: string; title: string }> = {
   apply_patch: { description: '在远程工作目录应用 Git Patch', title: '应用补丁' },
+  cron_create: {
+    description: '创建定时任务，命令将按计划在远程主机无人值守执行',
+    title: '创建定时任务',
+  },
+  cron_delete: { description: '删除定时任务并取消其调度', title: '删除定时任务' },
+  cron_list: { description: '查看 HostDeck 管理的定时任务', title: '定时任务列表' },
+  cron_update: { description: '整体替换已有的定时任务', title: '更新定时任务' },
   directory_list: { description: '查看远程目录中的文件和子目录', title: '浏览目录' },
   file_delete: { description: '删除单个远程文件，不会删除目录', title: '删除文件' },
   file_read: { description: '读取远程文本文件内容', title: '读取文件' },

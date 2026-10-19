@@ -13,6 +13,7 @@ import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/access/access_secret_store.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_controller.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_cron_tool_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_mcp_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
@@ -269,9 +270,19 @@ class ServerContainer {
         getIt<PortForwardService>(),
       ),
     );
+    getIt.registerLazySingleton<AiAgentCronToolService>(
+      () => AiAgentCronToolService(
+        getIt<AiAgentToolService>(),
+        getIt<SshService>(),
+        getIt<SharedSshSessionResolver>(),
+        getIt<CronTaskService>(),
+        getIt<CronTaskRepository>(),
+        getIt<OperationLogService>(),
+      ),
+    );
     getIt.registerLazySingleton<AiAgentMcpToolService>(
       () => AiAgentMcpToolService(
-        getIt<AiAgentToolService>(),
+        getIt<AiAgentCronToolService>(),
         getIt<AiAgentMcpRepository>(),
         getIt<AiAgentMcpClient>(),
         getIt<OperationLogService>(),

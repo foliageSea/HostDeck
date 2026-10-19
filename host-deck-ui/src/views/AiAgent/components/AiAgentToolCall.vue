@@ -34,6 +34,10 @@ const isMcpTool = computed(() => props.tool.name.startsWith('mcp_'))
 const toolLabel = computed(() => {
   const labels: Record<string, string> = {
     apply_patch: '应用远程补丁',
+    cron_create: '创建定时任务',
+    cron_delete: '删除定时任务',
+    cron_list: '查看定时任务',
+    cron_update: '更新定时任务',
     directory_list: '浏览远程目录',
     file_delete: '删除远程文件',
     file_read: '读取远程文件',

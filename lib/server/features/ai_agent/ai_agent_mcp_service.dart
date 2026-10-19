@@ -381,7 +381,7 @@ class AiAgentMcpClient {
 }
 
 class AiAgentMcpToolService implements AiAgentToolExecutor {
-  final AiAgentToolService _builtIn;
+  final AiAgentToolExecutor _builtIn;
   final AiAgentMcpRepository _repository;
   final AiAgentMcpClient _client;
   final OperationLogService _operationLogs;
