@@ -21,6 +21,8 @@ const saving = ref(false)
 const operatingId = ref<number | null>(null)
 const editorVisible = ref(false)
 const historyVisible = ref(false)
+const outputVisible = ref(false)
+const outputItem = ref<CronExecutionHistory | null>(null)
 const editingId = ref<number | null>(null)
 const activeTask = ref<CronTask | null>(null)
 const sessionConnectionIds = new Set<string>()
@@ -229,6 +231,43 @@ function formatDuration(value?: number | null) {
   return value < 1000 ? `${value} ms` : `${(value / 1000).toFixed(1)} s`
 }
 
+function hasOutput(item: CronExecutionHistory) {
+  return Boolean(item.stdout || item.stderr)
+}
+
+function openOutput(item: CronExecutionHistory) {
+  outputItem.value = item
+  outputVisible.value = true
+}
+
+const historyColumns: DataTableColumns<CronExecutionHistory> = [
+  { title: '时间', key: 'startedAt', render: (row) => formatTime(row.startedAt) },
+  {
+    title: '触发',
+    key: 'triggerType',
+    render: (row) => (row.triggerType === 'manual' ? '手动' : '计划'),
+  },
+  { title: '结果', key: 'status', render: (row) => (row.status === 'success' ? '成功' : '失败') },
+  { title: '退出码', key: 'exitCode' },
+  { title: '耗时', key: 'durationMs', render: (row) => formatDuration(row.durationMs) },
+  {
+    title: '输出',
+    key: 'output',
+    width: 90,
+    render: (row) =>
+      h(
+        NButton,
+        {
+          size: 'tiny',
+          secondary: true,
+          disabled: !hasOutput(row),
+          onClick: () => openOutput(row),
+        },
+        { default: () => (hasOutput(row) ? '查看输出' : '无输出') },
+      ),
+  },
+]
+
 const taskColumns: DataTableColumns<CronTask> = [
   {
     title: '任务',
@@ -365,42 +404,42 @@ onBeforeUnmount(() => {
             ><RefreshCw :size="15" /></NButton></template
         ><NDataTable
           :data="history"
+          :columns="historyColumns"
           :pagination="{ pageSize: 10 }"
           :row-key="(row: CronExecutionHistory) => row.id"
-          size="small"
-          :columns="[
-            {
-              title: '时间',
-              key: 'startedAt',
-              render: (row: CronExecutionHistory) => formatTime(row.startedAt),
-            },
-            {
-              title: '触发',
-              key: 'triggerType',
-              render: (row: CronExecutionHistory) =>
-                row.triggerType === 'manual' ? '手动' : '计划',
-            },
-            {
-              title: '结果',
-              key: 'status',
-              render: (row: CronExecutionHistory) => (row.status === 'success' ? '成功' : '失败'),
-            },
-            { title: '退出码', key: 'exitCode' },
-            {
-              title: '耗时',
-              key: 'durationMs',
-              render: (row: CronExecutionHistory) => formatDuration(row.durationMs),
-            },
-          ]"
-        /><template v-for="item in history" :key="`output-${item.id}`"
-          ><div v-if="item.stdout || item.stderr" class="mt-3">
-            <pre
-              class="max-h-[180px] overflow-auto whitespace-pre-wrap break-words rounded bg-[rgba(148,163,184,0.12)] p-2 text-[12px]"
-              >{{ item.stdout }}{{ item.stderr ? `\n${item.stderr}` : '' }}</pre
-            >
-          </div></template
-        ></NDrawerContent
-      ></NDrawer
+          size="small" /></NDrawerContent
+    ></NDrawer>
+
+    <NModal
+      v-model:show="outputVisible"
+      preset="card"
+      :title="`${activeTask?.name ?? ''} · 执行输出`"
+      style="width: min(760px, calc(100vw - 32px))"
     >
+      <template v-if="outputItem">
+        <div class="mb-3 flex flex-wrap items-center gap-2 text-[12px]">
+          <NTag size="small" :type="outputItem.status === 'success' ? 'success' : 'error'">
+            {{ outputItem.status === 'success' ? '成功' : '失败' }}
+          </NTag>
+          <span>{{ formatTime(outputItem.startedAt) }}</span>
+          <span>{{ outputItem.triggerType === 'manual' ? '手动' : '计划' }}</span>
+          <span>退出码 {{ outputItem.exitCode ?? '-' }}</span>
+          <span>耗时 {{ formatDuration(outputItem.durationMs) }}</span>
+        </div>
+        <div v-if="outputItem.stdout" class="mb-1 text-[12px] opacity-60">标准输出</div>
+        <pre
+          v-if="outputItem.stdout"
+          class="max-h-[50vh] overflow-auto whitespace-pre-wrap break-words rounded bg-[rgba(148,163,184,0.12)] p-2 text-[12px]"
+          >{{ outputItem.stdout }}</pre
+        >
+        <div v-if="outputItem.stderr" class="mb-1 mt-3 text-[12px] opacity-60">错误输出</div>
+        <pre
+          v-if="outputItem.stderr"
+          class="max-h-[30vh] overflow-auto whitespace-pre-wrap break-words rounded bg-[rgba(239,68,68,0.12)] p-2 text-[12px]"
+          >{{ outputItem.stderr }}</pre
+        >
+        <div v-if="!hasOutput(outputItem)" class="text-[12px] opacity-60">本次执行没有输出。</div>
+      </template>
+    </NModal>
   </div>
 </template>
