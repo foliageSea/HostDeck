@@ -175,6 +175,10 @@ function localizeRunMessage(message: string) {
       'The AI agent run could not be completed.': 'Agent 运行失败，请检查配置后重试。',
       'The AI agent run failed.': 'Agent 运行失败，请稍后重试。',
       'Run cancelled.': '运行已取消。',
+      'Run timed out.': '运行超时，请重试。',
+      'Tool call limit exceeded.': '已达到工具调用次数上限。',
+      'A run is already active for this conversation.': '该会话已有正在运行的任务。',
+      'Too many AI agent runs are active.': '正在运行的 Agent 任务过多，请稍后重试。',
       'The operation stopped after reaching the tool-call limit.': '已达到工具调用次数上限。',
     }[message] ?? message
   )
@@ -464,11 +468,11 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     return true
   }
 
-  async function loadConversations(connectionId: string) {
+  async function loadConversations(connectionId: string, options: { keepError?: boolean } = {}) {
     resetForConnection(connectionId)
     const request = ++listRequest
     loadingConversations.value = true
-    error.value = null
+    if (!options.keepError) error.value = null
     try {
       const result = await aiAgentApi.listConversations(connectionId)
       if (request !== listRequest || currentConnectionId.value !== connectionId) return
@@ -479,7 +483,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
           selectedConversation.value
       }
     } catch (requestError) {
-      if (request === listRequest) error.value = errorMessage(requestError)
+      if (request === listRequest && !options.keepError) error.value = errorMessage(requestError)
       throw requestError
     } finally {
       if (request === listRequest) loadingConversations.value = false
@@ -782,7 +786,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       }
       completed = true
       if (request === runRequest) {
-        void loadConversations(connectionId).catch(() => undefined)
+        // Refresh titles/order only; it must not wipe a failure the run just reported.
+        void loadConversations(connectionId, { keepError: true }).catch(() => undefined)
       }
       return true
     } catch (runError) {

@@ -587,6 +587,42 @@ describe('AI Agent store', () => {
     finishRun()
   })
 
+  it.each([
+    ['Tool call limit exceeded.', '已达到工具调用次数上限。'],
+    ['Run timed out.', '运行超时，请重试。'],
+    ['API key is not configured.', '尚未配置 API Key。'],
+  ])('localizes the %s run error event', async (message, localized) => {
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        onEvent({ event: 'connected', runId: 'run-1' })
+        onEvent({ event: 'error', message, status: 'failed' })
+        onEvent({ event: 'run-end', status: 'failed' })
+      },
+    )
+    const store = useAiAgentStore()
+    store.resetForConnection('connection-1')
+
+    await store.startRun('do something', 'connection-1')
+
+    expect(store.error).toBe(localized)
+  })
+
+  it('localizes a rejected run start when the conversation is already busy', async () => {
+    apiMocks.run.mockRejectedValue(new Error('A run is already active for this conversation.'))
+    const store = useAiAgentStore()
+    store.resetForConnection('connection-1')
+
+    await expect(store.startRun('again', 'connection-1')).rejects.toThrow()
+
+    expect(store.error).toBe('该会话已有正在运行的任务。')
+  })
+
   it('loads skills, snapshots selections for a run, and clears them when it finishes', async () => {
     apiMocks.run.mockImplementation(
       async (
