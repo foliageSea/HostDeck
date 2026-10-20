@@ -87,7 +87,7 @@ watch(
   apps,
   async () => {
     await nextTick()
-    if (props.show) combobox.value?.highlightFirstItem()
+    if (props.show && apps.value.length > 0) combobox.value?.highlightFirstItem()
   },
   { flush: 'post' },
 )
