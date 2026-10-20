@@ -553,6 +553,19 @@ watch(
   { immediate: true },
 )
 
+function focusComposer() {
+  rootElement.value?.querySelector<HTMLTextAreaElement>('.agent-composer-input textarea')?.focus()
+}
+
+watch(
+  () => desktopStore.activeWindowId,
+  (activeWindowId) => {
+    if (props.windowId && activeWindowId === props.windowId) {
+      window.setTimeout(focusComposer, 16)
+    }
+  },
+)
+
 watch(
   () => [
     messages.value.at(-1)?.content,
@@ -575,6 +588,9 @@ onMounted(() => {
     if (rootElement.value) resizeObserver.observe(rootElement.value)
   }
   window.addEventListener('beforeunload', handleBeforeUnload)
+  if (props.windowId && desktopStore.activeWindowId === props.windowId) {
+    void nextTick(focusComposer)
+  }
 })
 
 onBeforeUnmount(() => {
