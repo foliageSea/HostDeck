@@ -6,12 +6,12 @@
 
 `host_deck` 是 HostDeck 的当前 Dart 包名。HostDeck 是一个跨平台远程主机工作台，当前由以下部分组成：
 
-- Flutter 桌面壳：负责窗口承载、日志面板和内置后端服务
+- Flutter 桌面壳：负责窗口承载、日志面板和内置后端服务，仅用于开发调试；Flutter 桌面 release 已弃用
 - Dart CLI 服务：入口为 `bin/server.dart`，可独立以 B/S 模式运行
 - Agent CLI：入口为 `bin/hostdeck_cli.dart`，供本地工具调用已运行的 HostDeck 服务
 - Agent MCP：入口为 `bin/hostdeck_mcp.dart`，以 stdio MCP 服务形式向本地 Agent 暴露 HostDeck 能力
 - Vue 3 前端：当前主前端位于 `host-deck-ui/`
-- Electron Windows 壳：复用 `host-deck-ui/` 前端和 Dart CLI 服务进行桌面打包
+- Electron 桌面壳（Windows / macOS Apple Silicon）：复用 `host-deck-ui/` 前端和 Dart CLI 服务进行桌面打包
 
 当前开发、Docker 构建和发布流程都以 `host-deck-ui/` 为准。
 
@@ -163,35 +163,28 @@ dart run bin/server.dart --web-dir host-deck-ui/dist --enable-secure-browser
 
 ## 桌面发布构建
 
-Flutter release 构建会打包 `assets/web/` 里的静态资源，因此在本地构建桌面安装包前，需要先准备前端产物。
+Flutter 桌面 release 已弃用：`pubspec.yaml` 不再声明 `assets/web/`，发布工作流中的 Flutter 桌面 job 也已注释。桌面安装包统一使用 Electron 构建。
 
-基本流程：
-
-```bash
-pnpm run build:web
-# 将 host-deck-ui/dist 的内容同步到 assets/web/
-flutter build windows --release
-```
-
-GitHub Actions 的 `.github/workflows/release.yml` 已经会先构建 `host-deck-ui/dist`，再把产物放入 `assets/web/` 后执行 Windows 桌面构建。
-
-当前发布工作流启用的产物包括：
+GitHub Actions 的 `.github/workflows/release.yml` 会先构建 `host-deck-ui/dist`，再分别打包以下产物：
 
 - Docker 镜像 tar.gz
-- Flutter Windows zip
+- Windows CLI zip（Dart 服务 + pi-ai bridge）
 - Electron Windows exe/zip
+- Electron macOS Apple Silicon dmg/zip
 
-Linux、macOS、Android 和纯 Dart bundle 的发布 job 目前保留在工作流中但处于注释状态。
+Flutter 桌面（Linux、macOS、Windows）、Android 和纯 Dart bundle 的发布 job 目前保留在工作流中但处于注释状态。
 
-### Electron Windows 构建
+### Electron 构建
 
-Electron Windows 壳位于 `host-deck-electron/`，其中 `src/main/` 承载主进程、`src/preload/` 承载桥接层、`src/renderer/` 使用 Vue 构建壳界面。构建时会先生成 Dart CLI 服务 bundle，再把前端 `host-deck-ui/dist/` 和服务可执行文件打入安装包；开发模式下分别使用 `HOST_DECK_ELECTRON_APP_DEV_URL` 和 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖两个 Vite 地址。
+Electron 壳（Windows、macOS Apple Silicon）位于 `host-deck-electron/`，其中 `src/main/` 承载主进程、`src/preload/` 承载桥接层、`src/renderer/` 使用 Vue 构建壳界面。构建时会先生成 Dart CLI 服务 bundle，再把前端 `host-deck-ui/dist/` 和服务可执行文件打入安装包；开发模式下分别使用 `HOST_DECK_ELECTRON_APP_DEV_URL` 和 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖两个 Vite 地址。
 
 Electron 的服务构建脚本会执行 `flutter pub get`，若该步骤失败但 `.dart_tool/package_config.json` 已存在，会继续使用现有依赖配置执行 `dart compile exe`；因此 Electron 打包本身不强制依赖 `fvm` 命令可用。
 
 ```bash
 pnpm --dir host-deck-electron install --frozen-lockfile
 pnpm run build:electron:win
+# macOS Apple Silicon
+pnpm run build:electron:mac
 ```
 
 构建结果位于 `host-deck-electron/release/`。
@@ -332,15 +325,14 @@ pnpm --dir host-deck-ui exec vitest run src/views/Files/components/__tests__/Fil
 
 ```text
 host_deck/
-├── bin/                 # Dart CLI 服务入口
+├── bin/                 # Dart CLI 服务、Agent CLI 与 MCP 入口
 ├── docs/                # 架构、开发、构建、测试与模块文档
 ├── lib/                 # Flutter 桌面壳与内置后端服务
 ├── host-deck-ui/        # 当前主前端工程
 ├── host-deck-electron/  # Electron Windows 桌面壳
 ├── host-deck-ai/        # pi-ai bridge 工程（Bun 独立可执行程序）
 ├── package.json         # 仓库级 Node 命令编排入口
-├── assets/web/          # Flutter release 打包使用的静态资源
-├── scripts/             # 服务打包脚本
+├── scripts/             # 服务打包、发版脚本
 ├── test/                # Flutter/Dart 测试
 └── README.md
 ```

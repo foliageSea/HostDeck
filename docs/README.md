@@ -1,6 +1,6 @@
 # HostDeck 开发文档
 
-本目录记录 HostDeck 各模块的开发约定、代码入口、API 合约和验证方式。项目当前由 Flutter 桌面壳、Dart HTTP/WebSocket 服务、Vue 3 前端三部分组成。
+本目录记录 HostDeck 各模块的开发约定、代码入口、API 合约和验证方式。项目当前由 Dart HTTP/WebSocket 服务、Vue 3 前端、Electron 桌面壳和 Flutter 调试壳（release 已弃用）组成。
 
 ## 推荐阅读顺序
 
@@ -37,7 +37,7 @@
 
 ## 关键入口
 
-- Flutter 桌面壳入口：`lib/main.dart`
+- Flutter 调试壳入口：`lib/main.dart`（release 已弃用）
 - 纯 Dart B/S 服务入口：`bin/server.dart`
 - 管理 API 与 WebSocket 访问认证：`access-control.md`
 - 服务组装入口：`lib/server/server_service.dart`

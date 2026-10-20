@@ -4,7 +4,7 @@
 
 ## 组成部分
 
-- Flutter 桌面壳：入口 `lib/main.dart`，负责桌面窗口、WebView 承载和内置后端服务生命周期。
+- Flutter 桌面壳：入口 `lib/main.dart`，负责桌面窗口、WebView 承载和内置后端服务生命周期；仅用于开发调试，release 已弃用。
 - Dart HTTP/WebSocket 服务：核心组装在 `lib/server/server_service.dart`，独立入口是 `bin/server.dart`。
 - Vue 3 前端：当前唯一前端工程位于 `host-deck-ui/`，构建产物由桌面壳或 Dart 服务作为静态资源提供。
 
@@ -25,7 +25,7 @@
 
 发布模式：
 
-- Flutter release 使用 `assets/web/` 作为静态资源来源。
+- 桌面 release 使用 Electron，打包 `host-deck-ui/dist` 与 Dart CLI 服务；Flutter 桌面 release 已弃用。
 - Docker 镜像直接复制 `host-deck-ui/dist` 到 `/app/web`。
 - CLI bundle 默认尝试从可执行文件旁的 `../web` 查找静态资源。
 

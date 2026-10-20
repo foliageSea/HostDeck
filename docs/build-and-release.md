@@ -4,23 +4,22 @@
 
 ## 桌面 release
 
-Flutter release 构建使用 `assets/web/` 作为静态前端资源目录。本地构建桌面安装包前，需要先构建前端并同步产物。
-
-基本流程：
+Flutter 桌面 release 已弃用：`pubspec.yaml` 不再声明 `assets/web/`，工作流中的 Flutter 桌面 job 已注释。桌面安装包使用 Electron 构建：
 
 ```bash
-pnpm run build:web
-# 将 host-deck-ui/dist 的内容同步到 assets/web/
-flutter build windows --release
+pnpm --dir host-deck-electron install --frozen-lockfile
+pnpm run build:electron:win
+# macOS Apple Silicon
+pnpm run build:electron:mac
 ```
 
-如果构建 macOS 或 Linux，将 `windows` 替换为对应平台。
+构建结果位于 `host-deck-electron/release/`。
 
 ## GitHub Actions release
 
-`.github/workflows/release.yml` 会构建 `host-deck-ui/dist`，Windows 桌面 job 会下载前端产物到 `assets/web` 后执行桌面构建。
+`.github/workflows/release.yml` 会构建 `host-deck-ui/dist` 并作为 artifact 供后续 job 使用，当前启用的发布产物为：Docker 镜像 tar.gz、Windows CLI zip、Electron Windows exe/zip、Electron macOS Apple Silicon dmg/zip。
 
-Electron Windows 打包链路会单独构建 `host-deck-electron/dist`，其中 `src/main/` 是主进程，`src/preload/` 是桥接层，`src/renderer/` 是 Vue 壳界面。
+Electron 打包链路会单独构建 `host-deck-electron/dist`，其中 `src/main/` 是主进程，`src/preload/` 是桥接层，`src/renderer/` 是 Vue 壳界面。
 
 发版脚本会同步 `pubspec.yaml` 与 `host-deck-ui/package.json` 版本号，提交版本变更，打 Git tag，推送到 GitHub，并创建 GitHub Release：
 
@@ -46,7 +45,7 @@ pnpm run release -- 1.0.1
 
 - `.github/workflows/release.yml`
 - `Dockerfile`
-- `pubspec.yaml` 中的 `assets/web/` 声明
+- `host-deck-electron/` 的构建脚本与 `package.json`
 - `scripts/build_server.ps1`
 - `scripts/build_server.sh`
 
@@ -108,7 +107,7 @@ docker run --rm -p 8080:8080 -e HOSTDECK_ACCESS_PASSWORD=replace-with-a-strong-p
 
 - 开发模式：Vite 提供前端资源，后端只提供 API 和 WebSocket。
 - 纯 B/S 模式：`bin/server.dart` 通过 `--web-dir host-deck-ui/dist` 提供静态资源。
-- 桌面 release：Flutter 打包 `assets/web/`。
+- 桌面 release：Electron 打包（Windows、macOS Apple Silicon）。
 - Docker：镜像内 `/app/web` 来自 `host-deck-ui/dist`。
 
 修改任一构建路径时，要同步更新 README、本文档和相关脚本。
