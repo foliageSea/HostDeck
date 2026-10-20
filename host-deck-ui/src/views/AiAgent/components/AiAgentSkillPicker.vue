@@ -68,7 +68,7 @@ function skillDisabled(id: string) {
         aria-label="选择 Agent Skill"
       >
         <Puzzle :size="13" />
-        <span>Skills</span>
+        <span>技能</span>
         <strong v-if="selectedSkillIds.length">{{ selectedSkillIds.length }}</strong>
       </button>
     </template>
@@ -147,7 +147,7 @@ function skillDisabled(id: string) {
   </NPopover>
 </template>
 
-<style>
+<style scoped>
 .agent-skill-trigger {
   display: inline-flex;
   min-width: 0;
