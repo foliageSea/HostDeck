@@ -8,6 +8,7 @@ import 'package:host_deck/server/core/http/result.dart';
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_errors.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_mcp_service.dart';
@@ -567,14 +568,10 @@ class AiAgentController {
       return Result.fail(400, error.message?.toString() ?? 'Invalid request.');
     } on FormatException catch (error) {
       return Result.fail(400, error.message);
+    } on AiAgentRunConflictException catch (error) {
+      return Result.fail(409, error.message);
     } on StateError catch (error) {
-      final message = error.message;
-      final code =
-          message == 'A run is already active for this conversation.' ||
-              message == 'Too many AI agent runs are active.'
-          ? 409
-          : 404;
-      return Result.fail(code, message);
+      return Result.fail(404, error.message);
     } catch (_) {
       return Result.fail(500, 'Unable to start AI agent run.');
     }

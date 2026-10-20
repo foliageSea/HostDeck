@@ -7,6 +7,7 @@ import 'package:langchain/langchain.dart';
 
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_errors.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
@@ -469,6 +470,114 @@ void main() {
       expect(context.last.content, 'summarize again');
     },
   );
+
+  group('typed failures', () {
+    Future<String> runToEnd() => _collect(
+      manager
+          .start(
+            conversationId: 'conversation-1',
+            connectionId: 'connection-1',
+            targetKey: 'server:7',
+            ownerId: 'browser:test',
+            input: 'do something',
+          )
+          .stream,
+    ).done.future.timeout(const Duration(seconds: 2));
+
+    test('reports a missing API key with a stable code', () async {
+      final secretStore = AiAgentSecretStore(dataDir: dataDirectory.path);
+      await secretStore.init();
+      final keyless = AiAgentRunManager(
+        repository,
+        AiAgentSettingsService(repository, secretStore)
+          ..update(clearApiKey: true),
+        _FakeModelFactory(model),
+        tools,
+        _FakeSshService(),
+      );
+      addTearDown(keyless.dispose);
+
+      final body = await _collect(
+        keyless
+            .start(
+              conversationId: 'conversation-1',
+              connectionId: 'connection-1',
+              targetKey: 'server:7',
+              ownerId: 'browser:test',
+              input: 'hello',
+            )
+            .stream,
+      ).done.future.timeout(const Duration(seconds: 2));
+
+      expect(body, contains('"code":"API_KEY_NOT_CONFIGURED"'));
+      expect(body, contains('API key is not configured.'));
+      expect(model.inputs, isEmpty);
+    });
+
+    test('stops a run that exceeds the tool call limit', () async {
+      tools.needsApproval = false;
+      model.responses = [
+        AiAgentModelResponse(
+          text: '',
+          toolCalls: [
+            for (var i = 0; i <= AiAgentRunManager.maxToolCalls; i++)
+              AiAgentToolCall(
+                id: 'call-$i',
+                name: 'shell_execute',
+                arguments: const {'command': 'true'},
+              ),
+          ],
+        ),
+      ];
+
+      final body = await runToEnd();
+
+      expect(body, contains('"code":"TOOL_CALL_LIMIT"'));
+      expect(body, contains('"status":"failed"'));
+      expect(tools.executeCount, AiAgentRunManager.maxToolCalls);
+    });
+
+    test('hides the message of untyped state errors from clients', () async {
+      model.failure = StateError('internal path /etc/secret');
+
+      final body = await runToEnd();
+
+      expect(body, contains('"code":"RUN_FAILED"'));
+      expect(body, contains('The AI agent run could not be completed.'));
+      expect(body, isNot(contains('/etc/secret')));
+    });
+
+    test('refuses a second run for the same conversation', () async {
+      final first = manager.start(
+        conversationId: 'conversation-1',
+        connectionId: 'connection-1',
+        targetKey: 'server:7',
+        ownerId: 'browser:test',
+        input: 'first',
+      );
+      final events = _collect(first.stream);
+      await events.approvalRequired.future.timeout(const Duration(seconds: 2));
+
+      expect(
+        () => manager.start(
+          conversationId: 'conversation-1',
+          connectionId: 'connection-1',
+          targetKey: 'server:7',
+          ownerId: 'browser:test',
+          input: 'second',
+        ),
+        throwsA(
+          isA<AiAgentRunConflictException>().having(
+            (error) => error.code,
+            'code',
+            'RUN_CONFLICT',
+          ),
+        ),
+      );
+      manager.cancel(first.runId);
+      await events.done.future.timeout(const Duration(seconds: 2));
+    });
+  });
 }
 
 _CollectedEvents _collect(Stream<List<int>> stream) {
@@ -535,6 +644,7 @@ class _FakeModel implements AiAgentModel {
   final List<List<ToolSpec>> toolInputs = [];
   List<AiAgentModelResponse>? responses;
   List<List<String>>? textDeltas;
+  Object? failure;
   bool closed = false;
 
   @override
@@ -545,6 +655,7 @@ class _FakeModel implements AiAgentModel {
   }) async {
     inputs.add(List.of(messages));
     toolInputs.add(List.of(tools));
+    if (failure case final failure?) throw failure;
     final responseIndex = inputs.length - 1;
     final configuredResponses = responses;
     if (configuredResponses != null) {
@@ -577,6 +688,7 @@ class _FakeModel implements AiAgentModel {
 
 class _FakeToolExecutor implements AiAgentToolExecutor {
   String? invalidArgumentsMessage;
+  bool needsApproval = true;
   int executeCount = 0;
   int resolveCount = 0;
 
@@ -587,7 +699,7 @@ class _FakeToolExecutor implements AiAgentToolExecutor {
   }
 
   @override
-  bool requiresApproval(String name) => true;
+  bool requiresApproval(String name) => needsApproval;
 
   @override
   String summary(String name) => 'Sensitive operation';

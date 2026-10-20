@@ -59,6 +59,36 @@ void main() {
     );
   });
 
+  test('every published tool is fully described by its definition', () async {
+    final specs = await service.resolveSpecs();
+    const readOnly = {
+      'system_status',
+      'port_forward_list',
+      'port_forward_status',
+    };
+
+    expect(specs.map((spec) => spec.name).toSet(), hasLength(specs.length));
+    for (final spec in specs) {
+      expect(service.summary(spec.name), isNot('Use unknown tool'));
+      expect(
+        service.requiresApproval(spec.name),
+        !readOnly.contains(spec.name),
+        reason: spec.name,
+      );
+      expect(
+        () => service.normalizeArguments(spec.name, {'unexpected': 1}),
+        throwsArgumentError,
+        reason: spec.name,
+      );
+    }
+    expect(service.requiresApproval('no_such_tool'), isTrue);
+    expect(service.summary('no_such_tool'), 'Use unknown tool');
+    expect(
+      () => service.normalizeArguments('no_such_tool', const {}),
+      throwsArgumentError,
+    );
+  });
+
   test('lists a directory with stable structured output', () async {
     agentService.directoryItems = [
       FileItem(

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:host_deck/server/features/ai_agent/ai_agent_errors.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_secret_store.dart';
@@ -165,7 +166,7 @@ class AiAgentSettingsService {
     if (providerId == AiAgentOAuthService.provider) {
       if (!oauth.authenticated) throw StateError('请先登录 OpenAI Codex。');
     } else if (profile.encryptedApiKey?.isNotEmpty != true) {
-      throw StateError('API key is not configured.');
+      throw AiAgentApiKeyNotConfiguredException();
     }
     final active = _repository.getSettings();
     _repository.saveSettings(
@@ -252,7 +253,7 @@ class AiAgentSettingsService {
         ? ''
         : _secretStore.decrypt(stored!.encryptedApiKey!);
     if (resolvedKey.isEmpty) {
-      throw StateError('API key is not configured.');
+      throw AiAgentApiKeyNotConfiguredException();
     }
     return AiAgentResolvedSettings(
       provider: resolvedProvider,
