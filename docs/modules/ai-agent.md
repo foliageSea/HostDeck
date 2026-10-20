@@ -7,6 +7,7 @@ AI 运维 Agent 是独立于 Agent CLI 的后端功能，代码位于 `lib/serve
 - `GET /api/ai-agent/settings`：返回 `baseUrl`、`model`、`hasApiKey`。
 - `PUT /api/ai-agent/settings`：可选更新 `baseUrl`、`model`、`apiKey`；空或省略的 `apiKey` 保留当前密钥，`clearApiKey: true` 显式删除。
 - `POST /api/ai-agent/settings/test`：使用当前设置以及请求中提供的临时覆盖值发起最小模型请求，不保存覆盖值。临时更换 `baseUrl` 时必须同时提供 API Key，防止已保存密钥被发送到其他端点。
+- `GET /api/ai-agent/catalog`：模型的 `thinkingLevels` 列出 pi-ai 支持的思考档位，可能包含 `off`、`minimal`、`low`、`medium`、`high`、`xhigh`、`max`；不支持推理的模型只返回 `off`。
 
 API 密钥不会通过 API 或日志返回。密钥使用安装本地随机 32 字节密钥和 AES-256-GCM 加密后存入 SQLite；本地密钥文件为数据目录下的 `ai_agent.key`，Unix 权限设置为 `0600`。删除此文件后，已有密文无法恢复。
 
@@ -19,6 +20,8 @@ API 密钥不会通过 API 或日志返回。密钥使用安装本地随机 32 �
 - `GET /api/ai-agent/conversations/<id>?connectionId=...`
 - `DELETE /api/ai-agent/conversations/<id>?connectionId=...`
 - `POST /api/ai-agent/conversations/<id>/runs`，JSON 为 `{ "connectionId": "...", "input": "...", "skillIds": ["opencode:example"] }`
+
+run 可选传入 `reasoning`，取值为模型支持的思考档位，Chat 和 Agent 模式均生效；省略时保留 pi-ai 默认行为，无效取值返回业务错误。前端在模型选择旁提供思考强度滑条，按供应商和模型保存到浏览器本地存储，恢复默认会清除对应选择。不支持推理的内置模型隐藏入口；自定义模型提供 `off` 到 `high` 的标准档位，实际支持由兼容 API 决定。
 
 会话绑定服务端从 SSH 连接元数据计算的稳定目标：已保存服务器使用 `server:<id>`，临时连接使用 `username@host:port`。客户端提供的目标身份不会被信任。同一会话只允许一个活动 run，历史最多向模型加载最近 100 条消息。
 

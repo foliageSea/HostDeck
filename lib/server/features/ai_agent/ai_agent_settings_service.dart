@@ -14,9 +14,11 @@ class AiAgentResolvedSettings {
   final String baseUrl;
   final String model;
   final String apiKey;
+  final AiAgentThinkingLevel? reasoning;
   final Future<Map<String, dynamic>> Function()? oauthCredential;
 
   const AiAgentResolvedSettings({
+    this.reasoning,
     this.oauthCredential,
     this.provider = 'custom',
     this.api = 'openai-completions',
@@ -205,6 +207,7 @@ class AiAgentSettingsService {
     String? baseUrl,
     String? model,
     String? apiKey,
+    AiAgentThinkingLevel? reasoning,
   }) {
     final active = _repository.getSettings();
     final resolvedProvider = provider == null
@@ -230,6 +233,7 @@ class AiAgentSettingsService {
       _validateCodexEndpoint(resolvedBaseUrl);
       if (!oauth.authenticated) throw StateError('请先登录 OpenAI Codex。');
       return AiAgentResolvedSettings(
+        reasoning: reasoning,
         provider: resolvedProvider,
         api: 'openai-codex-responses',
         baseUrl: resolvedBaseUrl,
@@ -256,6 +260,7 @@ class AiAgentSettingsService {
       throw AiAgentApiKeyNotConfiguredException();
     }
     return AiAgentResolvedSettings(
+      reasoning: reasoning,
       provider: resolvedProvider,
       api: resolvedApi,
       baseUrl: resolvedBaseUrl,

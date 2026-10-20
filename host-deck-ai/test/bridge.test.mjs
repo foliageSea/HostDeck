@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { spawn } from 'node:child_process'
-import { toContext, resolveModel } from '../src/model.mjs'
+import { catalog, toContext, resolveModel } from '../src/model.mjs'
 
 function bridge(request) {
   return new Promise((resolve, reject) => {
@@ -62,6 +62,50 @@ test('bundled bridge returns catalog without credentials', async () => {
   for (const id of ['openai', 'anthropic', 'google', 'deepseek']) {
     assert.ok(result.events[0].providers.find((provider) => provider.id === id)?.models.length)
   }
+  for (const provider of result.events[0].providers) {
+    for (const model of provider.models) {
+      assert.ok(Array.isArray(model.thinkingLevels))
+      if (!model.reasoning) assert.deepEqual(model.thinkingLevels, ['off'])
+    }
+  }
+})
+
+for (const reasoning of [undefined, 'off', 'high']) {
+  test(`Chat Completions forwards thinking level ${reasoning ?? 'default'}`, async (t) => {
+    let payload
+    const url = await upstream(t, (_req, res, body) => {
+      payload = body
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      sse(res, {
+        id: 'chat-thinking',
+        choices: [
+          { index: 0, delta: { role: 'assistant', content: 'Hello' }, finish_reason: 'stop' },
+        ],
+      })
+      res.end('data: [DONE]\n\n')
+    })
+    const input = request(`${url}/v1`)
+    if (reasoning !== undefined) input.settings.reasoning = reasoning
+    const result = await bridge(input)
+    assert.equal(result.code, 0, JSON.stringify(result))
+    assert.equal(payload.reasoning_effort, reasoning === 'high' ? 'high' : undefined)
+  })
+}
+
+test('rejects unsupported thinking levels before contacting the model', async () => {
+  const result = await bridge({
+    ...request('http://127.0.0.1:1'),
+    settings: { ...request('http://127.0.0.1:1').settings, reasoning: 'invalid' },
+  })
+  assert.equal(result.code, 1)
+  assert.equal(result.events.at(-1).type, 'error')
+})
+
+test('catalog exposes extended thinking levels only for models that support them', () => {
+  const models = catalog().flatMap((provider) => provider.models)
+  assert.ok(models.some((model) => model.thinkingLevels.includes('xhigh')))
+  assert.ok(models.some((model) => model.thinkingLevels.includes('max')))
+  assert.ok(models.some((model) => model.reasoning && !model.thinkingLevels.includes('xhigh')))
 })
 
 test('Chat Completions streams text, validates fragmented tool JSON and reports usage', async (t) => {
@@ -171,9 +215,10 @@ test('Google Gemini uses its native streaming endpoint', async (t) => {
   assert.equal(result.events.at(-1).text, 'Hello Gemini')
 })
 
-test('OpenAI Responses uses its native streaming endpoint', async (t) => {
-  const url = await upstream(t, (req, res) => {
+test('OpenAI Responses uses its native streaming endpoint and reasoning effort', async (t) => {
+  const url = await upstream(t, (req, res, body) => {
     assert.equal(req.url, '/v1/responses')
+    assert.equal(body.reasoning.effort, 'high')
     res.writeHead(200, { 'content-type': 'text/event-stream' })
     const item = {
       id: 'msg_1',
@@ -215,7 +260,9 @@ test('OpenAI Responses uses its native streaming endpoint', async (t) => {
     for (const event of events) sse(res, event, event.type)
     res.end()
   })
-  const result = await bridge(request(`${url}/v1`, 'openai-responses'))
+  const input = request(`${url}/v1`, 'openai-responses')
+  input.settings.reasoning = 'high'
+  const result = await bridge(input)
   assert.equal(result.code, 0, JSON.stringify(result))
   assert.equal(result.events.at(-1).text, 'Hello Responses')
 })

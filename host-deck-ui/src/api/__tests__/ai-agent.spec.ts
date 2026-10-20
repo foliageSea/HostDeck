@@ -137,6 +137,8 @@ describe('aiAgentApi.run', () => {
       undefined,
       'gpt-5',
       [{ data: 'aGVsbG8=', mimeType: 'image/png', name: 'screen.png' }],
+      'agent',
+      'high',
     )
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -149,6 +151,7 @@ describe('aiAgentApi.run', () => {
           model: 'gpt-5',
           skillIds: ['logs'],
           attachments: [{ data: 'aGVsbG8=', mimeType: 'image/png', name: 'screen.png' }],
+          reasoning: 'high',
         }),
         credentials: 'same-origin',
         method: 'POST',

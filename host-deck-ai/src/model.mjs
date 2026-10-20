@@ -1,4 +1,9 @@
-import { createModels, createProvider, validateToolCall } from '@earendil-works/pi-ai'
+import {
+  createModels,
+  createProvider,
+  getSupportedThinkingLevels,
+  validateToolCall,
+} from '@earendil-works/pi-ai'
 import { getBuiltinModels, getBuiltinProviders } from '@earendil-works/pi-ai/providers/all'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy'
@@ -79,6 +84,7 @@ export function catalog() {
           api: model.api,
           baseUrl: model.baseUrl,
           reasoning: model.reasoning,
+          thinkingLevels: getSupportedThinkingLevels(model),
           input: model.input,
         })),
     }))
@@ -103,6 +109,7 @@ export function resolveModel(settings) {
         api: settings.api,
         baseUrl: settings.provider === 'openai-codex' ? OPENAI_CODEX_BASE_URL : settings.baseUrl,
         input: ['text', 'image'],
+        reasoning: settings.reasoning !== undefined,
         contextWindow: 128000,
         maxTokens: 4096,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -181,6 +188,10 @@ export function toContext(messages, tools, model) {
 
 export async function invoke(request, emit, signal) {
   const model = resolveModel(request.settings)
+  const reasoning = request.settings.reasoning
+  if (reasoning !== undefined && !getSupportedThinkingLevels(model).includes(reasoning)) {
+    throw new Error('Unsupported thinking level for this model.')
+  }
   const models = createModels()
   const isCodex = model.provider === 'openai-codex'
   if (isCodex && !request.settings.credential) throw new Error('Sign in to OpenAI Codex first.')
@@ -203,6 +214,7 @@ export async function invoke(request, emit, signal) {
   const stream = models.streamSimple(model, context, {
     ...(isCodex ? { transport: 'sse' } : { apiKey: request.settings.apiKey }),
     signal,
+    ...(reasoning !== undefined ? { reasoning } : {}),
     maxTokens: Math.min(model.maxTokens, 4096),
   })
   for await (const event of stream) {

@@ -1,3 +1,21 @@
+enum AiAgentThinkingLevel {
+  off,
+  minimal,
+  low,
+  medium,
+  high,
+  xhigh,
+  max;
+
+  static AiAgentThinkingLevel? parse(Object? value) {
+    if (value == null) return null;
+    for (final level in values) {
+      if (level.name == value) return level;
+    }
+    throw const FormatException('Invalid reasoning level.');
+  }
+}
+
 class AiAgentModelConfig {
   final String id;
   final String name;

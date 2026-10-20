@@ -13,6 +13,8 @@ import {
   type AiAgentToolResult,
   type AiAgentRunMode,
   type AiAgentProviderUpdate,
+  type AiAgentProviderCatalog,
+  type AiAgentThinkingLevel,
   type AiAgentSettings,
   type AiAgentSettingsUpdate,
   type AiAgentSkill,
@@ -26,6 +28,28 @@ const MAX_TOOL_CALLS = 100
 export const MAX_SELECTED_SKILLS = 8
 
 const AUTO_RUN_STORAGE_KEY = 'host-deck-ui.aiAgent.autoRun'
+const THINKING_STORAGE_KEY = 'host-deck-ui.aiAgent.thinkingLevels'
+const THINKING_LEVELS: AiAgentThinkingLevel[] = [
+  'off',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+]
+
+function readThinkingPreferences(): Record<string, AiAgentThinkingLevel> {
+  try {
+    const stored: unknown = JSON.parse(window.localStorage.getItem(THINKING_STORAGE_KEY) ?? '{}')
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return {}
+    return Object.fromEntries(
+      Object.entries(stored).filter(([, value]) => THINKING_LEVELS.includes(value)),
+    )
+  } catch {
+    return {}
+  }
+}
 
 export type AiAgentToolStatus =
   | 'pending'
@@ -216,6 +240,46 @@ function persistAutoRun(value: boolean) {
 
 export const useAiAgentStore = defineStore('ai-agent', () => {
   const settings = ref<AiAgentSettings | null>(null)
+  const modelCatalog = ref<AiAgentProviderCatalog[]>([])
+  const thinkingPreferences = ref(readThinkingPreferences())
+  const thinkingModelKey = computed(() =>
+    JSON.stringify([settings.value?.provider, settings.value?.model]),
+  )
+  const supportedThinkingLevels = computed<AiAgentThinkingLevel[]>(() => {
+    if (!settings.value) return []
+    const model = modelCatalog.value
+      .find((provider) => provider.id === settings.value?.provider)
+      ?.models.find((model) => model.id === settings.value?.model)
+    if (model) {
+      return model.thinkingLevels ?? (model.reasoning ? THINKING_LEVELS.slice(0, 5) : [])
+    }
+    return settings.value.provider === 'custom' ? THINKING_LEVELS.slice(0, 5) : []
+  })
+  const thinkingLevel = computed(() => {
+    const level = thinkingPreferences.value[thinkingModelKey.value]
+    return level && supportedThinkingLevels.value.includes(level) ? level : 'default'
+  })
+  const canAdjustThinking = computed(() =>
+    supportedThinkingLevels.value.some((level) => level !== 'off'),
+  )
+
+  async function loadModelCatalog() {
+    modelCatalog.value = await aiAgentApi.modelCatalog()
+  }
+
+  function setThinkingLevel(level: AiAgentThinkingLevel | 'default') {
+    if (running.value || !settings.value || !canAdjustThinking.value) return
+    if (level !== 'default' && !supportedThinkingLevels.value.includes(level)) return
+    const next = { ...thinkingPreferences.value }
+    if (level === 'default') delete next[thinkingModelKey.value]
+    else next[thinkingModelKey.value] = level
+    thinkingPreferences.value = next
+    try {
+      window.localStorage.setItem(THINKING_STORAGE_KEY, JSON.stringify(next))
+    } catch {
+      // The in-memory preference still works when storage is unavailable.
+    }
+  }
   const skills = ref<AiAgentSkill[]>([])
   const managedSkills = ref<AiAgentSkill[]>([])
   const mcpServers = ref<AiAgentMcpServer[]>([])
@@ -716,6 +780,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     const runSkillIds = [...selectedSkillIds.value]
     const activeMode = runMode.value
     const model = settings.value?.model
+    const reasoning =
+      canAdjustThinking.value && thinkingLevel.value !== 'default' ? thinkingLevel.value : undefined
     const request = ++runRequest
     const controller = new AbortController()
     runController = controller
@@ -747,43 +813,18 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       const onEvent = (event: AiAgentRunEvent) => {
         if (request === runRequest) applyRunEvent(event, streamedAssistant)
       }
-      if (model) {
-        await aiAgentApi.run(
-          conversationId,
-          connectionId,
-          trimmedInput,
-          runSkillIds,
-          onEvent,
-          controller.signal,
-          model,
-          attachments,
-          activeMode,
-        )
-      } else if (attachments.length) {
-        await aiAgentApi.run(
-          conversationId,
-          connectionId,
-          trimmedInput,
-          runSkillIds,
-          onEvent,
-          controller.signal,
-          undefined,
-          attachments,
-          activeMode,
-        )
-      } else {
-        await aiAgentApi.run(
-          conversationId,
-          connectionId,
-          trimmedInput,
-          runSkillIds,
-          onEvent,
-          controller.signal,
-          undefined,
-          [],
-          activeMode,
-        )
-      }
+      await aiAgentApi.run(
+        conversationId,
+        connectionId,
+        trimmedInput,
+        runSkillIds,
+        onEvent,
+        controller.signal,
+        model,
+        attachments,
+        activeMode,
+        ...(reasoning === undefined ? [] : [reasoning]),
+      )
       completed = true
       if (request === runRequest) {
         // Refresh titles/order only; it must not wipe a failure the run just reported.
@@ -890,6 +931,12 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   }
 
   return {
+    canAdjustThinking,
+    loadModelCatalog,
+    modelCatalog,
+    setThinkingLevel,
+    supportedThinkingLevels,
+    thinkingLevel,
     activeRunId,
     autoRun,
     cancelRun,

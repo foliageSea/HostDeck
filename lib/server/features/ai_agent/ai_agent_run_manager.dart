@@ -71,6 +71,7 @@ inspected or changed the host. Do not expose secrets.
     required String input,
     List<AiAgentImageAttachment> attachments = const [],
     String? model,
+    AiAgentThinkingLevel? reasoning,
     AiAgentRunMode mode = AiAgentRunMode.agent,
     List<AiAgentSkillContent> skills = const [],
   }) {
@@ -95,6 +96,7 @@ inspected or changed the host. Do not expose secrets.
       systemPrompt: _buildSystemPrompt(mode, skills),
       mode: mode,
       modelName: model,
+      reasoning: reasoning,
     );
     controller.onCancel = () => cancel(runId);
     _runs[runId] = run;
@@ -228,7 +230,10 @@ inspected or changed the host. Do not expose secrets.
       content: input,
       attachments: attachments,
     );
-    final settings = _settingsService.resolve(model: run.modelName);
+    final settings = _settingsService.resolve(
+      model: run.modelName,
+      reasoning: run.reasoning,
+    );
     final model = _modelFactory.create(settings);
     run.model = model;
     final messages = <AiAgentModelMessage>[
@@ -755,6 +760,7 @@ class _ActiveRun {
   final String systemPrompt;
   final AiAgentRunMode mode;
   final String? modelName;
+  final AiAgentThinkingLevel? reasoning;
   final DateTime startedAt = DateTime.now();
   late final Timer _heartbeat;
   bool cancelled = false;
@@ -774,6 +780,7 @@ class _ActiveRun {
     required this.systemPrompt,
     required this.mode,
     this.modelName,
+    this.reasoning,
   }) {
     _heartbeat = Timer.periodic(const Duration(seconds: 20), (_) {
       emitRaw(utf8.encode(': heartbeat\n\n'));

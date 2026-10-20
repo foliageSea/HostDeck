@@ -41,6 +41,7 @@ import { useSshStore } from '@/stores/ssh'
 import AiAgentMarkdown from './components/AiAgentMarkdown.vue'
 import AiAgentSkillPicker from './components/AiAgentSkillPicker.vue'
 import AiAgentToolCall from './components/AiAgentToolCall.vue'
+import AiAgentThinkingPicker from './components/AiAgentThinkingPicker.vue'
 import {
   filesToImageAttachments,
   imageAttachmentSrc,
@@ -272,6 +273,7 @@ async function loadForConnection(connectionId: string) {
   try {
     await Promise.all([
       agentStore.loadSettings(),
+      agentStore.loadModelCatalog().catch(() => undefined),
       agentStore.loadMcpServers(),
       agentStore.loadConversations(connectionId),
       agentStore.loadSkills(connectionId),
@@ -1036,7 +1038,7 @@ let resizeObserver: ResizeObserver | undefined
             </template>
           </NMention>
           <div class="agent-composer-footer">
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <div class="agent-composer-actions">
               <input
                 ref="imageInput"
                 class="agent-image-input"
@@ -1136,6 +1138,15 @@ let resizeObserver: ResizeObserver | undefined
                   </div>
                 </div>
               </NPopover>
+              <AiAgentThinkingPicker
+                v-if="agentStore.canAdjustThinking"
+                :model-name="activeModelName"
+                :provider="settings?.provider ?? ''"
+                :levels="agentStore.supportedThinkingLevels"
+                :value="agentStore.thinkingLevel"
+                :disabled="running || switchingModel"
+                @update:value="agentStore.setThinkingLevel"
+              />
               <AiAgentSkillPicker
                 v-if="runMode === 'agent'"
                 :connection-id="sshStore.connectionId"
@@ -1747,7 +1758,7 @@ let resizeObserver: ResizeObserver | undefined
 .agent-composer-area {
   z-index: 4;
   flex: 0 0 auto;
-  padding: 10px max(18px, calc((100% - 760px) / 2)) 12px;
+  padding: 10px max(18px, calc((100% - 1040px) / 2)) 12px;
   background: linear-gradient(180deg, transparent, var(--agent-bg) 22%);
 }
 
@@ -1960,8 +1971,26 @@ let resizeObserver: ResizeObserver | undefined
   padding: 4px 7px 7px 12px;
 }
 
-.agent-composer-footer > .flex {
+.agent-composer-actions {
+  display: flex;
+  min-width: 0;
+  flex: 1;
   align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px 0;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.agent-composer-actions::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.agent-composer-actions > * {
+  flex-shrink: 0;
 }
 
 .agent-attachment-button,

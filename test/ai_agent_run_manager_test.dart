@@ -24,6 +24,7 @@ void main() {
   late AiAgentRunManager manager;
   late _FakeModel model;
   late _FakeToolExecutor tools;
+  late _FakeModelFactory modelFactory;
 
   setUp(() async {
     dataDirectory = await Directory.systemTemp.createTemp('hostdeck-ai-run-');
@@ -37,10 +38,11 @@ void main() {
       ..update(apiKey: 'test-key');
     model = _FakeModel();
     tools = _FakeToolExecutor();
+    modelFactory = _FakeModelFactory(model);
     manager = AiAgentRunManager(
       repository,
       settings,
-      _FakeModelFactory(model),
+      modelFactory,
       tools,
       _FakeSshService(),
     );
@@ -67,6 +69,38 @@ void main() {
     database.close();
     await dataDirectory.delete(recursive: true);
   });
+
+  test('validates reasoning levels at the API boundary', () {
+    expect(AiAgentThinkingLevel.parse(null), isNull);
+    for (final level in AiAgentThinkingLevel.values) {
+      expect(AiAgentThinkingLevel.parse(level.name), level);
+    }
+    for (final value in ['invalid', '', 1, false, <String>[]]) {
+      expect(() => AiAgentThinkingLevel.parse(value), throwsFormatException);
+    }
+  });
+
+  for (final mode in AiAgentRunMode.values) {
+    test(
+      'forwards reasoning to the model settings in ${mode.name} mode',
+      () async {
+        model.responses = const [AiAgentModelResponse(text: 'Done')];
+        final run = manager.start(
+          conversationId: 'conversation-1',
+          connectionId: 'connection-1',
+          targetKey: 'server:7',
+          ownerId: 'browser:test',
+          input: 'hello',
+          mode: mode,
+          reasoning: AiAgentThinkingLevel.high,
+        );
+        await _collect(
+          run.stream,
+        ).done.future.timeout(const Duration(seconds: 2));
+        expect(modelFactory.settings?.reasoning, AiAgentThinkingLevel.high);
+      },
+    );
+  }
 
   test(
     'rejects only the exact pending call and returns rejection to model',
@@ -632,11 +666,15 @@ class _FakeSshService extends SshService {
 
 class _FakeModelFactory implements AiAgentModelFactory {
   final AiAgentModel model;
+  AiAgentResolvedSettings? settings;
 
-  const _FakeModelFactory(this.model);
+  _FakeModelFactory(this.model);
 
   @override
-  AiAgentModel create(AiAgentResolvedSettings _) => model;
+  AiAgentModel create(AiAgentResolvedSettings settings) {
+    this.settings = settings;
+    return model;
+  }
 }
 
 class _FakeModel implements AiAgentModel {

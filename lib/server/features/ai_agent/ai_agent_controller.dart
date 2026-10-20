@@ -528,6 +528,7 @@ class AiAgentController {
       }
       final skillIds = _skillIds(data);
       final mode = _runMode(data);
+      final reasoning = AiAgentThinkingLevel.parse(data['reasoning']);
       final model = _optionalConfigString(data, 'model');
       if (utf8.encode(input).length > 32 * 1024) {
         return Result.fail(400, 'Input is too large.');
@@ -552,6 +553,7 @@ class AiAgentController {
         attachments: attachments,
         model: model,
         mode: mode,
+        reasoning: reasoning,
         skills: skills,
       );
       return Response.ok(

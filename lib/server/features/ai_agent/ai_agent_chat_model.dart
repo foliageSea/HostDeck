@@ -107,6 +107,7 @@ class PiAiAgentModel implements AiAgentModel {
         'baseUrl': settings.baseUrl,
         'model': settings.model,
         'apiKey': settings.apiKey,
+        if (settings.reasoning != null) 'reasoning': settings.reasoning!.name,
         if (settings.oauthCredential != null)
           'credential': await settings.oauthCredential!(),
       },

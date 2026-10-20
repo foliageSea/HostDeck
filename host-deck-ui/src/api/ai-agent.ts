@@ -1,6 +1,8 @@
 import { handleAccessUnauthorized, http } from '@/lib/http'
 import { consumeServerSentEvents } from '@/lib/sse'
 
+export type AiAgentThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
 export interface AiAgentModelConfig {
   id: string
   name: string
@@ -13,6 +15,7 @@ export interface AiAgentProviderCatalog {
     api: string
     baseUrl: string
     reasoning: boolean
+    thinkingLevels?: AiAgentThinkingLevel[]
     input: string[]
   })[]
 }
@@ -629,6 +632,7 @@ export const aiAgentApi = {
     model?: string,
     attachments: AiAgentImageAttachment[] = [],
     mode: AiAgentRunMode = 'agent',
+    reasoning?: AiAgentThinkingLevel,
   ) {
     const response = await fetch(
       `/api/ai-agent/conversations/${encodeURIComponent(conversationId)}/runs`,
@@ -640,6 +644,7 @@ export const aiAgentApi = {
           ...(model ? { model } : {}),
           skillIds,
           ...(attachments.length ? { attachments } : {}),
+          ...(reasoning !== undefined ? { reasoning } : {}),
         }),
         credentials: 'same-origin',
         headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },

@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AiAgentRunEvent } from '@/api/ai-agent'
+import type { AiAgentRunEvent, AiAgentSettings } from '@/api/ai-agent'
 import { MAX_SELECTED_SKILLS, useAiAgentStore } from '@/stores/ai-agent'
 
 const apiMocks = vi.hoisted(() => ({
@@ -31,6 +31,21 @@ const conversation = {
   id: 'conversation-1',
   title: 'Maintain host',
   updatedAt: 1,
+}
+
+function thinkingSettings(model = 'model-a', provider = 'custom'): AiAgentSettings {
+  return {
+    provider,
+    model,
+    api: 'openai-completions',
+    baseUrl: 'https://example.com/v1',
+    hasApiKey: true,
+    hasOAuth: false,
+    hasCredentials: true,
+    models: [],
+    providers: [],
+    showRemoteSkills: false,
+  }
 }
 
 describe('AI Agent store', () => {
@@ -64,6 +79,82 @@ describe('AI Agent store', () => {
       ...conversation,
       title: 'Renamed conversation',
     })
+  })
+
+  it('persists thinking per provider/model and restores it in a new store', () => {
+    const store = useAiAgentStore()
+    store.settings = thinkingSettings()
+    store.setThinkingLevel('high')
+    store.settings = thinkingSettings('model-b')
+    expect(store.thinkingLevel).toBe('default')
+    store.setThinkingLevel('low')
+    store.settings = thinkingSettings()
+    expect(store.thinkingLevel).toBe('high')
+    store.settings = thinkingSettings('model-a', 'other')
+    expect(store.thinkingLevel).toBe('default')
+
+    setActivePinia(createPinia())
+    const restored = useAiAgentStore()
+    restored.settings = thinkingSettings()
+    expect(restored.thinkingLevel).toBe('high')
+    restored.setThinkingLevel('default')
+    expect(restored.thinkingLevel).toBe('default')
+  })
+
+  it('honors model thinking capabilities and rejects unsupported or in-run changes', () => {
+    const store = useAiAgentStore()
+    store.settings = thinkingSettings('model-a', 'openai')
+    store.modelCatalog = [
+      {
+        id: 'openai',
+        models: [
+          {
+            id: 'model-a',
+            name: 'Model A',
+            api: 'openai-responses',
+            baseUrl: '',
+            input: ['text'],
+            reasoning: true,
+            thinkingLevels: ['low', 'high', 'xhigh'],
+          },
+        ],
+      },
+    ]
+    store.setThinkingLevel('xhigh')
+    expect(store.thinkingLevel).toBe('xhigh')
+    store.setThinkingLevel('off')
+    expect(store.thinkingLevel).toBe('xhigh')
+    store.running = true
+    store.setThinkingLevel('low')
+    expect(store.thinkingLevel).toBe('xhigh')
+    store.running = false
+    store.modelCatalog[0]!.models[0]!.thinkingLevels = ['off']
+    expect(store.canAdjustThinking).toBe(false)
+    expect(store.thinkingLevel).toBe('default')
+  })
+
+  it('passes explicit off to runs in both modes and omits reasoning after resetting', async () => {
+    const store = useAiAgentStore()
+    store.resetForConnection('connection-1')
+    store.settings = thinkingSettings()
+    store.setThinkingLevel('off')
+    apiMocks.run.mockResolvedValue(undefined)
+    for (const mode of ['chat', 'agent'] as const) {
+      store.setRunMode(mode)
+      await store.startRun('hello', 'connection-1')
+      expect(apiMocks.run.mock.lastCall?.[8]).toBe(mode)
+      expect(apiMocks.run.mock.lastCall?.[9]).toBe('off')
+    }
+    store.setThinkingLevel('default')
+    await store.startRun('hello again', 'connection-1')
+    expect(apiMocks.run.mock.lastCall).toHaveLength(9)
+  })
+
+  it('ignores malformed stored thinking preferences', () => {
+    window.localStorage.setItem('host-deck-ui.aiAgent.thinkingLevels', '{bad')
+    const store = useAiAgentStore()
+    store.settings = thinkingSettings()
+    expect(store.thinkingLevel).toBe('default')
   })
 
   it('records elapsed time at completion and clears it for a new conversation', async () => {

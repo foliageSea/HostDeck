@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { zstdDecompressSync } from 'node:zlib'
 import { loginCodex, refreshCodex } from '../src/oauth.mjs'
 import { catalog, invoke, resolveModel } from '../src/model.mjs'
 
@@ -63,6 +64,7 @@ test('Codex catalog and inference use subscription auth at a fixed endpoint', as
   const settings = {
     provider: 'openai-codex',
     model: entry.id,
+    reasoning: 'high',
     baseUrl: 'https://untrusted.example',
     credential: {
       type: 'oauth',
@@ -79,6 +81,11 @@ test('Codex catalog and inference use subscription auth at a fixed endpoint', as
     const headers = new Headers(options.headers)
     assert.equal(headers.get('authorization'), `Bearer ${accessToken}`)
     assert.equal(headers.get('chatgpt-account-id'), 'test-account')
+    const body =
+      headers.get('content-encoding') === 'zstd'
+        ? zstdDecompressSync(options.body).toString()
+        : options.body
+    assert.equal(JSON.parse(body).reasoning.effort, 'high')
     const item = {
       id: 'msg_1',
       type: 'message',
