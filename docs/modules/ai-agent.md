@@ -1,6 +1,6 @@
 # AI 运维 Agent
 
-AI 运维 Agent 是独立于 Agent CLI 的后端功能，代码位于 `lib/server/features/ai_agent/`，路由前缀为 `/api/ai-agent`。模型接入使用 LangChain.dart 的 `ChatOpenAI`，支持 OpenAI 兼容 API。
+AI 运维 Agent 是独立于 Agent CLI 的后端功能，代码位于 `lib/server/features/ai_agent/`，路由前缀为 `/api/ai-agent`。模型接入通过私有 pi-ai bridge（`host-deck-ai/dist/bridge.mjs`，NDJSON IPC）调用，支持 OpenAI 兼容 API 与 OAuth 登录；工具定义仍使用 LangChain.dart 的 `ToolSpec`。bridge 缺失时直接报错，不做回退。
 
 ## 设置
 
