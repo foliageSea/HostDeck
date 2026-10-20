@@ -1513,6 +1513,8 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-main {
+  --agent-content-width: 1040px;
+  --agent-content-gutter: 18px;
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -1579,7 +1581,7 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-transcript {
-  width: min(760px, calc(100% - 48px));
+  width: min(var(--agent-content-width), calc(100% - 2 * var(--agent-content-gutter)));
   margin: 0 auto;
   padding: 28px 0 36px;
 }
@@ -1758,7 +1760,7 @@ let resizeObserver: ResizeObserver | undefined
 .agent-composer-area {
   z-index: 4;
   flex: 0 0 auto;
-  padding: 10px max(18px, calc((100% - 1040px) / 2)) 12px;
+  padding: 10px max(var(--agent-content-gutter), calc((100% - var(--agent-content-width)) / 2)) 12px;
   background: linear-gradient(180deg, transparent, var(--agent-bg) 22%);
 }
 
@@ -2339,18 +2341,16 @@ let resizeObserver: ResizeObserver | undefined
     background: rgba(15, 23, 42, 0.66);
   }
 
+  .agent-main {
+    --agent-content-gutter: 10px;
+  }
+
   .agent-transcript {
-    width: calc(100% - 30px);
     padding-top: 20px;
   }
 
   .agent-message-user {
     max-width: 90%;
-  }
-
-  .agent-composer-area {
-    padding-right: 10px;
-    padding-left: 10px;
   }
 }
 
