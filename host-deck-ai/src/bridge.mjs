@@ -2,6 +2,12 @@ import { createInterface } from 'node:readline'
 import { catalog, invoke } from './model.mjs'
 import { loginCodex, refreshCodex } from './oauth.mjs'
 
+// Bun standalone executables cannot follow pi-ai's opaque OAuth imports.
+if (process.versions.bun) {
+  const { registerBunOAuthFlows } = await import('@earendil-works/pi-ai/bun-oauth')
+  registerBunOAuthFlows()
+}
+
 const emit = (event) => process.stdout.write(`${JSON.stringify(event)}\n`)
 const abort = new AbortController()
 process.on('SIGTERM', () => {

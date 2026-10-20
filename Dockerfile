@@ -23,12 +23,15 @@ COPY lib ./lib
 RUN flutter pub get
 RUN dart build cli --target bin/server.dart -o build/server
 
+FROM oven/bun:1.4.3 AS bun-runtime
+
 FROM node:22-bookworm-slim AS ai-builder
+COPY --from=bun-runtime /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /src/host-deck-ai
 COPY host-deck-ai/package.json host-deck-ai/pnpm-lock.yaml host-deck-ai/pnpm-workspace.yaml ./
 RUN npm install -g pnpm@10.34.5 && pnpm install --frozen-lockfile
 COPY host-deck-ai/ ./
-RUN pnpm run build
+RUN node build-bin.mjs dist/bridge
 
 FROM debian:bookworm-slim AS runtime
 ARG HOSTDECK_VERSION
@@ -51,9 +54,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=server-builder /src/build/server/bundle/ ./
-COPY --from=ai-builder /usr/local/bin/node ./ai/node
-COPY --from=ai-builder /src/host-deck-ai/dist/bridge.mjs ./ai/bridge.mjs
-COPY --from=ai-builder /src/host-deck-ai/node_modules ./ai/node_modules
+COPY --from=ai-builder /src/host-deck-ai/dist/bridge ./ai/bridge
 COPY --from=web-builder /src/host-deck-ui/dist ./web
 COPY LICENSE THIRD_PARTY_NOTICES.md ./
 

@@ -24,9 +24,17 @@ version 3 terms.
 - Package: `@earendil-works/pi-ai` 0.87.1
 - License: MIT
 
-HostDeck bundles the pi-ai package and its runtime dependencies in the private
-Node.js bridge under `ai/node_modules/`. See the package licenses included by
-the npm distribution for the complete notices.
+HostDeck bundles the pi-ai package and its runtime dependencies into the
+compiled bridge executable under `ai/bridge` (or `ai/bridge.exe`). See the
+package licenses included by the npm distribution for the complete notices.
+
+## Bun
+
+- Project: https://github.com/oven-sh/bun
+- License: MIT
+
+The Bun runtime is embedded in the compiled pi-ai bridge executable. See the
+Bun distribution for the complete license text.
 
 ## Maple Mono
 

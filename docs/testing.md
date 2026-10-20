@@ -31,6 +31,13 @@ pnpm run check
 pnpm test
 ```
 
+pi-ai bridge 的 Bun 编译产物需要额外验证：
+
+```bash
+pnpm run build:ai:bin
+pnpm run test:ai:bin
+```
+
 ## 前端校验
 
 前端构建：

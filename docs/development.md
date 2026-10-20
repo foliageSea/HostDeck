@@ -7,6 +7,7 @@
 - Flutter SDK
 - Node.js 22
 - pnpm 10.34.5（仓库根目录 `package.json` 已固定版本）
+- Bun 1.4+（构建 pi-ai 独立可执行程序）
 
 安装依赖：
 

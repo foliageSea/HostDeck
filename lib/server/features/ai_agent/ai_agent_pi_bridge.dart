@@ -9,18 +9,33 @@ class AiAgentPiBridge {
   Process? _process;
   bool _closed = false;
 
-  static String _scriptPath() {
+  static bool _isJavaScript(String path) =>
+      path.endsWith('.mjs') || path.endsWith('.js');
+
+  static String _nodeExecutable(String script) {
+    final bundledNode = p.join(
+      p.dirname(script),
+      Platform.isWindows ? 'node.exe' : 'node',
+    );
+    return Platform.environment['HOSTDECK_AI_NODE'] ??
+        (File(bundledNode).existsSync() ? bundledNode : 'node');
+  }
+
+  static String _bridgePath() {
     final configured = Platform.environment['HOSTDECK_AI_BRIDGE'];
+    final binaryName = Platform.isWindows ? 'bridge.exe' : 'bridge';
     final candidates = [
       ?configured,
+      p.join(p.dirname(Platform.resolvedExecutable), '..', 'ai', binaryName),
       p.join(p.dirname(Platform.resolvedExecutable), '..', 'ai', 'bridge.mjs'),
       p.join(Directory.current.path, 'host-deck-ai', 'dist', 'bridge.mjs'),
+      p.join(Directory.current.path, 'host-deck-ai', 'dist', binaryName),
     ];
     for (final candidate in candidates) {
       if (File(candidate).existsSync()) return p.normalize(candidate);
     }
     throw StateError(
-      'pi-ai bridge is missing. Run pnpm install and pnpm run build in host-deck-ai.',
+      'pi-ai bridge is missing. Run pnpm install and pnpm run build:bin (or build) in host-deck-ai.',
     );
   }
 
@@ -31,20 +46,17 @@ class AiAgentPiBridge {
     Duration timeout = const Duration(minutes: 2),
   }) async {
     if (_closed) throw StateError('Model request was cancelled.');
-    final script = _scriptPath();
-    final bundledNode = p.join(
-      p.dirname(script),
-      Platform.isWindows ? 'node.exe' : 'node',
-    );
-    final node =
-        Platform.environment['HOSTDECK_AI_NODE'] ??
-        (File(bundledNode).existsSync() ? bundledNode : 'node');
+    final bridge = _bridgePath();
+    final isScript = _isJavaScript(bridge);
+    final executable = isScript ? _nodeExecutable(bridge) : bridge;
     Process process;
     try {
-      process = await Process.start(node, [script]);
+      process = await Process.start(executable, isScript ? [bridge] : const []);
     } on ProcessException {
       throw StateError(
-        'Unable to start pi-ai. Install Node.js >=22.19 or set HOSTDECK_AI_NODE.',
+        isScript
+            ? 'Unable to start pi-ai. Install Node.js >=22.19 or set HOSTDECK_AI_NODE.'
+            : 'Unable to start pi-ai bridge. Rebuild host-deck-ai or check executable permissions.',
       );
     }
     _process = process;
@@ -91,7 +103,7 @@ class AiAgentPiBridge {
       if (_closed) throw StateError('Model request was cancelled.');
       if (exitCode != 0 || result == null || inputError != null) {
         throw StateError(
-          'pi-ai bridge exited without a valid response. Check its build and Node.js version.',
+          'pi-ai bridge exited without a valid response. Check its build and runtime compatibility.',
         );
       }
       return result;

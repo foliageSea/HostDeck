@@ -6,7 +6,10 @@ import { toContext, resolveModel } from '../src/model.mjs'
 
 function bridge(request) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['dist/bridge.mjs'], { stdio: ['pipe', 'pipe', 'pipe'] })
+    const [command, args] = process.env.HOSTDECK_AI_BRIDGE_BIN
+      ? [process.env.HOSTDECK_AI_BRIDGE_BIN, []]
+      : [process.execPath, ['dist/bridge.mjs']]
+    const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'] })
     let output = ''
     let errors = ''
     child.stdout.on('data', (chunk) => {

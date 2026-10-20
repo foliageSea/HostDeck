@@ -59,6 +59,7 @@ pnpm run build:web
 flutter pub get
 APP_VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml)"
 dart build cli --target bin/server.dart --output build/server
+node scripts/build_ai.mjs build/server/bundle
 printf '%s' "$APP_VERSION" > build/server/bundle/VERSION
 # 将 host-deck-ui/dist 的内容同步到 build/server/bundle/web/
 ```
@@ -67,7 +68,10 @@ printf '%s' "$APP_VERSION" > build/server/bundle/VERSION
 
 - `build/server/bundle/bin/server(.exe)`：服务可执行文件。
 - `build/server/bundle/lib/`：运行时动态库。
+- `build/server/bundle/ai/bridge(.exe)`：Bun 编译的 pi-ai 独立可执行程序。
 - `build/server/bundle/web/`：前端静态资源。
+
+`scripts/build_ai.mjs` 需要本机安装 Bun 1.4+，并为当前系统和架构编译，不再复制 Node.js 与 `node_modules`。可通过 `HOSTDECK_AI_BUN_TARGET` 指定 Bun 目标平台，例如 `bun-linux-arm64`。
 
 注意：仓库中的 `scripts/build_server.ps1` 和 `scripts/build_server.sh` 当前都以 `host-deck-ui/` 为前端来源。
 

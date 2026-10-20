@@ -1,25 +1,32 @@
 # HostDeck pi-ai bridge
 
 AI Agent uses `@earendil-works/pi-ai` (pinned to 0.87.1). Dart starts a private
-Node.js process for each generation/catalog request and exchanges NDJSON via
+bridge process for each generation/catalog request and exchanges NDJSON via
 stdin/stdout. No additional listening port is needed. API keys stay in the
 existing encrypted Dart settings store and are passed only via stdin.
 
+Release builds use a Bun-compiled single executable. The Node.js `.mjs` build is
+kept for development, tests, and as a fallback.
+
 ## Development
 
-Requires Node.js **>=22.19.0**:
+Requires Node.js **>=22.19.0** and Bun **>=1.4** for standalone executables:
 
 ```sh
 cd host-deck-ai
 pnpm install --frozen-lockfile
-pnpm run build
+pnpm run build      # dist/bridge.mjs for Node
+pnpm run build:bin  # dist/bridge (or bridge.exe) standalone executable
 pnpm test
+pnpm run test:bin   # run the same bridge tests against the compiled executable
 ```
 
 Start HostDeck normally afterwards. Rebuild this package after editing its source.
-`HOSTDECK_AI_NODE` overrides the Node executable; `HOSTDECK_AI_BRIDGE` overrides
-the built bridge path. Otherwise Dart finds `../ai/bridge.mjs` beside its binary
-or `host-deck-ai/dist/bridge.mjs` in the working directory.
+`HOSTDECK_AI_BRIDGE` overrides the bridge path and accepts either the executable
+or a `.mjs` script. `HOSTDECK_AI_NODE` only applies to `.mjs` fallback use.
+Otherwise Dart prefers `../ai/bridge` beside its binary, then `../ai/bridge.mjs`,
+and in development `host-deck-ai/dist/bridge.mjs` before
+`host-deck-ai/dist/bridge`.
 
 ## Models
 
@@ -78,12 +85,17 @@ only affects the selected provider. Model identity is always the compound
 
 ## Distribution
 
-Docker includes the bridge and Node 22. Electron and standalone server build
-scripts run `scripts/build_ai.mjs`, bundling both `ai/bridge.mjs` and the build
-machine's Node executable plus `ai/node_modules/`. Build on the target OS/architecture with official
-Node.js binaries. Flutter desktop distributions built manually also need this
-`ai/` directory next to the executable (set the two environment overrides if
-using another layout); the bridge is a server resource, not a Flutter web asset.
+`scripts/build_ai.mjs` installs dependencies and compiles a Bun standalone
+executable for the current OS/architecture, then copies only
+`ai/bridge` (`ai/bridge.exe` on Windows). Node.js and `node_modules` are no
+longer shipped at runtime. Set `HOSTDECK_AI_BUN_TARGET` to cross-compile (for
+example `bun-linux-arm64`) and `HOSTDECK_AI_BUN` to use a specific Bun binary.
+
+Docker and the Electron build scripts use the same path. Flutter desktop
+distributions built manually also need this `ai/` directory next to the
+executable (set `HOSTDECK_AI_BRIDGE` if using another layout); the bridge is a
+server resource, not a Flutter web asset. Sign the executable on platforms that
+require it, such as macOS notarization or Windows code signing.
 
 Verification uses local mock upstream servers; no provider credentials are
 required. Live provider access requires configuring a key or completing OpenAI

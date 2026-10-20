@@ -79,6 +79,7 @@
 - FVM（推荐，用于锁定 Flutter/Dart 工具链）
 - Node.js 22
 - pnpm 10.34.5（仓库根目录 `package.json` 已固定版本）
+- Bun 1.4+（构建 pi-ai 独立可执行程序）
 
 先安装依赖：
 
@@ -203,7 +204,7 @@ Windows 可直接使用脚本构建 CLI bundle：
 .\scripts\build_server.ps1
 ```
 
-脚本会安装并构建 `host-deck-ui/`，执行 `flutter pub get` 和 `dart build cli`，再把前端产物复制到 `build/server/bundle/web/`，并生成 `build/server/start_server.bat`。
+脚本会安装并构建 `host-deck-ui/`，执行 `flutter pub get` 和 `dart build cli`，用 Bun 编译 pi-ai bridge，再把前端产物复制到 `build/server/bundle/web/`，并生成 `build/server/start_server.bat`。
 
 也可以手动构建：
 
@@ -211,6 +212,7 @@ Windows 可直接使用脚本构建 CLI bundle：
 pnpm --dir host-deck-ui build
 flutter pub get
 dart build cli --target bin/server.dart --output build/server
+node scripts/build_ai.mjs build/server/bundle
 # 将 host-deck-ui/dist 的内容同步到 build/server/bundle/web/
 ```
 
@@ -218,6 +220,7 @@ dart build cli --target bin/server.dart --output build/server
 
 - `build/server/bundle/bin/server(.exe)`：服务可执行文件
 - `build/server/bundle/lib/`：运行时动态库
+- `build/server/bundle/ai/bridge(.exe)`：Bun 编译的 pi-ai 可执行程序
 - `build/server/bundle/web/`：前端静态资源
 
 说明：`scripts/build_server.ps1` 和 `scripts/build_server.sh` 都使用当前前端目录 `host-deck-ui/`。
@@ -334,7 +337,7 @@ host_deck/
 ├── lib/                 # Flutter 桌面壳与内置后端服务
 ├── host-deck-ui/        # 当前主前端工程
 ├── host-deck-electron/  # Electron Windows 桌面壳
-├── host-deck-ai/        # pi-ai Node bridge 工程
+├── host-deck-ai/        # pi-ai bridge 工程（Bun 独立可执行程序）
 ├── package.json         # 仓库级 Node 命令编排入口
 ├── assets/web/          # Flutter release 打包使用的静态资源
 ├── scripts/             # 服务打包脚本
