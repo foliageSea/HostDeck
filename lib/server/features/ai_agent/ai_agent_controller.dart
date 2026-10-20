@@ -9,7 +9,7 @@ import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_errors.dart';
-import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_chat_model.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_mcp_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';

@@ -14,7 +14,7 @@ import 'package:host_deck/server/features/access/access_secret_store.dart';
 import 'package:host_deck/server/features/agent/agent_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_controller.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_cron_tool_service.dart';
-import 'package:host_deck/server/features/ai_agent/ai_agent_model.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_chat_model.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_operation_log_tool_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_mcp_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
