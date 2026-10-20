@@ -14,10 +14,26 @@ const isDragging = ref(false)
 const isResizing = ref(false)
 let dragOffsetX = 0
 let dragOffsetY = 0
+type ResizeDirection = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
+
+const resizeHandles: { direction: ResizeDirection; class: string }[] = [
+  { direction: 'n', class: 'left-[14px] right-[14px] top-0 h-[8px] cursor-n-resize' },
+  { direction: 'e', class: 'bottom-[14px] right-0 top-[14px] w-[8px] cursor-e-resize' },
+  { direction: 's', class: 'bottom-0 left-[14px] right-[14px] h-[8px] cursor-s-resize' },
+  { direction: 'w', class: 'bottom-[14px] left-0 top-[14px] w-[8px] cursor-w-resize' },
+  { direction: 'ne', class: 'right-0 top-0 h-[14px] w-[14px] cursor-ne-resize' },
+  { direction: 'se', class: 'bottom-0 right-0 h-[14px] w-[14px] cursor-nwse-resize' },
+  { direction: 'sw', class: 'bottom-0 left-0 h-[14px] w-[14px] cursor-sw-resize' },
+  { direction: 'nw', class: 'left-0 top-0 h-[14px] w-[14px] cursor-nw-resize' },
+]
+
+let resizeStartX = 0
+let resizeStartY = 0
 let resizeStartWidth = 0
 let resizeStartHeight = 0
 let resizeStartClientX = 0
 let resizeStartClientY = 0
+let resizeDirection: ResizeDirection = 'se'
 
 const windowStyle = computed(() => {
   if (props.window.isMaximized) {
@@ -114,14 +130,24 @@ function handleResize(event: MouseEvent) {
     return
   }
 
+  const deltaX = event.clientX - resizeStartClientX
+  const deltaY = event.clientY - resizeStartClientY
+  const resizesWest = resizeDirection.includes('w')
+  const resizesNorth = resizeDirection.includes('n')
   const nextWidth = Math.max(
     props.window.minWidth,
-    resizeStartWidth + event.clientX - resizeStartClientX,
+    resizeStartWidth + (resizeDirection.includes('e') ? deltaX : resizesWest ? -deltaX : 0),
   )
   const nextHeight = Math.max(
     props.window.minHeight,
-    resizeStartHeight + event.clientY - resizeStartClientY,
+    resizeStartHeight + (resizeDirection.includes('s') ? deltaY : resizesNorth ? -deltaY : 0),
   )
+
+  const nextX = resizesWest ? resizeStartX + resizeStartWidth - nextWidth : props.window.x
+  const nextY = resizesNorth ? resizeStartY + resizeStartHeight - nextHeight : props.window.y
+  if (resizesWest || resizesNorth) {
+    desktopStore.updateWindowPosition(props.window.id, nextX, nextY)
+  }
   desktopStore.updateWindowSize(props.window.id, nextWidth, nextHeight)
 }
 
@@ -131,13 +157,16 @@ function stopResize() {
   window.removeEventListener('mouseup', stopResize)
 }
 
-function startResize(event: MouseEvent) {
+function startResize(event: MouseEvent, direction: ResizeDirection) {
   if (props.window.isMaximized || !props.window.resizable) {
     return
   }
 
   focusWindow()
   isResizing.value = true
+  resizeDirection = direction
+  resizeStartX = props.window.x
+  resizeStartY = props.window.y
   resizeStartWidth = props.window.width
   resizeStartHeight = props.window.height
   resizeStartClientX = event.clientX
@@ -342,11 +371,16 @@ onUnmounted(() => {
       />
     </div>
 
-    <div
-      v-if="!window.isMaximized && window.resizable"
-      class="absolute bottom-0 right-0 h-[18px] w-[18px] cursor-nwse-resize"
-      @mousedown.prevent="startResize"
-    />
+    <template v-if="!window.isMaximized && window.resizable">
+      <div
+        v-for="handle in resizeHandles"
+        :key="handle.direction"
+        :data-window-resize-handle="handle.direction"
+        class="absolute z-10"
+        :class="handle.class"
+        @mousedown.prevent.stop="startResize($event, handle.direction)"
+      />
+    </template>
   </section>
 </template>
 
