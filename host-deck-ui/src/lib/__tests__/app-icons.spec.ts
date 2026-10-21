@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import aiAgentIconUrl from '@/assets/ai-agent.svg'
+import openCodeIconUrl from '@/assets/opencode.svg'
 import {
   clearAppIconCache,
   preloadAppIcon,
@@ -57,7 +58,7 @@ describe('app icon preloading', () => {
 
   it('resolves remote and bundled icon keys from the themed map', () => {
     expect(themedAppIconMap['ai-agent']).toBe(aiAgentIconUrl)
-    expect(themedAppIconMap.opencode).toBe('/opencode.ico')
+    expect(themedAppIconMap.opencode).toBe(openCodeIconUrl)
     expect(themedAppIconMap.terminal).toContain('terminal')
   })
 })
