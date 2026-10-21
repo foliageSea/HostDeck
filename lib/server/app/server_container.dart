@@ -125,9 +125,13 @@ class ServerContainer {
       }
       return databaseService;
     });
-    getIt.registerLazySingleton<ShellInvocationResolver>(
-      ShellInvocationResolver.new,
-    );
+    getIt.registerLazySingleton<ShellInvocationResolver>(() {
+      final resolver = ShellInvocationResolver();
+      // Cache entries are keyed by connection id, so drop them when the
+      // connection goes away instead of leaking one entry per reconnect.
+      getIt<SshService>().addDisconnectListener(resolver.invalidate);
+      return resolver;
+    });
     getIt.registerLazySingleton<SshRepository>(
       () => SshRepository(
         shellInvocationResolver: getIt<ShellInvocationResolver>(),
@@ -228,12 +232,15 @@ class ServerContainer {
       dispose: (repository) => repository.close(),
     );
     getIt.registerLazySingleton<DockerEngineMapper>(DockerEngineMapper.new);
-    getIt.registerLazySingleton<DockerComposeService>(
-      () => DockerComposeService(
+    getIt.registerLazySingleton<DockerComposeService>(() {
+      final service = DockerComposeService(
         getIt<SshRepository>(),
         shellInvocationResolver: getIt<ShellInvocationResolver>(),
-      ),
-    );
+      );
+      // The composed command cache is per connection too; forget it on close.
+      getIt<SshService>().addDisconnectListener(service.invalidateCache);
+      return service;
+    });
     getIt.registerLazySingleton<DockerRegistryRepository>(
       () => DockerRegistryRepository(getIt<DatabaseService>()),
     );

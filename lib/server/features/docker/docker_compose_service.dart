@@ -31,10 +31,6 @@ class DockerComposeService {
     _shellInvocationResolver.invalidate(connectionId);
   }
 
-  Future<bool> isComposeAvailable(SshSession session) async {
-    return (await inspectAvailability(session)).available;
-  }
-
   Future<ComposeAvailability> inspectAvailability(SshSession session) async {
     try {
       final command = await _resolveComposeCommand(session);

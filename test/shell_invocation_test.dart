@@ -81,6 +81,45 @@ void main() {
     expect(client.commands, hasLength(2));
   });
 
+  test('does not cache a probe that was invalidated mid-flight', () async {
+    final client = _BlockingSshClient();
+    final session = _FakeSshSession(client);
+    final resolver = ShellInvocationResolver();
+
+    final inFlight = resolver.resolve(session);
+    await Future<void>.delayed(Duration.zero);
+    expect(client.commands, isNotEmpty);
+
+    resolver.invalidate(session.connectionId);
+    client.release(_result(0, ''));
+
+    expect((await inFlight).prefix, 'sh -lc');
+    expect(resolver.cached(session.connectionId), isNull);
+  });
+
+  test('uses a plain shell without caching when no candidate starts', () async {
+    final client = _FakeSshClient((command) => _result(2, 'Bad substitution'));
+    final resolver = ShellInvocationResolver();
+
+    final invocation = await resolver.resolve(_FakeSshSession(client));
+
+    expect(invocation.prefix, 'sh -c');
+    expect(invocation.loadsProfile, isFalse);
+    expect(resolver.cached('connection-1'), isNull);
+    expect(client.commands, hasLength(3));
+  });
+
+  test('re-probes after a total probe failure', () async {
+    final client = _FakeSshClient((command) => _result(2, 'Bad substitution'));
+    final resolver = ShellInvocationResolver();
+    final session = _FakeSshSession(client);
+
+    await resolver.resolve(session);
+    await resolver.resolve(session);
+
+    expect(client.commands, hasLength(6));
+  });
+
   test('wrap keeps single quotes intact', () {
     const invocation = ShellInvocation('bash -lc');
 
@@ -112,6 +151,33 @@ class _FakeSshClient implements SSHClient {
   }) async {
     commands.add(command);
     return handler(command);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Holds the first probe open until [release] is called.
+class _BlockingSshClient implements SSHClient {
+  final List<String> commands = [];
+  final Completer<SSHRunResult> _gate = Completer<SSHRunResult>();
+
+  void release(SSHRunResult result) {
+    if (!_gate.isCompleted) {
+      _gate.complete(result);
+    }
+  }
+
+  @override
+  Future<SSHRunResult> runWithResult(
+    String command, {
+    bool runInPty = false,
+    bool stdout = true,
+    bool stderr = true,
+    Map<String, String>? environment,
+  }) {
+    commands.add(command);
+    return _gate.future;
   }
 
   @override

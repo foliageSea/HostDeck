@@ -390,12 +390,9 @@ export const dockerApi = {
   },
 
   async checkCompose(connectionId: string, options: { refresh?: boolean } = {}) {
-    const response = await http.get<DockerComposeAvailability>(
-      '/api/docker/compose/check',
-      {
-        params: { connectionId, ...(options.refresh ? { refresh: 'true' } : {}) },
-      },
-    )
+    const response = await http.get<DockerComposeAvailability>('/api/docker/compose/check', {
+      params: { connectionId, ...(options.refresh ? { refresh: 'true' } : {}) },
+    })
     return response.data
   },
 
