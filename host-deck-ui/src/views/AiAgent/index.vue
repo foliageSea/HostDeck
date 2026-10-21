@@ -48,7 +48,7 @@ import {
   imageAttachmentSrc,
   MAX_IMAGE_ATTACHMENTS,
 } from './components/image-attachments'
-import { buildTimelineEntries } from './components/timeline'
+import { buildTimelineEntries, isToolEntry } from './components/timeline'
 
 interface ConversationGroup {
   label: string
@@ -199,6 +199,11 @@ const timelineEntries = computed(() => buildTimelineEntries(messages.value, runS
 
 function toolForStep(step: AiAgentRunStep) {
   return toolCalls.value.find((tool) => tool.callId === step.callId)
+}
+
+// 连续的工具调用共用一个 Agent 标题，避免每个卡片重复一次角色标签。
+function isToolGroupStart(index: number) {
+  return !isToolEntry(timelineEntries.value[index - 1])
 }
 
 const currentPhase = computed(() => {
@@ -942,7 +947,7 @@ let resizeObserver: ResizeObserver | undefined
         </div>
         <div v-else class="agent-transcript">
           <template
-            v-for="entry in timelineEntries"
+            v-for="(entry, index) in timelineEntries"
             :key="entry.kind === 'message' ? entry.message.id : entry.step.stepId"
           >
             <article
@@ -1080,8 +1085,11 @@ let resizeObserver: ResizeObserver | undefined
                 toolForStep(entry.step)
               "
               class="agent-tools"
+              :class="{ 'agent-tools-continuation': !isToolGroupStart(index) }"
             >
-              <div class="agent-message-role"><Bot :size="14" /> Agent</div>
+              <div v-if="isToolGroupStart(index)" class="agent-message-role">
+                <Bot :size="14" /> Agent
+              </div>
               <AiAgentToolCall
                 :tool="toolForStep(entry.step)!"
                 @approve="resolveApproval($event, true)"
@@ -1949,6 +1957,11 @@ let resizeObserver: ResizeObserver | undefined
 
 .agent-tools {
   margin: 0 0 12px;
+}
+
+/* 连续出现的工具卡片归入同一组：只保留首个卡片的 Agent 标题，后续卡片靠间距紧贴上一卡通。 */
+.agent-tools-continuation {
+  margin-top: -8px;
 }
 
 .agent-usage {

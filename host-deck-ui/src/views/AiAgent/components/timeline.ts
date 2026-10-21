@@ -4,6 +4,13 @@ export type AiAgentTimelineEntry =
   | { kind: 'message'; message: AiAgentMessage }
   | { kind: 'step'; step: AiAgentRunStep }
 
+/** Whether the entry renders as a tool card (approval steps reuse the tool card). */
+export function isToolEntry(entry: AiAgentTimelineEntry | undefined) {
+  return Boolean(
+    entry && entry.kind === 'step' && (entry.step.type === 'tool' || entry.step.type === 'approval'),
+  )
+}
+
 function entryTimestamp(value: number | string | undefined) {
   if (typeof value === 'number') return value
   if (typeof value === 'string') {

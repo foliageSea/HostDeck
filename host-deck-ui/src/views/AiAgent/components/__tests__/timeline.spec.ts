@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AiAgentMessage, AiAgentRunStep } from '@/api/ai-agent'
-import { buildTimelineEntries } from '../timeline'
+import { buildTimelineEntries, isToolEntry } from '../timeline'
 
 function message(
   id: string,
@@ -166,5 +166,21 @@ describe('buildTimelineEntries', () => {
     expect(
       entries.map((entry) => (entry.kind === 'message' ? entry.message.id : entry.step.callId)),
     ).toEqual(['user-1', 'assistant-tool', 'call-1'])
+  })
+})
+
+describe('isToolEntry', () => {
+  it('treats tool and approval steps as one tool group', () => {
+    const toolEntry = buildTimelineEntries([], [restoredToolStep('call-1', 0, 10)])[0]!
+    const approvalEntry = {
+      kind: 'step' as const,
+      step: { ...restoredToolStep('call-2', 1, 11), type: 'approval' as const },
+    }
+    const messageEntry = { kind: 'message' as const, message: message('user-1', 'user', 1) }
+
+    expect(isToolEntry(toolEntry)).toBe(true)
+    expect(isToolEntry(approvalEntry)).toBe(true)
+    expect(isToolEntry(messageEntry)).toBe(false)
+    expect(isToolEntry(undefined)).toBe(false)
   })
 })
