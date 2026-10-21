@@ -72,10 +72,12 @@ const AGENT_SIDEBAR_WIDTH_STORAGE_KEY = 'host-deck:ai-agent:sidebar-width'
 const DEFAULT_SIDEBAR_WIDTH = 240
 const MIN_SIDEBAR_WIDTH = 200
 const MAX_SIDEBAR_WIDTH = 420
+// 容器（.n-modal-container / .n-drawer-container）由 LazyTeleport 常驻 DOM，
+// 必须匹配真正的内容节点并校验可见性，否则打开过一次弹窗后 Esc 会永久失效。
 const ESCAPE_BLOCKING_SELECTOR = [
-  '.n-modal-container',
-  '.n-drawer-container',
-  '.n-image-preview-container',
+  '.n-modal-container .n-modal',
+  '.n-drawer-container .n-drawer',
+  '.n-image-preview-overlay',
 ].join(', ')
 
 const props = defineProps<{ windowId?: string }>()
@@ -360,27 +362,59 @@ function handleSidebarResizeKey(event: KeyboardEvent) {
   )
 }
 
-function isOverlayOpen() {
-  return document.querySelector(ESCAPE_BLOCKING_SELECTOR) !== null
+/** naive-ui 用 v-show 隐藏已关闭的覆盖层，因此按 display/visibility 判断可见性 */
+function isElementVisible(element: Element) {
+  let current: Element | null = element
+  while (current) {
+    if (current.hasAttribute('hidden') || current.getAttribute('aria-hidden') === 'true') {
+      return false
+    }
+    const style = window.getComputedStyle(current)
+    if (style.display === 'none' || style.visibility === 'hidden') return false
+    current = current.parentElement
+  }
+  return true
 }
 
-function closeSkillMentionMenu() {
-  if (!document.querySelector('.n-mention-menu')) return false
+/** 弹窗、抽屉、图片预览等覆盖层自身响应 Esc，需要让给它们 */
+function isOverlayOpen() {
+  return [...document.querySelectorAll(ESCAPE_BLOCKING_SELECTOR)].some(isElementVisible)
+}
+
+/** 焦点可能落在 body 等公共节点上，按事件目标归属判断是否需要处理 */
+function ownsKeyboardTarget(target: EventTarget | null) {
+  const root = rootElement.value
+  if (!root) return false
+  if (!(target instanceof Node)) return true
+  if (root.contains(target)) return true
+  return target === document.body || target === document.documentElement
+}
+
+function closeComposerMentionMenu() {
+  const menu = document.querySelector('.n-mention-menu')
+  if (!menu || !isElementVisible(menu)) return false
   // 失焦会关闭 @ 提及菜单，避免同一次 Esc 既关菜单又中断任务
   rootElement.value?.querySelector<HTMLTextAreaElement>('.agent-composer-input textarea')?.blur()
   return true
 }
 
 function handleWindowKeydown(event: KeyboardEvent) {
-  if (event.defaultPrevented || event.key !== 'Escape' || event.isComposing) return
-  if (props.windowId && desktopStore.activeWindowId !== props.windowId) return
+  if (event.isComposing || event.keyCode === 229) return
+  if (event.key !== 'Escape' && event.code !== 'Escape') return
+  // 正在编辑对话标题时由输入框自己处理
+  if (editingConversationId.value) return
+  // 模型/权限浮层的焦点在 teleport 后的浮层里，不受窗口归属限制
   if (modelMenuOpen.value || modeMenuOpen.value) {
     modelMenuOpen.value = false
     modeMenuOpen.value = false
+    event.preventDefault()
     return
   }
-  if (closeSkillMentionMenu()) return
-  // 弹窗、抽屉、图片预览等覆盖层自身响应 Esc，交给它们处理
+  if (!ownsKeyboardTarget(event.target)) return
+  if (closeComposerMentionMenu()) {
+    event.preventDefault()
+    return
+  }
   if (isOverlayOpen()) return
   if (!running.value) return
   event.preventDefault()
