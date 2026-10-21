@@ -139,6 +139,12 @@
 .webos-root[data-theme='dark'] .webos-widget-body {
   background: rgb(15 23 42 / 75%);
 }
+/* A blurred window already provides the backdrop surface. Nested blur inside it only re-samples an
+   already blurred, moving layer, which produced artefacts around neighbouring elements. */
+.webos-root [data-window-blur='true'] * {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
 .webos-root .webos-shortcut {
   display: flex;
   flex-direction: column;

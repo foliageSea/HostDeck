@@ -171,15 +171,12 @@ function toggleDockPin(appId: DesktopAppId) {
 <style scoped>
 .launchpad-enter-active,
 .launchpad-leave-active {
-  transition:
-    opacity 220ms ease,
-    backdrop-filter 220ms ease;
+  transition: opacity 220ms ease;
 }
 
 .launchpad-enter-from,
 .launchpad-leave-to {
   opacity: 0;
-  backdrop-filter: blur(0);
 }
 
 .launchpad-content {

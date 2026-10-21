@@ -61,4 +61,14 @@ describe('DesktopDock', () => {
     await nextTick()
     expect(wrapper.find(`[data-dock-window-id="${grandchildId}"]`).exists()).toBe(false)
   })
+
+  it('keeps the dock surface centered without a transform so its blur samples the wallpaper', () => {
+    const wrapper = mountDock()
+    const dock = wrapper.get('.desktop-dock')
+
+    expect(dock.classes()).toContain('relative')
+    expect(dock.classes()).not.toContain('absolute')
+    expect(dock.attributes('style') ?? '').not.toContain('transform')
+    expect(wrapper.get('.dock-hover-zone').classes()).toContain('justify-center')
+  })
 })

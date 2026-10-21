@@ -300,10 +300,12 @@ function openLaunchpad() {
 </script>
 
 <template>
-  <div class="dock-hover-zone absolute inset-x-0 bottom-0 z-20 h-[12px]">
+  <div
+    class="dock-hover-zone absolute inset-x-0 bottom-0 z-20 flex h-[12px] items-end justify-center"
+  >
     <footer
       ref="selectorTarget"
-      class="app-radius-card desktop-dock absolute bottom-[2px] left-1/2 rounded-[24px] p-[10px]"
+      class="app-radius-card desktop-dock relative mb-[2px] rounded-[24px] p-[10px]"
       :class="{
         'dock-auto-hide': settingsStore.dockAutoHide,
         'dock-expanded': isDockExpanded,
@@ -317,7 +319,7 @@ function openLaunchpad() {
           <template #trigger>
             <button
               type="button"
-              class="app-radius-surface launchpad-trigger dock-item flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 backdrop-blur-[14px] [backdrop-filter:blur(14px)_saturate(145%)] cursor-pointer"
+              class="app-radius-surface launchpad-trigger dock-item flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 cursor-pointer"
               :class="
                 settingsStore.isDark
                   ? 'bg-[rgba(2,6,23,0.46)] text-[#e2e8f0] hover:bg-[rgba(2,6,23,0.58)]'
@@ -598,11 +600,12 @@ function openLaunchpad() {
 .desktop-dock {
   --dock-motion-duration: 360ms;
   display: flex;
-  isolation: isolate;
   width: max-content;
   max-width: calc(100vw - 100px);
   border: 1px solid transparent;
-  transform: translateX(-50%);
+  /* No transform and no isolation here: either one turns the dock into the backdrop root of
+     ::before, so the blur would sample the dock itself instead of the wallpaper. */
+  transform: none;
   transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -612,7 +615,7 @@ function openLaunchpad() {
 
 .desktop-dock::before {
   position: absolute;
-  z-index: -1;
+  z-index: 0;
   top: -1px;
   bottom: -1px;
   left: calc(-1px - var(--dock-expansion, 0px) / 2);
@@ -745,12 +748,12 @@ function openLaunchpad() {
 
 @media (hover: hover) and (pointer: fine) {
   .desktop-dock.dock-auto-hide:not(.dock-expanded) {
-    transform: translateX(-50%) translateY(100%);
+    transform: translateY(100%);
   }
 
   .dock-hover-zone:hover .desktop-dock.dock-auto-hide:not(.dock-expanded),
   .desktop-dock.dock-auto-hide:not(.dock-expanded):focus-within {
-    transform: translateX(-50%);
+    transform: none;
   }
 }
 </style>

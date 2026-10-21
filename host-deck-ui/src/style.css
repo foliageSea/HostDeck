@@ -251,6 +251,13 @@ body {
   }
 }
 
+/* Frozen while window blur is enabled: a moving backdrop invalidates every blur snapshot. */
+.default-wallpaper-motion--static::before,
+.default-wallpaper-motion--static::after {
+  animation: none;
+  will-change: auto;
+}
+
 @media (max-width: 768px) {
   .default-wallpaper-motion::before {
     opacity: 0.7;

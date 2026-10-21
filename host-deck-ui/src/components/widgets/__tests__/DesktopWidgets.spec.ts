@@ -78,7 +78,7 @@ describe('DesktopWidgets', () => {
     })
     await wrapper.vm.$nextTick()
 
-    expect(widget.classes()).toContain('desktop-widget--dragging')
+    expect(widget.classes()).toContain('desktop-widget-slot--dragging')
     expect(widget.attributes('style')).toContain('left: 590px')
     expect(widget.attributes('style')).toContain('--widget-drag-x: -100px')
     expect(wrapper.get('[data-widget-drop-preview]').attributes('style')).toContain('left: 516px')
@@ -91,12 +91,12 @@ describe('DesktopWidgets', () => {
     await wrapper.vm.$nextTick()
 
     expect(widgetStore.widgets[0]).toMatchObject({ x: 516, y: 156 })
-    expect(widget.classes()).toContain('desktop-widget--settling')
+    expect(widget.classes()).toContain('desktop-widget-slot--settling')
     expect(widget.attributes('style')).toContain('--widget-settle-x: -26px')
 
     widget.element.dispatchEvent(new Event('animationend', { bubbles: true }))
     await wrapper.vm.$nextTick()
-    expect(widget.classes()).not.toContain('desktop-widget--settling')
+    expect(widget.classes()).not.toContain('desktop-widget-slot--settling')
   })
 
   it('opens the registered details application', async () => {

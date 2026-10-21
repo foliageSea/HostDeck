@@ -1,10 +1,11 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { shallowMount } from '@vue/test-utils'
+import { shallowMount, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { DesktopShell as PackageDesktopShell } from '@host-deck/webos'
 import { withHostDesktop } from '@/lib/host-desktop-context'
+import HostDesktopShell from '@/components/os/DesktopShell.vue'
 
 const DesktopShell = withHostDesktop(PackageDesktopShell)
 
@@ -202,6 +203,24 @@ describe('DesktopShell', () => {
     await wrapper.vm.$nextTick()
     expect(desktopStore.activeWindowId).toBe(firstWindowId)
     expect(secondWindowId).not.toBe(firstWindowId)
+    wrapper.unmount()
+  })
+
+  it('freezes the animated wallpaper while window blur is enabled', async () => {
+    setPlatform('Win32')
+    const wrapper = mount(HostDesktopShell)
+    const wallpaper = () => wrapper.get('.default-wallpaper-motion')
+
+    expect(wallpaper().classes()).not.toContain('default-wallpaper-motion--static')
+
+    const settingsStore = useSettingsStore()
+    settingsStore.setWindowBlur(true)
+    await wrapper.vm.$nextTick()
+    expect(wallpaper().classes()).toContain('default-wallpaper-motion--static')
+
+    settingsStore.setWindowBlur(false)
+    await wrapper.vm.$nextTick()
+    expect(wallpaper().classes()).not.toContain('default-wallpaper-motion--static')
     wrapper.unmount()
   })
 

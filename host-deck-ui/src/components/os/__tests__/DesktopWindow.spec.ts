@@ -55,7 +55,7 @@ describe('DesktopWindow', () => {
     expect(wrapper.find('.cursor-nwse-resize').exists()).toBe(false)
   })
 
-  it('uses solid title bar and window body backgrounds when blur is disabled', async () => {
+  it('blurs the whole window with a single surface instead of per-section layers', async () => {
     const desktopStore = useDesktopStore()
     const settingsStore = useSettingsStore()
     const windowId = desktopStore.openWindow('settings')!
@@ -64,13 +64,18 @@ describe('DesktopWindow', () => {
 
     settingsStore.setWindowBlur(true)
     await nextTick()
-    expect(wrapper.get('[data-window-title-bar]').classes()).toContain('backdrop-blur-[18px]')
-    expect(wrapper.get('[data-window-body]').classes()).toContain('backdrop-blur-[22px]')
+    const windowRoot = wrapper.get('section')
+    expect(windowRoot.classes()).toContain('backdrop-blur-[22px]')
+    expect(windowRoot.classes()).toContain('[backdrop-filter:blur(22px)_saturate(135%)]')
+    expect(wrapper.get('[data-window-title-bar]').classes()).toContain('bg-transparent')
+    expect(wrapper.get('[data-window-body]').classes()).toContain('bg-transparent')
+    expect(wrapper.get('[data-window-title-bar]').classes()).not.toContain('backdrop-blur-[18px]')
+    expect(wrapper.get('[data-window-body]').classes()).not.toContain('backdrop-blur-[22px]')
 
     settingsStore.setWindowBlur(false)
     await nextTick()
-    expect(wrapper.get('[data-window-title-bar]').classes()).not.toContain('backdrop-blur-[18px]')
-    expect(wrapper.get('[data-window-body]').classes()).not.toContain('backdrop-blur-[22px]')
+    expect(windowRoot.classes()).not.toContain('backdrop-blur-[22px]')
+    expect(windowRoot.classes()).not.toContain('[backdrop-filter:blur(22px)_saturate(135%)]')
     expect(wrapper.get('[data-window-title-bar]').classes()).toContain('bg-white')
     expect(wrapper.get('[data-window-body]').classes()).toContain('bg-white')
   })

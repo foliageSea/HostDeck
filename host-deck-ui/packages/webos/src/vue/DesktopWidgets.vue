@@ -297,14 +297,14 @@ onUnmounted(() => {
       }"
     />
 
-    <section
+    <div
       v-for="widget in renderedWidgets"
       :key="widget.instance.id"
       :data-desktop-widget-id="widget.instance.id"
-      class="desktop-widget pointer-events-auto absolute"
+      class="desktop-widget-slot pointer-events-auto absolute"
       :class="[
-        dragState?.id === widget.instance.id ? 'desktop-widget--dragging cursor-grabbing' : '',
-        settlingState?.id === widget.instance.id ? 'desktop-widget--settling' : '',
+        dragState?.id === widget.instance.id ? 'desktop-widget-slot--dragging' : '',
+        settlingState?.id === widget.instance.id ? 'desktop-widget-slot--settling' : '',
       ]"
       :style="{
         '--widget-drag-x': `${widget.dragOffsetX}px`,
@@ -321,6 +321,11 @@ onUnmounted(() => {
       @contextmenu.stop="showWidgetContextMenu(widget.instance.id, $event)"
       @animationend.self="finishSettling(widget.instance.id)"
     >
+      <!--
+        The blurred surface must not sit inside a transformed ancestor: that ancestor becomes the
+        backdrop root and the blur samples the widget itself instead of the wallpaper. Only the
+        inner shell carries the drag/settle transform, the outer slot stays layout-only.
+      -->
       <div
         class="desktop-widget-surface app-radius-card flex h-full w-full min-w-0 flex-col overflow-hidden backdrop-blur-[18px]"
         :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.68)]' : 'bg-[rgba(255,255,255,0.72)]'"
@@ -355,7 +360,7 @@ onUnmounted(() => {
           <component :is="widget.definition.component" />
         </div>
       </div>
-    </section>
+    </div>
 
     <DesktopMenu
       :show="Boolean(contextMenu)"
@@ -369,33 +374,32 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.desktop-widget {
-  transform: translate3d(0, 0, 0);
+.desktop-widget-slot {
   transition:
     left 260ms cubic-bezier(0.22, 1, 0.36, 1),
     top 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.desktop-widget--dragging {
+.desktop-widget-slot--dragging {
   z-index: 10;
   transform: translate3d(var(--widget-drag-x), var(--widget-drag-y), 0);
   transition: none;
   will-change: transform;
 }
 
-.desktop-widget--dragging [data-widget-drag-handle] {
-  cursor: grabbing;
-}
-
-.desktop-widget--settling {
+.desktop-widget-slot--settling {
   z-index: 10;
   animation: desktop-widget-settle 280ms cubic-bezier(0.16, 1, 0.3, 1);
   transition: none;
   will-change: transform;
 }
 
+.desktop-widget-slot--dragging [data-widget-drag-handle] {
+  cursor: grabbing;
+}
+
 .desktop-widget-surface {
-  transform: scale(1);
+  transform: none;
   transform-origin: center;
   transition:
     opacity 160ms ease,
@@ -403,10 +407,18 @@ onUnmounted(() => {
     box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.desktop-widget--dragging .desktop-widget-surface {
+.desktop-widget-slot--dragging .desktop-widget-surface {
   opacity: 0.94;
   transform: scale(1.018);
   box-shadow: 0 24px 54px rgba(15, 23, 42, 0.28);
+}
+
+/* A transformed ancestor becomes the backdrop root, so the blur is dropped while the widget is
+   actually moving instead of sampling a stale snapshot every frame. */
+.desktop-widget-slot--dragging .desktop-widget-surface,
+.desktop-widget-slot--settling .desktop-widget-surface {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .desktop-widget-drop-preview {
@@ -432,13 +444,13 @@ onUnmounted(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .desktop-widget,
+  .desktop-widget-slot,
   .desktop-widget-surface,
   .desktop-widget-drop-preview {
     transition-duration: 1ms;
   }
 
-  .desktop-widget--settling {
+  .desktop-widget-slot--settling {
     animation-duration: 1ms;
   }
 }

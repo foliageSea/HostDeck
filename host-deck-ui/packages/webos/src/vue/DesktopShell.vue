@@ -56,6 +56,24 @@ const directSwitchActive = ref(false)
 const desktopContextMenu = ref<{ x: number; y: number } | null>(null)
 
 const windows = computed(() => desktopStore.windows)
+// The wallpaper carries the saturation itself so no full-screen backdrop-filter layer is needed:
+// a global backdrop surface forces every blur surface above it to re-snapshot twice.
+const WALLPAPER_SATURATION = 'saturate(108%)'
+const wallpaperFilter = computed(() =>
+  [props.wallpaperFilter, WALLPAPER_SATURATION].filter(Boolean).join(' '),
+)
+const videoWallpaperStyle = computed<CSSProperties>(() => ({ filter: wallpaperFilter.value }))
+const wallpaperElementStyle = computed<CSSProperties>(() => {
+  const base =
+    props.wallpaperStyle ??
+    ({ background: settingsStore.isDark ? '#0b1220' : '#d8e0e8' } as CSSProperties)
+  return {
+    ...base,
+    filter: [typeof base.filter === 'string' ? base.filter : '', WALLPAPER_SATURATION]
+      .filter(Boolean)
+      .join(' '),
+  }
+})
 const desktopDockSafeArea = computed(() =>
   settingsStore.dockAutoHide
     ? 'var(--desktop-dock-bottom-gap)'
@@ -303,7 +321,7 @@ onBeforeUnmount(() => {
       v-if="props.videoWallpaperUrl"
       class="absolute inset-0 h-full w-full object-cover"
       :src="props.videoWallpaperUrl"
-      :style="{ filter: props.wallpaperFilter }"
+      :style="videoWallpaperStyle"
       autoplay
       muted
       loop
@@ -313,9 +331,8 @@ onBeforeUnmount(() => {
       v-else
       class="absolute inset-0 bg-cover bg-center bg-no-repeat"
       :class="props.wallpaperClass"
-      :style="props.wallpaperStyle ?? { background: settingsStore.isDark ? '#0b1220' : '#d8e0e8' }"
+      :style="wallpaperElementStyle"
     />
-    <div class="absolute inset-0 [backdrop-filter:saturate(108%)]" />
 
     <slot name="topbar">
       <header class="webos-topbar"><slot name="brand">WebOS</slot><slot name="status" /></header>

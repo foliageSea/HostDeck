@@ -26,6 +26,13 @@ const wallpaperStyle = computed(() =>
   createWallpaperStyle('desktop', settings.desktopWallpaper, settings.isDark),
 )
 const wallpaperFilter = computed(() => createWallpaperFilter(settings.desktopWallpaper))
+// Animated wallpaper keeps invalidating every backdrop snapshot, so freeze it while window blur is on.
+const wallpaperClass = computed(() => {
+  if (settings.desktopWallpaper.mode !== 'default') return undefined
+  return settings.windowBlur
+    ? 'default-wallpaper-motion default-wallpaper-motion--static'
+    : 'default-wallpaper-motion'
+})
 const videoWallpaperUrl = computed(() => {
   const wallpaper = settings.desktopWallpaper
   if (wallpaper.mode !== 'custom' || wallpaper.customType !== 'video' || !wallpaper.customDataUrl)
@@ -47,9 +54,7 @@ const videoWallpaperUrl = computed(() => {
     :wallpaper-style="wallpaperStyle"
     :wallpaper-filter="wallpaperFilter"
     :video-wallpaper-url="videoWallpaperUrl"
-    :wallpaper-class="
-      settings.desktopWallpaper.mode === 'default' ? 'default-wallpaper-motion' : undefined
-    "
+    :wallpaper-class="wallpaperClass"
     @ready="emit('ready')"
   >
     <template #topbar><DesktopTopBar /></template>

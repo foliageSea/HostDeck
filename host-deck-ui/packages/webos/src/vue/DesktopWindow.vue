@@ -61,6 +61,22 @@ const windowStyle = computed(() => {
   }
 })
 const isMacWindowControls = computed(() => settingsStore.windowControlsStyle === 'mac')
+// Window chrome lives on the root node so the blur has exactly one surface. A separate blur layer
+// per title bar/body would re-snapshot on every hover repaint and bleed onto sibling windows.
+const windowChromeClass = computed(() => {
+  const shadow = settingsStore.isDark
+    ? 'shadow-[0_22px_48px_rgba(0,0,0,0.56),0_8px_18px_rgba(0,0,0,0.34),0_0_0_1px_rgba(255,255,255,0.08)]'
+    : 'shadow-[0_22px_48px_rgba(15,23,42,0.20),0_8px_18px_rgba(15,23,42,0.12),0_0_0_1px_rgba(15,23,42,0.06)]'
+  if (!settingsStore.windowBlur) {
+    return `${shadow} bg-transparent`
+  }
+
+  return [
+    shadow,
+    'backdrop-blur-[22px] [backdrop-filter:blur(22px)_saturate(135%)]',
+    settingsStore.isDark ? 'bg-[rgba(0,0,0,0.62)]' : 'bg-[rgba(255,255,255,0.66)]',
+  ].join(' ')
+})
 
 function focusWindow() {
   desktopStore.focusWindow(props.window.id)
@@ -189,9 +205,7 @@ onUnmounted(() => {
     tabindex="-1"
     class="absolute flex flex-col overflow-hidden opacity-100 outline-none transition-[opacity,transform,box-shadow,border-color] duration-[240ms] ease-in-out"
     :class="[
-      settingsStore.isDark
-        ? 'bg-transparent shadow-[0_22px_48px_rgba(0,0,0,0.56),0_8px_18px_rgba(0,0,0,0.34),0_0_0_1px_rgba(255,255,255,0.08)]'
-        : 'bg-transparent shadow-[0_22px_48px_rgba(15,23,42,0.20),0_8px_18px_rgba(15,23,42,0.12),0_0_0_1px_rgba(15,23,42,0.06)]',
+      windowChromeClass,
       {
         'desktop-window--opening': !window.isClosing,
         'pointer-events-none opacity-0 scale-[0.94] translate-y-[12px]': window.isClosing,
@@ -205,22 +219,21 @@ onUnmounted(() => {
     ]"
     :style="windowStyle"
     :aria-hidden="window.isMinimized"
+    :data-window-blur="settingsStore.windowBlur ? 'true' : undefined"
     @mousedown="focusWindow"
   >
     <header
       data-window-title-bar
-      class="relative flex h-[48px] items-center justify-between gap-[12px] border-b border-b-solid px-[14px]"
+      class="relative z-[1] flex h-[48px] items-center justify-between gap-[12px] border-b border-b-solid px-[14px]"
       :class="[
         settingsStore.isDark
-          ? settingsStore.windowBlur
-            ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(0,0,0,0.58)]'
-            : 'border-[rgba(148,163,184,0.14)] bg-black'
-          : settingsStore.windowBlur
-            ? 'border-[rgba(148,163,184,0.22)] bg-[rgba(255,255,255,0.62)]'
-            : 'border-[rgba(148,163,184,0.22)] bg-white',
+          ? 'border-[rgba(148,163,184,0.14)]'
+          : 'border-[rgba(148,163,184,0.22)]',
         settingsStore.windowBlur
-          ? 'backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(140%)]'
-          : '',
+          ? 'bg-transparent'
+          : settingsStore.isDark
+            ? 'bg-black'
+            : 'bg-white',
       ]"
       @mousedown.prevent="startDrag"
       @dblclick="maximizeWindow"
@@ -350,18 +363,13 @@ onUnmounted(() => {
 
     <div
       data-window-body
-      class="min-h-0 flex-1"
+      class="relative z-[1] min-h-0 flex-1"
       :class="[
-        settingsStore.isDark
-          ? settingsStore.windowBlur
-            ? 'bg-[rgba(0,0,0,0.72)]'
-            : 'bg-black'
-          : settingsStore.windowBlur
-            ? 'bg-[rgba(255,255,255,0.76)]'
-            : 'bg-white',
         settingsStore.windowBlur
-          ? 'backdrop-blur-[22px] [backdrop-filter:blur(22px)_saturate(135%)]'
-          : '',
+          ? 'bg-transparent'
+          : settingsStore.isDark
+            ? 'bg-black'
+            : 'bg-white',
       ]"
     >
       <component
