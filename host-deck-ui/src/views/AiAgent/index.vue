@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import type { MentionOption } from 'naive-ui'
 import {
+  ArrowUp,
   Bot,
   Check,
   CircleAlert,
@@ -11,18 +12,19 @@ import {
   Clipboard,
   Hand,
   ImagePlus,
-  ShieldAlert,
+  LoaderCircle,
   Menu,
   MessageCircle,
   MessageSquarePlus,
   PanelLeftClose,
   Pencil,
   PlugZap,
+  Plus,
   Puzzle,
   RotateCcw,
   Search,
-  Send,
   Settings,
+  ShieldCheck,
   Square,
   Trash2,
   Wrench,
@@ -42,7 +44,7 @@ import { useSshStore } from '@/stores/ssh'
 import AiAgentMarkdown from './components/AiAgentMarkdown.vue'
 import AiAgentSkillPicker from './components/AiAgentSkillPicker.vue'
 import AiAgentToolCall from './components/AiAgentToolCall.vue'
-import AiAgentThinkingPicker from './components/AiAgentThinkingPicker.vue'
+import AiAgentModelPicker from './components/AiAgentModelPicker.vue'
 import {
   filesToImageAttachments,
   imageAttachmentSrc,
@@ -115,8 +117,10 @@ const sidebarOpen = ref(true)
 const sidebarWidth = useLocalStorage(AGENT_SIDEBAR_WIDTH_STORAGE_KEY, DEFAULT_SIDEBAR_WIDTH)
 const sidebarResizing = ref(false)
 const resizeWidth = ref<number | null>(null)
-const modeMenuOpen = ref(false)
-const modelMenuOpen = ref(false)
+const addMenuOpen = ref(false)
+const permissionMenuOpen = ref(false)
+const modelPickerOpen = ref(false)
+const runElapsedSeconds = ref(0)
 const query = ref('')
 const input = ref('')
 const imageInput = ref<HTMLInputElement>()
@@ -279,7 +283,7 @@ function openSettings(section: 'mcp' | 'model' | 'skills' | 'tools' = 'model') {
 function selectRunMode(mode: boolean) {
   if (running.value || !sshStore.connectionId) return
   agentStore.setAutoRun(mode)
-  modeMenuOpen.value = false
+  permissionMenuOpen.value = false
 }
 
 function selectAiMode(mode: 'chat' | 'agent') {
@@ -409,9 +413,10 @@ function handleWindowKeydown(event: KeyboardEvent) {
   // 正在编辑对话标题时由输入框自己处理
   if (editingConversationId.value) return
   // 模型/权限浮层的焦点在 teleport 后的浮层里，不受窗口归属限制
-  if (modelMenuOpen.value || modeMenuOpen.value) {
-    modelMenuOpen.value = false
-    modeMenuOpen.value = false
+  if (modelPickerOpen.value || addMenuOpen.value || permissionMenuOpen.value) {
+    modelPickerOpen.value = false
+    addMenuOpen.value = false
+    permissionMenuOpen.value = false
     event.preventDefault()
     return
   }
@@ -583,6 +588,21 @@ function removeImage(index: number) {
   imageAttachments.value = imageAttachments.value.filter((_, itemIndex) => itemIndex !== index)
 }
 
+function pickComposerImages() {
+  addMenuOpen.value = false
+  imageInput.value?.click()
+}
+
+function selectAiModeFromMenu(mode: 'chat' | 'agent') {
+  selectAiMode(mode)
+  addMenuOpen.value = false
+}
+
+function openComposerSettings(section: 'mcp' | 'tools') {
+  addMenuOpen.value = false
+  openSettings(section)
+}
+
 async function switchModel(provider: string, model: string) {
   if (
     (provider === settings.value?.provider && model === settings.value?.model) ||
@@ -604,12 +624,19 @@ async function switchModel(provider: string, model: string) {
   }
 }
 
-async function selectModel(provider: string, model: string) {
-  if (await switchModel(provider, model)) modelMenuOpen.value = false
+function selectModel(provider: string, model: string) {
+  void switchModel(provider, model)
 }
 
 function handleComposerKeydown(event: KeyboardEvent) {
-  if (event.defaultPrevented || event.key !== 'Enter' || event.shiftKey || event.isComposing) return
+  if (event.defaultPrevented || event.isComposing) return
+  // 输入框为空时按 “/” 直接打开指令菜单，与占位提示保持一致。
+  if (event.key === '/' && !event.shiftKey && !input.value.trim() && !running.value) {
+    event.preventDefault()
+    addMenuOpen.value = true
+    return
+  }
+  if (event.key !== 'Enter' || event.shiftKey) return
   event.preventDefault()
   void send()
 }
@@ -735,6 +762,25 @@ watch(
   () => scrollToLatest(),
 )
 
+let runElapsedTimer: number | undefined
+
+function stopRunElapsedTimer() {
+  if (runElapsedTimer === undefined) return
+  window.clearInterval(runElapsedTimer)
+  runElapsedTimer = undefined
+}
+
+// 运行中在输入框上方显示已用时长，与运行阶段一起提示当前进度。
+watch(running, (value) => {
+  stopRunElapsedTimer()
+  runElapsedSeconds.value = 0
+  if (!value) return
+  const startedAt = performance.now()
+  runElapsedTimer = window.setInterval(() => {
+    runElapsedSeconds.value = Math.floor((performance.now() - startedAt) / 1000)
+  }, 1000)
+})
+
 onMounted(() => {
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(([entry]) => {
@@ -757,6 +803,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
+  stopRunElapsedTimer()
   stopSidebarResize()
   window.removeEventListener('beforeunload', handleBeforeUnload)
   window.removeEventListener('keydown', handleWindowKeydown)
@@ -1145,8 +1192,8 @@ let resizeObserver: ResizeObserver | undefined
           }}
         </button>
         <div v-if="running" class="agent-run-phase" aria-live="polite">
-          <span class="agent-run-phase-dot" />
-          {{ currentPhase }}
+          <LoaderCircle :size="13" class="agent-run-phase-spinner" />
+          <span>{{ currentPhase }}，用时 {{ runElapsedSeconds }} 秒…</span>
         </div>
         <button
           v-if="showScrollButton"
@@ -1210,7 +1257,11 @@ let resizeObserver: ResizeObserver | undefined
             :autosize="{ minRows: 2, maxRows: 7 }"
             :disabled="!sshStore.connectionId"
             :loading="runMode === 'agent' && agentStore.loadingSkills"
-            :placeholder="runMode === 'agent' ? '描述任务，输入 @ 选择 Skill' : '输入消息'"
+            :placeholder="
+              runMode === 'agent'
+                ? '发送消息或创建任务，/ 调用指令，@ 选择 Skill'
+                : '发送消息，/ 调用指令'
+            "
             class="agent-composer-input"
             @select="selectSkillMention"
             @keydown="handleComposerKeydown"
@@ -1230,136 +1281,92 @@ let resizeObserver: ResizeObserver | undefined
                 tabindex="-1"
                 @change="selectImages"
               />
-              <button
-                type="button"
-                class="agent-attachment-button"
-                :disabled="running || imageAttachments.length >= MAX_IMAGE_ATTACHMENTS"
-                aria-label="添加图片"
-                title="添加图片"
-                @click="imageInput?.click()"
-              >
-                <ImagePlus :size="14" />
-              </button>
-              <div class="agent-ai-mode" role="group" aria-label="对话模式">
-                <button
-                  type="button"
-                  :class="{ 'agent-ai-mode-active': runMode === 'chat' }"
-                  :aria-pressed="runMode === 'chat'"
-                  :disabled="running || !sshStore.connectionId"
-                  title="Chat 模式不会访问主机或调用工具"
-                  @click="selectAiMode('chat')"
-                >
-                  <MessageCircle :size="12" />
-                  Chat
-                </button>
-                <button
-                  type="button"
-                  :class="{ 'agent-ai-mode-active': runMode === 'agent' }"
-                  :aria-pressed="runMode === 'agent'"
-                  :disabled="running || !sshStore.connectionId"
-                  title="Agent 模式可使用主机工具、Skills 和 MCP"
-                  @click="selectAiMode('agent')"
-                >
-                  <Bot :size="12" />
-                  Agent
-                </button>
-              </div>
               <NPopover
-                v-model:show="modelMenuOpen"
+                v-model:show="addMenuOpen"
                 trigger="click"
                 placement="top-start"
                 :show-arrow="false"
-                :disabled="running || modelOptions.length === 0"
+                :disabled="running"
               >
                 <template #trigger>
                   <button
                     type="button"
-                    class="agent-mode-trigger agent-model-trigger"
-                    :disabled="running || modelOptions.length === 0"
-                    :aria-expanded="modelMenuOpen"
-                    aria-label="选择模型"
+                    class="agent-compose-add"
+                    :disabled="running"
+                    :aria-expanded="addMenuOpen"
+                    aria-label="添加附件或调用指令"
+                    title="添加附件或调用指令"
                   >
-                    <Bot :size="13" />
-                    <span>{{ activeModelName }}</span>
-                    <ChevronDown :size="11" />
+                    <Plus :size="16" />
                   </button>
                 </template>
-                <div class="agent-mode-menu agent-model-menu">
-                  <div class="agent-mode-heading">选择模型</div>
-                  <div v-for="group in modelGroups" :key="group.provider" class="agent-model-group">
-                    <div class="agent-model-group-heading">
-                      <span>{{ group.provider }}</span>
-                      <span>{{ group.models.length }} 个模型</span>
-                    </div>
-                    <button
-                      v-for="model in group.models"
-                      :key="model.key"
-                      type="button"
-                      class="agent-mode-option"
-                      :aria-pressed="
-                        settings?.provider === model.provider && settings?.model === model.id
-                      "
-                      :disabled="switchingModel || running || !model.hasCredentials"
-                      @click="selectModel(model.provider, model.id)"
-                    >
-                      <Bot :size="16" />
-                      <span class="agent-mode-copy">
-                        <strong>{{ model.label }}</strong>
-                        <span>{{ model.id }}</span>
-                      </span>
-                      <Check
-                        :size="16"
-                        :style="{
-                          visibility:
-                            settings?.provider === model.provider && settings?.model === model.id
-                              ? 'visible'
-                              : 'hidden',
-                        }"
-                      />
-                    </button>
-                  </div>
+                <div class="agent-command-menu">
+                  <div class="agent-command-group">添加</div>
+                  <button
+                    type="button"
+                    class="agent-command-item"
+                    :disabled="imageAttachments.length >= MAX_IMAGE_ATTACHMENTS"
+                    @click="pickComposerImages"
+                  >
+                    <ImagePlus :size="15" class="agent-command-icon" />
+                    <span class="agent-command-label">图片<em>image</em></span>
+                    <span class="agent-command-hint">
+                      最多 {{ MAX_IMAGE_ATTACHMENTS }} 张，可直接粘贴
+                    </span>
+                  </button>
+                  <div class="agent-command-group">指令</div>
+                  <button
+                    type="button"
+                    class="agent-command-item"
+                    :class="{ 'agent-command-item-active': runMode === 'chat' }"
+                    :aria-pressed="runMode === 'chat'"
+                    :disabled="running || !sshStore.connectionId"
+                    @click="selectAiModeFromMenu('chat')"
+                  >
+                    <MessageCircle :size="15" class="agent-command-icon" />
+                    <span class="agent-command-label">对话<em>chat</em></span>
+                    <span class="agent-command-hint">不访问主机、不调用工具</span>
+                    <Check v-if="runMode === 'chat'" :size="14" class="agent-command-check" />
+                  </button>
+                  <button
+                    type="button"
+                    class="agent-command-item"
+                    :class="{ 'agent-command-item-active': runMode === 'agent' }"
+                    :aria-pressed="runMode === 'agent'"
+                    :disabled="running || !sshStore.connectionId"
+                    @click="selectAiModeFromMenu('agent')"
+                  >
+                    <Bot :size="15" class="agent-command-icon" />
+                    <span class="agent-command-label">Agent<em>agent</em></span>
+                    <span class="agent-command-hint">可使用主机工具、Skills 和 MCP</span>
+                    <Check v-if="runMode === 'agent'" :size="14" class="agent-command-check" />
+                  </button>
+                  <button
+                    type="button"
+                    class="agent-command-item"
+                    :disabled="running"
+                    @click="openComposerSettings('tools')"
+                  >
+                    <Wrench :size="15" class="agent-command-icon" />
+                    <span class="agent-command-label">工具<em>tools</em></span>
+                    <span class="agent-command-hint">查看可用工具</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="agent-command-item"
+                    :disabled="running"
+                    @click="openComposerSettings('mcp')"
+                  >
+                    <PlugZap :size="15" class="agent-command-icon" />
+                    <span class="agent-command-label">MCP<em>mcp</em></span>
+                    <span class="agent-command-hint">
+                      已启用 {{ enabledMcpServers.length }} 个服务器
+                    </span>
+                  </button>
                 </div>
               </NPopover>
-              <AiAgentThinkingPicker
-                v-if="agentStore.canAdjustThinking"
-                :model-name="activeModelName"
-                :provider="settings?.provider ?? ''"
-                :levels="agentStore.supportedThinkingLevels"
-                :value="agentStore.thinkingLevel"
-                :disabled="running || switchingModel"
-                @update:value="agentStore.setThinkingLevel"
-              />
-              <AiAgentSkillPicker
-                v-if="runMode === 'agent'"
-                :connection-id="sshStore.connectionId"
-                :disabled="running"
-                @manage="openSettings('skills')"
-              />
-              <button
-                v-if="runMode === 'agent'"
-                type="button"
-                class="agent-mcp-entry"
-                :disabled="running"
-                aria-label="查看 Agent 工具"
-                @click="openSettings('tools')"
-              >
-                <Wrench :size="12" />
-                工具
-              </button>
-              <button
-                v-if="runMode === 'agent'"
-                type="button"
-                class="agent-mcp-entry"
-                :disabled="running"
-                aria-label="MCP 服务器设置"
-                @click="openSettings('mcp')"
-              >
-                <PlugZap :size="12" />
-                MCP {{ enabledMcpServers.length }}
-              </button>
               <NPopover
-                v-if="runMode === 'agent'"
-                v-model:show="modeMenuOpen"
+                v-model:show="permissionMenuOpen"
                 trigger="click"
                 placement="top-start"
                 :show-arrow="false"
@@ -1368,15 +1375,15 @@ let resizeObserver: ResizeObserver | undefined
                 <template #trigger>
                   <button
                     type="button"
-                    class="agent-mode-trigger"
-                    :class="{ 'agent-mode-auto': autoRun }"
+                    class="agent-permission-trigger"
+                    :class="{ 'agent-permission-auto': autoRun }"
                     :disabled="running || !sshStore.connectionId"
-                    :aria-expanded="modeMenuOpen"
-                    aria-label="选择运行模式"
+                    :aria-expanded="permissionMenuOpen"
+                    aria-label="选择运行权限"
                   >
-                    <ShieldAlert v-if="autoRun" :size="13" />
+                    <ShieldCheck v-if="autoRun" :size="13" />
                     <Hand v-else :size="13" />
-                    <span>{{ autoRun ? '自动运行' : '按需审批' }}</span>
+                    <span>{{ autoRun ? '完全权限' : '按需审批' }}</span>
                     <ChevronDown :size="11" />
                   </button>
                 </template>
@@ -1392,10 +1399,10 @@ let resizeObserver: ResizeObserver | undefined
                     :disabled="running || !sshStore.connectionId"
                     @click="selectRunMode(mode)"
                   >
-                    <ShieldAlert v-if="mode" :size="16" />
+                    <ShieldCheck v-if="mode" :size="16" />
                     <Hand v-else :size="16" />
                     <span class="agent-mode-copy">
-                      <strong>{{ mode ? '自动运行' : '按需审批' }}</strong>
+                      <strong>{{ mode ? '完全权限' : '按需审批' }}</strong>
                       <span>{{
                         mode ? '自动批准所有受保护的工具调用' : '受保护的工具调用前请求批准'
                       }}</span>
@@ -1407,27 +1414,49 @@ let resizeObserver: ResizeObserver | undefined
                   </button>
                 </div>
               </NPopover>
+              <AiAgentSkillPicker
+                v-if="runMode === 'agent'"
+                :connection-id="sshStore.connectionId"
+                :disabled="running"
+                @manage="openSettings('skills')"
+              />
             </div>
-            <button
-              v-if="running"
-              type="button"
-              class="agent-send-button agent-stop-button"
-              aria-label="停止执行"
-              title="停止执行（Esc）"
-              @click="stop"
-            >
-              <Square :size="14" fill="currentColor" />
-            </button>
-            <button
-              v-else
-              type="button"
-              class="agent-send-button"
-              :disabled="!canSend"
-              aria-label="发送"
-              @click="send"
-            >
-              <Send :size="15" />
-            </button>
+            <div class="agent-composer-meta">
+              <AiAgentModelPicker
+                v-model:show="modelPickerOpen"
+                :model-name="activeModelName"
+                :provider="settings?.provider ?? ''"
+                :groups="modelGroups"
+                :active-provider="settings?.provider"
+                :active-model="settings?.model"
+                :levels="agentStore.supportedThinkingLevels"
+                :thinking="agentStore.thinkingLevel"
+                :switching="switchingModel"
+                :disabled="running || modelOptions.length === 0"
+                @select="selectModel"
+                @update:thinking="agentStore.setThinkingLevel"
+              />
+              <button
+                v-if="running"
+                type="button"
+                class="agent-send-button agent-stop-button"
+                aria-label="停止执行"
+                title="停止执行（Esc）"
+                @click="stop"
+              >
+                <Square :size="13" fill="currentColor" />
+              </button>
+              <button
+                v-else
+                type="button"
+                class="agent-send-button"
+                :disabled="!canSend"
+                aria-label="发送"
+                @click="send"
+              >
+                <ArrowUp :size="16" />
+              </button>
+            </div>
           </div>
         </div>
       </footer>
@@ -1824,12 +1853,16 @@ let resizeObserver: ResizeObserver | undefined
   font-size: 11px;
 }
 
-.agent-run-phase-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--app-primary);
-  box-shadow: 0 0 0 3px var(--app-primary-soft);
+.agent-run-phase-spinner {
+  flex: 0 0 auto;
+  color: var(--app-primary-color);
+  animation: agent-spin 1.1s linear infinite;
+}
+
+@keyframes agent-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .agent-message {
@@ -2017,17 +2050,22 @@ let resizeObserver: ResizeObserver | undefined
 .agent-composer {
   overflow: hidden;
   border: 1px solid var(--agent-border);
-  border-radius: var(--app-radius-card);
+  border-radius: 20px;
   background: var(--agent-elevated);
-  box-shadow: 0 12px 38px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   transition:
     border-color 150ms ease,
     box-shadow 150ms ease;
 }
 
+.agent-composer:focus-within {
+  border-color: var(--app-primary-border);
+  box-shadow: 0 10px 34px rgba(var(--app-primary-rgb), 0.1);
+}
+
 .agent-composer-running {
   border-color: var(--app-primary-border);
-  box-shadow: 0 12px 42px rgba(var(--app-primary-rgb), 0.12);
+  box-shadow: 0 10px 34px rgba(var(--app-primary-rgb), 0.14);
 }
 
 .agent-selected-skills {
@@ -2144,10 +2182,10 @@ let resizeObserver: ResizeObserver | undefined
 
 .agent-composer-input :deep(textarea),
 .agent-composer-input :deep(.n-input__placeholder) {
-  padding: 13px 14px 4px !important;
+  padding: 14px 16px 6px !important;
   caret-color: var(--app-primary-color);
-  font-size: 12px;
-  line-height: 1.65;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 :global(.n-mention-menu) {
@@ -2200,11 +2238,11 @@ let resizeObserver: ResizeObserver | undefined
 
 .agent-composer-footer {
   display: flex;
-  min-height: 41px;
+  min-height: 42px;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 4px 7px 7px 12px;
+  gap: 8px;
+  padding: 2px 8px 8px;
 }
 
 .agent-composer-actions {
@@ -2229,10 +2267,9 @@ let resizeObserver: ResizeObserver | undefined
   flex-shrink: 0;
 }
 
-.agent-attachment-button,
-.agent-ai-mode button,
-.agent-mcp-entry,
-.agent-mode-trigger {
+.agent-compose-add,
+.agent-permission-trigger,
+.agent-send-button {
   line-height: 1;
 }
 
@@ -2245,130 +2282,154 @@ let resizeObserver: ResizeObserver | undefined
   pointer-events: none;
 }
 
-.agent-attachment-button {
+.agent-compose-add {
   display: grid;
-  width: 25px;
-  height: 25px;
+  width: 28px;
+  height: 28px;
   flex: 0 0 auto;
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: var(--app-radius-control);
+  border-radius: 50%;
   color: var(--agent-muted);
   background: var(--agent-hover);
   cursor: pointer;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
 }
 
-.agent-attachment-button:hover:not(:disabled) {
+.agent-compose-add:hover:not(:disabled),
+.agent-compose-add[aria-expanded='true'] {
   color: var(--app-primary-color);
   background: var(--app-primary-soft);
 }
 
-.agent-attachment-button:disabled {
+.agent-compose-add:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.agent-ai-mode {
-  display: inline-grid;
-  height: 25px;
-  flex: 0 0 auto;
-  grid-template-columns: repeat(2, auto);
-  padding: 2px;
-  border: 1px solid var(--agent-border);
-  border-radius: var(--app-radius-control);
-  background: var(--agent-hover);
+.agent-command-menu {
+  width: min(360px, calc(100vw - 32px));
 }
 
-.agent-ai-mode button {
-  display: inline-flex;
-  min-width: 54px;
+.agent-command-group {
+  padding: 2px 8px 4px;
+  color: var(--n-text-color-3);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.agent-command-group:not(:first-child) {
+  margin-top: 4px;
+}
+
+.agent-command-item {
+  display: flex;
+  width: 100%;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 6px;
+  gap: 9px;
+  padding: 8px;
   border: 0;
-  border-radius: calc(var(--app-radius-control) - 2px);
+  border-radius: var(--app-radius-item);
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-command-item:hover:not(:disabled) {
+  background: var(--n-color-embedded);
+}
+
+.agent-command-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.agent-command-icon {
+  flex: 0 0 auto;
+  color: var(--n-text-color-3);
+}
+
+.agent-command-item-active .agent-command-icon {
+  color: var(--app-primary-color);
+}
+
+.agent-command-label {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.agent-command-label em {
+  color: var(--n-text-color-3);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.agent-command-hint {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--n-text-color-3);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.agent-command-check {
+  flex: 0 0 auto;
+  color: var(--app-primary-color);
+}
+
+.agent-permission-trigger {
+  display: inline-flex;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--app-radius-control);
   color: var(--agent-muted);
   background: transparent;
   font-size: 12px;
   cursor: pointer;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
 }
 
-.agent-ai-mode button.agent-ai-mode-active {
+.agent-permission-trigger:hover:not(:disabled),
+.agent-permission-trigger[aria-expanded='true'] {
   color: var(--agent-text);
-  background: var(--agent-elevated);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
-}
-
-.agent-ai-mode button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.agent-ai-mode button:focus-visible {
-  outline: 2px solid var(--app-primary-color);
-  outline-offset: 1px;
-}
-
-.agent-model-trigger {
-  max-width: min(180px, 42vw);
-}
-
-.agent-model-trigger > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.agent-model-menu {
-  width: min(360px, calc(100vw - 48px));
-  max-height: min(60vh, 420px);
-  overflow-y: auto;
-}
-
-.agent-mcp-entry {
-  display: inline-flex;
-  height: 25px;
-  align-items: center;
-  gap: 4px;
-  padding: 0 7px;
-  border: 0;
-  border-radius: var(--app-radius-control);
-  color: var(--agent-muted);
   background: var(--agent-hover);
-  font-size: 12px;
-  cursor: pointer;
 }
 
-.agent-mcp-entry:hover:not(:disabled) {
-  color: var(--app-primary-color);
-  background: var(--app-primary-soft);
-}
-
-.agent-mode-trigger {
-  display: inline-flex;
-  height: 25px;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 5px;
-  padding: 0 7px;
-  border: 0;
-  border-radius: var(--app-radius-control);
-  color: var(--agent-muted);
-  background: var(--agent-hover);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.agent-mode-trigger:hover:not(:disabled) {
-  background: var(--app-primary-soft);
-}
-
-.agent-mode-trigger:disabled,
+.agent-permission-trigger:disabled,
 .agent-mode-option:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.agent-permission-auto,
+.agent-permission-auto:hover:not(:disabled) {
+  color: #e7823b;
+}
+
+.agent-composer-meta {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
 }
 
 .agent-mode-menu {
@@ -2381,29 +2442,6 @@ let resizeObserver: ResizeObserver | undefined
   opacity: 0.55;
 }
 
-.agent-model-group + .agent-model-group {
-  margin-top: 7px;
-  padding-top: 7px;
-  border-top: 1px solid var(--agent-border);
-}
-
-.agent-model-group-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 3px 8px 5px;
-  color: var(--agent-muted);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.agent-model-group-heading > span:last-child {
-  font-size: 9px;
-  font-weight: 400;
-  opacity: 0.7;
-}
-
 .agent-mode-option {
   display: grid;
   width: 100%;
@@ -2412,7 +2450,7 @@ let resizeObserver: ResizeObserver | undefined
   gap: 10px;
   padding: 10px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--app-radius-item);
   color: inherit;
   background: transparent;
   text-align: left;
@@ -2420,7 +2458,7 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-mode-option:hover:not(:disabled) {
-  background: var(--app-primary-soft);
+  background: var(--n-color-embedded);
 }
 
 .agent-mode-copy {
@@ -2443,7 +2481,7 @@ let resizeObserver: ResizeObserver | undefined
   color: #e7823b;
 }
 
-.agent-mode-trigger:focus-visible,
+.agent-permission-trigger:focus-visible,
 .agent-mode-option:focus-visible {
   outline: 2px solid var(--app-primary-color);
   outline-offset: 2px;
@@ -2451,15 +2489,24 @@ let resizeObserver: ResizeObserver | undefined
 
 .agent-send-button {
   display: grid;
-  width: 31px;
-  height: 31px;
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
   place-items: center;
+  padding: 0;
   border: 0;
-  border-radius: var(--app-radius-control);
+  border-radius: 50%;
   color: white;
   background: var(--app-primary-color);
   cursor: pointer;
+  transition:
+    transform 120ms ease,
+    background 150ms ease,
+    opacity 150ms ease;
+}
+
+.agent-send-button:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 .agent-send-button:disabled {
@@ -2469,8 +2516,14 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-stop-button {
-  color: var(--agent-text);
-  background: var(--agent-hover);
+  color: white;
+  background: var(--app-primary-color);
+  box-shadow: 0 0 0 3px rgba(var(--app-primary-rgb), 0.16);
+}
+
+.agent-stop-button:hover {
+  transform: none;
+  background: var(--app-primary-color);
 }
 
 .agent-error {
@@ -2594,6 +2647,7 @@ let resizeObserver: ResizeObserver | undefined
 
 @media (prefers-reduced-motion: reduce) {
   .agent-sidebar,
+  .agent-run-phase-spinner,
   .agent-thinking span {
     transition: none;
     animation: none;

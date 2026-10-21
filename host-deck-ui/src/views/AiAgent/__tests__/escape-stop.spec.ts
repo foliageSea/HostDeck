@@ -36,7 +36,7 @@ function mountView() {
       stubs: {
         AiAgentMarkdown: true,
         AiAgentSkillPicker: true,
-        AiAgentThinkingPicker: true,
+        AiAgentModelPicker: true,
         AiAgentToolCall: true,
         NImage: ImageStub,
         NMention: MentionStub,

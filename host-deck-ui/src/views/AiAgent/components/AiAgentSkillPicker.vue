@@ -65,6 +65,7 @@ function skillDisabled(id: string) {
         class="agent-skill-trigger"
         :class="{ 'agent-skill-trigger-active': selectedSkillIds.length > 0 }"
         :disabled="!connectionId || disabled"
+        :aria-expanded="popoverOpen"
         aria-label="选择 Agent Skill"
       >
         <Puzzle :size="13" />
@@ -151,18 +152,27 @@ function skillDisabled(id: string) {
 .agent-skill-trigger {
   display: inline-flex;
   min-width: 0;
-  height: 25px;
+  height: 28px;
   flex: 0 1 auto;
   align-items: center;
   gap: 5px;
-  padding: 0 7px;
+  padding: 0 8px;
   border: 0;
   border-radius: var(--app-radius-control);
   color: var(--agent-muted, #64748b);
-  background: var(--agent-hover, rgba(100, 116, 139, 0.09));
+  background: transparent;
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
+}
+
+.agent-skill-trigger:hover:not(:disabled),
+.agent-skill-trigger[aria-expanded='true'] {
+  color: var(--agent-text, #182233);
+  background: var(--agent-hover, rgba(100, 116, 139, 0.09));
 }
 
 .agent-skill-trigger span {
