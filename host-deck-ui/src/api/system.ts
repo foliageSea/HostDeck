@@ -12,6 +12,14 @@ export interface MonitorResponse {
     free: number
   }
   disk: string
+  disks?: Array<{
+    filesystem: string
+    mountpoint: string
+    total: number
+    used: number
+    available: number
+    usagePercent: number
+  }>
   network?: {
     uploadSpeed: number
     downloadSpeed: number

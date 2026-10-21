@@ -91,6 +91,8 @@ const ramDetail = computed(() => {
 })
 
 const diskUsage = computed(() => currentSample.value?.disk || '--')
+const disks = computed(() => currentSample.value?.disks ?? [])
+const hasRootDisk = computed(() => disks.value.some((disk) => disk.mountpoint === '/'))
 const uploadSpeed = computed(() => currentSample.value?.network?.uploadSpeed ?? 0)
 const downloadSpeed = computed(() => currentSample.value?.network?.downloadSpeed ?? 0)
 const latestUpdateText = computed(() => {
@@ -270,6 +272,27 @@ function formatMemory(value: number) {
   }
 
   return `${value.toFixed(0)} MB`
+}
+
+function formatDiskPercent(value: number) {
+  return Number.isFinite(value) ? `${value.toFixed(0)}%` : '--'
+}
+
+function formatStorageSize(kilobytes: number) {
+  const bytes = kilobytes * 1024
+  if (bytes >= 1024 ** 4) {
+    return `${(bytes / 1024 ** 4).toFixed(1)} TB`
+  }
+
+  if (bytes >= 1024 ** 3) {
+    return `${(bytes / 1024 ** 3).toFixed(1)} GB`
+  }
+
+  if (bytes >= 1024 ** 2) {
+    return `${(bytes / 1024 ** 2).toFixed(0)} MB`
+  }
+
+  return `${Math.max(0, Math.round(bytes / 1024))} KB`
 }
 
 function formatSystemUptime(info: MonitorResponse['systemInfo'] | null) {
@@ -572,21 +595,42 @@ function createChartOption(config: {
           <section class="host-card host-card-wide" aria-labelledby="host-storage-title">
             <header class="host-card-header"><h2 id="host-storage-title">存储状态</h2></header>
             <div class="host-storage">
-              <div class="host-storage-label">
-                <span><HardDrive :size="18" aria-hidden="true" />根目录 /</span>
-                <span class="host-muted">{{
-                  rootDiskPercent === null ? '暂无容量数据' : `已用 ${diskUsage}`
-                }}</span>
+              <div v-for="disk in disks" :key="`${disk.filesystem}-${disk.mountpoint}`">
+                <div class="host-storage-label">
+                  <span
+                    ><HardDrive :size="18" aria-hidden="true" />{{ disk.mountpoint }}</span
+                  >
+                  <span class="host-muted">
+                    {{ formatStorageSize(disk.used) }} / {{ formatStorageSize(disk.total) }} ·
+                    {{ formatDiskPercent(disk.usagePercent) }}
+                  </span>
+                </div>
+                <NProgress
+                  type="line"
+                  :percentage="disk.usagePercent"
+                  :show-indicator="false"
+                  :height="8"
+                  :color="disk.usagePercent >= 90 ? '#f87171' : '#818cf8'"
+                  :aria-label="`${disk.mountpoint} 磁盘使用率`"
+                />
               </div>
-              <NProgress
-                v-if="rootDiskPercent !== null"
-                type="line"
-                :percentage="rootDiskPercent"
-                :show-indicator="false"
-                :height="8"
-                :color="rootDiskPercent >= 90 ? '#f87171' : '#818cf8'"
-                aria-label="根目录磁盘使用率"
-              />
+              <div v-if="!hasRootDisk">
+                <div class="host-storage-label">
+                  <span><HardDrive :size="18" aria-hidden="true" />根目录 /</span>
+                  <span class="host-muted">{{
+                    rootDiskPercent === null ? '暂无容量数据' : `已用 ${diskUsage}`
+                  }}</span>
+                </div>
+                <NProgress
+                  v-if="rootDiskPercent !== null"
+                  type="line"
+                  :percentage="rootDiskPercent"
+                  :show-indicator="false"
+                  :height="8"
+                  :color="rootDiskPercent >= 90 ? '#f87171' : '#818cf8'"
+                  aria-label="根目录磁盘使用率"
+                />
+              </div>
             </div>
           </section>
         </div>
@@ -984,6 +1028,8 @@ function createChartOption(config: {
   margin-left: auto;
 }
 .host-storage {
+  display: grid;
+  gap: 16px;
   padding: 26px 20px;
 }
 .host-storage-label {

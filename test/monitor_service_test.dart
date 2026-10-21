@@ -30,8 +30,14 @@ class MockSshRepository implements SshRepository {
     if (command.contains('grep Mem')) {
       return "Mem:           8000        4000         480          18        3627        3829";
     }
-    if (command.contains('df -h')) {
-      return "45%";
+    if (command.contains('df -P -k')) {
+      return """Filesystem     1024-blocks      Used Available Capacity Mounted on
+/dev/sda1         41023488  18421920  20502384      45% /
+/dev/sdb1        102687672  12345678  85142216      13% /data
+tmpfs              3984880         0   3984880       0% /dev/shm
+/dev/loop0           56704     56704         0     100% /snap/core20/1974
+overlay           41023488  18421920  20502384      45% /var/lib/docker/overlay2/abc
+""";
     }
     if (command.trim() == 'uptime') {
       return " 13:22:01 up 1 day,  3:10,  1 user,  load average: 0.50, 0.05, 0.01";
@@ -172,6 +178,15 @@ void main() {
     expect(status.ram.total, equals(8000));
     expect(status.ram.used, equals(4000));
     expect(status.disk, equals('45%'));
+    expect(status.disks, hasLength(2));
+    expect(status.disks[0].filesystem, equals('/dev/sda1'));
+    expect(status.disks[0].mountpoint, equals('/'));
+    expect(status.disks[0].total, equals(41023488));
+    expect(status.disks[0].used, equals(18421920));
+    expect(status.disks[0].available, equals(20502384));
+    expect(status.disks[0].usagePercent, equals(45));
+    expect(status.disks[1].mountpoint, equals('/data'));
+    expect(status.disks[1].usagePercent, equals(13));
     expect(status.systemInfo?.hostname, equals('software-order-1'));
     expect(status.systemInfo?.distribution, equals('Ubuntu 22.04.3 LTS'));
     expect(status.systemInfo?.kernel, equals('5.15.0-179-generic'));

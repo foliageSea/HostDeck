@@ -30,6 +30,8 @@
 ## 开发要点
 
 - `MonitorService` 负责从远端系统采集状态并解析命令输出。
+- 磁盘采样使用 `LC_ALL=C df -P -k`，解析为 `SystemStatus.disks`（真实块设备分区列表）；`SystemStatus.disk` 保留为根分区使用率字符串，兼容旧前端和 Agent 工具。
+- 分区过滤只排除伪文件系统（`tmpfs`、`overlay`、`squashfs`、`cgroup` 等）以及 `/dev/loopN` 和 `/snap*` 挂载；容器里根分区本身是 `overlay` 时不进入列表，但仍通过 `disk` 字段上报。
 - `MonitorHistoryService` 负责历史数据缓存和查询。
 - WebSocket handler 应控制推送频率，避免前端和 SSH 连接压力过大。
 - 前端仪表盘应能处理字段缺失、采集失败和连接断开的状态。

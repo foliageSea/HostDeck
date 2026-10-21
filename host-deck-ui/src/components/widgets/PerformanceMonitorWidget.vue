@@ -22,8 +22,11 @@ const memoryPercent = computed(() => {
   return ram?.total ? (ram.used / ram.total) * 100 : null
 })
 const diskPercent = computed(() => {
-  const disk = currentSample.value?.disk.trim() ?? ''
-  return /^\d+(\.\d+)?%$/.test(disk) ? Number.parseFloat(disk) : null
+  const disk = currentSample.value?.disks?.find((item) => item.mountpoint === '/')
+  if (disk) return disk.usagePercent
+
+  const legacy = currentSample.value?.disk.trim() ?? ''
+  return /^\d+(\.\d+)?%$/.test(legacy) ? Number.parseFloat(legacy) : null
 })
 const cpuSeries = computed(() => samples.value.map((sample) => sample.cpuUsage ?? 0))
 const memorySeries = computed(() =>

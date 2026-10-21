@@ -23,10 +23,9 @@ class MonitorService {
   Future<SystemStatus> getSystemStatus(SshSession session) async {
     // Keep monitor commands sequential to avoid exhausting low SSH MaxSessions.
     final ramResult = await _repository.exec(session, 'free -m | grep Mem');
-    final diskResult = await _repository.exec(
-      session,
-      "df -h / | awk 'NR==2 {print \$5}'",
-    );
+    final diskResult = await _repository
+        .exec(session, _diskUsageCommand)
+        .catchError((_) => "");
     final uptimeResult = await _repository.exec(session, "uptime");
     final topResult = await _repository
         .exec(
@@ -56,7 +55,8 @@ class MonitorService {
     final totalRam = ramParts.length > 1 ? (int.tryParse(ramParts[1]) ?? 0) : 0;
     final usedRam = ramParts.length > 2 ? (int.tryParse(ramParts[2]) ?? 0) : 0;
 
-    final diskUsage = results[1].trim();
+    final disks = _parseDisks(results[1]);
+    final rootDisk = _rootDiskUsage(results[1]);
 
     // Parse load average from uptime: " 13:22:01 up 1 day,  3:10,  1 user,  load average: 0.00, 0.00, 0.00"
     final uptimeStr = results[2].trim();
@@ -173,10 +173,132 @@ class MonitorService {
       cpu: loadAvg,
       cpuUsage: cpuUsage ?? 0.0,
       ram: RamStatus(total: totalRam, used: usedRam),
-      disk: diskUsage,
+      disk: rootDisk,
+      disks: disks,
       network: networkStatus,
       systemInfo: _parseSystemInfo(results[5]),
     );
+  }
+
+  static const String _diskUsageCommand = 'LC_ALL=C df -P -k 2>/dev/null';
+
+  static const Set<String> _pseudoFilesystems = {
+    'tmpfs',
+    'devtmpfs',
+    'devpts',
+    'proc',
+    'sysfs',
+    'cgroup',
+    'cgroup2',
+    'overlay',
+    'squashfs',
+    'ramfs',
+    'none',
+    'shm',
+    'udev',
+    'efivarfs',
+    'debugfs',
+    'tracefs',
+    'securityfs',
+    'pstore',
+    'bpf',
+    'autofs',
+    'mqueue',
+    'hugetlbfs',
+    'fusectl',
+  };
+
+  List<DiskStatus> _parseDisks(String value) {
+    final disks = <DiskStatus>[];
+    final seen = <String>{};
+
+    for (final rawLine in value.split('\n')) {
+      final line = rawLine.trim();
+      if (line.isEmpty) {
+        continue;
+      }
+
+      final parts = line.split(RegExp(r'\s+'));
+      if (parts.length < 6 || parts[0] == 'Filesystem') {
+        continue;
+      }
+
+      final filesystem = parts[0];
+      final total = int.tryParse(parts[1]);
+      final used = int.tryParse(parts[2]);
+      final available = int.tryParse(parts[3]);
+      if (total == null || used == null || available == null || total <= 0) {
+        continue;
+      }
+
+      final mountpoint = parts.sublist(5).join(' ');
+      if (!_isRealBlockDevice(filesystem, mountpoint)) {
+        continue;
+      }
+
+      if (!seen.add('$filesystem|$mountpoint')) {
+        continue;
+      }
+
+      final percentValue = double.tryParse(parts[4].replaceAll('%', ''));
+      disks.add(
+        DiskStatus(
+          filesystem: filesystem,
+          mountpoint: mountpoint,
+          total: total,
+          used: used,
+          available: available,
+          usagePercent: percentValue ?? (used / total) * 100,
+        ),
+      );
+    }
+
+    return disks;
+  }
+
+  bool _isRealBlockDevice(String filesystem, String mountpoint) {
+    if (_pseudoFilesystems.contains(filesystem)) {
+      return false;
+    }
+
+    // Snap packages mount read-only squashfs images through loop devices.
+    if (filesystem.startsWith('/dev/loop') || mountpoint.startsWith('/snap/')) {
+      return false;
+    }
+
+    if (mountpoint == '/snap') {
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Root usage stays in the legacy `disk` field, even when `/` itself is a
+  /// pseudo filesystem such as the overlay used by containers.
+  String _rootDiskUsage(String value) {
+    for (final rawLine in value.split('\n')) {
+      final line = rawLine.trim();
+      if (line.isEmpty) {
+        continue;
+      }
+
+      final parts = line.split(RegExp(r'\s+'));
+      if (parts.length < 6 || parts[0] == 'Filesystem') {
+        continue;
+      }
+
+      final mountpoint = parts.sublist(5).join(' ');
+      if (mountpoint != '/') {
+        continue;
+      }
+
+      final percentValue = double.tryParse(parts[4].replaceAll('%', ''));
+      if (percentValue != null) {
+        return '${percentValue.toStringAsFixed(0)}%';
+      }
+    }
+
+    return '';
   }
 
   static const String _systemInfoCommand = r'''

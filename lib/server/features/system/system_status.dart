@@ -4,6 +4,7 @@ class SystemStatus {
   final double? cpuUsage;
   final RamStatus ram;
   final String disk;
+  final List<DiskStatus> disks;
   final NetworkStatus? network;
   final SystemInfo? systemInfo;
 
@@ -13,6 +14,7 @@ class SystemStatus {
     this.cpuUsage,
     required this.ram,
     required this.disk,
+    this.disks = const [],
     this.network,
     this.systemInfo,
   });
@@ -23,8 +25,36 @@ class SystemStatus {
     'cpuUsage': cpuUsage,
     'ram': ram.toJson(),
     'disk': disk,
+    if (disks.isNotEmpty) 'disks': disks.map((disk) => disk.toJson()).toList(),
     if (network != null) 'network': network!.toJson(),
     if (systemInfo != null) 'systemInfo': systemInfo!.toJson(),
+  };
+}
+
+class DiskStatus {
+  final String filesystem;
+  final String mountpoint;
+  final int total;
+  final int used;
+  final int available;
+  final double usagePercent;
+
+  DiskStatus({
+    required this.filesystem,
+    required this.mountpoint,
+    required this.total,
+    required this.used,
+    required this.available,
+    required this.usagePercent,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'filesystem': filesystem,
+    'mountpoint': mountpoint,
+    'total': total,
+    'used': used,
+    'available': available,
+    'usagePercent': usagePercent,
   };
 }
 
