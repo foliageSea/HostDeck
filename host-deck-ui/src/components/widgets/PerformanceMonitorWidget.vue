@@ -183,10 +183,10 @@ function formatTime(timestamp: number) {
   padding: 10px;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: var(--app-radius-item);
-  background: rgba(255, 255, 255, 0.36);
+  background: rgba(148, 163, 184, 0.1);
 }
 .performance-widget--dark .performance-widget__chart {
-  background: rgba(15, 23, 42, 0.28);
+  background: rgba(148, 163, 184, 0.08);
 }
 .performance-widget__chart-meta {
   display: flex;

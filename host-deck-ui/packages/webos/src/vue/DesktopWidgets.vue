@@ -322,13 +322,17 @@ onUnmounted(() => {
       @animationend.self="finishSettling(widget.instance.id)"
     >
       <!--
-        The blurred surface must not sit inside a transformed ancestor: that ancestor becomes the
-        backdrop root and the blur samples the widget itself instead of the wallpaper. Only the
-        inner shell carries the drag/settle transform, the outer slot stays layout-only.
+        Solid background on purpose: no backdrop-filter here. A blurred surface that also owns
+        border-radius + overflow:hidden was the combination that leaked onto neighbouring icons and
+        widgets depending on the compositor.
       -->
       <div
-        class="desktop-widget-surface app-radius-card flex h-full w-full min-w-0 flex-col overflow-hidden backdrop-blur-[18px]"
-        :class="settingsStore.isDark ? 'bg-[rgba(15,23,42,0.68)]' : 'bg-[rgba(255,255,255,0.72)]'"
+        class="desktop-widget-surface app-radius-card flex h-full w-full min-w-0 flex-col overflow-hidden"
+        :class="
+          settingsStore.isDark
+            ? 'bg-[#111827] shadow-[0_18px_40px_rgba(0,0,0,0.36),0_0_0_1px_rgba(148,163,184,0.14)]'
+            : 'bg-white shadow-[0_18px_40px_rgba(15,23,42,0.14),0_0_0_1px_rgba(15,23,42,0.06)]'
+        "
       >
         <header
           data-widget-drag-handle
@@ -411,14 +415,6 @@ onUnmounted(() => {
   opacity: 0.94;
   transform: scale(1.018);
   box-shadow: 0 24px 54px rgba(15, 23, 42, 0.28);
-}
-
-/* A transformed ancestor becomes the backdrop root, so the blur is dropped while the widget is
-   actually moving instead of sampling a stale snapshot every frame. */
-.desktop-widget-slot--dragging .desktop-widget-surface,
-.desktop-widget-slot--settling .desktop-widget-surface {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 .desktop-widget-drop-preview {

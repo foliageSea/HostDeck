@@ -115,6 +115,15 @@ describe('DesktopWidgets', () => {
     expect(desktopStore.windows[0]?.props).toMatchObject({ initialTab: 'performance' })
   })
 
+  it('renders the widget with a solid background and no backdrop blur', () => {
+    const wrapper = mountWidgets()
+    const surface = wrapper.get('.desktop-widget-surface')
+
+    expect(surface.classes()).toContain('bg-white')
+    expect(surface.classes()).not.toContain('backdrop-blur-[18px]')
+    expect(surface.attributes('style') ?? '').not.toContain('backdrop-filter')
+  })
+
   it('removes a widget from its context menu', async () => {
     const widgetStore = useDesktopWidgetStore()
     const wrapper = mountWidgets()
