@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
+import 'package:host_deck/server/core/ssh/shell_invocation.dart';
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/agent/agent_controller.dart';
@@ -124,7 +125,14 @@ class ServerContainer {
       }
       return databaseService;
     });
-    getIt.registerLazySingleton<SshRepository>(SshRepository.new);
+    getIt.registerLazySingleton<ShellInvocationResolver>(
+      ShellInvocationResolver.new,
+    );
+    getIt.registerLazySingleton<SshRepository>(
+      () => SshRepository(
+        shellInvocationResolver: getIt<ShellInvocationResolver>(),
+      ),
+    );
     getIt.registerLazySingleton<SshService>(SshService.new);
     getIt.registerSingletonAsync<AiAgentSecretStore>(() async {
       final store = AiAgentSecretStore(dataDir: dataDir);
@@ -221,7 +229,10 @@ class ServerContainer {
     );
     getIt.registerLazySingleton<DockerEngineMapper>(DockerEngineMapper.new);
     getIt.registerLazySingleton<DockerComposeService>(
-      () => DockerComposeService(getIt<SshRepository>()),
+      () => DockerComposeService(
+        getIt<SshRepository>(),
+        shellInvocationResolver: getIt<ShellInvocationResolver>(),
+      ),
     );
     getIt.registerLazySingleton<DockerRegistryRepository>(
       () => DockerRegistryRepository(getIt<DatabaseService>()),

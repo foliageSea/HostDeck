@@ -152,9 +152,13 @@ class DockerController {
 
   Future<Response> checkCompose(Request request) async {
     return _withComposeSession(request, (session) async {
-      return Result.ok({
-        'available': await _composeService.isComposeAvailable(session),
-      });
+      final refresh = request.url.queryParameters['refresh'] == 'true';
+      if (refresh) {
+        _composeService.invalidateCache(session.connectionId);
+      }
+      return Result.ok(
+        (await _composeService.inspectAvailability(session)).toJson(),
+      );
     });
   }
 

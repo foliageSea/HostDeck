@@ -91,7 +91,17 @@ function handleComposeMoreAction(project: DockerComposeProject, action: string) 
       v-if="controller.composeAvailable === false"
       status="warning"
       title="Docker Compose 不可用"
-    />
+      :description="
+        controller.composeUnavailableReason ||
+        '服务器未安装 Docker Compose，或当前登录 shell 无法加载环境。'
+      "
+    >
+      <template #footer>
+        <NButton :loading="controller.loading" @click="controller.refreshCompose()">
+          重新检测
+        </NButton>
+      </template>
+    </NResult>
     <NEmpty v-else-if="controller.filteredComposeProjects.length === 0" class="my-auto" />
     <div v-else class="compose-list app-scrollbar app-scrollbar-compact">
       <div class="compose-list__summary">

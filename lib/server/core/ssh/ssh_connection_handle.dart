@@ -5,6 +5,8 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:host_deck/server/core/ssh/ssh_operation_limiter.dart';
 
 abstract interface class SshOperationContext {
+  String get connectionId;
+
   SSHClient get client;
 
   Future<SshOperationPermit> acquireOperation();
@@ -13,6 +15,7 @@ abstract interface class SshOperationContext {
 }
 
 class SshConnectionHandle implements SshOperationContext {
+  @override
   final String connectionId;
   @override
   final SSHClient client;

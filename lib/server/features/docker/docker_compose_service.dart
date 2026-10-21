@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:host_deck/server/core/ssh/shell_invocation.dart';
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 
@@ -13,16 +14,45 @@ class DockerComposeStreamEvent {
 
 class DockerComposeService {
   final SshRepository _sshRepository;
+  final ShellInvocationResolver _shellInvocationResolver;
 
-  DockerComposeService(this._sshRepository);
+  DockerComposeService(
+    this._sshRepository, {
+    ShellInvocationResolver? shellInvocationResolver,
+  }) : _shellInvocationResolver =
+           shellInvocationResolver ?? ShellInvocationResolver();
+
+  /// Compose command lines are probed per connection; `docker compose version`
+  /// costs two round trips, so remember the winner until the user re-checks.
+  final Map<String, _ComposeCommand> _commandCache = {};
+
+  void invalidateCache(String connectionId) {
+    _commandCache.remove(connectionId);
+    _shellInvocationResolver.invalidate(connectionId);
+  }
 
   Future<bool> isComposeAvailable(SshSession session) async {
+    return (await inspectAvailability(session)).available;
+  }
+
+  Future<ComposeAvailability> inspectAvailability(SshSession session) async {
     try {
-      await _resolveComposeCommand(session);
-      return true;
-    } catch (_) {
-      return false;
+      final command = await _resolveComposeCommand(session);
+      return ComposeAvailability(available: true, command: command.display);
+    } catch (error) {
+      return ComposeAvailability(
+        available: false,
+        detail: _describeFailure(error),
+      );
     }
+  }
+
+  String _describeFailure(Object error) {
+    final message = error
+        .toString()
+        .replaceFirst(RegExp(r'^Exception:\s*'), '')
+        .trim();
+    return message.isEmpty ? '无法执行 Docker Compose 命令' : message;
   }
 
   Future<List<Map<String, dynamic>>> listComposeProjects(
@@ -287,7 +317,7 @@ class DockerComposeService {
     int? exitCode;
     await for (final event in _sshRepository.execStream(
       session,
-      'sh -lc ${_quote(commandText)}',
+      await _wrap(session, commandText),
     )) {
       if (event.completed) {
         exitCode = event.exitCode;
@@ -371,17 +401,34 @@ class DockerComposeService {
       '-d',
     ];
     final commandText = _buildShellCommand(args, workingDir: workingDir);
-    yield* _sshRepository.execStream(session, 'sh -lc ${_quote(commandText)}');
+    yield* _sshRepository.execStream(
+      session,
+      await _wrap(session, commandText),
+    );
   }
 
   Future<_ComposeCommand> _resolveComposeCommand(SshSession session) async {
-    try {
-      await _runShell(session, const ['docker', 'compose', 'version']);
-      return const _ComposeCommand(['docker', 'compose'], true);
-    } catch (_) {
-      await _runShell(session, const ['docker-compose', 'version']);
-      return const _ComposeCommand(['docker-compose'], false);
+    final cached = _commandCache[session.connectionId];
+    if (cached != null) {
+      return cached;
     }
+
+    final failures = <String>[];
+    for (final candidate in const [
+      _ComposeCommand(['docker', 'compose'], true),
+      _ComposeCommand(['docker-compose'], false),
+    ]) {
+      try {
+        await _runShell(session, [...candidate.args, 'version']);
+      } catch (error) {
+        failures.add('${candidate.display}: ${_describeFailure(error)}');
+        continue;
+      }
+      _commandCache[session.connectionId] = candidate;
+      return candidate;
+    }
+
+    throw Exception(failures.join('\n'));
   }
 
   Future<String> _runShell(
@@ -391,10 +438,11 @@ class DockerComposeService {
   }) async {
     const marker = '__HOST_DECK_COMPOSE_STATUS__';
     final command = _buildShellCommand(args, workingDir: workingDir);
-    final output = await _sshRepository.exec(
+    final script = await _wrap(
       session,
-      'sh -lc ${_quote('$command; code=\$?; printf "\\n$marker:%s" "\$code"; exit 0')}',
+      '$command; code=\$?; printf "\\n$marker:%s" "\$code"; exit 0',
     );
+    final output = await _sshRepository.exec(session, script);
     final index = output.lastIndexOf('\n$marker:');
     if (index < 0) {
       throw Exception(
@@ -409,6 +457,10 @@ class DockerComposeService {
     }
     return body.trim();
   }
+
+  /// Builds the remote command with the shell flavor this connection supports.
+  Future<String> _wrap(SshSession session, String script) async =>
+      (await _shellInvocationResolver.resolve(session)).wrap(script);
 
   String _buildShellCommand(List<String> args, {String? workingDir}) => [
     if (workingDir?.trim().isNotEmpty == true)
@@ -477,9 +529,29 @@ class DockerComposeService {
   String _quote(String value) => "'${value.replaceAll("'", "'\\''")}'";
 }
 
+class ComposeAvailability {
+  final bool available;
+  final String? command;
+  final String? detail;
+
+  const ComposeAvailability({
+    required this.available,
+    this.command,
+    this.detail,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'available': available,
+    if (command != null) 'command': command,
+    if (detail != null) 'detail': detail,
+  };
+}
+
 class _ComposeCommand {
   final List<String> args;
   final bool supportsPlainProgress;
 
   const _ComposeCommand(this.args, this.supportsPlainProgress);
+
+  String get display => args.join(' ');
 }

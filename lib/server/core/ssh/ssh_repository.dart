@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
 
+import 'package:host_deck/server/core/ssh/shell_invocation.dart';
 import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 import 'package:host_deck/server/features/files/file_item.dart';
@@ -72,6 +73,12 @@ class SshExecStreamEvent {
 }
 
 class SshRepository {
+  final ShellInvocationResolver _shellInvocationResolver;
+
+  SshRepository({ShellInvocationResolver? shellInvocationResolver})
+    : _shellInvocationResolver =
+          shellInvocationResolver ?? ShellInvocationResolver();
+
   String _shellQuote(String value) {
     return "'${value.replaceAll("'", "'\\''")}'";
   }
@@ -80,8 +87,9 @@ class SshRepository {
     SshOperationContext session,
     String command,
   ) async {
+    final invocation = await _shellInvocationResolver.resolve(session);
     final result = await session.runOperation(
-      () => session.client.runWithResult('sh -lc ${_shellQuote(command)}'),
+      () => session.client.runWithResult(invocation.wrap(command)),
     );
     final stdout = utf8.decode(result.stdout).trim();
     final stderr = utf8.decode(result.stderr).trim();
@@ -114,9 +122,11 @@ class SshRepository {
     return result;
   }
 
-  /// Runs [command] through `sh`. By default a login shell (`-l`) is used so
-  /// the user's profile environment is available. Pass `login: false` for
-  /// commands that do not need it, so a broken `~/.profile` cannot break them.
+  /// Runs [command] through a POSIX shell. By default a login shell is used so
+  /// the user's profile environment is available; the login flavor is probed
+  /// per connection because a profile that only bash can source (for example
+  /// `swiftly/env.sh`) makes `sh -lc` exit before running the command. Pass
+  /// `login: false` for commands that do not need the profile at all.
   Future<SshExecResult> execWithResult(
     SshOperationContext session,
     String command, {
@@ -130,14 +140,15 @@ class SshRepository {
     final script = cwd == null || cwd.trim().isEmpty
         ? command
         : 'cd ${_shellQuote(cwd)} && $command';
+    final invocation = login
+        ? await _shellInvocationResolver.resolve(session)
+        : ShellInvocation.plain;
     SSHSession? sshSession;
 
     try {
       final result = await session
           .runOperation(() async {
-            sshSession = await session.client.execute(
-              '${login ? 'sh -lc' : 'sh -c'} ${_shellQuote(script)}',
-            );
+            sshSession = await session.client.execute(invocation.wrap(script));
 
             if (stdin != null) {
               sshSession!.stdin.add(Uint8List.fromList(utf8.encode(stdin)));
@@ -235,8 +246,9 @@ class SshRepository {
       'printf "kb:%s" "\${output%%[[:space:]]*}";',
       'else exit 1; fi',
     ].join(' ');
+    final invocation = await _shellInvocationResolver.resolve(session);
     final result = await session.runOperation(
-      () => session.client.runWithResult('sh -lc ${_shellQuote(command)}'),
+      () => session.client.runWithResult(invocation.wrap(command)),
     );
     final stdout = utf8.decode(result.stdout).trim();
     final stderr = utf8.decode(result.stderr).trim();

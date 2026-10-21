@@ -77,6 +77,7 @@ export function useDockerView(props: DockerViewProps) {
   const volumes = ref<DockerVolume[]>([])
   const volumeSearchKeyword = ref('')
   const composeAvailable = ref<boolean | null>(null)
+  const composeUnavailableReason = ref('')
   const composeProjects = ref<DockerComposeProject[]>([])
   const composeSearchKeyword = ref('')
   const composeActionLoadingMap = ref<Record<string, boolean>>({})
@@ -367,6 +368,7 @@ export function useDockerView(props: DockerViewProps) {
     networks.value = []
     volumes.value = []
     composeProjects.value = []
+    composeUnavailableReason.value = ''
     composeActionLoadingMap.value = {}
     containerTotal.value = 0
     imageTotal.value = 0
@@ -537,13 +539,13 @@ export function useDockerView(props: DockerViewProps) {
         } else if (tab === 'volumes') {
           await loadVolumes()
         } else if (tab === 'compose') {
-          await loadComposeProjects()
+          await loadComposeProjects(force)
         } else if (tab === 'overview') {
           await loadContainersPage()
           await loadImagesPage()
           await loadNetworks()
           await loadVolumes()
-          await loadComposeProjects()
+          await loadComposeProjects(force)
         }
 
         loadedTabs.value = {
@@ -1281,12 +1283,14 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
-  async function loadComposeProjects() {
+  async function loadComposeProjects(force = false) {
     const connectionId = requireConnectionId()
-    composeAvailable.value = (
-      await queueDockerRequest(() => dockerApi.checkCompose(connectionId))
-    ).available
-    composeProjects.value = composeAvailable.value
+    const availability = await queueDockerRequest(() =>
+      dockerApi.checkCompose(connectionId, { refresh: force }),
+    )
+    composeAvailable.value = availability.available
+    composeUnavailableReason.value = availability.detail ?? ''
+    composeProjects.value = availability.available
       ? await queueDockerRequest(() => dockerApi.listComposeProjects(connectionId))
       : []
   }
@@ -1701,6 +1705,7 @@ export function useDockerView(props: DockerViewProps) {
     batchStopSelected,
     composeActionLoadingMap,
     composeAvailable,
+    composeUnavailableReason,
     composeProjects,
     composeSearchKeyword,
     confirmComposeProjectAction,

@@ -360,7 +360,8 @@ class _FakeDockerComposeService extends DockerComposeService {
   _FakeDockerComposeService() : super(SshRepository());
 
   @override
-  Future<bool> isComposeAvailable(SshSession session) async => true;
+  Future<ComposeAvailability> inspectAvailability(SshSession session) async =>
+      const ComposeAvailability(available: true, command: 'docker compose');
 
   @override
   Stream<DockerComposeStreamEvent> createComposeProjectStream(

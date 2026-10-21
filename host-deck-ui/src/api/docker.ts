@@ -160,6 +160,12 @@ export interface DockerComposeProject {
   workingDir: string
 }
 
+export interface DockerComposeAvailability {
+  available: boolean
+  command?: string
+  detail?: string
+}
+
 export interface DockerComposeService {
   id: string
   name: string
@@ -383,10 +389,13 @@ export const dockerApi = {
     return response.data
   },
 
-  async checkCompose(connectionId: string) {
-    const response = await http.get<{ available: boolean }>('/api/docker/compose/check', {
-      params: { connectionId },
-    })
+  async checkCompose(connectionId: string, options: { refresh?: boolean } = {}) {
+    const response = await http.get<DockerComposeAvailability>(
+      '/api/docker/compose/check',
+      {
+        params: { connectionId, ...(options.refresh ? { refresh: 'true' } : {}) },
+      },
+    )
     return response.data
   },
 
