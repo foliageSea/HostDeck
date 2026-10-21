@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { LayoutGrid } from '@lucide/vue'
 import DesktopMenu from './DesktopMenu.vue'
 import DesktopTooltip from './DesktopTooltip.vue'
 import AppIcon from './AppIcon.vue'
@@ -319,17 +318,73 @@ function openLaunchpad() {
           <template #trigger>
             <button
               type="button"
-              class="app-radius-surface launchpad-trigger dock-item flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 cursor-pointer"
-              :class="
-                settingsStore.isDark
-                  ? 'bg-[rgba(2,6,23,0.46)] text-[#e2e8f0] hover:bg-[rgba(2,6,23,0.58)]'
-                  : 'bg-[rgba(255,255,255,0.48)] text-[#334155] hover:bg-[rgba(255,255,255,0.62)]'
-              "
+              class="launchpad-trigger dock-item flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 bg-transparent p-0 cursor-pointer"
               data-dock-slot
               aria-label="打开启动台"
               @click="openLaunchpad"
             >
-              <LayoutGrid :size="25" />
+              <svg
+                class="launchpad-icon"
+                viewBox="0 0 128 128"
+                width="52"
+                height="52"
+                aria-hidden="true"
+              >
+                <defs>
+                  <linearGradient id="launchpad-bg" x1="64" y1="6" x2="64" y2="122" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#F7F8FB" />
+                    <stop offset="1" stop-color="#B9BFCC" />
+                  </linearGradient>
+                  <linearGradient id="launchpad-rim" x1="20" y1="8" x2="64" y2="70" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#FFFFFF" />
+                    <stop offset="1" stop-color="#FFFFFF" stop-opacity="0" />
+                  </linearGradient>
+                  <linearGradient id="launchpad-blue" x1="0" y1="0" x2="0" y2="1">
+                    <stop stop-color="#5AC8FA" />
+                    <stop offset="1" stop-color="#2F7BF5" />
+                  </linearGradient>
+                  <linearGradient id="launchpad-green" x1="0" y1="0" x2="0" y2="1">
+                    <stop stop-color="#6EE7A0" />
+                    <stop offset="1" stop-color="#22A861" />
+                  </linearGradient>
+                  <linearGradient id="launchpad-orange" x1="0" y1="0" x2="0" y2="1">
+                    <stop stop-color="#FFC15A" />
+                    <stop offset="1" stop-color="#F97316" />
+                  </linearGradient>
+                  <linearGradient id="launchpad-pink" x1="0" y1="0" x2="0" y2="1">
+                    <stop stop-color="#FF8FB0" />
+                    <stop offset="1" stop-color="#E11D48" />
+                  </linearGradient>
+                  <linearGradient id="launchpad-purple" x1="0" y1="0" x2="0" y2="1">
+                    <stop stop-color="#A78BFA" />
+                    <stop offset="1" stop-color="#6D28D9" />
+                  </linearGradient>
+                  <linearGradient id="launchpad-slate" x1="0" y1="0" x2="0" y2="1">
+                    <stop stop-color="#6B7280" />
+                    <stop offset="1" stop-color="#374151" />
+                  </linearGradient>
+                </defs>
+                <rect x="6" y="6" width="116" height="116" rx="30" fill="url(#launchpad-bg)" />
+                <rect
+                  x="6.75"
+                  y="6.75"
+                  width="114.5"
+                  height="114.5"
+                  rx="29.25"
+                  fill="none"
+                  stroke="url(#launchpad-rim)"
+                  stroke-width="1.5"
+                />
+                <rect x="28" y="28" width="20" height="20" rx="6" fill="url(#launchpad-blue)" />
+                <rect x="54" y="28" width="20" height="20" rx="6" fill="url(#launchpad-green)" />
+                <rect x="80" y="28" width="20" height="20" rx="6" fill="url(#launchpad-orange)" />
+                <rect x="28" y="54" width="20" height="20" rx="6" fill="url(#launchpad-pink)" />
+                <rect x="54" y="54" width="20" height="20" rx="6" fill="url(#launchpad-purple)" />
+                <rect x="80" y="54" width="20" height="20" rx="6" fill="url(#launchpad-slate)" />
+                <rect x="28" y="80" width="20" height="20" rx="6" fill="url(#launchpad-orange)" />
+                <rect x="54" y="80" width="20" height="20" rx="6" fill="url(#launchpad-blue)" />
+                <rect x="80" y="80" width="20" height="20" rx="6" fill="url(#launchpad-green)" />
+              </svg>
             </button>
           </template>
           启动台
@@ -673,6 +728,11 @@ function openLaunchpad() {
     translate var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1),
     transform var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1),
     background-color 160ms ease;
+}
+
+.launchpad-icon {
+  display: block;
+  pointer-events: none;
 }
 
 .dock-item:focus-visible {
