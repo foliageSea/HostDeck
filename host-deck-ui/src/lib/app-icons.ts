@@ -16,7 +16,7 @@ import realtimeLogIconUrl from '@/assets/mac-tahoe/src/apps/scalable/logview.svg
 import runtimeIconUrl from '@/assets/mac-tahoe/src/apps/scalable/multitasking-view.svg'
 import settingsIconUrl from '@/assets/mac-tahoe/src/apps/scalable/preferences-system.svg'
 import taskIconUrl from '@/assets/mac-tahoe/src/apps/scalable/evolution-tasks.svg'
-import taskCenterIconUrl from '@/assets/mac-tahoe/src/apps/scalable/stacks-task-manager.svg'
+import taskCenterIconUrl from '@/assets/task-center.svg'
 import terminalIconUrl from '@/assets/mac-tahoe/src/apps/scalable/terminal.svg'
 
 export const themedAppIconMap: Record<AppIconKey, string> = {
