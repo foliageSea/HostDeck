@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useLocalStorage } from '@vueuse/core'
 import type { MentionOption } from 'naive-ui'
 import {
   Bot,
@@ -67,6 +68,16 @@ interface ModelGroup {
   provider: string
 }
 
+const AGENT_SIDEBAR_WIDTH_STORAGE_KEY = 'host-deck:ai-agent:sidebar-width'
+const DEFAULT_SIDEBAR_WIDTH = 240
+const MIN_SIDEBAR_WIDTH = 200
+const MAX_SIDEBAR_WIDTH = 420
+const ESCAPE_BLOCKING_SELECTOR = [
+  '.n-modal-container',
+  '.n-drawer-container',
+  '.n-image-preview-container',
+].join(', ')
+
 const props = defineProps<{ windowId?: string }>()
 
 const agentStore = useAiAgentStore()
@@ -97,7 +108,11 @@ const {
 
 const rootElement = ref<HTMLElement>()
 const compactLayout = ref(false)
+const containerWidth = ref(0)
 const sidebarOpen = ref(true)
+const sidebarWidth = useLocalStorage(AGENT_SIDEBAR_WIDTH_STORAGE_KEY, DEFAULT_SIDEBAR_WIDTH)
+const sidebarResizing = ref(false)
+const resizeWidth = ref<number | null>(null)
 const modeMenuOpen = ref(false)
 const modelMenuOpen = ref(false)
 const query = ref('')
@@ -267,6 +282,109 @@ function selectAiMode(mode: 'chat' | 'agent') {
 
 function closeSidebarOnNarrowScreen() {
   if (compactLayout.value) sidebarOpen.value = false
+}
+
+const maxSidebarWidth = computed(() => {
+  const width = containerWidth.value
+  if (!width) return MAX_SIDEBAR_WIDTH
+  return Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, width - 320))
+})
+
+const normalizedSidebarWidth = computed(() => {
+  const width = Number(sidebarWidth.value)
+  const value = Number.isFinite(width) ? width : DEFAULT_SIDEBAR_WIDTH
+  return Math.min(maxSidebarWidth.value, Math.max(MIN_SIDEBAR_WIDTH, value))
+})
+
+const effectiveSidebarWidth = computed(() => {
+  const width = resizeWidth.value ?? normalizedSidebarWidth.value
+  return Math.min(maxSidebarWidth.value, Math.max(MIN_SIDEBAR_WIDTH, width))
+})
+
+let resizeStartClientX = 0
+let resizeStartWidth = 0
+let previousBodyCursor = ''
+let previousBodyUserSelect = ''
+
+function handleSidebarResize(event: PointerEvent) {
+  if (!sidebarResizing.value) return
+  const width = resizeStartWidth + event.clientX - resizeStartClientX
+  // 拖到最小宽度时收起侧边栏
+  if (width <= MIN_SIDEBAR_WIDTH) {
+    resizeWidth.value = null
+    stopSidebarResize()
+    sidebarOpen.value = false
+    return
+  }
+  resizeWidth.value = Math.min(maxSidebarWidth.value, Math.round(width))
+}
+
+function stopSidebarResize() {
+  if (!sidebarResizing.value) return
+  sidebarResizing.value = false
+  window.removeEventListener('pointermove', handleSidebarResize)
+  window.removeEventListener('pointerup', stopSidebarResize)
+  window.removeEventListener('pointercancel', stopSidebarResize)
+  document.body.style.cursor = previousBodyCursor
+  document.body.style.userSelect = previousBodyUserSelect
+  if (resizeWidth.value !== null) {
+    sidebarWidth.value = resizeWidth.value
+    resizeWidth.value = null
+  }
+}
+
+function startSidebarResize(event: PointerEvent) {
+  if (event.button !== 0 || compactLayout.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  sidebarResizing.value = true
+  resizeStartClientX = event.clientX
+  resizeStartWidth = normalizedSidebarWidth.value
+  resizeWidth.value = resizeStartWidth
+  previousBodyCursor = document.body.style.cursor
+  previousBodyUserSelect = document.body.style.userSelect
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+  window.addEventListener('pointermove', handleSidebarResize)
+  window.addEventListener('pointerup', stopSidebarResize)
+  window.addEventListener('pointercancel', stopSidebarResize)
+}
+
+function handleSidebarResizeKey(event: KeyboardEvent) {
+  const delta = event.key === 'ArrowLeft' ? -16 : event.key === 'ArrowRight' ? 16 : 0
+  if (!delta) return
+  event.preventDefault()
+  sidebarWidth.value = Math.min(
+    maxSidebarWidth.value,
+    Math.max(MIN_SIDEBAR_WIDTH, normalizedSidebarWidth.value + delta),
+  )
+}
+
+function isOverlayOpen() {
+  return document.querySelector(ESCAPE_BLOCKING_SELECTOR) !== null
+}
+
+function closeSkillMentionMenu() {
+  if (!document.querySelector('.n-mention-menu')) return false
+  // 失焦会关闭 @ 提及菜单，避免同一次 Esc 既关菜单又中断任务
+  rootElement.value?.querySelector<HTMLTextAreaElement>('.agent-composer-input textarea')?.blur()
+  return true
+}
+
+function handleWindowKeydown(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.key !== 'Escape' || event.isComposing) return
+  if (props.windowId && desktopStore.activeWindowId !== props.windowId) return
+  if (modelMenuOpen.value || modeMenuOpen.value) {
+    modelMenuOpen.value = false
+    modeMenuOpen.value = false
+    return
+  }
+  if (closeSkillMentionMenu()) return
+  // 弹窗、抽屉、图片预览等覆盖层自身响应 Esc，交给它们处理
+  if (isOverlayOpen()) return
+  if (!running.value) return
+  event.preventDefault()
+  void stop()
 }
 
 async function loadForConnection(connectionId: string) {
@@ -581,7 +699,9 @@ watch(
 onMounted(() => {
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(([entry]) => {
-      const compact = (entry?.contentRect.width ?? 760) < 760
+      const width = entry?.contentRect.width ?? 760
+      containerWidth.value = width
+      const compact = width < 760
       if (compact !== compactLayout.value) {
         compactLayout.value = compact
         sidebarOpen.value = !compact
@@ -590,6 +710,7 @@ onMounted(() => {
     if (rootElement.value) resizeObserver.observe(rootElement.value)
   }
   window.addEventListener('beforeunload', handleBeforeUnload)
+  window.addEventListener('keydown', handleWindowKeydown)
   if (props.windowId && desktopStore.activeWindowId === props.windowId) {
     void nextTick(focusComposer)
   }
@@ -597,7 +718,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
+  stopSidebarResize()
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  window.removeEventListener('keydown', handleWindowKeydown)
   void (async () => {
     try {
       await agentStore.cancelRun()
@@ -618,8 +741,9 @@ let resizeObserver: ResizeObserver | undefined
     class="ai-agent-root"
     :class="[
       settingsStore.isDark ? 'ai-agent-dark' : 'ai-agent-light',
-      { 'ai-agent-sidebar-open': sidebarOpen },
+      { 'ai-agent-sidebar-open': sidebarOpen, 'ai-agent-sidebar-resizing': sidebarResizing },
     ]"
+    :style="{ '--agent-sidebar-width': `${effectiveSidebarWidth}px` }"
   >
     <button
       v-if="sidebarOpen"
@@ -724,6 +848,22 @@ let resizeObserver: ResizeObserver | undefined
         </div>
       </div>
     </aside>
+
+    <div
+      v-if="sidebarOpen && !compactLayout"
+      class="agent-sidebar-resizer"
+      :class="{ 'agent-sidebar-resizer-active': sidebarResizing }"
+      role="separator"
+      tabindex="0"
+      aria-label="调整对话侧边栏宽度，拖到最小宽度以下可收起"
+      aria-orientation="vertical"
+      :aria-valuemin="MIN_SIDEBAR_WIDTH"
+      :aria-valuemax="maxSidebarWidth"
+      :aria-valuenow="normalizedSidebarWidth"
+      :style="{ left: `${effectiveSidebarWidth}px` }"
+      @pointerdown="startSidebarResize"
+      @keydown="handleSidebarResizeKey"
+    />
 
     <main class="agent-main">
       <header class="agent-header">
@@ -1230,7 +1370,8 @@ let resizeObserver: ResizeObserver | undefined
               v-if="running"
               type="button"
               class="agent-send-button agent-stop-button"
-              aria-label="停止"
+              aria-label="停止执行"
+              title="停止执行（Esc）"
               @click="stop"
             >
               <Square :size="14" fill="currentColor" />
@@ -1332,9 +1473,55 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .ai-agent-sidebar-open .agent-sidebar {
-  width: 240px;
-  min-width: 240px;
+  width: var(--agent-sidebar-width);
+  min-width: var(--agent-sidebar-width);
   border-color: var(--agent-border);
+}
+
+.ai-agent-sidebar-resizing .agent-sidebar {
+  transition: none;
+}
+
+.agent-sidebar-resizer {
+  position: absolute;
+  z-index: 21;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  transform: translateX(-5px);
+  transition: left 180ms ease;
+}
+
+.ai-agent-sidebar-resizing .agent-sidebar-resizer {
+  transition: none;
+}
+
+.agent-sidebar-resizer::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--app-primary-color);
+  content: '';
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 150ms ease;
+}
+
+.agent-sidebar-resizer:hover::after,
+.agent-sidebar-resizer:focus-visible::after,
+.agent-sidebar-resizer-active::after {
+  opacity: 0.55;
+}
+
+.agent-sidebar-resizer:focus-visible {
+  outline: none;
 }
 
 .agent-sidebar-title {
@@ -2339,6 +2526,10 @@ let resizeObserver: ResizeObserver | undefined
     display: grid;
     color: white;
     background: rgba(15, 23, 42, 0.66);
+  }
+
+  .agent-sidebar-resizer {
+    display: none;
   }
 
   .agent-main {
