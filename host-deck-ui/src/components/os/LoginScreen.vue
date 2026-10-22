@@ -560,7 +560,7 @@ onMounted(async () => {
               </template>
               刷新
             </NTooltip>
-            <NTooltip>
+            <NTooltip v-if="accessStore.enabled">
               <template #trigger>
                 <NButton
                   quaternary
