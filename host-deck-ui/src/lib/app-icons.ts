@@ -8,7 +8,6 @@ import fileManagerIconUrl from '@/assets/mac-tahoe/src/apps/scalable/file-manage
 import linkIconUrl from '@/assets/mac-tahoe/src/apps/scalable/junction.svg'
 import logoutIconUrl from '@/assets/mac-tahoe/src/apps/scalable/log-out.svg'
 import mediaIconUrl from '@/assets/mac-tahoe/src/apps/scalable/eog.svg'
-import openCodeIconUrl from '@/assets/opencode.svg'
 import operationLogIconUrl from '@/assets/mac-tahoe/src/apps/scalable/gpk-log.svg'
 import portForwardIconUrl from '@/assets/mac-tahoe/src/apps/22/network-connect.svg'
 import processManagerIconUrl from '@/assets/process-manager.svg'
@@ -31,7 +30,6 @@ export const themedAppIconMap: Record<AppIconKey, string> = {
   link: linkIconUrl,
   logout: logoutIconUrl,
   media: mediaIconUrl,
-  opencode: openCodeIconUrl,
   'operation-log': operationLogIconUrl,
   'realtime-log': realtimeLogIconUrl,
   process: processManagerIconUrl,

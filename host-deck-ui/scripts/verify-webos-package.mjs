@@ -56,7 +56,7 @@ const js = await readFile(join(consumer, 'node_modules/@host-deck/webos/dist/web
 if (/['"]naive-ui['"]/.test(js)) {
   throw new Error('The distributed package still imports Naive UI.')
 }
-if (/['"]@\/|\/api\/|window\.hostDeck|VITE_DEV_PROXY_TARGET|opencode web/.test(js)) {
+if (/['"]@\/|\/api\/|window\.hostDeck|VITE_DEV_PROXY_TARGET/.test(js)) {
   throw new Error('The distributed package contains HostDeck-specific dependencies.')
 }
 console.log(`Packed WebOS verified in independent consumer: ${consumer}`)

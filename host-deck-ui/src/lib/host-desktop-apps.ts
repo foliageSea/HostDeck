@@ -1,6 +1,5 @@
 import type { AppConfig } from '@host-deck/webos'
 import type { DesktopAppId } from '@/types/desktop'
-import { useSshStore } from '@/stores/ssh'
 import DashboardView from '@/views/Dashboard/index.vue'
 import AiAgentView from '@/views/AiAgent/index.vue'
 import AiAgentSettingsView from '@/views/AiAgent/components/AiAgentSettingsView.vue'
@@ -28,13 +27,12 @@ import TextEditorView from '@/views/TextEditor/index.vue'
 import TaskCenterView from '@/views/TaskCenter/index.vue'
 
 export const maxSessionWindows = 8
-export const sessionWindowAppIds = new Set<string>(['terminal', 'opencode'])
+export const sessionWindowAppIds = new Set<string>(['terminal'])
 export const defaultDockAppIds: DesktopAppId[] = [
   'secure-browser',
   'files',
   'terminal',
   'docker',
-  'opencode',
   'ai-agent',
   'port-forward',
   'operation-logs',
@@ -93,24 +91,6 @@ export function createHostDesktopApps(): AppConfig[] {
       minHeight: 560,
       showInLaunchpad: true,
       hide: false,
-    },
-    opencode: {
-      id: 'opencode',
-      title: 'OpenCode',
-      icon: 'opencode',
-      component: TerminalView,
-      width: 920,
-      height: 560,
-      minWidth: 640,
-      minHeight: 360,
-      showInLaunchpad: true,
-      defaultProps: () => ({
-        openIframeAfterMs: 2000,
-        openIframeTitle: 'OpenCode Web',
-        openIframeUrl: `http://${useSshStore().host.trim() || window.location.hostname}:4096`,
-        shutdownCommand: "pkill -f 'opencode web .*--port 4096' || true",
-        startupCommand: 'opencode web --hostname 0.0.0.0 --port 4096',
-      }),
     },
     'ai-agent': {
       id: 'ai-agent',

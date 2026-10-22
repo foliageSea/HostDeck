@@ -20,7 +20,6 @@
 - SSH 登录与服务器保存
 - 桌面式工作台、多窗口、Dock、窗口切换器
 - 多会话终端
-- OpenCode 应用入口，可自动启动远端 `opencode web` 并打开 Web 窗口
 - Agent CLI / MCP，可通过本机 HostDeck 服务发现远端会话并执行命令、读写文件和应用 patch
 - AI 运维 Agent（pi-ai bridge），提供目标绑定会话、结构化工具和敏感操作审批
 - 通用内嵌 Web 应用窗口

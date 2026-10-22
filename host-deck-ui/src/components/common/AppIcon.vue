@@ -45,7 +45,6 @@ const iconMap: Record<AppIconKey, Component> = {
   link: Launch,
   logout: Logout,
   media: Image,
-  opencode: ApplicationWeb,
   'operation-log': ListBoxes,
   'realtime-log': ScrollText,
   process: Activity,
@@ -63,7 +62,7 @@ const iconImageSrc = computed(() => {
     return themedAppIconMap[props.name]
   }
 
-  if (props.name === 'opencode' || props.name === 'ai-agent') return themedAppIconMap[props.name]
+  if (props.name === 'ai-agent') return themedAppIconMap[props.name]
   return props.name === 'process' ? themedAppIconMap.process : null
 })
 </script>
@@ -78,7 +77,7 @@ const iconImageSrc = computed(() => {
     aria-hidden="true"
     class="block flex-none object-contain"
     :class="{
-      'rounded-[22%]': name === 'opencode' || name === 'ai-agent',
+      'rounded-[22%]': name === 'ai-agent',
       'scale-[0.92]': name === 'port-forward',
     }"
     draggable="false"

@@ -23,8 +23,8 @@ describe('desktop dock preferences', () => {
     expect(store.pinAppToDock('settings')).toBe(true)
     expect(store.moveDockApp('settings', 'files')).toBe(true)
     expect(store.dockAppIds[1]).toBe('settings')
-    expect(store.moveDockApp('settings', 'opencode')).toBe(true)
-    expect(store.dockAppIds.indexOf('settings')).toBe(store.dockAppIds.indexOf('opencode') + 1)
+    expect(store.moveDockApp('settings', 'docker')).toBe(true)
+    expect(store.dockAppIds.indexOf('settings')).toBe(store.dockAppIds.indexOf('docker') + 1)
     expect(store.unpinAppFromDock('terminal')).toBe(true)
     expect(store.dockAppIds).not.toContain('terminal')
     expect(JSON.parse(window.localStorage.getItem(DOCK_APPS_STORAGE_KEY) ?? '[]')).toEqual(
@@ -42,18 +42,18 @@ describe('desktop dock preferences', () => {
     expect(useDesktopStore().dockAppIds).toEqual(['settings', 'ai-agent'])
   })
 
-  it('migrates a saved dock by inserting AI Agent after OpenCode only once', () => {
+  it('migrates a saved dock by putting AI Agent in the removed OpenCode slot only once', () => {
     window.localStorage.setItem(
       DOCK_APPS_STORAGE_KEY,
       JSON.stringify(['terminal', 'opencode', 'files']),
     )
 
-    expect(useDesktopStore().dockAppIds).toEqual(['terminal', 'opencode', 'ai-agent', 'files'])
+    expect(useDesktopStore().dockAppIds).toEqual(['terminal', 'ai-agent', 'files'])
     expect(window.localStorage.getItem(DOCK_AI_AGENT_MIGRATION_KEY)).toBe('done')
 
     window.localStorage.setItem(DOCK_APPS_STORAGE_KEY, JSON.stringify(['terminal', 'opencode']))
     setActivePinia(createPinia())
-    expect(useDesktopStore().dockAppIds).toEqual(['terminal', 'opencode'])
+    expect(useDesktopStore().dockAppIds).toEqual(['terminal'])
   })
 
   it('falls back to defaults when a non-empty stored list has no valid apps', () => {

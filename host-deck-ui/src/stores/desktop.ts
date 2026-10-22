@@ -80,6 +80,8 @@ function migrateDock(apps: ReturnType<typeof createHostDesktopApps>) {
       window.localStorage.setItem(DOCK_AI_AGENT_MIGRATION_KEY, 'done')
       return
     }
+    // OpenCode has been removed; keep its old slot for the app that replaced it.
+    const legacyIndex = saved.indexOf('opencode')
     const available = new Set(apps.filter((app) => app.showInLaunchpad).map((app) => app.id))
     const ids = Array.from(
       new Set(saved.filter((id): id is string => typeof id === 'string' && available.has(id))),
@@ -90,8 +92,7 @@ function migrateDock(apps: ReturnType<typeof createHostDesktopApps>) {
       !ids.includes('ai-agent') &&
       window.localStorage.getItem(DOCK_AI_AGENT_MIGRATION_KEY) !== 'done'
     ) {
-      const index = ids.indexOf('opencode')
-      ids.splice(index < 0 ? ids.length : index + 1, 0, 'ai-agent')
+      ids.splice(legacyIndex < 0 ? ids.length : Math.min(legacyIndex, ids.length), 0, 'ai-agent')
     }
     persist(DOCK_APPS_STORAGE_KEY, ids)
     window.localStorage.setItem(DOCK_AI_AGENT_MIGRATION_KEY, 'done')

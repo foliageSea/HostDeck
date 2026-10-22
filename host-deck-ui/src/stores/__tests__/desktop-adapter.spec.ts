@@ -43,18 +43,16 @@ describe('HostDeck desktop adapter', () => {
     const desktop = useDesktopStore()
     for (let index = 0; index < maxSessionWindows; index++) desktop.openWindow('terminal')
     expect(desktop.sessionWindowCount).toBe(maxSessionWindows)
-    expect(desktop.openWindow('opencode')).toBeUndefined()
+    expect(desktop.openWindow('terminal')).toBeUndefined()
     expect(warning).toHaveBeenCalledOnce()
     expect(desktop.openWindow('files')).toBeTruthy()
     desktop.reset()
   })
 
-  it('injects OpenCode parameters and generic iframe actions from the host', () => {
-    useSshStore().host = 'example.org'
+  it('passes window props through and exposes generic iframe actions from the host', () => {
     const desktop = useDesktopStore()
-    const id = desktop.openWindow('opencode', { startupCommand: 'custom command' })!
+    const id = desktop.openWindow('terminal', { startupCommand: 'custom command' })!
     expect(desktop.windows.find((window) => window.id === id)?.props).toMatchObject({
-      openIframeUrl: 'http://example.org:4096',
       startupCommand: 'custom command',
     })
     const iframeId = desktop.openWindow('iframe-app', { url: 'https://example.org' })!
