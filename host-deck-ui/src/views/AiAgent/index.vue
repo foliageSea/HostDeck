@@ -1620,17 +1620,16 @@ let resizeObserver: ResizeObserver | undefined
   gap: 9px;
   margin: 2px 10px 10px;
   padding: 0 11px;
-  border: 1px solid var(--agent-border);
+  border: 1px solid transparent;
   border-radius: var(--app-radius-control);
   color: inherit;
-  background: var(--agent-elevated);
+  background: transparent;
   font-size: 12px;
   cursor: pointer;
 }
 
 .agent-new-conversation:hover:not(:disabled) {
-  border-color: var(--app-primary-border);
-  background: var(--app-primary-soft);
+  background: var(--agent-hover);
 }
 
 .agent-new-conversation:disabled,
