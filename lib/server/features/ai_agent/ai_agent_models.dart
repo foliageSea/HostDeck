@@ -175,6 +175,7 @@ class AiAgentMessage {
   final String role;
   final String content;
   final List<AiAgentImageAttachment> attachments;
+  final String thinking;
   final String? toolCallId;
   final List<AiAgentMessageToolCall> toolCalls;
   final String? toolStatus;
@@ -189,6 +190,7 @@ class AiAgentMessage {
     required this.role,
     required this.content,
     this.attachments = const [],
+    this.thinking = '',
     this.toolCallId,
     this.toolCalls = const [],
     this.toolStatus,
@@ -201,6 +203,7 @@ class AiAgentMessage {
     'id': id,
     'role': role,
     'content': content,
+    if (thinking.isNotEmpty) 'thinking': thinking,
     'attachments': attachments
         .map((attachment) => attachment.toJson())
         .toList(),

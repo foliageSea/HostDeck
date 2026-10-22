@@ -110,6 +110,34 @@ describe('aiAgentApi MCP servers', () => {
 })
 
 describe('aiAgentApi.run', () => {
+  it('parses thinking deltas, resets and completion independently of answer text', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            'event: thinking-delta\ndata: {"messageId":"message-1","text":"Check"}\n\n' +
+              'event: thinking-reset\ndata: {"messageId":"message-1"}\n\n' +
+              'event: thinking-end\ndata: {"messageId":"message-1"}\n\n' +
+              'event: done\ndata: {"conversationId":"conversation-1","messageId":"message-1"}\n\n',
+            { headers: { 'Content-Type': 'text/event-stream' } },
+          ),
+        ),
+    )
+    const events: unknown[] = []
+    await aiAgentApi.run('conversation-1', 'connection-1', 'hello', [], (event) =>
+      events.push(event),
+    )
+    expect(events.map((event) => (event as { event: string }).event)).toEqual([
+      'thinking-delta',
+      'thinking-reset',
+      'thinking-end',
+      'done',
+    ])
+    expect(events[0]).toMatchObject({ text: 'Check' })
+  })
+
   it('consumes the complete run lifecycle with same-origin credentials', async () => {
     const fetchMock = vi
       .fn()

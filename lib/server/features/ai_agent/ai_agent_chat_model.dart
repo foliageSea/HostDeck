@@ -54,12 +54,14 @@ class AiAgentModelMessage {
 
 class AiAgentModelResponse {
   final String text;
+  final String thinking;
   final List<AiAgentToolCall> toolCalls;
   final Map<String, dynamic>? usage;
   final Map<String, dynamic>? providerMessage;
 
   const AiAgentModelResponse({
     required this.text,
+    this.thinking = '',
     this.toolCalls = const [],
     this.usage,
     this.providerMessage,
@@ -71,6 +73,8 @@ abstract interface class AiAgentModel {
     List<AiAgentModelMessage> messages,
     List<ToolSpec> tools, {
     void Function(String text)? onTextDelta,
+    void Function(String text)? onThinkingDelta,
+    void Function()? onThinkingEnd,
   });
   void close();
 }
@@ -98,32 +102,40 @@ class PiAiAgentModel implements AiAgentModel {
     List<AiAgentModelMessage> messages,
     List<ToolSpec> tools, {
     void Function(String text)? onTextDelta,
+    void Function(String text)? onThinkingDelta,
+    void Function()? onThinkingEnd,
   }) async {
-    final result = await _bridge.request({
-      'type': 'invoke',
-      'settings': {
-        'provider': settings.provider,
-        'api': settings.api,
-        'baseUrl': settings.baseUrl,
-        'model': settings.model,
-        'apiKey': settings.apiKey,
-        if (settings.reasoning != null) 'reasoning': settings.reasoning!.name,
-        if (settings.oauthCredential != null)
-          'credential': await settings.oauthCredential!(),
+    final result = await _bridge.request(
+      {
+        'type': 'invoke',
+        'settings': {
+          'provider': settings.provider,
+          'api': settings.api,
+          'baseUrl': settings.baseUrl,
+          'model': settings.model,
+          'apiKey': settings.apiKey,
+          if (settings.reasoning != null) 'reasoning': settings.reasoning!.name,
+          if (settings.oauthCredential != null)
+            'credential': await settings.oauthCredential!(),
+        },
+        'messages': messages.map((message) => message.toJson()).toList(),
+        'tools': tools
+            .map(
+              (tool) => {
+                'name': tool.name,
+                'description': tool.description,
+                'parameters': tool.inputJsonSchema,
+              },
+            )
+            .toList(),
       },
-      'messages': messages.map((message) => message.toJson()).toList(),
-      'tools': tools
-          .map(
-            (tool) => {
-              'name': tool.name,
-              'description': tool.description,
-              'parameters': tool.inputJsonSchema,
-            },
-          )
-          .toList(),
-    }, onTextDelta: onTextDelta);
+      onTextDelta: onTextDelta,
+      onThinkingDelta: onThinkingDelta,
+      onThinkingEnd: onThinkingEnd,
+    );
     return AiAgentModelResponse(
       text: result['text'] as String,
+      thinking: result['thinking'] as String? ?? '',
       toolCalls: (result['toolCalls'] as List)
           .map(
             (value) => AiAgentToolCall(

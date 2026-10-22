@@ -133,9 +133,6 @@ function restoreConversation(loaded: AiAgentMessage[]) {
 
   let sequence = 0
   for (const segment of segments) {
-    const last = segment.at(-1)
-    const completed =
-      last !== undefined && last.role === 'assistant' && !(last.toolCalls?.length ?? 0)
     for (const message of segment) {
       if (message.role === 'user') {
         messages.push(message)
@@ -151,7 +148,7 @@ function restoreConversation(loaded: AiAgentMessage[]) {
         messages.push(message)
         continue
       }
-      if (!completed && message.content) messages.push(message)
+      if (message.thinking || message.content) messages.push(message)
       for (const call of calls) {
         const result = toolResults.get(call.id)
         const status = restoredToolStatus(result?.status, result !== undefined)
@@ -637,12 +634,13 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   function upsertRunStep(event: AiAgentRunEvent) {
     if (!event.stepId || event.sequence == null || !event.type || !event.status) return
     const existing = runSteps.value.find((step) => step.stepId === event.stepId)
+    const text = event.event === 'message-delta' ? event.text : undefined
     const content =
       event.event === 'message-reset'
         ? ''
         : (existing?.content ??
-          ('text' in event
-            ? event.text
+          (text !== undefined
+            ? text
             : 'message' in event && typeof event.message === 'string'
               ? localizeRunMessage(event.message)
               : undefined))
@@ -663,13 +661,24 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       content:
         event.event === 'message-reset'
           ? ''
-          : existing?.content !== undefined && 'text' in event
-            ? `${existing.content}${event.text}`
+          : existing?.content !== undefined && text !== undefined
+            ? `${existing.content}${text}`
             : content,
+      thinking:
+        event.event === 'thinking-reset'
+          ? ''
+          : event.event === 'thinking-delta'
+            ? `${existing?.thinking ?? ''}${event.text}`
+            : existing?.thinking,
+      thinkingRunning:
+        event.event === 'thinking-delta'
+          ? true
+          : ['thinking-end', 'thinking-reset', 'model-end', 'message-delta'].includes(event.event)
+            ? false
+            : existing?.thinkingRunning,
     }
-    runSteps.value = existing
-      ? runSteps.value.map((item) => (item.stepId === step.stepId ? step : item))
-      : [...runSteps.value, step].sort((a, b) => a.sequence - b.sequence)
+    if (existing) Object.assign(existing, step)
+    else runSteps.value = [...runSteps.value, step].sort((a, b) => a.sequence - b.sequence)
   }
 
   function upsertTool(event: Extract<AiAgentRunEvent, { callId: string }>) {
@@ -733,6 +742,21 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       lastEventSequence = event.sequence ?? 0
     } else if (event.event === 'model-start' || event.event === 'model-end') {
       upsertRunStep(event)
+      if (event.event === 'model-start') {
+        assistant.content = ''
+        assistant.thinking = ''
+      }
+    } else if (
+      event.event === 'thinking-delta' ||
+      event.event === 'thinking-reset' ||
+      event.event === 'thinking-end'
+    ) {
+      upsertRunStep(event)
+      assistant.id = event.messageId
+      streamingMessageId.value = event.messageId
+      if (event.event === 'thinking-delta') {
+        assistant.thinking = `${assistant.thinking ?? ''}${event.text}`
+      } else if (event.event === 'thinking-reset') assistant.thinking = ''
     } else if (event.event === 'message-delta') {
       upsertRunStep(event)
       assistant.id = event.messageId
@@ -797,6 +821,30 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         if (!created) return false
       }
       const conversationId = selectedConversation.value!.id
+      // Earlier model turns live in steps while streaming. Preserve their
+      // text and thinking before the next run replaces those steps; the final turn is
+      // already represented by its assistant message.
+      const previousAssistant = messages.value.at(-1)
+      const previousModelSteps = runSteps.value.filter((step) => step.type === 'model')
+      const earlierTurns = previousModelSteps
+        .slice(0, -1)
+        .filter((step) => step.content || step.thinking)
+      if (previousAssistant?.role === 'assistant' && earlierTurns.length > 0) {
+        messages.value = [
+          ...messages.value.slice(0, -1),
+          ...earlierTurns.map(
+            (step): AiAgentMessage => ({
+              id: `model-${step.stepId}`,
+              role: 'assistant',
+              content: step.content ?? '',
+              thinking: step.thinking,
+              attachments: [],
+              createdAt: step.startedAt,
+            }),
+          ),
+          previousAssistant,
+        ]
+      }
       const userMessage = temporaryMessage('user', trimmedInput, attachments)
       const assistantMessage = temporaryMessage('assistant', '')
       messages.value = [...messages.value, userMessage, assistantMessage].slice(-MAX_MESSAGES)

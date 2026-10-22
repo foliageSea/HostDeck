@@ -101,6 +101,32 @@ test('rejects unsupported thinking levels before contacting the model', async ()
   assert.equal(result.events.at(-1).type, 'error')
 })
 
+test('streams thinking separately from answer text and retains it in the result', async (t) => {
+  const url = await upstream(t, (_req, res) => {
+    res.writeHead(200, { 'content-type': 'text/event-stream' })
+    for (const delta of [
+      { role: 'assistant', reasoning_content: 'Check ' },
+      { reasoning_content: 'the facts.' },
+      { content: 'Hello' },
+    ])
+      sse(res, { id: 'thinking-1', choices: [{ index: 0, delta, finish_reason: null }] })
+    sse(res, { id: 'thinking-1', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })
+    res.end('data: [DONE]\n\n')
+  })
+  const result = await bridge(request(`${url}/v1`))
+  assert.equal(result.code, 0, JSON.stringify(result))
+  assert.equal(
+    result.events
+      .filter((event) => event.type === 'thinking')
+      .map((event) => event.text)
+      .join(''),
+    'Check the facts.',
+  )
+  assert.ok(result.events.some((event) => event.type === 'thinking-end'))
+  assert.equal(result.events.at(-1).thinking, 'Check the facts.')
+  assert.equal(result.events.at(-1).text, 'Hello')
+})
+
 test('catalog exposes extended thinking levels only for models that support them', () => {
   const models = catalog().flatMap((provider) => provider.models)
   assert.ok(models.some((model) => model.thinkingLevels.includes('xhigh')))
@@ -178,9 +204,21 @@ test('Anthropic uses Messages headers and SSE protocol', async (t) => {
           usage: { input_tokens: 8, output_tokens: 0 },
         },
       },
-      { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
-      { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Hello' } },
+      { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } },
+      {
+        type: 'content_block_delta',
+        index: 0,
+        delta: { type: 'thinking_delta', thinking: 'Consider the question.' },
+      },
+      {
+        type: 'content_block_delta',
+        index: 0,
+        delta: { type: 'signature_delta', signature: 'opaque-signature' },
+      },
       { type: 'content_block_stop', index: 0 },
+      { type: 'content_block_start', index: 1, content_block: { type: 'text', text: '' } },
+      { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'Hello' } },
+      { type: 'content_block_stop', index: 1 },
       { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 2 } },
       { type: 'message_stop' },
     ]
@@ -190,6 +228,17 @@ test('Anthropic uses Messages headers and SSE protocol', async (t) => {
   const result = await bridge(request(url, 'anthropic-messages'))
   assert.equal(result.code, 0, JSON.stringify(result))
   assert.equal(result.events.at(-1).text, 'Hello')
+  assert.equal(result.events.at(-1).thinking, 'Consider the question.')
+  assert.ok(
+    result.events.some(
+      (event) => event.type === 'thinking' && event.text === 'Consider the question.',
+    ),
+  )
+  assert.ok(
+    !JSON.stringify(result.events.filter((event) => event.type !== 'result')).includes(
+      'opaque-signature',
+    ),
+  )
   assert.equal(result.events.at(-1).usage.promptTokens, 8)
 })
 

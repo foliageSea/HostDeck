@@ -137,6 +137,7 @@ export interface AiAgentMessage {
   id: string
   role: AiAgentMessageRole
   content: string
+  thinking?: string
   attachments: AiAgentImageAttachment[]
   toolCallId?: string
   toolCalls?: AiAgentMessageToolCall[]
@@ -189,6 +190,8 @@ export interface AiAgentRunStep {
   summary?: string
   arguments?: unknown
   content?: string
+  thinking?: string
+  thinkingRunning?: boolean
   restored?: boolean
 }
 
@@ -233,6 +236,9 @@ export type AiAgentRunEvent =
   | ({ event: 'model-end'; messageId: string } & AiAgentRunEventMeta)
   | ({ event: 'message-delta'; messageId: string; text: string } & AiAgentRunEventMeta)
   | ({ event: 'message-reset'; messageId: string } & AiAgentRunEventMeta)
+  | ({ event: 'thinking-delta'; messageId: string; text: string } & AiAgentRunEventMeta)
+  | ({ event: 'thinking-reset'; messageId: string } & AiAgentRunEventMeta)
+  | ({ event: 'thinking-end'; messageId: string } & AiAgentRunEventMeta)
   | ({
       event: 'tool-start'
       callId: string
@@ -312,6 +318,9 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
       'model-end',
       'message-delta',
       'message-reset',
+      'thinking-delta',
+      'thinking-reset',
+      'thinking-end',
       'tool-start',
       'approval-required',
       'tool-result',
@@ -341,6 +350,7 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
     case 'model-end':
       return { ...meta(data), event, messageId: requiredString(data, 'messageId') }
     case 'message-delta':
+    case 'thinking-delta':
       return {
         ...meta(data),
         event,
@@ -348,6 +358,10 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
         text: requiredString(data, 'text'),
       }
     case 'message-reset':
+      return { ...meta(data), event, messageId: requiredString(data, 'messageId') }
+    case 'thinking-reset':
+      return { ...meta(data), event, messageId: requiredString(data, 'messageId') }
+    case 'thinking-end':
       return {
         ...meta(data),
         event,

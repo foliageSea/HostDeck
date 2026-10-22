@@ -143,4 +143,76 @@ describe('AiAgent escape', () => {
     expect(cancelRun).not.toHaveBeenCalled()
     wrapper.unmount()
   })
+
+  it('renders pre-tool thinking and commentary before the tool and final answer', async () => {
+    const store = useAiAgentStore()
+    const wrapper = mountView()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    store.messages = [
+      { id: 'user', role: 'user', content: '当前 docker 情况', attachments: [], createdAt: 1 },
+      {
+        id: 'answer',
+        role: 'assistant',
+        content: 'Docker is healthy.',
+        attachments: [],
+        createdAt: 4,
+      },
+    ]
+    store.runSteps = [
+      {
+        runId: 'run',
+        stepId: 'before',
+        messageId: 'answer',
+        sequence: 1,
+        type: 'model',
+        status: 'success',
+        startedAt: 2,
+        content: 'I will inspect Docker.',
+        thinking: 'Check containers first.',
+      },
+      {
+        runId: 'run',
+        stepId: 'tool',
+        callId: 'call',
+        sequence: 2,
+        type: 'tool',
+        status: 'success',
+        startedAt: 3,
+      },
+      {
+        runId: 'run',
+        stepId: 'after',
+        messageId: 'answer',
+        sequence: 3,
+        type: 'model',
+        status: 'success',
+        startedAt: 4,
+        content: 'Docker is healthy.',
+      },
+    ]
+    store.toolCalls = [
+      {
+        callId: 'call',
+        name: 'shell_execute',
+        summary: 'Inspect Docker',
+        status: 'success',
+        approvalPending: false,
+        submitting: false,
+      },
+    ]
+    await wrapper.vm.$nextTick()
+    const transcript = wrapper.get('.agent-transcript')
+    const blocks = transcript.findAll('.agent-message, .agent-tools')
+    expect(blocks).toHaveLength(4)
+    expect(blocks[1]!.get('button.agent-reasoning-toggle').text()).toBe('思考过程')
+    await blocks[1]!.get('button.agent-reasoning-toggle').trigger('click')
+    expect(
+      blocks[1]!.findAll('ai-agent-markdown-stub').map((node) => node.attributes('content')),
+    ).toEqual(['Check containers first.', 'I will inspect Docker.'])
+    expect(blocks[2]!.find('ai-agent-tool-call-stub').exists()).toBe(true)
+    expect(blocks[3]!.get('ai-agent-markdown-stub').attributes('content')).toBe(
+      'Docker is healthy.',
+    )
+    wrapper.unmount()
+  })
 })

@@ -219,6 +219,8 @@ export async function invoke(request, emit, signal) {
   })
   for await (const event of stream) {
     if (event.type === 'text_delta') emit({ type: 'text', text: event.delta })
+    if (event.type === 'thinking_delta') emit({ type: 'thinking', text: event.delta })
+    if (event.type === 'thinking_end') emit({ type: 'thinking-end' })
   }
   const message = await stream.result()
   if (message.stopReason === 'error' || message.stopReason === 'aborted') {
@@ -235,6 +237,10 @@ export async function invoke(request, emit, signal) {
     }))
   emit({
     type: 'result',
+    thinking: message.content
+      .filter((block) => block.type === 'thinking' && !block.redacted)
+      .map((block) => block.thinking)
+      .join('\n\n'),
     text: message.content
       .filter((block) => block.type === 'text')
       .map((block) => block.text)

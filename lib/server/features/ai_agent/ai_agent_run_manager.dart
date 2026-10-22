@@ -246,6 +246,7 @@ inspected or changed the host. Do not expose secrets.
     final assistantMessageId = _newId();
 
     String? finalText;
+    var finalThinking = '';
     Map<String, dynamic>? finalProviderMessage;
     Map<String, dynamic>? usage;
     var toolCallCount = 0;
@@ -271,6 +272,7 @@ inspected or changed the host. Do not expose secrets.
       );
       if (run.mode == AiAgentRunMode.chat || response.toolCalls.isEmpty) {
         finalText = response.text;
+        finalThinking = response.thinking;
         finalProviderMessage = response.providerMessage;
         break;
       }
@@ -323,6 +325,7 @@ inspected or changed the host. Do not expose secrets.
       conversationId: run.conversationId,
       role: 'assistant',
       content: finalText,
+      thinking: finalThinking,
       providerMessage: finalProviderMessage,
       usage: usage,
     );
@@ -355,23 +358,55 @@ inspected or changed the host. Do not expose secrets.
 
     emitModel('model-start');
     final streamed = StringBuffer();
+    final thinking = StringBuffer();
+    var thinkingRunning = false;
+    void endThinking() {
+      if (!thinkingRunning) return;
+      thinkingRunning = false;
+      emitModel('thinking-end');
+    }
+
     final response = await model.invoke(
       messages,
       toolSpecs,
       onTextDelta: (text) {
         _ensureActive(run);
+        endThinking();
         streamed.write(text);
         emitModel('message-delta', {'text': text});
       },
+      onThinkingDelta: (text) {
+        _ensureActive(run);
+        thinkingRunning = true;
+        thinking.write(text);
+        emitModel('thinking-delta', {'text': text});
+      },
+      onThinkingEnd: endThinking,
     );
     _ensureActive(run);
 
+    final streamedThinking = thinking.toString();
+    if (!response.thinking.startsWith(streamedThinking)) {
+      emitModel('thinking-reset');
+      if (response.thinking.isNotEmpty) {
+        emitModel('thinking-delta', {'text': response.thinking});
+        thinkingRunning = true;
+      }
+    } else {
+      final remainder = response.thinking.substring(streamedThinking.length);
+      if (remainder.isNotEmpty) {
+        emitModel('thinking-delta', {'text': remainder});
+        thinkingRunning = true;
+      }
+    }
+    endThinking();
+
     final streamedText = streamed.toString();
     final deltasMatchResponse = response.text.startsWith(streamedText);
-    if (response.toolCalls.isNotEmpty || !deltasMatchResponse) {
-      // Streamed text is not (or is no longer) the visible answer: discard it.
+    if (!deltasMatchResponse) {
+      // Replace provisional text only when the authoritative response differs.
       if (streamedText.isNotEmpty) emitModel('message-reset');
-      if (response.toolCalls.isEmpty && response.text.isNotEmpty) {
+      if (response.text.isNotEmpty) {
         emitModel('message-delta', {'text': response.text});
       }
     } else {
@@ -391,6 +426,7 @@ inspected or changed the host. Do not expose secrets.
       role: 'assistant',
       content: response.text,
       providerMessage: response.providerMessage,
+      thinking: response.thinking,
       toolCalls: [
         for (final call in response.toolCalls)
           AiAgentMessageToolCall(

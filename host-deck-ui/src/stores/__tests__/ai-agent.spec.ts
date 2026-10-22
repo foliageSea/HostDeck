@@ -316,6 +316,65 @@ describe('AI Agent store', () => {
     await run
   })
 
+  it('keeps thinking separate through text resets, thinking resets and multiple model turns', async () => {
+    let emit!: (event: AiAgentRunEvent) => void
+    let finishRun!: () => void
+    apiMocks.run.mockImplementation(async (...args: unknown[]) => {
+      emit = args[4] as (event: AiAgentRunEvent) => void
+      emit({ event: 'connected', runId: 'run-1' })
+      await new Promise<void>((resolve) => (finishRun = resolve))
+    })
+    const store = useAiAgentStore()
+    const run = store.startRun('inspect', 'connection-1')
+    await vi.waitFor(() => expect(emit).toBeDefined())
+    let sequence = 0
+    const send = (event: Extract<AiAgentRunEvent, { messageId: string }>, stepId = 'model-1') =>
+      emit({
+        ...event,
+        runId: 'run-1',
+        stepId,
+        sequence: ++sequence,
+        type: 'model',
+        status: 'running',
+      })
+    send({ event: 'model-start', messageId: 'answer' })
+    send({ event: 'thinking-delta', messageId: 'answer', text: 'First ' })
+    send({ event: 'thinking-delta', messageId: 'answer', text: 'thought' })
+    send({ event: 'message-delta', messageId: 'answer', text: 'Checking' })
+    send({ event: 'message-reset', messageId: 'answer' })
+    expect(store.runSteps[0]).toMatchObject({
+      content: '',
+      thinking: 'First thought',
+      thinkingRunning: false,
+    })
+    send({ event: 'message-delta', messageId: 'answer', text: 'I will inspect Docker.' })
+    send({ event: 'model-start', messageId: 'answer' }, 'model-2')
+    expect(store.messages.at(-1)?.content).toBe('')
+    expect(store.runSteps[0]?.content).toBe('I will inspect Docker.')
+    send({ event: 'thinking-delta', messageId: 'answer', text: 'Draft' }, 'model-2')
+    send({ event: 'thinking-reset', messageId: 'answer' }, 'model-2')
+    send({ event: 'thinking-delta', messageId: 'answer', text: 'Final thought' }, 'model-2')
+    send({ event: 'thinking-end', messageId: 'answer' }, 'model-2')
+    send({ event: 'message-delta', messageId: 'answer', text: 'Answer' }, 'model-2')
+    expect(store.messages.at(-1)).toMatchObject({ content: 'Answer', thinking: 'Final thought' })
+    expect(store.runSteps.map((step) => step.thinking)).toEqual(['First thought', 'Final thought'])
+    finishRun()
+    await run
+    apiMocks.run.mockResolvedValue(undefined)
+    await store.startRun('next question', 'connection-1')
+    expect(store.messages.map((message) => message.thinking).filter(Boolean)).toEqual([
+      'First thought',
+      'Final thought',
+    ])
+    expect(store.messages.map((message) => message.content)).toEqual([
+      'inspect',
+      'I will inspect Docker.',
+      'Answer',
+      'next question',
+      '',
+    ])
+  })
+
   it('orders run steps and ignores late events from an older run', async () => {
     let emit!: (event: AiAgentRunEvent) => void
     let finishRun!: () => void
@@ -496,6 +555,7 @@ describe('AI Agent store', () => {
         {
           attachments: [],
           content: 'Checking.',
+          thinking: 'Inspect the host before answering.',
           createdAt: 2,
           id: 'm-assistant-1',
           role: 'assistant',
@@ -552,10 +612,15 @@ describe('AI Agent store', () => {
 
     expect(store.messages.map((message) => message.id)).toEqual([
       'm-user-1',
+      'm-assistant-1',
       'm-final-1',
       'm-user-2',
       'm-assistant-2',
     ])
+    expect(store.messages[1]).toMatchObject({
+      content: 'Checking.',
+      thinking: 'Inspect the host before answering.',
+    })
     expect(store.toolCalls).toMatchObject([
       {
         arguments: { command: 'uptime' },

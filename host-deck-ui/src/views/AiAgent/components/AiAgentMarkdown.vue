@@ -1,16 +1,8 @@
-<script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+<script lang="ts">
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
-import { highlightCode } from '@/lib/code-highlight'
-import { getUiApi } from '@/lib/ui'
 
-const props = defineProps<{
-  content: string
-}>()
-
-const markdownElement = ref<HTMLElement>()
-
+// Register once per module, rather than adding another global hook for every message.
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   if (node.tagName === 'A') {
     node.setAttribute('target', '_blank')
@@ -19,9 +11,49 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
 })
 
 marked.setOptions({ breaks: true, gfm: true })
+</script>
+
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { highlightCode } from '@/lib/code-highlight'
+import { getUiApi } from '@/lib/ui'
+
+const props = defineProps<{
+  content: string
+  streaming?: boolean
+}>()
+
+const emit = defineEmits<{ rendered: [] }>()
+const markdownElement = ref<HTMLElement>()
+const displayedContent = ref(props.content)
+let renderTimer: ReturnType<typeof setTimeout> | undefined
+
+function cancelScheduledRender() {
+  if (renderTimer === undefined) return
+  clearTimeout(renderTimer)
+  renderTimer = undefined
+}
+
+watch(
+  () => [props.content, props.streaming] as const,
+  () => {
+    if (!props.streaming) {
+      cancelScheduledRender()
+      displayedContent.value = props.content
+    } else if (renderTimer === undefined) {
+      // Parse at most once per interval, always using the latest complete text.
+      renderTimer = setTimeout(() => {
+        renderTimer = undefined
+        displayedContent.value = props.content
+      }, 50)
+    }
+  },
+)
+
+onBeforeUnmount(cancelScheduledRender)
 
 const rendered = computed(() =>
-  DOMPurify.sanitize(marked.parse(props.content) as string, {
+  DOMPurify.sanitize(marked.parse(displayedContent.value) as string, {
     ADD_ATTR: ['target', 'rel'],
     FORBID_TAGS: ['style', 'form', 'input', 'button', 'iframe', 'script'],
   }),
@@ -84,11 +116,16 @@ function enhanceCodeBlocks() {
   })
 }
 
-watch(rendered, () => {
-  void nextTick(enhanceCodeBlocks)
-})
+function finishRender() {
+  // Highlighting and code controls rebuild code DOM; do this once the model
+  // turn ends instead of repeating it for every streamed fragment.
+  if (!props.streaming) enhanceCodeBlocks()
+  emit('rendered')
+}
 
-onMounted(enhanceCodeBlocks)
+watch([rendered, () => props.streaming], finishRender, { flush: 'post' })
+
+onMounted(finishRender)
 </script>
 
 <template>

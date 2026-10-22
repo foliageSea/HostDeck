@@ -255,11 +255,116 @@ void main() {
   });
 
   test(
-    'keeps tool-planning text out of the final assistant response',
+    'streams thinking separately and persists it without provider signatures',
     () async {
       model.responses = const [
         AiAgentModelResponse(
-          text: 'Planning details that should stay hidden.',
+          text: 'Answer',
+          thinking: 'Check the facts.',
+          providerMessage: {
+            'content': [
+              {
+                'type': 'thinking',
+                'thinking': 'Check the facts.',
+                'thinkingSignature': 'private-signature',
+              },
+            ],
+          },
+        ),
+      ];
+      model.thinkingDeltas = const [
+        ['Check ', 'the facts.'],
+      ];
+      model.textDeltas = const [
+        ['Answer'],
+      ];
+      final run = manager.start(
+        conversationId: 'conversation-1',
+        connectionId: 'connection-1',
+        targetKey: 'server:7',
+        ownerId: 'browser:test',
+        input: 'think first',
+      );
+      final body = await _collect(
+        run.stream,
+      ).done.future.timeout(const Duration(seconds: 2));
+      expect(RegExp('event: thinking-delta').allMatches(body), hasLength(2));
+      expect(
+        body.indexOf('event: thinking-end'),
+        lessThan(body.indexOf('event: message-delta')),
+      );
+      expect(body, isNot(contains('private-signature')));
+      final stored = repository.listMessages('conversation-1').last;
+      expect(stored.content, 'Answer');
+      expect(stored.thinking, 'Check the facts.');
+      expect(stored.toJson()['thinking'], 'Check the facts.');
+      expect(stored.toJson().containsKey('providerMessage'), isFalse);
+    },
+  );
+
+  test('restores readable thinking from older provider context only', () {
+    repository.addMessage(
+      id: 'old-thinking',
+      conversationId: 'conversation-1',
+      role: 'assistant',
+      content: 'Answer',
+      providerMessage: {
+        'content': [
+          {
+            'type': 'thinking',
+            'thinking': 'Readable',
+            'thinkingSignature': 'opaque',
+          },
+          {
+            'type': 'thinking',
+            'thinking': 'Hidden',
+            'redacted': true,
+            'thinkingSignature': 'encrypted',
+          },
+        ],
+      },
+    );
+    final json = repository.listMessages('conversation-1').last.toJson();
+    expect(json['thinking'], 'Readable');
+    expect(jsonEncode(json), isNot(contains('encrypted')));
+    expect(jsonEncode(json), isNot(contains('opaque')));
+  });
+
+  test(
+    'reconciles thinking when the final response replaces streamed content',
+    () async {
+      model.responses = const [
+        AiAgentModelResponse(text: 'Answer', thinking: 'Revised thought'),
+      ];
+      model.thinkingDeltas = const [
+        ['Draft thought'],
+      ];
+      final run = manager.start(
+        conversationId: 'conversation-1',
+        connectionId: 'connection-1',
+        targetKey: 'server:7',
+        ownerId: 'browser:test',
+        input: 'think first',
+      );
+      final body = await _collect(
+        run.stream,
+      ).done.future.timeout(const Duration(seconds: 2));
+      expect(body, contains('event: thinking-reset'));
+      expect(body, contains('"text":"Revised thought"'));
+      expect(
+        repository.listMessages('conversation-1').last.thinking,
+        'Revised thought',
+      );
+    },
+  );
+
+  test(
+    'keeps pre-tool commentary in its own turn before the final answer',
+    () async {
+      model.responses = const [
+        AiAgentModelResponse(
+          text: 'I will check Docker and its containers.',
+          thinking: 'I should check uptime.',
           toolCalls: [
             AiAgentToolCall(
               id: 'call-1',
@@ -271,7 +376,7 @@ void main() {
         AiAgentModelResponse(text: 'The host is up.'),
       ];
       model.textDeltas = const [
-        ['Planning details that should stay hidden.'],
+        ['I will check Docker and its containers.'],
         ['The host is up.'],
       ];
       final run = manager.start(
@@ -289,9 +394,22 @@ void main() {
       );
       final body = await events.done.future.timeout(const Duration(seconds: 2));
 
-      expect(body, contains('event: message-reset'));
-      expect(body, contains('Planning details that should stay hidden.'));
+      expect(body, isNot(contains('event: message-reset')));
+      expect(body, contains('I will check Docker and its containers.'));
+      expect(
+        body.indexOf('I will check Docker and its containers.'),
+        lessThan(body.indexOf('event: tool-start')),
+      );
       expect(body, contains('The host is up.'));
+      expect(body, contains('event: thinking-delta'));
+      expect(
+        repository.listMessages('conversation-1')[1].thinking,
+        'I should check uptime.',
+      );
+      expect(
+        repository.listMessages('conversation-1')[1].content,
+        'I will check Docker and its containers.',
+      );
       expect(
         repository.listMessages('conversation-1').last.content,
         'The host is up.',
@@ -682,6 +800,7 @@ class _FakeModel implements AiAgentModel {
   final List<List<ToolSpec>> toolInputs = [];
   List<AiAgentModelResponse>? responses;
   List<List<String>>? textDeltas;
+  List<List<String>>? thinkingDeltas;
   Object? failure;
   bool closed = false;
 
@@ -690,6 +809,8 @@ class _FakeModel implements AiAgentModel {
     List<AiAgentModelMessage> messages,
     List<ToolSpec> tools, {
     void Function(String text)? onTextDelta,
+    void Function(String text)? onThinkingDelta,
+    void Function()? onThinkingEnd,
   }) async {
     inputs.add(List.of(messages));
     toolInputs.add(List.of(tools));
@@ -697,6 +818,11 @@ class _FakeModel implements AiAgentModel {
     final responseIndex = inputs.length - 1;
     final configuredResponses = responses;
     if (configuredResponses != null) {
+      for (final text in thinkingDeltas?[responseIndex] ?? const <String>[]) {
+        onThinkingDelta?.call(text);
+        await Future<void>.delayed(Duration.zero);
+      }
+      onThinkingEnd?.call();
       for (final text in textDeltas?[responseIndex] ?? const <String>[]) {
         onTextDelta?.call(text);
         await Future<void>.delayed(Duration.zero);

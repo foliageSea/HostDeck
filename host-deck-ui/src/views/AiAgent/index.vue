@@ -9,7 +9,6 @@ import {
   Check,
   CircleAlert,
   ChevronDown,
-  Clipboard,
   Hand,
   ImagePlus,
   LoaderCircle,
@@ -42,6 +41,7 @@ import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import AiAgentMarkdown from './components/AiAgentMarkdown.vue'
+import AiAgentThinking from './components/AiAgentThinking.vue'
 import AiAgentSkillPicker from './components/AiAgentSkillPicker.vue'
 import AiAgentToolCall from './components/AiAgentToolCall.vue'
 import AiAgentModelPicker from './components/AiAgentModelPicker.vue'
@@ -688,15 +688,6 @@ async function stop() {
   }
 }
 
-async function copyMessage(content: string) {
-  try {
-    await navigator.clipboard.writeText(content)
-    getUiApi().message.success('已复制对话内容。')
-  } catch {
-    getUiApi().message.error('复制失败，请检查剪贴板权限。')
-  }
-}
-
 async function resolveApproval(callId: string, approved: boolean) {
   try {
     await agentStore.resolveApproval(callId, approved)
@@ -713,12 +704,23 @@ function handleMessageScroll() {
   showScrollButton.value = !nearBottom
 }
 
+let scrollFrame: number | undefined
+let forceScroll = false
+
 function scrollToLatest(force = false) {
+  forceScroll ||= force
+  if (scrollFrame !== undefined) return
   void nextTick(() => {
-    const element = messageScroller.value
-    if (!element || (!force && !followOutput.value)) return
-    element.scrollTop = element.scrollHeight
-    showScrollButton.value = false
+    if (scrollFrame !== undefined || !rootElement.value) return
+    scrollFrame = window.requestAnimationFrame(() => {
+      scrollFrame = undefined
+      const shouldScroll = forceScroll || followOutput.value
+      forceScroll = false
+      const element = messageScroller.value
+      if (!element || !shouldScroll) return
+      element.scrollTop = element.scrollHeight
+      showScrollButton.value = false
+    })
   })
 }
 
@@ -754,12 +756,13 @@ watch(
 
 watch(
   () => [
-    messages.value.at(-1)?.content,
+    messages.value.length,
     toolCalls.value.map((tool) => `${tool.callId}:${tool.status}`).join(','),
     runSteps.value.length,
     running.value,
   ],
   () => scrollToLatest(),
+  { flush: 'post' },
 )
 
 let runElapsedTimer: number | undefined
@@ -802,6 +805,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (scrollFrame !== undefined) window.cancelAnimationFrame(scrollFrame)
   resizeObserver?.disconnect()
   stopRunElapsedTimer()
   stopSidebarResize()
@@ -1030,20 +1034,17 @@ let resizeObserver: ResizeObserver | undefined
                     />
                   </div>
                 </div>
-                <button
-                  v-if="entry.message.content"
-                  type="button"
-                  class="agent-message-copy"
-                  aria-label="复制对话内容"
-                  title="复制对话内容"
-                  @click="copyMessage(entry.message.content)"
-                >
-                  <Clipboard :size="13" />
-                </button>
               </div>
+              <AiAgentThinking
+                v-if="entry.message.role === 'assistant' && entry.message.thinking"
+                :content="entry.message.thinking"
+                @rendered="scrollToLatest()"
+              />
               <AiAgentMarkdown
                 v-if="entry.message.content && entry.message.role === 'assistant'"
                 :content="entry.message.content"
+                :streaming="running && entry.message.id === streamingMessageId"
+                @rendered="scrollToLatest()"
               />
               <div
                 v-if="
@@ -1057,47 +1058,41 @@ let resizeObserver: ResizeObserver | undefined
               </div>
               <div
                 v-else-if="
-                  entry.message.role === 'assistant' && entry.message.id === streamingMessageId
+                  entry.message.role === 'assistant' &&
+                  entry.message.id === streamingMessageId &&
+                  !entry.message.content &&
+                  !entry.message.thinking
                 "
                 class="agent-thinking"
                 aria-label="Agent 正在思考"
               >
                 <span /><span /><span />
               </div>
-              <button
-                v-if="
-                  entry.message.content &&
-                  entry.message.role !== 'tool' &&
-                  entry.message.role !== 'user'
-                "
-                type="button"
-                class="agent-message-copy"
-                aria-label="复制对话内容"
-                title="复制对话内容"
-                @click="copyMessage(entry.message.content)"
-              >
-                <Clipboard :size="13" />
-              </button>
             </article>
             <div
               v-else-if="entry.step.type === 'model'"
               class="agent-message agent-message-assistant"
             >
               <div class="agent-message-role"><Bot :size="14" /> Agent</div>
-              <AiAgentMarkdown v-if="entry.step.content" :content="entry.step.content" />
-              <div v-else-if="running" class="agent-thinking" aria-label="Agent 正在思考">
+              <AiAgentThinking
+                v-if="entry.step.thinking"
+                :content="entry.step.thinking"
+                :running="running && entry.step.status === 'running' && entry.step.thinkingRunning"
+                @rendered="scrollToLatest()"
+              />
+              <AiAgentMarkdown
+                v-if="entry.step.content"
+                :content="entry.step.content"
+                :streaming="running && entry.step.status === 'running'"
+                @rendered="scrollToLatest()"
+              />
+              <div
+                v-else-if="running && entry.step.status === 'running' && !entry.step.thinking"
+                class="agent-thinking"
+                aria-label="Agent 正在思考"
+              >
                 <span /><span /><span />
               </div>
-              <button
-                v-if="entry.step.content"
-                type="button"
-                class="agent-message-copy"
-                aria-label="复制对话内容"
-                title="复制对话内容"
-                @click="copyMessage(entry.step.content)"
-              >
-                <Clipboard :size="13" />
-              </button>
             </div>
             <div
               v-else-if="entry.step.type === 'error'"
@@ -1115,16 +1110,6 @@ let resizeObserver: ResizeObserver | undefined
             >
               <div class="agent-message-role"><Bot :size="14" /> Agent</div>
               <AiAgentMarkdown v-if="entry.step.content" :content="entry.step.content" />
-              <button
-                v-if="entry.step.content"
-                type="button"
-                class="agent-message-copy"
-                aria-label="复制对话内容"
-                title="复制对话内容"
-                @click="copyMessage(entry.step.content)"
-              >
-                <Clipboard :size="13" />
-              </button>
             </div>
             <div
               v-else-if="
@@ -1918,30 +1903,6 @@ let resizeObserver: ResizeObserver | undefined
 .ai-agent-dark .agent-message-error {
   color: #fca5a5;
   background: rgba(127, 29, 29, 0.2);
-}
-
-.agent-message-copy {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 8px;
-  padding: 3px 6px;
-  border: 0;
-  border-radius: var(--app-radius-item);
-  background: transparent;
-  color: var(--agent-muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: 10px;
-}
-
-.agent-message-user-wrap .agent-message-copy {
-  align-self: flex-end;
-}
-
-.agent-message-copy:hover {
-  background: var(--agent-elevated);
-  color: var(--agent-foreground);
 }
 
 .agent-message-images {

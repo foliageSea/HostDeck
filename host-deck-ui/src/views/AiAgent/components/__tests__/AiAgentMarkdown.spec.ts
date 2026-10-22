@@ -1,6 +1,7 @@
 import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { marked } from 'marked'
 import AiAgentMarkdown from '../AiAgentMarkdown.vue'
 
 const uiMocks = vi.hoisted(() => ({
@@ -17,6 +18,49 @@ function render(content: string) {
 }
 
 describe('AiAgentMarkdown', () => {
+  it('batches streamed fragments and flushes the final text with highlighting immediately', async () => {
+    vi.useFakeTimers()
+    const parse = vi.spyOn(marked, 'parse')
+    const wrapper = mount(AiAgentMarkdown, { props: { content: '```js\nconst ', streaming: true } })
+    try {
+      parse.mockClear()
+      for (let i = 1; i <= 100; i++) {
+        await wrapper.setProps({ content: `\`\`\`js\nconst answer = ${i};\n\`\`\`` })
+      }
+      expect(parse).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(50)
+      expect(parse).toHaveBeenCalledTimes(1)
+      expect(wrapper.get('pre code').text()).toContain('answer = 100')
+      expect(wrapper.find('.agent-code-copy').exists()).toBe(false)
+      expect(wrapper.find('.hljs-keyword').exists()).toBe(false)
+
+      await wrapper.setProps({ content: '```js\nconst answer = 101;\n```' })
+      await wrapper.setProps({ streaming: false })
+      await nextTick()
+      expect(wrapper.get('pre code .hljs-number').text()).toBe('101')
+      expect(wrapper.findAll('.agent-code-copy')).toHaveLength(1)
+      const calls = parse.mock.calls.length
+      await vi.advanceTimersByTimeAsync(100)
+      expect(parse).toHaveBeenCalledTimes(calls)
+    } finally {
+      wrapper.unmount()
+      parse.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('cancels pending stream rendering when unmounted', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(AiAgentMarkdown, { props: { content: 'First', streaming: true } })
+    try {
+      await wrapper.setProps({ content: 'First second' })
+      wrapper.unmount()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('renders common markdown structures', () => {
     const wrapper = render('**bold** and `code`\n\n- one\n- two\n\n| a | b |\n| - | - |\n| 1 | 2 |')
 

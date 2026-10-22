@@ -42,6 +42,8 @@ class AiAgentPiBridge {
   Future<Map<String, dynamic>> request(
     Map<String, dynamic> payload, {
     void Function(String)? onTextDelta,
+    void Function(String)? onThinkingDelta,
+    void Function()? onThinkingEnd,
     void Function(Map<String, dynamic>)? onAuth,
     Duration timeout = const Duration(minutes: 2),
   }) async {
@@ -86,6 +88,10 @@ class AiAgentPiBridge {
         switch (event['type']) {
           case 'text':
             onTextDelta?.call(event['text'] as String);
+          case 'thinking':
+            onThinkingDelta?.call(event['text'] as String);
+          case 'thinking-end':
+            onThinkingEnd?.call();
           case 'auth':
             onAuth?.call(event);
           case 'result':

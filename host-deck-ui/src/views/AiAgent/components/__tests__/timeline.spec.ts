@@ -111,6 +111,18 @@ describe('buildTimelineEntries', () => {
     ])
   })
 
+  it('keeps thinking before a tool even when the answer text was reset', () => {
+    const entries = buildTimelineEntries(
+      [],
+      [
+        { ...liveStep('thinking-step', 0), content: '', thinking: 'Check the host.' },
+        restoredToolStep('call-1', 1, 100),
+      ],
+    )
+    expect(entries).toHaveLength(2)
+    expect(entries[0]).toMatchObject({ kind: 'step', step: { thinking: 'Check the host.' } })
+  })
+
   it('merges restored tool steps between messages by timestamp', () => {
     const messages = [
       message('user-1', 'user', 10, { content: 'inspect' }),

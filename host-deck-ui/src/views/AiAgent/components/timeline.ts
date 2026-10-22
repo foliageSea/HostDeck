@@ -7,7 +7,9 @@ export type AiAgentTimelineEntry =
 /** Whether the entry renders as a tool card (approval steps reuse the tool card). */
 export function isToolEntry(entry: AiAgentTimelineEntry | undefined) {
   return Boolean(
-    entry && entry.kind === 'step' && (entry.step.type === 'tool' || entry.step.type === 'approval'),
+    entry &&
+    entry.kind === 'step' &&
+    (entry.step.type === 'tool' || entry.step.type === 'approval'),
   )
 }
 
@@ -75,7 +77,7 @@ export function buildTimelineEntries(
       if (step.type === 'approval' && step.callId && toolStepCallIds.has(step.callId)) {
         return false
       }
-      if (step.type !== 'model' || step.content) return true
+      if (step.type !== 'model' || step.content || step.thinking) return true
       // A tool follows this empty model step, so the tool call itself replaces
       // the pre-tool thinking placeholder to avoid a duplicate Agent loading.
       const hasLaterToolStep = sortedSteps

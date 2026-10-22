@@ -280,6 +280,7 @@ class AiAgentRepository {
     required String conversationId,
     required String role,
     required String content,
+    String thinking = '',
     List<AiAgentImageAttachment> attachments = const [],
     List<AiAgentMessageToolCall> toolCalls = const [],
     String? toolCallId,
@@ -304,6 +305,7 @@ class AiAgentRepository {
           attachments.map((attachment) => attachment.toJson()).toList(),
         ),
         _metadataJson(
+          thinking: thinking,
           providerMessage: providerMessage,
           toolCalls: toolCalls,
           toolCallId: toolCallId,
@@ -329,6 +331,7 @@ class AiAgentRepository {
       );
     }
     return AiAgentMessage(
+      thinking: thinking,
       providerMessage: providerMessage,
       id: id,
       conversationId: conversationId,
@@ -369,6 +372,7 @@ class AiAgentRepository {
   }
 
   String _metadataJson({
+    String thinking = '',
     Map<String, dynamic>? providerMessage,
     List<AiAgentMessageToolCall> toolCalls = const [],
     String? toolCallId,
@@ -376,7 +380,8 @@ class AiAgentRepository {
     Map<String, dynamic>? toolResult,
     Map<String, dynamic>? usage,
   }) {
-    if (toolCalls.isEmpty &&
+    if (thinking.isEmpty &&
+        toolCalls.isEmpty &&
         toolCallId == null &&
         toolStatus == null &&
         toolResult == null &&
@@ -385,6 +390,7 @@ class AiAgentRepository {
       return '{}';
     }
     return jsonEncode({
+      if (thinking.isNotEmpty) 'thinking': thinking,
       if (providerMessage != null)
         'providerMessage': {
           ...providerMessage,
@@ -423,8 +429,23 @@ class AiAgentRepository {
 
   AiAgentMessage _messageFromRow(dynamic row) {
     final metadata = _metadataFromJson(row['metadata'] as String?);
+    final providerMessage =
+        metadata['providerMessage'] as Map<String, dynamic>?;
+    // Older messages already retain provider thinking in their private context.
+    final thinking =
+        metadata['thinking'] as String? ??
+        (providerMessage?['content'] as List? ?? const [])
+            .whereType<Map>()
+            .where(
+              (block) =>
+                  block['type'] == 'thinking' && block['redacted'] != true,
+            )
+            .map((block) => block['thinking'])
+            .whereType<String>()
+            .join('\n\n');
     return AiAgentMessage(
-      providerMessage: metadata['providerMessage'] as Map<String, dynamic>?,
+      providerMessage: providerMessage,
+      thinking: thinking,
       id: row['id'] as String,
       conversationId: row['conversationId'] as String,
       role: row['role'] as String,
