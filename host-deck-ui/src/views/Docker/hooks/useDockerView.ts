@@ -1458,6 +1458,26 @@ export function useDockerView(props: DockerViewProps) {
     }
   }
 
+  function openVolumeDirectory(volume: DockerVolume) {
+    const mountpoint = volume.mountpoint?.trim() ?? ''
+    if (!mountpoint) {
+      getUiApi().message.warning('该存储卷缺少挂载点路径，无法打开目录。')
+      return
+    }
+
+    try {
+      desktopStore.openWindow('files', {
+        connectionId: requireConnectionId(),
+        host: props.host ?? sshStore.host,
+        path: mountpoint,
+        title: `存储卷目录 · ${volume.name}`,
+        username: props.username ?? sshStore.username,
+      })
+    } catch (error) {
+      getUiApi().message.error(error instanceof Error ? error.message : '打开存储卷目录失败。')
+    }
+  }
+
   async function removeNetwork(network: DockerNetwork) {
     try {
       const connectionId = requireConnectionId()
@@ -1783,6 +1803,7 @@ export function useDockerView(props: DockerViewProps) {
     openContainerPort,
     openComposeConfigDirectory,
     openComposeServices,
+    openVolumeDirectory,
     openCreateContainer,
     openCreateComposeProject,
     openEditComposeProject,

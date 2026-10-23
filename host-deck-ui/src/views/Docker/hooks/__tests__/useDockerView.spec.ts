@@ -5,6 +5,7 @@ const {
   composeProjectActionStream,
   createTask,
   listContainers,
+  messageWarning,
   openWindow,
   runTask,
   warning,
@@ -13,6 +14,7 @@ const {
   composeProjectActionStream: vi.fn(),
   createTask: vi.fn(),
   listContainers: vi.fn(),
+  messageWarning: vi.fn(),
   openWindow: vi.fn(),
   runTask: vi.fn(),
   warning: vi.fn(),
@@ -22,7 +24,7 @@ vi.mock('@/api/docker', () => ({ dockerApi: { composeProjectActionStream, listCo
 vi.mock('@/lib/ui', () => ({
   getUiApi: () => ({
     dialog: { warning },
-    message: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
+    message: { error: vi.fn(), success: vi.fn(), warning: messageWarning },
   }),
 }))
 vi.mock('@/stores/desktop', () => ({ useDesktopStore: () => ({ openWindow }) }))
@@ -346,5 +348,49 @@ describe('useDockerView compose windows', () => {
     })
 
     expect(openWindow).toHaveBeenCalledWith('files', expect.objectContaining({ path: '/srv/app' }))
+  })
+})
+
+describe('useDockerView volume directory', () => {
+  it('opens the volume mountpoint in files', () => {
+    openWindow.mockReset()
+    const controller = useDockerView({
+      connectionId: 'conn-1',
+      host: 'host.example',
+      username: 'deploy',
+    })
+
+    controller.openVolumeDirectory({
+      driver: 'local',
+      mountpoint: '/var/lib/docker/volumes/app-data/_data',
+      name: 'app-data',
+      refCount: 0,
+      scope: 'local',
+    })
+
+    expect(openWindow).toHaveBeenCalledWith('files', {
+      connectionId: 'conn-1',
+      host: 'host.example',
+      path: '/var/lib/docker/volumes/app-data/_data',
+      title: '存储卷目录 · app-data',
+      username: 'deploy',
+    })
+  })
+
+  it('warns instead of opening files when the mountpoint is empty', () => {
+    openWindow.mockReset()
+    messageWarning.mockReset()
+    const controller = useDockerView({ connectionId: 'conn-1' })
+
+    controller.openVolumeDirectory({
+      driver: 'local',
+      mountpoint: '   ',
+      name: 'orphan',
+      refCount: 0,
+      scope: 'local',
+    })
+
+    expect(openWindow).not.toHaveBeenCalled()
+    expect(messageWarning).toHaveBeenCalledWith('该存储卷缺少挂载点路径，无法打开目录。')
   })
 })

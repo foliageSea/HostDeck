@@ -99,7 +99,7 @@ async function submitCreate() {
 
     <NEmpty v-if="controller.filteredVolumes.length === 0" />
 
-    <DockerResourceTable v-else min-width="900px">
+    <DockerResourceTable v-else min-width="980px">
       <thead>
         <tr>
           <th style="width: 220px">存储卷</th>
@@ -108,7 +108,7 @@ async function submitCreate() {
           <th style="width: 100px">引用</th>
           <th>挂载点</th>
           <th style="width: 190px">创建时间</th>
-          <th class="docker-table-actions-column" style="width: 130px">操作</th>
+          <th class="docker-table-actions-column" style="width: 200px">操作</th>
         </tr>
       </thead>
       <tbody>
@@ -131,6 +131,13 @@ async function submitCreate() {
           <td class="docker-table-nowrap">{{ controller.formatTime(volume.createdAt) }}</td>
           <td class="docker-table-actions-column">
             <div class="docker-table-actions">
+              <NButton
+                size="tiny"
+                quaternary
+                :disabled="!volume.mountpoint"
+                @click="controller.openVolumeDirectory(volume)"
+                >打开目录</NButton
+              >
               <NButton size="tiny" quaternary @click="controller.viewVolumeInspect(volume)"
                 >检查</NButton
               >
