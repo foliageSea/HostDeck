@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="HostDeck">
+  <title>HostDeck</title>
+  <rect width="512" height="512" rx="112" fill="#0F172A"/>
+  <g transform="translate(256 256) skewX(-20) translate(-256 -256)">
+    <rect x="120" y="126" width="272" height="70" rx="26" fill="#F8FAFC"/>
+    <rect x="120" y="221" width="272" height="70" rx="26" fill="#F8FAFC"/>
+    <rect x="120" y="316" width="272" height="70" rx="26" fill="#F8FAFC"/>
+    <rect x="156" y="152" width="88" height="20" rx="10" fill="#0F172A"/>
+    <rect x="156" y="247" width="88" height="20" rx="10" fill="#0F172A"/>
+    <rect x="156" y="342" width="88" height="20" rx="10" fill="#0F172A"/>
+  </g>
+</svg>

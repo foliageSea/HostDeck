@@ -73,7 +73,14 @@ export function useTheme() {
   watchEffect(() => {
     const primaryRgb = hexToRgb(settingsStore.primaryColor)
 
-    document.documentElement.dataset.theme = settingsStore.isDark ? 'dark' : 'light'
+    const themeName = settingsStore.isDark ? 'dark' : 'light'
+    document.documentElement.dataset.theme = themeName
+    // 网页图标跟随应用主题：先按 prefers-color-scheme 挑，切换主题后再强制对齐。
+    document
+      .querySelectorAll<HTMLLinkElement>('link[rel="icon"][data-app-icon]')
+      .forEach((link) => {
+        link.media = link.dataset.appIcon === themeName ? 'all' : 'not all'
+      })
     document.documentElement.dataset.cornerStyle = settingsStore.cornerStyle
     document.documentElement.dataset.electron = window.hostDeck?.window ? 'true' : 'false'
     if (window.hostDeck?.shellMode) {
