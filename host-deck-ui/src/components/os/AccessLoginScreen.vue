@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { KeyRound, ShieldCheck } from '@lucide/vue'
 import { NButton, NButtonGroup, NInput } from 'naive-ui'
+import BrandLogo from '@/components/common/BrandLogo.vue'
 import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { useAccessStore } from '@/stores/access'
 import { useSettingsStore } from '@/stores/settings'
@@ -102,7 +103,7 @@ async function submit() {
       >
         <div class="mb-[22px] flex items-center gap-[12px]">
           <div class="access-brand-icon flex-none" aria-hidden="true">
-            <img src="/favicon.png" alt="" />
+            <BrandLogo :size="46" />
           </div>
           <div class="min-w-0">
             <h1
@@ -204,10 +205,9 @@ async function submit() {
   place-items: center;
 }
 
-.access-brand-icon img {
+.access-brand-icon .brand-logo {
   width: 46px;
   height: 46px;
-  object-fit: contain;
 }
 
 .access-error {

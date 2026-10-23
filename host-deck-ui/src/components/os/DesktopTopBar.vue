@@ -15,6 +15,7 @@ import {
 import { NIcon } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
 import { getUiApi } from '@/lib/ui'
+import BrandLogo from '@/components/common/BrandLogo.vue'
 import CopyableText from '@/components/common/CopyableText.vue'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -209,12 +210,7 @@ function disconnect() {
           "
           aria-label="打开 HostDeck 菜单"
         >
-          <img
-            data-desktop-logo
-            class="h-[18px] w-[18px] flex-none object-contain"
-            src="/favicon.png"
-            alt="HostDeck"
-          />
+          <BrandLogo data-desktop-logo class="h-[18px] w-[18px]" :size="18" />
           <span class="truncate text-[12px] font-700 tracking-[0.02em] lt-sm:hidden">HostDeck</span>
         </button>
       </NDropdown>
@@ -369,7 +365,7 @@ function disconnect() {
       class="w-[min(400px,calc(100vw-32px))]"
     >
       <div class="flex flex-col items-center gap-[16px] py-[8px] text-center">
-        <img class="h-[56px] w-[56px] object-contain" src="/favicon.png" alt="HostDeck" />
+        <BrandLogo class="h-[56px] w-[56px]" :size="56" />
         <div>
           <h2 class="m-0 text-[18px] font-700">HostDeck</h2>
           <p class="mb-0 mt-[4px] text-[13px] text-[rgba(100,116,139,0.9)]">远程主机工作台</p>

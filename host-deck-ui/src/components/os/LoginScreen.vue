@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
 import { Check, LogOut, Pencil, Plus, RefreshCw, Server, Trash2 } from '@lucide/vue'
 import { authApi, type ConnectParams, type ConnectResponse } from '@/api/auth'
+import BrandLogo from '@/components/common/BrandLogo.vue'
 import type { SavedServer, ServerUpdatePayload } from '@/api/server'
 import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { getUiApi } from '@/lib/ui'
@@ -528,7 +529,7 @@ onMounted(async () => {
         <div class="mb-[22px] flex items-center justify-between gap-[16px]">
           <div class="flex min-w-0 items-center gap-[12px]">
             <div class="login-brand-icon flex-none" aria-hidden="true">
-              <img src="/favicon.png" alt="" />
+              <BrandLogo :size="46" />
             </div>
             <h2
               class="m-0 truncate font-bold"
@@ -851,10 +852,9 @@ onMounted(async () => {
   place-items: center;
 }
 
-.login-brand-icon img {
+.login-brand-icon .brand-logo {
   width: 46px;
   height: 46px;
-  object-fit: contain;
 }
 
 @keyframes panel-shake {

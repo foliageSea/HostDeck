@@ -24,6 +24,10 @@
   --app-scrollbar-track: transparent;
   --electron-titlebar-height: 38px;
 
+  --brand-logo-tile: #ffffff;
+  --brand-logo-mark: #000000;
+  --brand-logo-tile-stroke: transparent;
+
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -39,6 +43,9 @@
   background: #020617;
   --app-scrollbar-thumb: rgba(255, 255, 255, 0.2);
   --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  --brand-logo-tile: #0f172a;
+  --brand-logo-mark: #f8fafc;
+  --brand-logo-tile-stroke: rgba(148, 163, 184, 0.32);
 }
 
 :root[data-theme='light'] {
@@ -116,13 +123,7 @@ body,
 }
 
 .docker-console {
-  font-family:
-    'Maple Mono',
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Consolas,
-    monospace;
+  font-family: 'Maple Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 body {

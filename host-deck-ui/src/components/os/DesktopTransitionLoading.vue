@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BrandLogo from '@/components/common/BrandLogo.vue'
 import { useSettingsStore } from '@/stores/settings'
 
 defineProps<{
@@ -42,17 +43,15 @@ function handleLeave(el: Element, done: () => void) {
       root.querySelectorAll<HTMLElement>(
         '.desktop-loading-fade, .desktop-loading-ring, .desktop-loading-plate',
       ),
-    ).map((item) =>
-      item.animate({ opacity: [1, 0] }, { ...timing, duration: FLY_DURATION * 0.5 }),
-    ),
+    ).map((item) => item.animate({ opacity: [1, 0] }, { ...timing, duration: FLY_DURATION * 0.5 })),
     root
       .querySelector<HTMLElement>('.desktop-loading-backdrop')!
       .animate({ opacity: [1, 0] }, timing),
   ]
 
-  Promise.all(animations.map((animation) => animation.finished)).then(
-    () => logo.animate({ opacity: [1, 0] }, { duration: 120, fill: 'forwards' }).finished,
-  ).then(done, done)
+  Promise.all(animations.map((animation) => animation.finished))
+    .then(() => logo.animate({ opacity: [1, 0] }, { duration: 120, fill: 'forwards' }).finished)
+    .then(done, done)
 }
 </script>
 
@@ -77,7 +76,7 @@ function handleLeave(el: Element, done: () => void) {
           <div class="desktop-loading-ring desktop-loading-ring-inner" />
           <div class="desktop-loading-logo">
             <div class="desktop-loading-plate" />
-            <img class="desktop-loading-logo-image" src="/favicon.png" alt="" />
+            <BrandLogo class="desktop-loading-logo-image" :size="52" />
           </div>
         </div>
 
@@ -194,7 +193,6 @@ function handleLeave(el: Element, done: () => void) {
   position: relative;
   width: 52px;
   height: 52px;
-  object-fit: contain;
 }
 
 .desktop-loading-ring {
