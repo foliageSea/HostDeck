@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { dockerApi } from '@/api/docker'
+import { darkAnsiPalette, lightAnsiPalette, parseAnsi, stripAnsi } from '@/lib/ansi'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -22,13 +23,18 @@ let generation = 0
 
 const displayedLogs = computed(() => {
   const search = keyword.value.trim().toLowerCase()
-  return search
-    ? content.value
-        .split(/\r?\n/)
-        .filter((line) => line.toLowerCase().includes(search))
-        .join('\n')
-    : content.value
+  if (!search) return content.value
+  return content.value
+    .split(/\r?\n/)
+    .filter((line) => stripAnsi(line).toLowerCase().includes(search))
+    .join('\n')
 })
+
+const plainLogs = computed(() => stripAnsi(displayedLogs.value))
+
+const logSpans = computed(() =>
+  parseAnsi(displayedLogs.value, settingsStore.isDark ? darkAnsiPalette : lightAnsiPalette),
+)
 
 function stopStream() {
   generation += 1
@@ -97,7 +103,7 @@ async function refreshLogs() {
 
 async function copyLogs() {
   try {
-    await navigator.clipboard.writeText(displayedLogs.value)
+    await navigator.clipboard.writeText(plainLogs.value)
     getUiApi().message.success('日志已复制到剪贴板。')
   } catch {
     getUiApi().message.error('复制日志失败。')
@@ -105,9 +111,7 @@ async function copyLogs() {
 }
 
 function downloadLogs() {
-  const url = URL.createObjectURL(
-    new Blob([displayedLogs.value], { type: 'text/plain;charset=utf-8' }),
-  )
+  const url = URL.createObjectURL(new Blob([plainLogs.value], { type: 'text/plain;charset=utf-8' }))
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = `${props.containerName || 'container'}-${Date.now()}.log`
@@ -159,8 +163,12 @@ onBeforeUnmount(stopStream)
             : 'bg-[rgba(248,250,252,0.96)] text-[rgba(30,41,59,0.96)] app-scrollbar-light'
         "
         @scroll="handleScroll"
-        >{{ displayedLogs }}</pre
-      >
+      ><span
+          v-for="(span, index) in logSpans"
+          :key="index"
+          :style="span.style"
+          >{{ span.text }}</span
+        ></pre>
     </NSpin>
     <div class="flex items-center justify-between gap-[12px] text-[12px] opacity-70">
       <span>最近日志 {{ lastUpdatedAt?.toLocaleString('zh-CN') ?? '-' }}</span>
