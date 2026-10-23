@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { Add } from '@vicons/carbon'
+import { Ellipsis, HardDrive, RefreshCw, Search } from '@lucide/vue'
+import type { DockerVolume } from '@/api/docker'
 import type { DockerViewController } from '../hooks/useDockerView'
-import DockerResourceTable from './DockerResourceTable.vue'
 import DockerTabToolbar from './DockerTabToolbar.vue'
 
 const props = defineProps<{
@@ -67,21 +68,30 @@ async function submitCreate() {
     createSubmitting.value = false
   }
 }
+
+function getVolumeUsageTagType(volume: DockerVolume) {
+  return volume.refCount > 0 ? ('success' as const) : ('default' as const)
+}
+
+function getVolumeUsageLabel(volume: DockerVolume) {
+  return volume.refCount > 0 ? `被 ${volume.refCount} 个容器使用` : '未使用'
+}
+
+function getVolumeMoreActionOptions(volume: DockerVolume) {
+  return [{ key: 'remove', label: '删除', disabled: volume.refCount > 0 }]
+}
+
+function handleVolumeMoreAction(volume: DockerVolume, action: string) {
+  if (action === 'remove') {
+    props.controller.confirmRemoveVolume(volume)
+  }
+}
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden">
+  <div class="flex h-full min-h-0 flex-col overflow-hidden">
     <DockerTabToolbar>
       <template #left>
-        <NInput
-          v-model:value="controller.volumeSearchKeyword"
-          clearable
-          class="w-[min(220px,60vw)] lt-sm:w-full"
-          placeholder="搜索存储卷"
-        />
-      </template>
-
-      <template #actions>
         <NButton type="primary" @click="openCreateDialog">
           <template #icon>
             <NIcon>
@@ -90,70 +100,90 @@ async function submitCreate() {
           </template>
           新建存储卷
         </NButton>
-        <NButton quaternary :loading="controller.loading" @click="controller.refreshVolumes"
-          >刷新</NButton
+      </template>
+
+      <template #actions>
+        <NInput
+          v-model:value="controller.volumeSearchKeyword"
+          clearable
+          class="volume-search-input"
+          placeholder="搜索存储卷"
         >
-        <NButton quaternary @click="controller.confirmPruneVolumes">清理未使用</NButton>
+          <template #prefix><Search :size="16" /></template>
+        </NInput>
+        <NTooltip>
+          <template #trigger>
+            <NButton
+              circle
+              :loading="controller.loading"
+              aria-label="刷新存储卷"
+              @click="controller.refreshVolumes"
+            >
+              <template #icon><RefreshCw :size="16" /></template>
+            </NButton>
+          </template>
+          刷新
+        </NTooltip>
+        <NButton @click="controller.confirmPruneVolumes">清理未使用</NButton>
       </template>
     </DockerTabToolbar>
 
-    <NEmpty v-if="controller.filteredVolumes.length === 0" />
+    <NEmpty v-if="controller.filteredVolumes.length === 0" class="my-auto" />
+    <div v-else class="volume-list app-scrollbar app-scrollbar-compact">
+      <div class="volume-list__summary">共 {{ controller.filteredVolumes.length }} 个存储卷</div>
 
-    <DockerResourceTable v-else min-width="980px">
-      <thead>
-        <tr>
-          <th style="width: 220px">存储卷</th>
-          <th style="width: 110px">驱动</th>
-          <th style="width: 100px">作用域</th>
-          <th style="width: 100px">引用</th>
-          <th>挂载点</th>
-          <th style="width: 190px">创建时间</th>
-          <th class="docker-table-actions-column" style="width: 200px">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="volume in controller.filteredVolumes" :key="volume.name">
-          <td>
-            <span class="docker-table-primary" :title="volume.name">{{ volume.name }}</span>
-          </td>
-          <td>{{ volume.driver }}</td>
-          <td>{{ volume.scope }}</td>
-          <td>
-            <NTag round size="small" :type="volume.refCount > 0 ? 'success' : 'default'">{{
-              volume.refCount
-            }}</NTag>
-          </td>
-          <td>
-            <span class="docker-table-primary" :title="volume.mountpoint">{{
-              volume.mountpoint
-            }}</span>
-          </td>
-          <td class="docker-table-nowrap">{{ controller.formatTime(volume.createdAt) }}</td>
-          <td class="docker-table-actions-column">
-            <div class="docker-table-actions">
-              <NButton
-                size="tiny"
-                quaternary
-                :disabled="!volume.mountpoint"
-                @click="controller.openVolumeDirectory(volume)"
-                >打开目录</NButton
-              >
-              <NButton size="tiny" quaternary @click="controller.viewVolumeInspect(volume)"
-                >检查</NButton
-              >
-              <NButton
-                size="tiny"
-                quaternary
-                type="error"
-                :disabled="volume.refCount > 0"
-                @click="controller.confirmRemoveVolume(volume)"
-                >删除</NButton
-              >
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </DockerResourceTable>
+      <article v-for="volume in controller.filteredVolumes" :key="volume.name" class="volume-card">
+        <div class="volume-card__icon" aria-hidden="true">
+          <HardDrive :size="28" :stroke-width="1.8" />
+        </div>
+
+        <div class="volume-card__content">
+          <div class="volume-card__heading">
+            <strong :title="volume.name">{{ volume.name }}</strong>
+            <NTag size="small">{{ volume.driver }}</NTag>
+            <NTag size="small" :type="getVolumeUsageTagType(volume)">
+              {{ getVolumeUsageLabel(volume) }}
+            </NTag>
+          </div>
+
+          <div class="volume-card__metadata">
+            <span class="volume-card__meta"> <small>作用域</small>{{ volume.scope || '-' }} </span>
+            <span class="volume-card__meta"> <small>引用</small>{{ volume.refCount }} </span>
+            <span
+              class="volume-card__meta volume-card__meta--wide"
+              :title="volume.mountpoint || '暂无挂载点'"
+            >
+              <small>挂载点</small>{{ volume.mountpoint || '-' }}
+            </span>
+          </div>
+
+          <div class="volume-card__footer">
+            <span>创建于 {{ controller.formatTime(volume.createdAt) }}</span>
+          </div>
+        </div>
+
+        <div class="volume-card__actions">
+          <NButton
+            text
+            type="primary"
+            :disabled="!volume.mountpoint"
+            @click="controller.openVolumeDirectory(volume)"
+          >
+            打开目录
+          </NButton>
+          <NButton text type="primary" @click="controller.viewVolumeInspect(volume)">检查</NButton>
+          <NDropdown
+            trigger="click"
+            :options="getVolumeMoreActionOptions(volume)"
+            @select="(action: string | number) => handleVolumeMoreAction(volume, String(action))"
+          >
+            <NButton quaternary circle aria-label="更多存储卷操作">
+              <Ellipsis :size="19" />
+            </NButton>
+          </NDropdown>
+        </div>
+      </article>
+    </div>
 
     <NModal
       v-model:show="createVisible"
@@ -194,3 +224,190 @@ async function submitCreate() {
     </NModal>
   </div>
 </template>
+
+<style scoped>
+.volume-search-input {
+  width: min(320px, 36vw) !important;
+  min-width: 200px;
+}
+
+.volume-list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  padding: 1px 6px 8px 1px;
+}
+
+.volume-list__summary {
+  display: flex;
+  flex: none;
+  padding: 0 4px;
+  color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+  font-size: 12px;
+}
+
+.volume-card {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--docker-tab-card-border, rgba(148, 163, 184, 0.2));
+  border-radius: 12px;
+  background: var(--docker-card-background, transparent);
+  padding: 20px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.volume-card:hover {
+  border-color: var(--app-primary-border);
+  box-shadow: 0 8px 24px -20px rgba(var(--app-primary-rgb), 0.7);
+  transform: translateY(-1px);
+}
+
+.volume-card__icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--app-primary-soft);
+  color: var(--app-primary-color);
+}
+
+.volume-card__content {
+  min-width: 0;
+}
+
+.volume-card__heading {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.volume-card__heading > strong {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.volume-card__metadata {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(90px, 0.55fr) minmax(80px, 0.4fr) minmax(240px, 2fr);
+  margin-top: 10px;
+}
+
+.volume-card__meta {
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--docker-tab-card-border, rgba(148, 163, 184, 0.2));
+  padding: 0 14px;
+  color: var(--docker-text-secondary, rgba(71, 85, 105, 0.88));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.volume-card__meta:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.volume-card__meta small {
+  margin-right: 6px;
+  color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+}
+
+.volume-card__footer {
+  display: flex;
+  min-width: 0;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+  font-size: 12px;
+}
+
+.volume-card__footer > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.volume-card__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .volume-card {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .volume-card__icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .volume-card__actions {
+    grid-column: 2;
+    justify-content: flex-end;
+  }
+
+  .volume-card__metadata {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 0;
+  }
+
+  .volume-card__meta:nth-child(3) {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .volume-search-input {
+    width: calc(100% - 90px) !important;
+    min-width: 0;
+  }
+
+  .volume-card {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px 12px;
+  }
+
+  .volume-card__icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .volume-card__metadata {
+    grid-template-columns: 1fr;
+  }
+
+  .volume-card__meta,
+  .volume-card__meta:nth-child(3) {
+    border-left: 0;
+    padding: 3px 0;
+  }
+
+  .volume-card__actions {
+    grid-column: 2;
+    gap: 14px;
+  }
+}
+</style>

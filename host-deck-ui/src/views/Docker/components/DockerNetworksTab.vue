@@ -2,10 +2,11 @@
 import type { SelectOption } from 'naive-ui'
 import { reactive, ref } from 'vue'
 import { Add, Help } from '@vicons/carbon'
+import { Ellipsis, Network, RefreshCw, Search } from '@lucide/vue'
 import { dockerApi, type DockerContainer, type DockerNetwork } from '@/api/docker'
+import CopyableText from '@/components/common/CopyableText.vue'
 import { getUiApi } from '@/lib/ui'
 import type { DockerViewController } from '../hooks/useDockerView'
-import DockerResourceTable from './DockerResourceTable.vue'
 import DockerTabToolbar from './DockerTabToolbar.vue'
 
 const props = defineProps<{
@@ -210,6 +211,17 @@ function getConnectedContainersTitle(network: DockerNetwork) {
   return names.length ? names.join('\n') : '暂无已连接容器'
 }
 
+function getConnectedContainersText(network: DockerNetwork) {
+  const names = network.connectedContainerNames ?? []
+  if (names.length === 0) {
+    return '-'
+  }
+
+  return names.length <= 3
+    ? names.join('、')
+    : `${names.slice(0, 3).join('、')} 等 ${names.length} 个`
+}
+
 function isBuiltInNetwork(network: DockerNetwork) {
   return ['bridge', 'host', 'none'].includes(network.name)
 }
@@ -238,18 +250,9 @@ function handleNetworkMoreAction(network: DockerNetwork, action: string) {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col gap-[12px] overflow-hidden">
+  <div class="flex h-full min-h-0 flex-col overflow-hidden">
     <DockerTabToolbar>
       <template #left>
-        <NInput
-          v-model:value="controller.networkSearchKeyword"
-          clearable
-          class="w-[min(220px,60vw)] lt-sm:w-full"
-          placeholder="搜索网络"
-        />
-      </template>
-
-      <template #actions>
         <NButton type="primary" @click="openCreateDialog">
           <template #icon>
             <NIcon>
@@ -258,93 +261,108 @@ function handleNetworkMoreAction(network: DockerNetwork, action: string) {
           </template>
           新建网络
         </NButton>
-        <NButton quaternary :loading="controller.loading" @click="controller.refreshNetworks"
-          >刷新</NButton
+      </template>
+
+      <template #actions>
+        <NInput
+          v-model:value="controller.networkSearchKeyword"
+          clearable
+          class="network-search-input"
+          placeholder="搜索网络"
         >
-        <NButton quaternary @click="controller.confirmPruneNetworks">清理未使用</NButton>
+          <template #prefix><Search :size="16" /></template>
+        </NInput>
+        <NTooltip>
+          <template #trigger>
+            <NButton
+              circle
+              :loading="controller.loading"
+              aria-label="刷新网络"
+              @click="controller.refreshNetworks"
+            >
+              <template #icon><RefreshCw :size="16" /></template>
+            </NButton>
+          </template>
+          刷新
+        </NTooltip>
+        <NButton @click="controller.confirmPruneNetworks">清理未使用</NButton>
       </template>
     </DockerTabToolbar>
 
-    <NEmpty v-if="controller.filteredNetworks.length === 0" />
+    <NEmpty v-if="controller.filteredNetworks.length === 0" class="my-auto" />
+    <div v-else class="network-list app-scrollbar app-scrollbar-compact">
+      <div class="network-list__summary">共 {{ controller.filteredNetworks.length }} 个网络</div>
 
-    <DockerResourceTable v-else min-width="1460px">
-      <thead>
-        <tr>
-          <th style="width: 220px">网络</th>
-          <th style="width: 270px">类型</th>
-          <th style="width: 90px">作用域</th>
-          <th style="width: 100px">容器数</th>
-          <th style="width: 150px">网关</th>
-          <th style="width: 280px">容器名称</th>
-          <th style="width: 190px">创建时间</th>
-          <th class="docker-table-actions-column" style="width: 190px">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="network in controller.filteredNetworks" :key="network.id">
-          <td>
-            <span class="docker-table-primary" :title="network.name">{{ network.name }}</span
-            ><span class="docker-table-secondary" :title="network.id">{{
-              network.id.slice(0, 18)
-            }}</span>
-          </td>
-          <td>
-            <div class="docker-table-tags">
-              <NTag round size="small">{{ network.driver }}</NTag>
-              <NTag v-if="isBuiltInNetwork(network)" round size="small" type="info">系统网络</NTag>
-              <NTag v-if="network.internal" round size="small" type="warning">Internal</NTag>
-              <NTag v-if="network.attachable" round size="small" type="success">Attachable</NTag>
-              <NTag v-if="network.ingress" round size="small" type="info">Ingress</NTag>
-            </div>
-          </td>
-          <td>{{ network.scope }}</td>
-          <td>{{ network.connectedContainers }}</td>
-          <td>
-            <span class="docker-table-primary" :title="network.gateway || '-'">{{
-              network.gateway || '-'
-            }}</span>
-          </td>
-          <td>
-            <div class="docker-table-tags" :title="getConnectedContainersTitle(network)">
-              <template v-if="network.connectedContainerNames?.length">
-                <NTag
-                  v-for="name in network.connectedContainerNames.slice(0, 4)"
-                  :key="name"
-                  size="small"
-                  round
-                >
-                  {{ name }}
-                </NTag>
-                <span v-if="network.connectedContainerNames.length > 4"
-                  >等 {{ network.connectedContainerNames.length }} 个</span
-                >
-              </template>
-              <template v-else>-</template>
-            </div>
-          </td>
-          <td class="docker-table-nowrap">{{ controller.formatTime(network.createdAt) }}</td>
-          <td class="docker-table-actions-column">
-            <div class="docker-table-actions">
-              <NButton size="tiny" quaternary @click="controller.viewNetworkInspect(network)"
-                >检查</NButton
-              >
-              <NButton size="tiny" quaternary @click="openConnectDialog(network, false)"
-                >连接容器</NButton
-              >
-              <NDropdown
-                trigger="click"
-                :options="getNetworkMoreActionOptions(network)"
-                @select="
-                  (action: string | number) => handleNetworkMoreAction(network, String(action))
-                "
-              >
-                <NButton size="tiny" quaternary>更多</NButton>
-              </NDropdown>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </DockerResourceTable>
+      <article
+        v-for="network in controller.filteredNetworks"
+        :key="network.id"
+        class="network-card"
+      >
+        <div class="network-card__icon" aria-hidden="true">
+          <Network :size="28" :stroke-width="1.8" />
+        </div>
+
+        <div class="network-card__content">
+          <div class="network-card__heading">
+            <strong :title="network.name">{{ network.name }}</strong>
+            <NTag size="small">{{ network.driver }}</NTag>
+            <NTag v-if="isBuiltInNetwork(network)" size="small" type="info">系统网络</NTag>
+            <NTag v-if="network.internal" size="small" type="warning">Internal</NTag>
+            <NTag v-if="network.attachable" size="small" type="success">Attachable</NTag>
+            <NTag v-if="network.ingress" size="small" type="info">Ingress</NTag>
+          </div>
+
+          <div class="network-card__metadata">
+            <span class="network-card__meta">
+              <small>作用域</small>{{ network.scope || '-' }}
+            </span>
+            <span class="network-card__meta" :title="network.gateway || '-'">
+              <small>网关</small>{{ network.gateway || '-' }}
+            </span>
+            <span class="network-card__meta">
+              <small>容器</small>{{ network.connectedContainers }}
+            </span>
+            <span
+              class="network-card__meta network-card__meta--wide"
+              :title="getConnectedContainersTitle(network)"
+            >
+              <small>已连接</small>{{ getConnectedContainersText(network) }}
+            </span>
+          </div>
+
+          <div class="network-card__footer">
+            <span class="network-card__id" :title="network.id">
+              ID
+              <CopyableText
+                :text="network.id"
+                :display-text="network.id.slice(0, 12)"
+                success-message="已复制网络 ID。"
+                error-message="复制网络 ID 失败。"
+              />
+            </span>
+            <span>创建于 {{ controller.formatTime(network.createdAt) }}</span>
+          </div>
+        </div>
+
+        <div class="network-card__actions">
+          <NButton text type="primary" @click="controller.viewNetworkInspect(network)"
+            >检查</NButton
+          >
+          <NButton text type="primary" @click="openConnectDialog(network, false)">
+            连接容器
+          </NButton>
+          <NDropdown
+            trigger="click"
+            :options="getNetworkMoreActionOptions(network)"
+            @select="(action: string | number) => handleNetworkMoreAction(network, String(action))"
+          >
+            <NButton quaternary circle aria-label="更多网络操作">
+              <Ellipsis :size="19" />
+            </NButton>
+          </NDropdown>
+        </div>
+      </article>
+    </div>
 
     <NModal
       v-model:show="createVisible"
@@ -484,5 +502,202 @@ function handleNetworkMoreAction(network: DockerNetwork, action: string) {
 .docker-help-icon {
   cursor: help;
   opacity: 0.6;
+}
+
+.network-search-input {
+  width: min(320px, 36vw) !important;
+  min-width: 200px;
+}
+
+.network-list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  padding: 1px 6px 8px 1px;
+}
+
+.network-list__summary {
+  display: flex;
+  flex: none;
+  padding: 0 4px;
+  color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+  font-size: 12px;
+}
+
+.network-card {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--docker-tab-card-border, rgba(148, 163, 184, 0.2));
+  border-radius: 12px;
+  background: var(--docker-card-background, transparent);
+  padding: 20px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.network-card:hover {
+  border-color: var(--app-primary-border);
+  box-shadow: 0 8px 24px -20px rgba(var(--app-primary-rgb), 0.7);
+  transform: translateY(-1px);
+}
+
+.network-card__icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--app-primary-soft);
+  color: var(--app-primary-color);
+}
+
+.network-card__content {
+  min-width: 0;
+}
+
+.network-card__heading {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.network-card__heading > strong {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-card__metadata {
+  display: grid;
+  min-width: 0;
+  grid-template-columns:
+    minmax(90px, 0.6fr) minmax(140px, 1fr) minmax(80px, 0.45fr)
+    minmax(180px, 1.6fr);
+  margin-top: 10px;
+}
+
+.network-card__meta {
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--docker-tab-card-border, rgba(148, 163, 184, 0.2));
+  padding: 0 14px;
+  color: var(--docker-text-secondary, rgba(71, 85, 105, 0.88));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-card__meta:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.network-card__meta small {
+  margin-right: 6px;
+  color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+}
+
+.network-card__footer {
+  display: flex;
+  min-width: 0;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+  font-size: 12px;
+}
+
+.network-card__footer > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-card__id {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.network-card__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .network-card {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .network-card__icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .network-card__actions {
+    grid-column: 2;
+    justify-content: flex-end;
+  }
+
+  .network-card__metadata {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 0;
+  }
+
+  .network-card__meta:nth-child(3) {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .network-search-input {
+    width: calc(100% - 90px) !important;
+    min-width: 0;
+  }
+
+  .network-card {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px 12px;
+  }
+
+  .network-card__icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .network-card__metadata {
+    grid-template-columns: 1fr;
+  }
+
+  .network-card__meta,
+  .network-card__meta:nth-child(3) {
+    border-left: 0;
+    padding: 3px 0;
+  }
+
+  .network-card__actions {
+    grid-column: 2;
+    gap: 14px;
+  }
+
+  .network-card__footer span:last-child {
+    display: none;
+  }
 }
 </style>
