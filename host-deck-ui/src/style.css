@@ -115,6 +115,16 @@ body,
     sans-serif;
 }
 
+.docker-console {
+  font-family:
+    'Maple Mono',
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+
 body {
   background:
     radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 32%),
