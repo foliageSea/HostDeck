@@ -5,6 +5,7 @@ class DockerVolume {
   final String mountpoint;
   final DateTime? createdAt;
   final int refCount;
+  final List<String> usedBy;
 
   DockerVolume({
     required this.name,
@@ -13,7 +14,18 @@ class DockerVolume {
     required this.mountpoint,
     this.createdAt,
     this.refCount = 0,
+    this.usedBy = const [],
   });
+
+  DockerVolume copyWith({int? refCount, List<String>? usedBy}) => DockerVolume(
+    name: name,
+    driver: driver,
+    scope: scope,
+    mountpoint: mountpoint,
+    createdAt: createdAt,
+    refCount: refCount ?? this.refCount,
+    usedBy: usedBy ?? this.usedBy,
+  );
 
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -22,6 +34,7 @@ class DockerVolume {
     'mountpoint': mountpoint,
     'createdAt': createdAt?.toIso8601String(),
     'refCount': refCount,
+    'usedBy': usedBy,
   };
 
   factory DockerVolume.fromJson(Map<String, dynamic> json) {
@@ -34,6 +47,9 @@ class DockerVolume {
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,
       refCount: json['refCount'] as int? ?? 0,
+      usedBy:
+          (json['usedBy'] as List?)?.map((item) => item.toString()).toList() ??
+          const [],
     );
   }
 }

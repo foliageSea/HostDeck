@@ -60,12 +60,76 @@ class DockerResourceService {
         path: '/volumes',
       );
 
-      final volumes = result['Volumes'] as List? ?? <dynamic>[];
-      return _mapper.mapVolumeSummaries(volumes);
+      final volumes = _mapper.mapVolumeSummaries(
+        result['Volumes'] as List? ?? <dynamic>[],
+      );
+      if (volumes.isEmpty) {
+        return volumes;
+      }
+
+      final usage = await _loadVolumeUsage(session);
+      return volumes.map((volume) {
+        final containerNames = usage[volume.name] ?? const <String>[];
+        return volume.copyWith(
+          refCount: containerNames.length,
+          usedBy: containerNames,
+        );
+      }).toList();
     } catch (e) {
       _log.severe('Failed to list volumes: $e');
       throw Exception('Failed to list volumes: $e');
     }
+  }
+
+  /// Engine 的 /volumes 不返回 UsageData，改用容器的挂载点统计引用情况。
+  Future<Map<String, List<String>>> _loadVolumeUsage(
+    SshConnectionHandle session,
+  ) async {
+    try {
+      final containers = await _engineRepository.requestJsonList(
+        session,
+        method: 'GET',
+        path: '/containers/json',
+        queryParameters: {'all': 'true'},
+      );
+      return _collectVolumeUsage(containers);
+    } catch (e) {
+      _log.warning('Failed to resolve volume usage: $e');
+      return <String, List<String>>{};
+    }
+  }
+
+  Map<String, List<String>> _collectVolumeUsage(List<dynamic> containers) {
+    final usage = <String, List<String>>{};
+
+    for (final item in containers.whereType<Map>()) {
+      final container = Map<String, dynamic>.from(item);
+      final names = container['Names'];
+      final rawName = names is List && names.isNotEmpty
+          ? names.first.toString()
+          : (container['Id'] ?? '').toString();
+      final containerName = rawName.startsWith('/')
+          ? rawName.substring(1)
+          : rawName;
+      final mounts = container['Mounts'];
+      if (mounts is! List) {
+        continue;
+      }
+
+      for (final mount in mounts.whereType<Map>()) {
+        final type = (mount['Type'] ?? '').toString();
+        final volumeName = (mount['Name'] ?? '').toString();
+        if (type != 'volume' || volumeName.isEmpty) {
+          continue;
+        }
+        usage.putIfAbsent(volumeName, () => <String>[]).add(containerName);
+      }
+    }
+
+    for (final entry in usage.entries) {
+      entry.value.sort();
+    }
+    return usage;
   }
 
   Future<Map<String, dynamic>> inspectNetwork(

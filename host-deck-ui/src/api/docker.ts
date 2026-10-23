@@ -151,6 +151,7 @@ export interface DockerVolume {
   mountpoint: string
   createdAt?: string
   refCount: number
+  usedBy?: string[]
 }
 
 export interface DockerComposeProject {

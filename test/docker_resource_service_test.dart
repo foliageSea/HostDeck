@@ -76,6 +76,92 @@ void main() {
       expect(engineRepository.requestedRequests, isEmpty);
     });
   });
+
+  group('DockerResourceService volumes', () {
+    test('counts volume references from container mounts', () async {
+      final engineRepository = _FakeDockerEngineRepository(
+        jsonLists: {
+          '/containers/json': [
+            {
+              'Id': 'container-1',
+              'Names': ['/web'],
+              'Mounts': [
+                {'Type': 'volume', 'Name': 'app-data'},
+              ],
+            },
+            {
+              'Id': 'container-2',
+              'Names': ['/api'],
+              'Mounts': [
+                {'Type': 'volume', 'Name': 'app-data'},
+                {'Type': 'bind', 'Name': '', 'Source': '/srv/app'},
+              ],
+            },
+          ],
+        },
+        jsonObjects: {
+          '/volumes': {
+            'Volumes': [
+              {
+                'Name': 'app-data',
+                'Driver': 'local',
+                'Scope': 'local',
+                'Mountpoint': '/var/lib/docker/volumes/app-data/_data',
+              },
+              {
+                'Name': 'orphan',
+                'Driver': 'local',
+                'Scope': 'local',
+                'Mountpoint': '/var/lib/docker/volumes/orphan/_data',
+              },
+            ],
+          },
+        },
+      );
+      final service = DockerResourceService(
+        engineRepository,
+        DockerEngineMapper(),
+      );
+
+      final volumes = await service.listVolumes(_FakeSshSession());
+
+      expect(volumes, hasLength(2));
+      expect(volumes.first.name, 'app-data');
+      expect(volumes.first.refCount, 2);
+      expect(volumes.first.usedBy, ['api', 'web']);
+      expect(volumes.last.name, 'orphan');
+      expect(volumes.last.refCount, 0);
+      expect(volumes.last.usedBy, isEmpty);
+    });
+
+    test('keeps volumes usable when container listing fails', () async {
+      final engineRepository = _FakeDockerEngineRepository(
+        jsonLists: {},
+        jsonObjects: {
+          '/volumes': {
+            'Volumes': [
+              {
+                'Name': 'app-data',
+                'Driver': 'local',
+                'Scope': 'local',
+                'Mountpoint': '/var/lib/docker/volumes/app-data/_data',
+              },
+            ],
+          },
+        },
+      );
+      final service = DockerResourceService(
+        engineRepository,
+        DockerEngineMapper(),
+      );
+
+      final volumes = await service.listVolumes(_FakeSshSession());
+
+      expect(volumes, hasLength(1));
+      expect(volumes.single.refCount, 0);
+      expect(volumes.single.usedBy, isEmpty);
+    });
+  });
 }
 
 class _FakeSshSession implements SshSession {
