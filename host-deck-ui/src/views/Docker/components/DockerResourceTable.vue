@@ -130,7 +130,7 @@ withDefaults(
 
 .docker-resource-table :deep(.docker-table-actions) {
   flex-wrap: nowrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .docker-resource-table :deep(.docker-table-status) {

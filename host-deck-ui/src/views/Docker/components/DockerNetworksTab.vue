@@ -277,7 +277,7 @@ function handleNetworkMoreAction(network: DockerNetwork, action: string) {
           <th style="width: 150px">网关</th>
           <th style="width: 280px">容器名称</th>
           <th style="width: 190px">创建时间</th>
-          <th class="docker-table-actions-column" style="width: 190px; text-align: right">操作</th>
+          <th class="docker-table-actions-column" style="width: 190px">操作</th>
         </tr>
       </thead>
       <tbody>

@@ -108,7 +108,7 @@ async function submitCreate() {
           <th style="width: 100px">引用</th>
           <th>挂载点</th>
           <th style="width: 190px">创建时间</th>
-          <th class="docker-table-actions-column" style="width: 130px; text-align: right">操作</th>
+          <th class="docker-table-actions-column" style="width: 130px">操作</th>
         </tr>
       </thead>
       <tbody>
