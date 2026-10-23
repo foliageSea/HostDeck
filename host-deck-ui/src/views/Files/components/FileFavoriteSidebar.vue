@@ -87,19 +87,19 @@ onBeforeUnmount(stopResize)
 
 <template>
   <div
-    class="favorite-sidebar-shell relative hidden min-h-0 shrink-0 md:flex"
-    :class="isResizing ? '' : 'transition-[width] duration-[220ms] ease-in-out'"
+    class="favorite-sidebar-shell relative hidden min-h-0 shrink-0 border-r md:flex"
+    :class="[
+      settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)]' : 'border-[rgba(148,163,184,0.22)]',
+      isResizing ? '' : 'transition-[width] duration-[220ms] ease-in-out',
+    ]"
     :style="{ width: visible ? `${normalizedWidth}px` : '30px' }"
   >
     <aside
-      class="app-radius-card absolute inset-y-0 left-0 flex min-w-[220px] flex-col overflow-hidden rounded-[18px] border transition-[opacity,transform] duration-[220ms] ease-in-out"
-      :class="[
-        settingsStore.isDark
-          ? 'border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.72)]'
-          : 'border-[rgba(148,163,184,0.22)] bg-[rgba(248,250,252,0.84)]',
-        visible ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-[18px] opacity-0',
-      ]"
-      :style="{ width: `${normalizedWidth}px` }"
+      class="absolute inset-y-0 left-0 flex min-w-0 flex-col overflow-hidden transition-[opacity,transform] duration-[220ms] ease-in-out"
+      :class="
+        visible ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-[18px] opacity-0'
+      "
+      :style="{ width: `${normalizedWidth - 1}px` }"
     >
       <div class="px-[10px] pb-[10px] pt-[12px]">
         <div
@@ -207,7 +207,7 @@ onBeforeUnmount(stopResize)
       :aria-valuemin="MIN_WIDTH"
       :aria-valuemax="MAX_WIDTH"
       :aria-valuenow="normalizedWidth"
-      class="group absolute inset-y-[10px] right-[-5px] z-3 w-[10px] cursor-col-resize touch-none"
+      class="group absolute inset-y-0 right-[-5px] z-3 w-[10px] cursor-col-resize touch-none"
       @pointerdown="startResize"
     >
       <div
@@ -219,7 +219,7 @@ onBeforeUnmount(stopResize)
       />
     </div>
 
-    <div class="pointer-events-none absolute right-[10px] top-1/2 z-2 -translate-y-1/2">
+    <div class="pointer-events-none absolute right-0 top-1/2 z-4 -translate-y-1/2">
       <NTooltip placement="right">
         <template #trigger>
           <div

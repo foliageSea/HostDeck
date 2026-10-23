@@ -1225,7 +1225,7 @@ onMounted(async () => {
 
 <template>
   <div
-    class="flex h-full flex-col gap-[14px] p-[16px] outline-none"
+    class="flex h-full flex-col outline-none"
     tabindex="0"
     @keydown="handleKeydown"
     @click.self="fileStore.clearSelection()"
@@ -1247,6 +1247,7 @@ onMounted(async () => {
     <FileNavigationToolbar
       v-model:search="fileStore.search"
       v-model:view-mode="fileStore.viewMode"
+      class="p-[16px]"
       :can-go-back="fileStore.backHistory.length > 0"
       :can-go-forward="fileStore.forwardHistory.length > 0"
       :sort-direction="fileStore.sortDirection"
@@ -1259,7 +1260,12 @@ onMounted(async () => {
       @update:sort-key="updateSortKey"
     />
 
-    <div class="flex min-h-0 flex-1 gap-[14px]">
+    <div
+      class="flex min-h-0 flex-1 border-t"
+      :class="
+        settingsStore.isDark ? 'border-[rgba(148,163,184,0.14)]' : 'border-[rgba(148,163,184,0.22)]'
+      "
+    >
       <FileFavoriteSidebar
         v-model:width="favoriteSidebarWidth"
         :connection-id="fileStore.connectionId"
@@ -1271,7 +1277,7 @@ onMounted(async () => {
         @toggle-visibility="toggleFavoriteSidebar"
       />
 
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-[14px]">
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-[14px] p-[16px]">
         <FilePathToolbar
           v-model:current-path-input="currentPathInput"
           :breadcrumbs="breadcrumbs"
