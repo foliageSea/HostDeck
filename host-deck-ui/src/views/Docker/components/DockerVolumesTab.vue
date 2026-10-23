@@ -74,7 +74,16 @@ function getVolumeUsageTagType(volume: DockerVolume) {
 }
 
 function getVolumeUsageLabel(volume: DockerVolume) {
-  return volume.refCount > 0 ? `被 ${volume.refCount} 个容器使用` : '未使用'
+  return volume.refCount > 0 ? '使用中' : '未使用'
+}
+
+function getVolumeUsageTitle(volume: DockerVolume) {
+  const names = volume.usedBy ?? []
+  if (names.length) {
+    return `使用中的容器：\n${names.join('\n')}`
+  }
+
+  return volume.refCount > 0 ? `被 ${volume.refCount} 个容器使用` : '没有容器引用该存储卷'
 }
 
 function getVolumeMoreActionOptions(volume: DockerVolume) {
@@ -141,7 +150,11 @@ function handleVolumeMoreAction(volume: DockerVolume, action: string) {
           <div class="volume-card__heading">
             <strong :title="volume.name">{{ volume.name }}</strong>
             <NTag size="small">{{ volume.driver }}</NTag>
-            <NTag size="small" :type="getVolumeUsageTagType(volume)">
+            <NTag
+              size="small"
+              :type="getVolumeUsageTagType(volume)"
+              :title="getVolumeUsageTitle(volume)"
+            >
               {{ getVolumeUsageLabel(volume) }}
             </NTag>
           </div>
