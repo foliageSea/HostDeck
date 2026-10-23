@@ -39,7 +39,7 @@ async function copyInspect() {
   >
     <NSpin :show="controller.inspectLoading">
       <pre
-        class="app-radius-item docker-console mono-ui m-0 max-h-[65vh] select-text overflow-auto whitespace-pre-wrap break-words rounded-[14px] p-[14px] text-[12px] leading-[1.6] app-scrollbar"
+        class="app-radius-item docker-console m-0 max-h-[65vh] select-text overflow-auto whitespace-pre-wrap break-words rounded-[14px] p-[14px] text-[12px] leading-[1.6] app-scrollbar"
         :class="
           settingsStore.isDark
             ? 'bg-[rgba(2,6,23,0.9)] text-[#dbeafe] app-scrollbar-dark'
