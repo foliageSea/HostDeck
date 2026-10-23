@@ -304,9 +304,15 @@ function handleActionSelect(key: string) {
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  if (props.windowId && desktopStore.activeWindowId !== props.windowId) {
+    return
+  }
+
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
     event.preventDefault()
-    void saveFile()
+    if (!event.repeat) {
+      void saveFile()
+    }
   }
 }
 
