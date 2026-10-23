@@ -730,6 +730,101 @@ void main() {
       await events.done.future.timeout(const Duration(seconds: 2));
     });
   });
+
+  group('tool budget', () {
+    test(
+      'summarizes instead of failing when the request budget runs out',
+      () async {
+        tools.needsApproval = false;
+        final secretStore = AiAgentSecretStore(dataDir: dataDirectory.path);
+        await secretStore.init();
+        final budgetManager = AiAgentRunManager(
+          repository,
+          AiAgentSettingsService(repository, secretStore)
+            ..update(apiKey: 'test-key'),
+          _FakeModelFactory(model),
+          tools,
+          _FakeSshService(),
+          maxToolIterations: 3,
+        );
+        addTearDown(budgetManager.dispose);
+        model.responses = [
+          for (var i = 0; i < 3; i++)
+            AiAgentModelResponse(
+              text: 'Step $i done.',
+              toolCalls: [
+                AiAgentToolCall(
+                  id: 'call-$i',
+                  name: 'shell_execute',
+                  arguments: const {'command': 'true'},
+                ),
+              ],
+            ),
+        ];
+
+        final body = await _collect(
+          budgetManager
+              .start(
+                conversationId: 'conversation-1',
+                connectionId: 'connection-1',
+                targetKey: 'server:7',
+                ownerId: 'browser:test',
+                input: 'long task',
+              )
+              .stream,
+        ).done.future.timeout(const Duration(seconds: 5));
+
+        expect(body, contains('"status":"limit"'));
+        expect(body, contains('TOOL_BUDGET_EXHAUSTED'));
+        expect(body, contains(AiAgentRunManager.budgetExhaustedMessage));
+        expect(body, isNot(contains('"code":"TOOL_CALL_LIMIT"')));
+        expect(tools.executeCount, 3);
+
+        final messages = repository.listMessages('conversation-1');
+        expect(messages.last.content, AiAgentRunManager.budgetExhaustedMessage);
+        // The text of the final tool-requesting turn is kept on its own message.
+        expect(
+          messages.where((message) => message.content.startsWith('Step 2')),
+          isNotEmpty,
+        );
+      },
+    );
+
+    test(
+      'keeps the hard tool call cap when one turn batches too many',
+      () async {
+        tools.needsApproval = false;
+        model.responses = [
+          AiAgentModelResponse(
+            text: '',
+            toolCalls: [
+              for (var i = 0; i <= AiAgentRunManager.maxToolCalls; i++)
+                AiAgentToolCall(
+                  id: 'batch-$i',
+                  name: 'shell_execute',
+                  arguments: const {'command': 'true'},
+                ),
+            ],
+          ),
+        ];
+
+        final body = await _collect(
+          manager
+              .start(
+                conversationId: 'conversation-1',
+                connectionId: 'connection-1',
+                targetKey: 'server:7',
+                ownerId: 'browser:test',
+                input: 'batched',
+              )
+              .stream,
+        ).done.future.timeout(const Duration(seconds: 10));
+
+        expect(body, contains('"code":"TOOL_CALL_LIMIT"'));
+        expect(tools.executeCount, AiAgentRunManager.maxToolCalls);
+      },
+    );
+  });
 }
 
 _CollectedEvents _collect(Stream<List<int>> stream) {

@@ -769,6 +769,39 @@ describe('AI Agent store', () => {
     expect(store.error).toBe(localized)
   })
 
+  it('marks a budget-exhausted run as limit instead of a failure', async () => {
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        onEvent({ event: 'connected', runId: 'run-1' })
+        onEvent({
+          event: 'message-delta',
+          messageId: 'message-1',
+          text: 'The operation stopped after reaching the tool-call limit.',
+        })
+        onEvent({ event: 'done', conversationId: 'conversation-1', messageId: 'message-1' })
+        onEvent({
+          event: 'run-end',
+          status: 'limit',
+          message: 'The operation stopped after reaching the tool-call limit.',
+          code: 'TOOL_BUDGET_EXHAUSTED',
+        })
+      },
+    )
+    const store = useAiAgentStore()
+    store.resetForConnection('connection-1')
+
+    await store.startRun('run a long task', 'connection-1')
+
+    expect(store.runStatus).toBe('limit')
+    expect(store.error).toBeNull()
+  })
+
   it('localizes a rejected run start when the conversation is already busy', async () => {
     apiMocks.run.mockRejectedValue(new Error('A run is already active for this conversation.'))
     const store = useAiAgentStore()

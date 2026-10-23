@@ -56,7 +56,7 @@ run 可选传入 `reasoning`，取值为模型支持的思考档位，Chat 和 A
 - `POST /api/ai-agent/runs/<id>/reject`，JSON 为 `{ "callId": "..." }`
 - `DELETE /api/ai-agent/runs/<id>`：取消 run。
 
-审批只匹配当前 run 内不可变的精确 `callId` 和参数，五分钟后过期。拒绝会作为工具结果返回模型，取消或 SSH 断开会解除待审批并阻止后续工具执行。工具循环最多执行 8 轮；工具输出上限为 64 KiB，单次工具通常在 60 秒超时。
+审批只匹配当前 run 内不可变的精确 `callId` 和参数，五分钟后过期。拒绝会作为工具结果返回模型，取消或 SSH 断开会解除待审批并阻止后续工具执行。每个用户消息最多发起 24 次模型请求、执行 64 个工具调用。请求预算用尽时 run 仍以 `limit` 状态成功结束并写入一条说明消息，模型可以在下一条消息里接着做；调用预算用尽则直接失败（`TOOL_CALL_LIMIT`）。run 的活跃时长上限为 30 分钟，等待人工审批的时间不计入。单次工具默认 60 秒超时，`shell_execute` 可用 `timeoutMs`（1000–600000）为构建、安装等长命令申请更长时间；工具输出上限为 64 KiB。
 
 ## SSE
 
@@ -68,8 +68,9 @@ run 接口返回 `text/event-stream`，并发送代理刷新 padding。事件包
 - `approval-required`：`{callId,name,summary,arguments}`
 - `tool-result`：`{callId,name,success,summary}`
 - `usage`：可选 token 使用量
-- `done`：`{conversationId,messageId}`
-- `error`：`{message}`
+- `done`：`{conversationId,messageId,status}`
+- `run-end`：`{status,durationMs,message?,code?}`；`status` 为 `success`、`limit`（请求预算用尽）、`failed` 或 `cancelled`
+- `error`：`{message,code}`
 
 当前模型调用按完整消息返回，因此 MVP 会在单个 `message-delta` 中发送最终文本；事件结构允许前端按增量方式消费。
 

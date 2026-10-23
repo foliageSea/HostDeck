@@ -225,6 +225,8 @@ const runStatusLabel = computed(() => {
   switch (runStatus.value) {
     case 'success':
       return '已完成'
+    case 'limit':
+      return '本轮预算用尽'
     case 'failed':
       return '运行失败'
     case 'cancelled':

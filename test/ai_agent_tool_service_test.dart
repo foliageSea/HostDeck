@@ -59,6 +59,29 @@ void main() {
     );
   });
 
+  test('bounds and forwards the shell execution timeout', () {
+    final defaulted = service.normalizeArguments('shell_execute', {
+      'command': 'uptime',
+    });
+    expect(defaulted['timeoutMs'], isNull);
+
+    final long = service.normalizeArguments('shell_execute', {
+      'command': 'apt-get -y upgrade',
+      'timeoutMs': 600000,
+    });
+    expect(long['timeoutMs'], 600000);
+
+    for (final invalid in [999, 600001]) {
+      expect(
+        () => service.normalizeArguments('shell_execute', {
+          'command': 'true',
+          'timeoutMs': invalid,
+        }),
+        throwsArgumentError,
+      );
+    }
+  });
+
   test('every published tool is fully described by its definition', () async {
     final specs = await service.resolveSpecs();
     const readOnly = {

@@ -10,6 +10,7 @@ import {
   type AiAgentRunEvent,
   type AiAgentRunStatus,
   type AiAgentRunStep,
+  type AiAgentRunStepStatus,
   type AiAgentToolResult,
   type AiAgentRunMode,
   type AiAgentProviderUpdate,
@@ -200,7 +201,8 @@ function localizeRunMessage(message: string) {
       'Tool call limit exceeded.': '已达到工具调用次数上限。',
       'A run is already active for this conversation.': '该会话已有正在运行的任务。',
       'Too many AI agent runs are active.': '正在运行的 Agent 任务过多，请稍后重试。',
-      'The operation stopped after reaching the tool-call limit.': '已达到工具调用次数上限。',
+      'The operation stopped after reaching the tool-call limit.':
+        '本轮工具调用预算已用完，可继续发送消息让 Agent 接续。',
     }[message] ?? message
   )
 }
@@ -652,7 +654,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       runId: event.runId ?? activeRunId.value ?? '',
       sequence: existing?.sequence ?? event.sequence,
       startedAt: existing?.startedAt ?? event.startedAt ?? Date.now(),
-      status: event.status,
+      // Only run-end carries the run-level 'limit' status, and it never sets a stepId.
+      status: event.status as AiAgentRunStepStatus,
       stepId: event.stepId,
       summary: 'summary' in event ? event.summary : existing?.summary,
       type: event.type,

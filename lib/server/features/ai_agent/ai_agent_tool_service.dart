@@ -116,7 +116,13 @@ class _ToolDefinition {
 
 class AiAgentToolService implements AiAgentToolExecutor {
   static const maxOutputBytes = 64 * 1024;
+
+  /// Default deadline of a single tool call.
   static const toolTimeout = Duration(seconds: 60);
+
+  /// Ceiling a call may request through its timeoutMs argument, so long
+  /// builds and installs can finish without letting a call run unbounded.
+  static const maxToolTimeout = Duration(minutes: 10);
 
   final AgentService _agentService;
   final MonitorService _monitorService;
@@ -183,23 +189,27 @@ class AiAgentToolService implements AiAgentToolExecutor {
     _ToolDefinition(
       name: 'shell_execute',
       description:
-          'Execute an arbitrary shell command. Always requires user approval.',
+          'Execute an arbitrary shell command. Always requires user approval. '
+          'Commands are killed after 60 seconds by default; pass timeoutMs '
+          '(1000-600000) for longer builds, installs, or upgrades.',
       summary: 'Execute a remote shell command',
       properties: {
         'command': {'type': 'string'},
         'cwd': {'type': 'string'},
+        'timeoutMs': {'type': 'integer', 'minimum': 1000, 'maximum': 600000},
       },
       required: ['command'],
       normalize: (arguments) => {
         'command': _boundedString(arguments, 'command'),
         'cwd': ?_strictOptionalString(arguments, 'cwd'),
+        'timeoutMs': ?_optionalToolTimeout(arguments),
       },
       run: _withSession(
         (session, arguments) => _agentService.exec(
           session,
           command: _requiredString(arguments, 'command'),
           cwd: _optionalString(arguments, 'cwd'),
-          timeoutMs: toolTimeout.inMilliseconds,
+          timeoutMs: _toolTimeout(arguments).inMilliseconds,
           maxOutputBytes: maxOutputBytes,
         ),
       ),
@@ -434,7 +444,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
     try {
       final output = await tool
           .run(connectionId, normalizedArguments)
-          .timeout(toolTimeout);
+          .timeout(_toolTimeout(normalizedArguments));
       final elapsed = stopwatch.elapsedMilliseconds;
       final outputMap = output is Map<String, dynamic> ? output : null;
       final limited = _limitValue(jsonEncode(output));
@@ -684,6 +694,25 @@ class AiAgentToolService implements AiAgentToolExecutor {
 
   static bool _reportedSuccess(Map<String, dynamic> output) =>
       output['success'] == true;
+
+  /// Deadline requested by the model, validated by the argument schema.
+  Duration _toolTimeout(Map<String, dynamic> arguments) {
+    final value = arguments['timeoutMs'];
+    if (value is! int) return toolTimeout;
+    return Duration(milliseconds: value);
+  }
+
+  int? _optionalToolTimeout(Map<String, dynamic> arguments) {
+    final value = arguments['timeoutMs'];
+    if (value == null) return null;
+    final ceiling = maxToolTimeout.inMilliseconds;
+    if (value is! int || value < 1000 || value > ceiling) {
+      throw ArgumentError(
+        'timeoutMs must be an integer from 1000 to $ceiling.',
+      );
+    }
+    return value;
+  }
 
   int _port(Map<String, dynamic> arguments, String key) {
     final value = arguments[key];

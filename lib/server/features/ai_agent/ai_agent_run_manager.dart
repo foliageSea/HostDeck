@@ -26,12 +26,29 @@ enum AiAgentApprovalResult { accepted, notFound, mismatch, expired }
 enum AiAgentRunMode { chat, agent }
 
 class AiAgentRunManager {
-  static const maxToolIterations = 8;
-  static const maxToolCalls = 16;
+  /// Model requests one user message may spend. A serial tool-calling model
+  /// issues roughly one request per tool call, so this is the budget that
+  /// bounds the execute → observe → fix loop in practice.
+  static const maxToolIterations = 24;
+
+  /// Tool executions one user message may spend across all requests. Running
+  /// past it fails the run, so it stays well above [maxToolIterations] and is
+  /// only reached by batched tool calling.
+  static const maxToolCalls = 64;
+
   static const maxActiveRuns = 8;
   static const maxActiveRunsPerConnection = 2;
-  static const maxRunDuration = Duration(minutes: 10);
+
+  /// Working time budget of a run. Waiting for a human approval does not
+  /// count, so a slow decision never consumes the task's own budget.
+  static const maxRunDuration = Duration(minutes: 30);
+
   static const approvalLifetime = Duration(minutes: 5);
+
+  /// Assistant text persisted when the request budget runs out before the
+  /// model produced an answer.
+  static const budgetExhaustedMessage =
+      'The operation stopped after reaching the tool-call limit.';
   static const _systemPrompt = '''
 You are the HostDeck operations agent. Help operate only the connected host.
 Use structured tools for host facts. Never claim a command or file operation
@@ -52,14 +69,22 @@ inspected or changed the host. Do not expose secrets.
   final AiAgentToolExecutor _toolService;
   final SshService _sshService;
   final Map<String, _ActiveRun> _runs = {};
+  final int _maxToolIterations;
+  final int _maxToolCalls;
+  final Duration _maxRunDuration;
 
   AiAgentRunManager(
     this._repository,
     this._settingsService,
     this._modelFactory,
     this._toolService,
-    this._sshService,
-  ) {
+    this._sshService, {
+    int maxToolIterations = AiAgentRunManager.maxToolIterations,
+    int maxToolCalls = AiAgentRunManager.maxToolCalls,
+    Duration maxRunDuration = AiAgentRunManager.maxRunDuration,
+  }) : _maxToolIterations = maxToolIterations,
+       _maxToolCalls = maxToolCalls,
+       _maxRunDuration = maxRunDuration {
     _sshService.addDisconnectListener(cancelConnection);
   }
 
@@ -190,8 +215,7 @@ inspected or changed the host. Do not expose secrets.
   ) async {
     _RunOutcome? outcome;
     try {
-      await _runConversation(run, input, attachments);
-      outcome = const _RunOutcome(status: 'success');
+      outcome = await _runConversation(run, input, attachments);
     } catch (error) {
       outcome = _classifyFailure(run, error);
       _reportFailure(run, outcome);
@@ -218,7 +242,7 @@ inspected or changed the host. Do not expose secrets.
 
   /// Runs the model/tool loop and persists the final assistant message.
   /// Failures are reported by throwing; [_execute] turns them into outcomes.
-  Future<void> _runConversation(
+  Future<_RunOutcome> _runConversation(
     _ActiveRun run,
     String input,
     List<AiAgentImageAttachment> attachments,
@@ -251,7 +275,7 @@ inspected or changed the host. Do not expose secrets.
     Map<String, dynamic>? usage;
     var toolCallCount = 0;
 
-    for (var iteration = 0; iteration < maxToolIterations; iteration++) {
+    for (var iteration = 0; iteration < _maxToolIterations; iteration++) {
       _ensureActive(run);
       final step = await _invokeModel(
         run,
@@ -280,7 +304,7 @@ inspected or changed the host. Do not expose secrets.
       _persistToolCallRequest(run, response);
       for (final call in response.toolCalls) {
         _ensureActive(run);
-        if (++toolCallCount > maxToolCalls) {
+        if (++toolCallCount > _maxToolCalls) {
           throw AiAgentToolCallLimitException();
         }
         final outcome = await _runToolCall(run, call, step.stepId);
@@ -308,13 +332,16 @@ inspected or changed the host. Do not expose secrets.
     }
 
     _ensureActive(run);
+    var budgetExhausted = false;
     if (finalText == null) {
-      const limitMessage =
-          'The operation stopped after reaching the tool-call limit.';
-      finalText = limitMessage;
+      // Every request was spent on tool calls without an answer. The run stays
+      // successful, but it says why it stopped so the client keeps the
+      // conversation open instead of reporting a failure.
+      budgetExhausted = true;
+      finalText = budgetExhaustedMessage;
       run.emit(
         'message-delta',
-        {'messageId': assistantMessageId, 'text': limitMessage},
+        {'messageId': assistantMessageId, 'text': budgetExhaustedMessage},
         stepId: _newId(),
         type: 'summary',
         status: 'success',
@@ -333,8 +360,16 @@ inspected or changed the host. Do not expose secrets.
     run.emit('done', {
       'conversationId': run.conversationId,
       'messageId': assistantMessage.id,
-      'status': 'success',
+      'status': budgetExhausted ? 'limit' : 'success',
     });
+    if (budgetExhausted) {
+      return const _RunOutcome(
+        status: 'limit',
+        message: budgetExhaustedMessage,
+        code: 'TOOL_BUDGET_EXHAUSTED',
+      );
+    }
+    return const _RunOutcome(status: 'success');
   }
 
   /// Invokes the model once, streaming text deltas to the client and
@@ -544,6 +579,7 @@ inspected or changed the host. Do not expose secrets.
     );
 
     var expired = false;
+    final approvalStartedAt = DateTime.now();
     final approved = await approval.future.timeout(
       approvalLifetime,
       onTimeout: () {
@@ -552,6 +588,7 @@ inspected or changed the host. Do not expose secrets.
         return false;
       },
     );
+    run.approvalWait += DateTime.now().difference(approvalStartedAt);
     if (identical(run.pendingApproval, approval)) run.pendingApproval = null;
     _ensureActive(run);
 
@@ -639,7 +676,7 @@ inspected or changed the host. Do not expose secrets.
 
   void _ensureActive(_ActiveRun run) {
     if (run.cancelled) throw const _RunCancelled();
-    if (DateTime.now().difference(run.startedAt) > maxRunDuration) {
+    if (run.activeElapsed > _maxRunDuration) {
       throw AiAgentRunTimeoutException();
     }
     final metadata = _sshService.getConnectionMetadata(run.connectionId);
@@ -803,8 +840,16 @@ class _ActiveRun {
   bool errorEmitted = false;
   bool errorMessagePersisted = false;
   String? terminalMessage;
+
+  /// Time this run spent waiting for a human approval decision.
+  Duration approvalWait = Duration.zero;
+
   _PendingApproval? pendingApproval;
   AiAgentModel? model;
+
+  /// Wall-clock time the run spent working; approval waits are excluded.
+  Duration get activeElapsed =>
+      DateTime.now().difference(startedAt) - approvalWait;
 
   _ActiveRun({
     required this.id,
@@ -841,6 +886,7 @@ class _ActiveRun {
       'status': ?status,
       'startedAt': DateTime.now().millisecondsSinceEpoch,
       if (status == 'success' ||
+          status == 'limit' ||
           status == 'failed' ||
           status == 'rejected' ||
           status == 'cancelled' ||

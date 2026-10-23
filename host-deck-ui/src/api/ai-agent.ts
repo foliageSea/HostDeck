@@ -173,7 +173,7 @@ export type AiAgentRunStepStatus =
   | 'cancelled'
   | 'expired'
 
-export type AiAgentRunStatus = 'success' | 'failed' | 'cancelled' | 'expired'
+export type AiAgentRunStatus = 'success' | 'limit' | 'failed' | 'cancelled' | 'expired'
 
 export interface AiAgentRunStep {
   runId: string
@@ -270,7 +270,7 @@ export type AiAgentRunEvent =
       durationMs?: number
       message?: string
       code?: string
-    } & AiAgentRunEventMeta)
+    } & Omit<AiAgentRunEventMeta, 'status'>)
 
 export class AiAgentStreamHttpError extends Error {
   readonly status: number
