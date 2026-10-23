@@ -15,7 +15,7 @@ void main() {
     expect(line, endsWith('${'AppSettings'.padRight(24)} | Server started'));
   });
 
-  test('keeps logger names longer than the column width intact', () {
+  test('truncates logger names longer than the column width', () {
     final record = LogRecord(
       Level.WARNING,
       'Slow response',
@@ -23,10 +23,8 @@ void main() {
     );
     final line = server.formatLogRecord(record);
 
-    expect(
-      line,
-      endsWith('LongerThanTwentyFourCharacterLogger | Slow response'),
-    );
+    // Long names keep the 24 character column so log lines stay aligned.
+    expect(line, endsWith('LongerThanTwentyFourC... | Slow response'));
   });
 
   test('colors the console level while preserving the plain file format', () {
