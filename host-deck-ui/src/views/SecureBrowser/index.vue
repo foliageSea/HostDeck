@@ -20,6 +20,8 @@ const capabilities = ref<SecureBrowserCapabilities>({
   launchEnabled: false,
   chromeDetected: false,
 })
+// 能力检测是异步的，未完成前不能断言「未启用」，否则会闪一下错误提示。
+const capabilitiesLoading = ref(true)
 
 const hasConnection = computed(() => Boolean(sshStore.connectionId && sshStore.isConnected))
 const activeTunnel = computed(() => tunnels.value[0] ?? null)
@@ -53,11 +55,18 @@ async function fetchTunnels() {
 }
 
 async function fetchCapabilities() {
-  if (window.hostDeck?.app?.openInSecureChrome) return
+  if (window.hostDeck?.app?.openInSecureChrome) {
+    capabilitiesLoading.value = false
+    return
+  }
+
+  capabilitiesLoading.value = true
   try {
     capabilities.value = await secureBrowserApi.capabilities()
   } catch {
     capabilities.value = { launchEnabled: false, chromeDetected: false }
+  } finally {
+    capabilitiesLoading.value = false
   }
 }
 
@@ -195,7 +204,7 @@ onMounted(() => {
           size="large"
           :type="activeTunnel ? 'error' : 'primary'"
           :disabled="!activeTunnel && !canLaunch"
-          :loading="starting || Boolean(operatingId)"
+          :loading="starting || Boolean(operatingId) || capabilitiesLoading"
           @click="toggleSecureBrowser"
         >
           <template #icon>
@@ -204,7 +213,9 @@ onMounted(() => {
           </template>
           {{ activeTunnel ? '停止安全浏览器' : '启动安全浏览器' }}
         </NButton>
-        <small v-if="!canLaunch && !activeTunnel" class="sb-action-hint">{{ capabilityText }}</small>
+        <small v-if="!activeTunnel && !capabilitiesLoading && !canLaunch" class="sb-action-hint">{{
+          capabilityText
+        }}</small>
       </div>
     </section>
   </div>
