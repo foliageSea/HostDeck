@@ -27,6 +27,9 @@ const MAX_CONVERSATIONS = 200
 const MAX_MESSAGES = 300
 const MAX_TOOL_CALLS = 100
 export const MAX_SELECTED_SKILLS = 8
+const STREAM_DELTA_FLUSH_MS = 50
+
+type StreamDeltaEvent = Extract<AiAgentRunEvent, { event: 'message-delta' | 'thinking-delta' }>
 
 const AUTO_RUN_STORAGE_KEY = 'host-deck-ui.aiAgent.autoRun'
 const THINKING_STORAGE_KEY = 'host-deck-ui.aiAgent.thinkingLevels'
@@ -817,6 +820,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     lastRunInput.value = trimmedInput
     lastRunAttachments.value = [...attachments]
     let completed = false
+    let flushDeltas: (() => void) | undefined
+    let deltaTimer: ReturnType<typeof setTimeout> | undefined
 
     try {
       if (!selectedConversation.value) {
@@ -861,8 +866,44 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       error.value = null
       activeRunId.value = null
       lastEventSequence = 0
+      // Token-sized deltas can arrive far faster than the UI can repaint. Merge
+      // consecutive deltas of the same step so reactive state, the timeline and
+      // the whole view only update a few times per second instead of per token.
+      let pendingDelta: StreamDeltaEvent | null = null
+      let pendingSequence = 0
+      flushDeltas = () => {
+        if (deltaTimer !== undefined) {
+          clearTimeout(deltaTimer)
+          deltaTimer = undefined
+        }
+        const delta = pendingDelta
+        pendingDelta = null
+        if (delta && request === runRequest) applyRunEvent(delta, streamedAssistant)
+      }
       const onEvent = (event: AiAgentRunEvent) => {
-        if (request === runRequest) applyRunEvent(event, streamedAssistant)
+        if (request !== runRequest) return
+        if (event.event !== 'message-delta' && event.event !== 'thinking-delta') {
+          flushDeltas?.()
+          applyRunEvent(event, streamedAssistant)
+          return
+        }
+        if (
+          pendingDelta &&
+          pendingDelta.event === event.event &&
+          pendingDelta.runId === event.runId &&
+          pendingDelta.stepId === event.stepId &&
+          pendingDelta.messageId === event.messageId &&
+          (event.sequence == null || event.sequence > pendingSequence)
+        ) {
+          // Keep the first event's sequence/startedAt: they position the step.
+          pendingDelta = { ...pendingDelta, text: pendingDelta.text + event.text }
+          pendingSequence = event.sequence ?? pendingSequence
+        } else {
+          flushDeltas?.()
+          pendingDelta = event
+          pendingSequence = event.sequence ?? 0
+        }
+        deltaTimer ??= setTimeout(() => flushDeltas?.(), STREAM_DELTA_FLUSH_MS)
       }
       await aiAgentApi.run(
         conversationId,
@@ -890,6 +931,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       if (!controller.signal.aborted) throw runError
       return false
     } finally {
+      flushDeltas?.()
+      if (deltaTimer !== undefined) clearTimeout(deltaTimer)
       if (request === runRequest) {
         finishRunTiming()
         if (!completed) finishPendingTools('error')

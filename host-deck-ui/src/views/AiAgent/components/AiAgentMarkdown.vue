@@ -42,10 +42,12 @@ watch(
       displayedContent.value = props.content
     } else if (renderTimer === undefined) {
       // Parse at most once per interval, always using the latest complete text.
+      // Re-parsing and re-sanitizing grows with the text, so back off for long output.
+      const delay = Math.min(250, 50 + Math.floor(props.content.length / 40))
       renderTimer = setTimeout(() => {
         renderTimer = undefined
         displayedContent.value = props.content
-      }, 50)
+      }, delay)
     }
   },
 )

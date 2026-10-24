@@ -201,8 +201,10 @@ const selectedSkills = computed(() => {
 
 const timelineEntries = computed(() => buildTimelineEntries(messages.value, runSteps.value))
 
+const toolsByCallId = computed(() => new Map(toolCalls.value.map((tool) => [tool.callId, tool])))
+
 function toolForStep(step: AiAgentRunStep) {
-  return toolCalls.value.find((tool) => tool.callId === step.callId)
+  return step.callId ? toolsByCallId.value.get(step.callId) : undefined
 }
 
 // 连续的工具调用共用一个 Agent 标题，避免每个卡片重复一次角色标签。

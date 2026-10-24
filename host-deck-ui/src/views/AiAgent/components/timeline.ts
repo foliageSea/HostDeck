@@ -69,6 +69,10 @@ export function buildTimelineEntries(
   const toolStepCallIds = new Set(
     sortedSteps.filter((step) => step.type === 'tool' && step.callId).map((step) => step.callId),
   )
+  let lastToolIndex = -1
+  sortedSteps.forEach((step, index) => {
+    if (step.type === 'tool' || step.type === 'approval') lastToolIndex = index
+  })
   const stepEntries = sortedSteps
     .filter((step, index) => {
       // The backend emits both a tool step and an approval step for a tool
@@ -80,10 +84,7 @@ export function buildTimelineEntries(
       if (step.type !== 'model' || step.content || step.thinking) return true
       // A tool follows this empty model step, so the tool call itself replaces
       // the pre-tool thinking placeholder to avoid a duplicate Agent loading.
-      const hasLaterToolStep = sortedSteps
-        .slice(index + 1)
-        .some(({ type }) => type === 'tool' || type === 'approval')
-      return !hasLaterToolStep
+      return index > lastToolIndex
     })
     .map((step) => ({
       entry: { kind: 'step' as const, step },

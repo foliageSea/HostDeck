@@ -356,6 +356,8 @@ describe('AI Agent store', () => {
     send({ event: 'thinking-delta', messageId: 'answer', text: 'Final thought' }, 'model-2')
     send({ event: 'thinking-end', messageId: 'answer' }, 'model-2')
     send({ event: 'message-delta', messageId: 'answer', text: 'Answer' }, 'model-2')
+    // Trailing deltas are coalesced and applied on the next flush.
+    await vi.waitFor(() => expect(store.messages.at(-1)?.content).toBe('Answer'))
     expect(store.messages.at(-1)).toMatchObject({ content: 'Answer', thinking: 'Final thought' })
     expect(store.runSteps.map((step) => step.thinking)).toEqual(['First thought', 'Final thought'])
     finishRun()
@@ -373,6 +375,40 @@ describe('AI Agent store', () => {
       'next question',
       '',
     ])
+  })
+
+  it('coalesces consecutive deltas into a single state update', async () => {
+    let emit!: (event: AiAgentRunEvent) => void
+    let finishRun!: () => void
+    apiMocks.run.mockImplementation(async (...args: unknown[]) => {
+      emit = args[4] as (event: AiAgentRunEvent) => void
+      emit({ event: 'connected', runId: 'run-1' })
+      await new Promise<void>((resolve) => (finishRun = resolve))
+    })
+    const store = useAiAgentStore()
+    const run = store.startRun('inspect', 'connection-1')
+    await vi.waitFor(() => expect(emit).toBeDefined())
+    const delta = (text: string, sequence: number) =>
+      emit({
+        event: 'message-delta',
+        messageId: 'answer',
+        runId: 'run-1',
+        sequence,
+        status: 'running',
+        stepId: 'model-1',
+        text,
+        type: 'model',
+      })
+    delta('a', 1)
+    delta('b', 2)
+    delta('c', 3)
+    expect(store.messages.at(-1)?.content).toBe('')
+    await vi.waitFor(() => expect(store.messages.at(-1)?.content).toBe('abc'))
+    expect(store.runSteps).toMatchObject([{ content: 'abc', sequence: 1 }])
+    delta('d', 4)
+    finishRun()
+    await run
+    expect(store.messages.at(-1)?.content).toBe('abcd')
   })
 
   it('orders run steps and ignores late events from an older run', async () => {
