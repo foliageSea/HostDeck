@@ -59,11 +59,9 @@ const controller: DockerViewController = reactive(useDockerView(props))
       class="docker-body app-scrollbar"
       :class="settingsStore.isDark ? 'app-scrollbar-dark' : 'app-scrollbar-light'"
     >
-      <NResult
-        v-if="controller.dockerAvailable === false"
-        status="warning"
-        title="当前环境不可用"
-      />
+      <div v-if="controller.dockerAvailable === false" class="docker-unavailable">
+        <NResult status="warning" title="当前环境不可用" />
+      </div>
 
       <NTabs
         v-else
@@ -194,6 +192,13 @@ const controller: DockerViewController = reactive(useDockerView(props))
 
 .docker-body :deep(.n-spin-content) {
   display: block;
+}
+
+.docker-unavailable {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
 }
 
 .docker-tabs {
