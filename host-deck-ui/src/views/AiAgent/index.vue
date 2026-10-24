@@ -14,7 +14,6 @@ import {
   LoaderCircle,
   Menu,
   MessageCircle,
-  MessageSquarePlus,
   PanelLeftClose,
   Pencil,
   PlugZap,
@@ -863,20 +862,24 @@ let resizeObserver: ResizeObserver | undefined
         </button>
       </div>
 
-      <button
-        type="button"
-        class="agent-new-conversation"
-        :disabled="!sshStore.connectionId || running"
-        @click="newConversation"
-      >
-        <MessageSquarePlus :size="16" />
-        新建对话
-      </button>
-
       <label class="agent-search">
         <Search :size="14" />
         <input v-model="query" type="search" placeholder="搜索对话" aria-label="搜索对话" />
       </label>
+
+      <div class="agent-history-header">
+        <span>对话</span>
+        <button
+          type="button"
+          class="agent-history-new"
+          aria-label="新建对话"
+          title="新建对话"
+          :disabled="!sshStore.connectionId || running"
+          @click="newConversation"
+        >
+          <Plus :size="18" />
+        </button>
+      </div>
 
       <div class="agent-history app-scrollbar app-scrollbar-compact">
         <div v-if="loadingConversations" class="agent-sidebar-state">正在加载对话…</div>
@@ -1483,6 +1486,7 @@ let resizeObserver: ResizeObserver | undefined
   --agent-muted: #64748b;
   --agent-border: rgba(100, 116, 139, 0.18);
   --agent-hover: rgba(100, 116, 139, 0.09);
+  --agent-active: rgba(100, 116, 139, 0.16);
   position: relative;
   display: flex;
   width: 100%;
@@ -1513,6 +1517,7 @@ let resizeObserver: ResizeObserver | undefined
   --agent-muted: #8b96a8;
   --agent-border: rgba(148, 163, 184, 0.14);
   --agent-hover: rgba(148, 163, 184, 0.09);
+  --agent-active: rgba(148, 163, 184, 0.16);
 }
 
 .agent-sidebar {
@@ -1616,27 +1621,7 @@ let resizeObserver: ResizeObserver | undefined
   background: var(--agent-hover);
 }
 
-.agent-new-conversation {
-  display: flex;
-  height: 36px;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 9px;
-  margin: 2px 10px 10px;
-  padding: 0 11px;
-  border: 1px solid transparent;
-  border-radius: var(--app-radius-control);
-  color: inherit;
-  background: transparent;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.agent-new-conversation:hover:not(:disabled) {
-  background: var(--agent-hover);
-}
-
-.agent-new-conversation:disabled,
+.agent-history-new:disabled,
 .agent-history-open:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -1665,49 +1650,80 @@ let resizeObserver: ResizeObserver | undefined
   font-size: 11px;
 }
 
+.agent-history-header {
+  display: flex;
+  height: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 10px 2px 16px;
+  color: var(--agent-muted);
+  font-size: 13px;
+}
+
+.agent-history-new {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--app-radius-control);
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.agent-history-new:hover:not(:disabled) {
+  color: var(--agent-text);
+  background: var(--agent-hover);
+}
+
 .agent-history {
   min-height: 0;
   flex: 1;
   overflow: auto;
-  padding: 0 2px 12px 7px;
+  padding: 0 8px 12px 10px;
 }
 
 .agent-history-group h2 {
-  margin: 13px 8px 5px;
+  margin: 12px 8px 4px;
   color: var(--agent-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
+}
+
+.agent-history-group:first-child h2 {
+  margin-top: 4px;
 }
 
 .agent-history-row {
   display: flex;
   min-width: 0;
   align-items: center;
-  border: 1px solid transparent;
-  border-radius: var(--app-radius-item);
+  margin-bottom: 2px;
+  border-radius: 12px;
 }
 
-.agent-history-row:hover,
-.agent-history-row-active {
+.agent-history-row:hover {
   background: var(--agent-hover);
 }
 
-.agent-history-row-active {
-  border-color: var(--app-primary-border);
-  background: var(--app-primary-soft);
+.agent-history-row-active,
+.agent-history-row-active:hover {
+  background: var(--agent-active);
 }
 
 .agent-history-open {
   min-width: 0;
-  height: 32px;
+  height: 40px;
   flex: 1;
   overflow: hidden;
-  padding: 0 9px;
+  padding: 0 12px;
   border: 0;
   color: inherit;
   background: transparent;
   text-align: left;
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -1721,16 +1737,16 @@ let resizeObserver: ResizeObserver | undefined
 .agent-history-title-input {
   width: 0;
   min-width: 0;
-  height: 26px;
+  height: 28px;
   flex: 1;
-  margin: 3px 4px 3px 7px;
-  padding: 0 5px;
+  margin: 6px 4px 6px 9px;
+  padding: 0 6px;
   border: 1px solid var(--app-primary-border);
   border-radius: var(--app-radius-control);
   outline: 0;
   color: var(--agent-text);
   background: var(--agent-elevated);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .agent-history-edit,
