@@ -183,6 +183,8 @@ class _FakeSshRepository extends SshRepository {
     Duration? timeout,
     String? stdin,
     bool login = true,
+    Future<void>? cancellation,
+    bool Function()? isCancelled,
   }) async {
     commands.add(command);
     stdinValues.add(stdin);

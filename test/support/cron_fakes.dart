@@ -31,6 +31,8 @@ class FakeCrontabRepository extends SshRepository {
     String? stdin,
     int? maxOutputBytes,
     bool login = true,
+    Future<void>? cancellation,
+    bool Function()? isCancelled,
   }) async {
     loginFlags.add(login);
     await Future<void>.delayed(const Duration(milliseconds: 5));

@@ -17,6 +17,8 @@ class AgentService {
     int? timeoutMs,
     String? stdin,
     int? maxOutputBytes,
+    Future<void>? cancellation,
+    bool Function()? isCancelled,
   }) async {
     final result = await _repository.execWithResult(
       session,
@@ -25,6 +27,8 @@ class AgentService {
       timeout: Duration(milliseconds: timeoutMs ?? 60000),
       stdin: stdin,
       maxOutputBytes: maxOutputBytes,
+      cancellation: cancellation,
+      isCancelled: isCancelled,
     );
 
     final maxBytes = maxOutputBytes ?? 512 * 1024;
@@ -84,6 +88,8 @@ class AgentService {
     String? cwd,
     int? timeoutMs,
     int? maxOutputBytes,
+    Future<void>? cancellation,
+    bool Function()? isCancelled,
   }) async {
     final check = await exec(
       session,
@@ -92,6 +98,8 @@ class AgentService {
       stdin: patch,
       timeoutMs: timeoutMs,
       maxOutputBytes: maxOutputBytes,
+      cancellation: cancellation,
+      isCancelled: isCancelled,
     );
 
     if (check['exitCode'] != 0) {
@@ -105,6 +113,8 @@ class AgentService {
       stdin: patch,
       timeoutMs: timeoutMs,
       maxOutputBytes: maxOutputBytes,
+      cancellation: cancellation,
+      isCancelled: isCancelled,
     );
 
     return {

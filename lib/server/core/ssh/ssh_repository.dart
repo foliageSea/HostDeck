@@ -32,6 +32,10 @@ class SshExecResult {
   };
 }
 
+class SshExecCancelledException implements Exception {
+  const SshExecCancelledException();
+}
+
 class _BoundedBytesBuilder {
   final int? maxBytes;
   final BytesBuilder _builder = BytesBuilder(copy: false);
@@ -135,8 +139,13 @@ class SshRepository {
     String? stdin,
     int? maxOutputBytes,
     bool login = true,
+    Future<void>? cancellation,
+    bool Function()? isCancelled,
   }) async {
     final stopwatch = Stopwatch()..start();
+    if (isCancelled?.call() ?? false) {
+      throw const SshExecCancelledException();
+    }
     final script = cwd == null || cwd.trim().isEmpty
         ? command
         : 'cd ${_shellQuote(cwd)} && $command';
@@ -144,11 +153,31 @@ class SshRepository {
         ? await _shellInvocationResolver.resolve(session)
         : ShellInvocation.plain;
     SSHSession? sshSession;
+    var cancelled = isCancelled?.call() ?? false;
+
+    void cancelSession() {
+      cancelled = true;
+      final active = sshSession;
+      if (active == null) return;
+      try {
+        active.kill(SSHSignal.TERM);
+      } catch (_) {
+        // Closing the channel below is the fallback for servers without signals.
+      }
+      active.close();
+    }
+
+    cancellation?.then((_) => cancelSession());
 
     try {
       final result = await session
           .runOperation(() async {
+            if (cancelled) throw const SshExecCancelledException();
             sshSession = await session.client.execute(invocation.wrap(script));
+            if (cancelled) {
+              cancelSession();
+              throw const SshExecCancelledException();
+            }
 
             if (stdin != null) {
               sshSession!.stdin.add(Uint8List.fromList(utf8.encode(stdin)));
@@ -181,6 +210,8 @@ class SshRepository {
             await stderrDone.future;
             await sshSession!.done;
 
+            if (cancelled) throw const SshExecCancelledException();
+
             return SshExecResult(
               exitCode: sshSession!.exitCode,
               stdout: utf8.decode(
@@ -204,6 +235,8 @@ class SshRepository {
           );
 
       return result;
+    } on SshExecCancelledException {
+      rethrow;
     } on TimeoutException {
       return SshExecResult(
         exitCode: null,

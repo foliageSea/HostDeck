@@ -134,13 +134,16 @@ class AiAgentOperationLogToolService implements AiAgentToolExecutor {
     required String targetKey,
     required String name,
     required Map<String, dynamic> arguments,
+    AiAgentToolCancellation? cancellation,
   }) async {
+    cancellation?.throwIfCancelled();
     if (name != toolName) {
       return _delegate.execute(
         connectionId: connectionId,
         targetKey: targetKey,
         name: name,
         arguments: arguments,
+        cancellation: cancellation,
       );
     }
 
@@ -172,6 +175,7 @@ class AiAgentOperationLogToolService implements AiAgentToolExecutor {
             'currentConnection': log.connectionId == connectionId,
           },
       ];
+      cancellation?.throwIfCancelled();
       final output = {'records': records, 'count': records.length};
       _operationLogs.success(
         category: 'aiAgent',

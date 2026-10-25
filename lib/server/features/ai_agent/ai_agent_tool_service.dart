@@ -58,11 +58,43 @@ abstract interface class AiAgentToolExecutor {
     required String targetKey,
     required String name,
     required Map<String, dynamic> arguments,
+    AiAgentToolCancellation? cancellation,
   });
 }
 
+class AiAgentToolCancelledException implements Exception {
+  const AiAgentToolCancelledException();
+}
+
+class AiAgentToolCancellation {
+  final Completer<void> _cancelled = Completer<void>();
+
+  bool get isCancelled => _cancelled.isCompleted;
+  Future<void> get whenCancelled => _cancelled.future;
+
+  void cancel() {
+    if (!_cancelled.isCompleted) _cancelled.complete();
+  }
+
+  void throwIfCancelled() {
+    if (isCancelled) throw const AiAgentToolCancelledException();
+  }
+
+  Future<T> bind<T>(Future<T> operation) {
+    throwIfCancelled();
+    return Future.any([
+      operation,
+      whenCancelled.then<T>((_) => throw const AiAgentToolCancelledException()),
+    ]);
+  }
+}
+
 typedef _ToolHandler =
-    Future<Object> Function(String connectionId, Map<String, dynamic> args);
+    Future<Object> Function(
+      String connectionId,
+      Map<String, dynamic> args,
+      AiAgentToolCancellation? cancellation,
+    );
 
 /// Extra, tool-specific fields for the `details` of a tool result.
 typedef _ToolDetails =
@@ -157,7 +189,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
       requiresApproval: false,
       normalize: _noArguments,
       run: _withSession(
-        (session, _) => _monitorService
+        (session, _, _) => _monitorService
             .getSystemStatus(session)
             .then((status) => status.toJson()),
       ),
@@ -168,7 +200,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
       summary: 'Read process list',
       normalize: _noArguments,
       run: _withSession(
-        (session, _) => _processService
+        (session, _, _) => _processService
             .listProcesses(session)
             .then((items) => items.map((item) => item.toJson()).toList()),
       ),
@@ -205,12 +237,14 @@ class AiAgentToolService implements AiAgentToolExecutor {
         'timeoutMs': ?_optionalToolTimeout(arguments),
       },
       run: _withSession(
-        (session, arguments) => _agentService.exec(
+        (session, arguments, cancellation) => _agentService.exec(
           session,
           command: _requiredString(arguments, 'command'),
           cwd: _optionalString(arguments, 'cwd'),
           timeoutMs: _toolTimeout(arguments).inMilliseconds,
           maxOutputBytes: maxOutputBytes,
+          cancellation: cancellation?.whenCancelled,
+          isCancelled: () => cancellation?.isCancelled ?? false,
         ),
       ),
       succeeded: (output) => output['exitCode'] == 0,
@@ -226,7 +260,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
       required: ['path'],
       normalize: _pathOnly,
       run: _withSession(
-        (session, arguments) => _agentService
+        (session, arguments, _) => _agentService
             .readTextFile(
               session,
               _requiredString(arguments, 'path'),
@@ -388,12 +422,14 @@ class AiAgentToolService implements AiAgentToolExecutor {
         'cwd': ?_strictOptionalString(arguments, 'cwd'),
       },
       run: _withSession(
-        (session, arguments) => _agentService.applyPatch(
+        (session, arguments, cancellation) => _agentService.applyPatch(
           session,
           patch: _requiredString(arguments, 'patch'),
           cwd: _optionalString(arguments, 'cwd'),
           timeoutMs: toolTimeout.inMilliseconds,
           maxOutputBytes: maxOutputBytes,
+          cancellation: cancellation?.whenCancelled,
+          isCancelled: () => cancellation?.isCancelled ?? false,
         ),
       ),
       succeeded: (output) => output['applied'] == true,
@@ -437,14 +473,18 @@ class AiAgentToolService implements AiAgentToolExecutor {
     required String targetKey,
     required String name,
     required Map<String, dynamic> arguments,
+    AiAgentToolCancellation? cancellation,
   }) async {
+    cancellation?.throwIfCancelled();
     final normalizedArguments = normalizeArguments(name, arguments);
     final tool = _tools[name]!;
     final stopwatch = Stopwatch()..start();
     try {
-      final output = await tool
-          .run(connectionId, normalizedArguments)
+      final operation = tool
+          .run(connectionId, normalizedArguments, cancellation)
           .timeout(_toolTimeout(normalizedArguments));
+      final output = await (cancellation?.bind(operation) ?? operation);
+      cancellation?.throwIfCancelled();
       final elapsed = stopwatch.elapsedMilliseconds;
       final outputMap = output is Map<String, dynamic> ? output : null;
       final limited = _limitValue(jsonEncode(output));
@@ -483,7 +523,10 @@ class AiAgentToolService implements AiAgentToolExecutor {
           limited.truncated || displayContent.endsWith('[truncated]'),
         ),
       );
+    } on AiAgentToolCancelledException {
+      rethrow;
     } catch (_) {
+      cancellation?.throwIfCancelled();
       _operationLogService.failure(
         category: 'aiAgent',
         action: name,
@@ -503,17 +546,23 @@ class AiAgentToolService implements AiAgentToolExecutor {
 
   /// Adapts a handler that needs an SSH session to the common signature.
   _ToolHandler _withSession(
-    Future<Object> Function(SshSession session, Map<String, dynamic> arguments)
+    Future<Object> Function(
+      SshSession session,
+      Map<String, dynamic> arguments,
+      AiAgentToolCancellation? cancellation,
+    )
     body,
   ) =>
-      (connectionId, arguments) async => body(
+      (connectionId, arguments, cancellation) async => body(
         await _sessionResolver.createForConnection(connectionId),
         arguments,
+        cancellation,
       );
 
   Future<Map<String, dynamic>> _createPortForward(
     String connectionId,
     Map<String, dynamic> arguments,
+    AiAgentToolCancellation? _,
   ) async {
     final rule = _portForwardRepository.addRule(
       PortForwardRule(
@@ -537,6 +586,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
   Future<Map<String, dynamic>> _startPortForward(
     String connectionId,
     Map<String, dynamic> arguments,
+    AiAgentToolCancellation? _,
   ) async {
     final rule = _ownedPortForwardRule(arguments, connectionId);
     final currentStatus = _portForwardService.statusFor(rule.id!);
@@ -549,6 +599,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
   Future<Map<String, dynamic>> _listPortForwards(
     String connectionId,
     Map<String, dynamic> arguments,
+    AiAgentToolCancellation? _,
   ) async => {
     'forwards': _portForwardRepository
         .getAllRules()
@@ -559,11 +610,13 @@ class AiAgentToolService implements AiAgentToolExecutor {
   Future<Map<String, dynamic>> _portForwardStatus(
     String connectionId,
     Map<String, dynamic> arguments,
+    AiAgentToolCancellation? _,
   ) async => _ruleWithStatus(_ownedPortForwardRule(arguments, connectionId));
 
   Future<Map<String, dynamic>> _stopPortForward(
     String connectionId,
     Map<String, dynamic> arguments,
+    AiAgentToolCancellation? _,
   ) async {
     final rule = _ownedPortForwardRule(arguments, connectionId);
     await _portForwardService.stop(rule.id!);
@@ -573,6 +626,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
   Future<Map<String, dynamic>> _deletePortForward(
     String connectionId,
     Map<String, dynamic> arguments,
+    AiAgentToolCancellation? _,
   ) async {
     final rule = _ownedPortForwardRule(arguments, connectionId);
     final status = _portForwardService.statusFor(rule.id!);
@@ -613,6 +667,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
   Future<Map<String, dynamic>> _writeFile(
     SshSession session,
     Map<String, dynamic> arguments,
+    AiAgentToolCancellation? _,
   ) async {
     final path = _requiredString(arguments, 'path');
     final content = _requiredString(arguments, 'content');
@@ -626,6 +681,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
   Future<Map<String, dynamic>> _listDirectory(
     SshSession session,
     Map<String, dynamic> arguments,
+    AiAgentToolCancellation? _,
   ) async {
     final path = _requiredString(arguments, 'path');
     final items = await _agentService.listDirectory(session, path);
@@ -664,6 +720,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
   Future<Map<String, dynamic>> _deleteFile(
     SshSession session,
     Map<String, dynamic> arguments,
+    AiAgentToolCancellation? _,
   ) async {
     final path = _requiredString(arguments, 'path');
     await _agentService.deleteFile(session, path);
@@ -673,6 +730,7 @@ class AiAgentToolService implements AiAgentToolExecutor {
   Future<Map<String, dynamic>> _killProcess(
     SshSession session,
     Map<String, dynamic> arguments,
+    AiAgentToolCancellation? _,
   ) async {
     final pid = _positiveInt(arguments, 'pid');
     await _processService.killProcess(session, pid);

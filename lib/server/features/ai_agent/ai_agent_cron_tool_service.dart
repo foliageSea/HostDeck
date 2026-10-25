@@ -222,13 +222,16 @@ class AiAgentCronToolService implements AiAgentToolExecutor {
     required String targetKey,
     required String name,
     required Map<String, dynamic> arguments,
+    AiAgentToolCancellation? cancellation,
   }) async {
+    cancellation?.throwIfCancelled();
     if (!toolNames.contains(name)) {
       return _delegate.execute(
         connectionId: connectionId,
         targetKey: targetKey,
         name: name,
         arguments: arguments,
+        cancellation: cancellation,
       );
     }
 
@@ -243,14 +246,18 @@ class AiAgentCronToolService implements AiAgentToolExecutor {
           'Scheduled tasks require a connection to a saved server.',
         );
       }
-      final outcome = await _run(
+      final operation = _run(
         name,
         connectionId,
         serverId,
         normalized,
       ).timeout(toolTimeout);
+      final outcome = await (cancellation?.bind(operation) ?? operation);
+      cancellation?.throwIfCancelled();
       _logSuccess(name, targetKey, connectionId);
       return _result(name, outcome, stopwatch.elapsedMilliseconds);
+    } on AiAgentToolCancelledException {
+      rethrow;
     } on _CronToolFailure catch (failure) {
       _log(name, targetKey, connectionId, failure.message);
       return _failure(name, failure.message);

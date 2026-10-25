@@ -177,6 +177,30 @@ void main() {
     );
   });
 
+  test('cancellation interrupts an executing tool', () async {
+    tools
+      ..needsApproval = false
+      ..blockExecution = Completer<void>();
+    final run = manager.start(
+      conversationId: 'conversation-1',
+      connectionId: 'connection-1',
+      targetKey: 'server:7',
+      ownerId: 'browser:test',
+      input: 'run a long command',
+    );
+    final events = _collect(run.stream);
+    while (tools.executeCount == 0) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    expect(manager.cancel(run.runId), isTrue);
+    final body = await events.done.future.timeout(const Duration(seconds: 2));
+
+    expect(tools.executionCancellation?.isCancelled, isTrue);
+    expect(body, contains('Run cancelled.'));
+    expect(body, contains('"status":"cancelled"'));
+  });
+
   test(
     'reports invalid tool arguments to the model without approval or aborting',
     () async {
@@ -950,6 +974,8 @@ class _FakeToolExecutor implements AiAgentToolExecutor {
   bool needsApproval = true;
   int executeCount = 0;
   int resolveCount = 0;
+  Completer<void>? blockExecution;
+  AiAgentToolCancellation? executionCancellation;
 
   @override
   Future<List<ToolSpec>> resolveSpecs({bool refresh = false}) async {
@@ -979,8 +1005,12 @@ class _FakeToolExecutor implements AiAgentToolExecutor {
     required String targetKey,
     required String name,
     required Map<String, dynamic> arguments,
+    AiAgentToolCancellation? cancellation,
   }) async {
     executeCount++;
+    executionCancellation = cancellation;
+    final blocker = blockExecution;
+    if (blocker != null) await cancellation!.bind(blocker.future);
     return const AiAgentToolResult(
       success: true,
       content: 'executed',

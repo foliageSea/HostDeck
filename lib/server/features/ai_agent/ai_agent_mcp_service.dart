@@ -203,14 +203,18 @@ class AiAgentMcpClient {
   Future<AiAgentToolResult> callTool(
     AiAgentMcpServer server,
     String name,
-    Map<String, dynamic> arguments,
-  ) async {
-    final session = await _initialize(server);
+    Map<String, dynamic> arguments, {
+    AiAgentToolCancellation? cancellation,
+  }) async {
+    cancellation?.throwIfCancelled();
+    final session = await _initialize(server, cancellation: cancellation);
     try {
+      cancellation?.throwIfCancelled();
       final result = await _request(session, 'tools/call', {
         'name': name,
         'arguments': arguments,
       });
+      cancellation?.throwIfCancelled();
       final isError = result['isError'] == true;
       final rawContent = _toolContent(result);
       final content = _limitToolOutput(rawContent);
@@ -231,16 +235,22 @@ class AiAgentMcpClient {
     }
   }
 
-  Future<_McpSession> _initialize(AiAgentMcpServer server) async {
+  Future<_McpSession> _initialize(
+    AiAgentMcpServer server, {
+    AiAgentToolCancellation? cancellation,
+  }) async {
     final uri = Uri.parse(server.url);
     final client = HttpClient()..connectionTimeout = timeout;
+    cancellation?.whenCancelled.then((_) => client.close(force: true));
     final session = _McpSession(client: client, server: server, uri: uri);
     try {
+      cancellation?.throwIfCancelled();
       final result = await _request(session, 'initialize', {
         'protocolVersion': protocolVersion,
         'capabilities': const <String, dynamic>{},
         'clientInfo': const {'name': 'HostDeck', 'version': '0.3.1'},
       });
+      cancellation?.throwIfCancelled();
       final negotiated = result['protocolVersion'];
       if (negotiated is String && negotiated.isNotEmpty) {
         session.protocolVersion = negotiated;
@@ -452,7 +462,9 @@ class AiAgentMcpToolService implements AiAgentToolExecutor {
     required String targetKey,
     required String name,
     required Map<String, dynamic> arguments,
+    AiAgentToolCancellation? cancellation,
   }) async {
+    cancellation?.throwIfCancelled();
     final registered = _tools[name];
     if (registered == null) {
       return _builtIn.execute(
@@ -460,6 +472,7 @@ class AiAgentMcpToolService implements AiAgentToolExecutor {
         targetKey: targetKey,
         name: name,
         arguments: arguments,
+        cancellation: cancellation,
       );
     }
     try {
@@ -467,7 +480,9 @@ class AiAgentMcpToolService implements AiAgentToolExecutor {
         registered.server,
         registered.tool.name,
         arguments,
+        cancellation: cancellation,
       );
+      cancellation?.throwIfCancelled();
       if (result.success) {
         _operationLogs.success(
           category: 'aiAgent',
@@ -485,7 +500,10 @@ class AiAgentMcpToolService implements AiAgentToolExecutor {
         );
       }
       return result;
+    } on AiAgentToolCancelledException {
+      rethrow;
     } catch (_) {
+      cancellation?.throwIfCancelled();
       _operationLogs.failure(
         category: 'aiAgent',
         action: 'mcpToolCall',

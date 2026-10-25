@@ -154,6 +154,7 @@ class _Delegate implements AiAgentToolExecutor {
     required String targetKey,
     required String name,
     required Map<String, dynamic> arguments,
+    AiAgentToolCancellation? cancellation,
   }) async => const AiAgentToolResult(
     success: true,
     content: 'delegated',

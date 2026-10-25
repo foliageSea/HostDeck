@@ -148,6 +148,8 @@ inspected or changed the host. Do not expose secrets.
     run.terminalMessage = 'Run cancelled.';
     run.pendingApproval?.complete(false);
     run.pendingApproval = null;
+    run.toolCancellation?.cancel();
+    run.toolCancellation = null;
     run.model?.close();
     run.model = null;
     _emitRunErrorIfNeeded(
@@ -524,12 +526,7 @@ inspected or changed the host. Do not expose secrets.
       );
     } else {
       outcome = _ToolOutcome.executed(
-        await _toolService.execute(
-          connectionId: run.connectionId,
-          targetKey: run.targetKey,
-          name: call.name,
-          arguments: arguments,
-        ),
+        await _executeTool(run, call.name, arguments),
       );
     }
 
@@ -603,13 +600,32 @@ inspected or changed the host. Do not expose secrets.
       );
     }
     return _ToolOutcome.executed(
-      await _toolService.execute(
+      await _executeTool(run, call.name, approval.arguments),
+    );
+  }
+
+  Future<AiAgentToolResult> _executeTool(
+    _ActiveRun run,
+    String name,
+    Map<String, dynamic> arguments,
+  ) async {
+    final cancellation = AiAgentToolCancellation();
+    run.toolCancellation = cancellation;
+    try {
+      return await _toolService.execute(
         connectionId: run.connectionId,
         targetKey: run.targetKey,
-        name: call.name,
-        arguments: approval.arguments,
-      ),
-    );
+        name: name,
+        arguments: arguments,
+        cancellation: cancellation,
+      );
+    } on AiAgentToolCancelledException {
+      throw const _RunCancelled();
+    } finally {
+      if (identical(run.toolCancellation, cancellation)) {
+        run.toolCancellation = null;
+      }
+    }
   }
 
   _RunOutcome _classifyFailure(_ActiveRun run, Object error) => switch (error) {
@@ -845,6 +861,7 @@ class _ActiveRun {
   Duration approvalWait = Duration.zero;
 
   _PendingApproval? pendingApproval;
+  AiAgentToolCancellation? toolCancellation;
   AiAgentModel? model;
 
   /// Wall-clock time the run spent working; approval waits are excluded.

@@ -130,6 +130,8 @@ uptimeSeconds=1307520
     Duration? timeout,
     String? stdin,
     bool login = true,
+    Future<void>? cancellation,
+    bool Function()? isCancelled,
   }) {
     // TODO: implement execWithResult
     throw UnimplementedError();
