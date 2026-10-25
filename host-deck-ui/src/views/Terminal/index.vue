@@ -36,7 +36,7 @@ const showCopyButton = ref(false)
 const openingCurrentDirectory = ref(false)
 const selectedText = ref('')
 const copyButtonStyle = ref({ left: '0px', top: '0px' })
-const { completion, requestCurrentDirectory, terminal, terminalContainer } =
+const { completion, initializing, requestCurrentDirectory, terminal, terminalContainer } =
   useTerminalSession(props)
 
 void terminalContainer
@@ -152,12 +152,24 @@ async function openCurrentDirectory() {
     @wheel="handleWheel"
   >
     <div
-      class="app-radius-card terminal-surface min-h-0 flex-1 overflow-hidden border mx-[12px] mb-[8px]"
+      class="app-radius-card terminal-surface relative min-h-0 flex-1 overflow-hidden border mx-[12px] mb-[8px]"
     >
       <div
         ref="terminalContainer"
         class="terminal-host h-full min-h-0 overflow-hidden rounded-[inherit] px-2"
       />
+      <Transition name="terminal-loading">
+        <div
+          v-if="initializing"
+          class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-[10px] rounded-[inherit] text-[13px]"
+          :class="
+            settingsStore.isDark ? 'bg-[#050816] text-slate-400' : 'bg-[#f8fafc] text-slate-500'
+          "
+        >
+          <NSpin size="small" />
+          <span>正在初始化终端…</span>
+        </div>
+      </Transition>
     </div>
 
     <div
@@ -270,6 +282,14 @@ async function openCurrentDirectory() {
 </template>
 
 <style scoped>
+.terminal-loading-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.terminal-loading-leave-to {
+  opacity: 0;
+}
+
 .terminal-host :deep(.xterm),
 .terminal-host :deep(.xterm-viewport),
 .terminal-host :deep(.xterm-screen) {

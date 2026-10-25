@@ -8,6 +8,14 @@ import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
+import {
+  buildCwdHookCommand,
+  buildInitFinishCommand,
+  CWD_OSC_ID,
+  INIT_DONE_OSC_ID,
+  OSC7_ID,
+  parseOsc7Path,
+} from './terminalCwd'
 import { useTerminalCompletion } from './useTerminalCompletion'
 
 interface TerminalProps {
@@ -24,8 +32,9 @@ interface TerminalProps {
   closeConnectionOnUnmount?: boolean
 }
 
-const CWD_OSC_ID = 777
 const CWD_REQUEST_TIMEOUT_MS = 3000
+const INIT_TIMEOUT_MS = 3000
+const INIT_REVEAL_DELAY_MS = 80
 
 function buildTerminalTheme(isDark: boolean) {
   if (isDark) {
@@ -83,6 +92,7 @@ export function useTerminalSession(props: TerminalProps) {
   const desktopStore = useDesktopStore()
   const terminalContainer = ref<HTMLElement | null>(null)
   const terminalRef = shallowRef<Terminal | null>(null)
+  const initializing = ref(true)
 
   let fitAddon: FitAddon | null = null
   let webLinksAddon: WebLinksAddon | null = null
@@ -90,6 +100,10 @@ export function useTerminalSession(props: TerminalProps) {
   let socket: WebSocket | null = null
   let resizeObserver: ResizeObserver | null = null
   let cwdOscHandler: { dispose: () => void } | null = null
+  let osc7Handler: { dispose: () => void } | null = null
+  let initDoneHandler: { dispose: () => void } | null = null
+  let initTimer: number | null = null
+  let trackedCwd: string | null = null
   let terminalBlurHandler: { dispose: () => void } | null = null
   let terminalCursorHandler: { dispose: () => void } | null = null
   let terminalDataHandler: { dispose: () => void } | null = null
@@ -150,6 +164,28 @@ export function useTerminalSession(props: TerminalProps) {
       clearTimeout(openIframeTimer)
       openIframeTimer = null
     }
+
+    clearInitTimer()
+  }
+
+  function clearInitTimer() {
+    if (initTimer !== null) {
+      clearTimeout(initTimer)
+      initTimer = null
+    }
+  }
+
+  function finishInitializing(delayMs = 0) {
+    clearInitTimer()
+    if (delayMs <= 0) {
+      initializing.value = false
+      return
+    }
+
+    initTimer = window.setTimeout(() => {
+      initTimer = null
+      initializing.value = false
+    }, delayMs)
   }
 
   function clearPendingCwdRequest(error?: Error) {
@@ -168,6 +204,12 @@ export function useTerminalSession(props: TerminalProps) {
   function requestCurrentDirectory() {
     if (socket?.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error('终端尚未连接。'))
+    }
+    if (trackedCwd) {
+      return Promise.resolve(trackedCwd)
+    }
+    if (terminalRef.value?.buffer.active.type === 'alternate') {
+      return Promise.reject(new Error('终端正在运行全屏程序，请退出后重试。'))
     }
     if (pendingCwdRequest) {
       return Promise.reject(new Error('正在获取当前目录。'))
@@ -277,6 +319,15 @@ export function useTerminalSession(props: TerminalProps) {
         socket?.send(`cd ${shellQuotePosix(props.cwd)}\r`)
       }
 
+      if (ownedSessionId) {
+        socket?.send(`${buildCwdHookCommand()}\r`)
+        socket?.send(`${buildInitFinishCommand()}\r`)
+        // 收不到完成信号（非 bash/zsh 等）时兜底，避免遮罩常驻
+        finishInitializing(INIT_TIMEOUT_MS)
+      } else {
+        finishInitializing()
+      }
+
       if (props.startupCommand) {
         startupCommandTimer = window.setTimeout(() => {
           startupCommandTimer = null
@@ -306,12 +357,14 @@ export function useTerminalSession(props: TerminalProps) {
     }
 
     socket.onclose = () => {
+      finishInitializing()
       completion.reset()
       clearPendingCwdRequest(new Error('终端连接已关闭。'))
       terminalRef.value?.write('\r\n连接已关闭。\r\n')
     }
 
     socket.onerror = (error) => {
+      finishInitializing()
       completion.close()
       console.error('Terminal socket error', error)
       terminalRef.value?.write('\r\n终端连接失败。\r\n')
@@ -375,6 +428,18 @@ export function useTerminalSession(props: TerminalProps) {
 
     terminalRef.value.loadAddon(fitAddon)
     terminalRef.value.loadAddon(webLinksAddon)
+    osc7Handler = terminalRef.value.parser.registerOscHandler(OSC7_ID, (data) => {
+      const path = parseOsc7Path(data)
+      if (path) {
+        trackedCwd = path
+      }
+      return true
+    })
+    initDoneHandler = terminalRef.value.parser.registerOscHandler(INIT_DONE_OSC_ID, () => {
+      // 留出时间让 clear 之后的提示符渲染完成
+      finishInitializing(INIT_REVEAL_DELAY_MS)
+      return true
+    })
     cwdOscHandler = terminalRef.value.parser.registerOscHandler(CWD_OSC_ID, (path) => {
       if (!pendingCwdRequest) {
         return true
@@ -452,6 +517,7 @@ export function useTerminalSession(props: TerminalProps) {
 
   onMounted(async () => {
     if (!sshStore.isConnected || !terminalContainer.value) {
+      initializing.value = false
       return
     }
 
@@ -459,6 +525,7 @@ export function useTerminalSession(props: TerminalProps) {
 
     createTerminal()
     if (!terminalRef.value || !terminalContainer.value) {
+      initializing.value = false
       return
     }
 
@@ -479,6 +546,7 @@ export function useTerminalSession(props: TerminalProps) {
       const sessionId = await resolveTerminalSession()
       bindSocket(sessionId)
     } catch (error) {
+      finishInitializing()
       const message = error instanceof Error ? error.message : '创建终端会话失败。'
       terminalRef.value.write(`\r\n错误：${message}\r\n`)
     }
@@ -494,6 +562,8 @@ export function useTerminalSession(props: TerminalProps) {
     await shutdownTerminalProcess()
     socket?.close()
     cwdOscHandler?.dispose()
+    osc7Handler?.dispose()
+    initDoneHandler?.dispose()
     terminalBlurHandler?.dispose()
     terminalCursorHandler?.dispose()
     terminalDataHandler?.dispose()
@@ -506,6 +576,8 @@ export function useTerminalSession(props: TerminalProps) {
     socket = null
     resizeObserver = null
     cwdOscHandler = null
+    osc7Handler = null
+    initDoneHandler = null
     terminalBlurHandler = null
     terminalCursorHandler = null
     terminalDataHandler = null
@@ -522,6 +594,7 @@ export function useTerminalSession(props: TerminalProps) {
 
   return {
     completion,
+    initializing,
     requestCurrentDirectory,
     terminal: terminalRef,
     terminalContainer,
