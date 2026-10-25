@@ -873,9 +873,21 @@ onUnmounted(() => {
   transition-duration: 80ms;
 }
 
-/* 双击打开：图标先压缩再弹起 */
+/* 双击打开：图标先压缩再弹起，并向外扩散一圈光晕 */
 .desktop-shortcut--launching .desktop-shortcut-icon {
   animation: desktop-icon-launch 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.desktop-shortcut--launching .desktop-shortcut-icon::after {
+  position: absolute;
+  inset: -4px;
+  border-radius: 20px;
+  background: rgba(var(--app-primary-rgb, 37, 99, 235), 0.28);
+  box-shadow: 0 0 0 1px rgba(var(--app-primary-rgb, 37, 99, 235), 0.4);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  animation: desktop-icon-ripple 520ms ease-out;
 }
 
 @keyframes desktop-icon-launch {
@@ -898,9 +910,25 @@ onUnmounted(() => {
   }
 }
 
+@keyframes desktop-icon-ripple {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.8);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .desktop-shortcut--launching .desktop-shortcut-icon {
     animation: none;
+  }
+
+  .desktop-shortcut--launching .desktop-shortcut-icon::after {
+    display: none;
   }
 }
 </style>
