@@ -31,6 +31,7 @@ const emit = defineEmits<{
 
 const DESKTOP_ICON_DRAG_THRESHOLD = 4
 const DRAG_SUPPRESSION_WINDOW = 240
+const LAUNCH_ANIMATION_DURATION = 560
 
 interface DragState {
   currentX: number
@@ -93,6 +94,8 @@ const dragSuppression = ref<{
   expiresAt: number
   path: string
 } | null>(null)
+const launchingId = ref<string | null>(null)
+let launchTimer: ReturnType<typeof setTimeout> | undefined
 const selectedPaths = ref<string[]>([])
 const selectionState = ref<SelectionState | null>(null)
 
@@ -509,12 +512,25 @@ function openDesktopItem(item: DesktopItem) {
   }
 
   selectedPaths.value = [item.id]
+  playLaunchAnimation(item.id)
   if (item.type === 'directory') {
     desktopStore.openPinnedDirectory(item.path)
   } else {
     desktopStore.openPinnedPortLink(item.path)
   }
   closeContextMenu()
+}
+
+function playLaunchAnimation(id: string) {
+  clearTimeout(launchTimer)
+  // 先清空再置位，保证对同一图标连续打开时动画可以重新播放
+  launchingId.value = null
+  requestAnimationFrame(() => {
+    launchingId.value = id
+    launchTimer = setTimeout(() => {
+      launchingId.value = null
+    }, LAUNCH_ANIMATION_DURATION)
+  })
 }
 
 function openSelectedDirectory(path?: string) {
@@ -713,6 +729,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateContentBounds)
+  clearTimeout(launchTimer)
   dragState.value = null
   selectionState.value = null
 })
@@ -753,8 +770,9 @@ onUnmounted(() => {
         :title="item.title"
         :aria-pressed="isDirectorySelected(item.id)"
         type="button"
-        class="desktop-shortcut app-radius-card group absolute flex min-h-[108px] w-[96px] flex-col items-center justify-center gap-[10px] rounded-[18px] border px-[10px] py-[12px] text-center text-inherit transition-[background-color,border-color,transform,box-shadow] duration-[180ms] ease-in-out cursor-pointer"
+        class="desktop-shortcut app-radius-card group absolute flex min-h-[108px] w-[96px] flex-col items-center justify-center gap-[10px] rounded-[18px] border px-[10px] py-[12px] text-center text-inherit transition-[background-color,border-color,transform,box-shadow] duration-[180ms] ease-in-out cursor-pointer select-none"
         :class="[
+          launchingId === item.id ? 'desktop-shortcut--launching' : '',
           settingsStore.isDark
             ? 'border-transparent bg-transparent text-[#e2e8f0]'
             : 'border-transparent bg-transparent text-[#0f172a]',
@@ -764,7 +782,7 @@ onUnmounted(() => {
               : 'border-[rgba(100,116,139,0.36)] bg-[var(--app-primary-soft-strong)]'
             : '',
           dragState?.id === item.id
-            ? 'z-[7] cursor-grabbing opacity-80 shadow-[0_20px_40px_rgba(15,23,42,0.18)] transition-none'
+            ? 'z-[7] cursor-grabbing opacity-80 transition-none'
             : '',
         ]"
         :style="{
@@ -780,7 +798,7 @@ onUnmounted(() => {
         @pointercancel.stop="finishDirectoryDrag($event)"
       >
         <div
-          class="app-radius-surface flex h-[52px] w-[52px] items-center justify-center rounded-[16px] transition-[transform,background-color,box-shadow] duration-[180ms] ease-in-out"
+          class="desktop-shortcut-icon app-radius-surface flex h-[52px] w-[52px] items-center justify-center rounded-[16px] transition-[transform,background-color,box-shadow] duration-[180ms] ease-in-out"
           :class="[
             item.type === 'port-link'
               ? settingsStore.isDark
@@ -842,5 +860,47 @@ onUnmounted(() => {
 .desktop-shortcut:focus-visible {
   outline: 1px solid var(--app-primary-border);
   outline-offset: 2px;
+}
+
+.desktop-shortcut-icon {
+  position: relative;
+  will-change: transform;
+}
+
+/* 按下反馈：图标轻微下沉，拖拽中不触发 */
+.desktop-shortcut:active:not(.cursor-grabbing) .desktop-shortcut-icon {
+  transform: scale(0.92);
+  transition-duration: 80ms;
+}
+
+/* 双击打开：图标先压缩再弹起 */
+.desktop-shortcut--launching .desktop-shortcut-icon {
+  animation: desktop-icon-launch 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+@keyframes desktop-icon-launch {
+  0% {
+    transform: scale(1);
+  }
+
+  18% {
+    transform: scale(0.86);
+  }
+
+  55% {
+    transform: scale(1.18) translateY(-4px);
+    filter: brightness(1.12);
+  }
+
+  100% {
+    transform: scale(1.04);
+    filter: brightness(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-shortcut--launching .desktop-shortcut-icon {
+    animation: none;
+  }
 }
 </style>
