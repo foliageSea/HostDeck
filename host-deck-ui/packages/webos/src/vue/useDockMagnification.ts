@@ -1,6 +1,10 @@
-import { onBeforeUnmount, onMounted, watch, type Ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 
-export function useDockMagnification(rootRef: Ref<HTMLElement | null>, disabled: Ref<boolean>) {
+export function useDockMagnification(
+  rootRef: Ref<HTMLElement | null>,
+  disabled: Ref<boolean>,
+  axis: Ref<'horizontal' | 'vertical'> = ref('horizontal'),
+) {
   let frame = 0
   let cleanup: (() => void) | undefined
 
@@ -11,14 +15,18 @@ export function useDockMagnification(rootRef: Ref<HTMLElement | null>, disabled:
 
     const motion = window.matchMedia('(prefers-reduced-motion: no-preference)')
     const hover = window.matchMedia('(any-hover: hover) and (any-pointer: fine)')
-    let pointerX: number | undefined
+    let pointerPosition: number | undefined
 
     function render() {
       frame = 0
       const items = Array.from(track!.querySelectorAll<HTMLElement>('[data-dock-slot]')).filter(
         (item) => !item.classList.contains('dock-app-leave-active'),
       )
-      const left = track!.getBoundingClientRect().left - track!.scrollLeft
+      const isVertical = axis.value === 'vertical'
+      const trackRect = track!.getBoundingClientRect()
+      const start = isVertical
+        ? trackRect.top - track!.scrollTop
+        : trackRect.left - track!.scrollLeft
       const sizes = items.map((item) => {
         if (item.classList.contains('dock-separator')) return { scale: 1, extra: 0 }
 
@@ -27,13 +35,13 @@ export function useDockMagnification(rootRef: Ref<HTMLElement | null>, disabled:
         let offset = 0
         let ancestor: HTMLElement | null = item
         while (ancestor && ancestor !== track) {
-          offset += ancestor.offsetLeft
+          offset += isVertical ? ancestor.offsetTop : ancestor.offsetLeft
           ancestor = ancestor.offsetParent as HTMLElement | null
         }
-        const width = item.offsetWidth
-        const distance = Math.abs((pointerX ?? Infinity) - (left + offset + width / 2))
+        const size = isVertical ? item.offsetHeight : item.offsetWidth
+        const distance = Math.abs((pointerPosition ?? Infinity) - (start + offset + size / 2))
         const influence = distance < 140 ? (1 + Math.cos((distance / 140) * Math.PI)) / 2 : 0
-        return { scale: 1 + influence * 0.5, extra: width * influence * 0.5 }
+        return { scale: 1 + influence * 0.5, extra: size * influence * 0.5 }
       })
 
       const expansion = sizes.reduce((total, item) => total + item.extra, 0)
@@ -52,7 +60,7 @@ export function useDockMagnification(rootRef: Ref<HTMLElement | null>, disabled:
     }
 
     function reset() {
-      pointerX = undefined
+      pointerPosition = undefined
       root!.removeAttribute('data-magnifying')
       schedule()
     }
@@ -63,12 +71,14 @@ export function useDockMagnification(rootRef: Ref<HTMLElement | null>, disabled:
         disabled.value ||
         !motion.matches ||
         !hover.matches ||
-        track!.scrollWidth > track!.clientWidth
+        (axis.value === 'vertical'
+          ? track!.scrollHeight > track!.clientHeight
+          : track!.scrollWidth > track!.clientWidth)
       ) {
         reset()
         return
       }
-      pointerX = event.clientX
+      pointerPosition = axis.value === 'vertical' ? event.clientY : event.clientX
       root!.setAttribute('data-magnifying', 'true')
       schedule()
     }
@@ -77,7 +87,7 @@ export function useDockMagnification(rootRef: Ref<HTMLElement | null>, disabled:
     resize?.observe(track)
     const children = new MutationObserver(schedule)
     children.observe(track, { childList: true, subtree: true })
-    const stopWatch = watch(disabled, reset, { flush: 'sync' })
+    const stopWatch = watch([disabled, axis], reset, { flush: 'sync' })
     root.addEventListener('pointermove', move)
     root.addEventListener('pointerleave', reset)
     root.addEventListener('pointercancel', reset)

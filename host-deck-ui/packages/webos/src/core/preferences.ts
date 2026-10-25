@@ -5,6 +5,8 @@ import {
 } from './keyboard-shortcut'
 import type { KeyboardShortcut } from './keyboard-shortcut'
 
+export type DockPosition = 'left' | 'right' | 'bottom'
+
 export interface DesktopPreferences {
   isDark: boolean
   primaryColor: string
@@ -13,6 +15,7 @@ export interface DesktopPreferences {
   darkWindowBorder: boolean
   cornerStyle: 'square' | 'soft' | 'rounded'
   dockAutoHide: boolean
+  dockPosition: DockPosition
   windowSwitchShortcut: KeyboardShortcut
   windowSwitcherToggleShortcut: KeyboardShortcut
 }
@@ -29,6 +32,7 @@ export function createDesktopPreferences(initial: Partial<DesktopPreferences> = 
     darkWindowBorder: true,
     cornerStyle: 'rounded',
     dockAutoHide: false,
+    dockPosition: 'bottom',
     windowSwitchShortcut: createDefaultWindowSwitchShortcut(),
     windowSwitcherToggleShortcut: createDefaultWindowSwitcherToggleShortcut(),
     ...initial,

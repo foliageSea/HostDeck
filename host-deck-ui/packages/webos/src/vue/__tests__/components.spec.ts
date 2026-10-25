@@ -71,6 +71,13 @@ describe('standalone desktop components', () => {
     await nextTick()
     expect(wrapper.attributes('data-theme')).toBe('dark')
     expect(document.documentElement.dataset.theme).toBeUndefined()
+    value.preferences.dockPosition = 'left'
+    await nextTick()
+    expect(wrapper.attributes('data-dock-position')).toBe('left')
+    expect(wrapper.get('main').attributes('style')).toContain(
+      'left: calc(var(--desktop-dock-edge-gap) + var(--desktop-dock-size))',
+    )
+    expect(wrapper.get('main').attributes('style')).toContain('bottom: 0px')
     window.dispatchEvent(
       new KeyboardEvent('keydown', { code: 'Backquote', key: '`', altKey: true }),
     )

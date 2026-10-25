@@ -9,8 +9,8 @@
   color: #0f172a;
   --desktop-topbar-height: 40px;
   --desktop-window-edge-gap: 16px;
-  --desktop-dock-bottom-gap: 2px;
-  --desktop-dock-height: 74px;
+  --desktop-dock-edge-gap: 2px;
+  --desktop-dock-size: 74px;
   --webos-overlay-bg: rgb(255 255 255 / 96%);
   --webos-overlay-border: rgb(148 163 184 / 24%);
   --webos-control-bg: rgb(148 163 184 / 12%);

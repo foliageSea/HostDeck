@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, type CSSProperties } from 'vue'
 import DesktopMenu from './DesktopMenu.vue'
 import DesktopTooltip from './DesktopTooltip.vue'
 import AppIcon from './AppIcon.vue'
@@ -10,6 +10,7 @@ import {
   useDesktopPreferences as useSettingsStore,
 } from './context'
 import type { AppConfig } from '../core/types'
+import { calculateDockScale } from '../core/dock-layout'
 type DesktopAppId = string
 
 const context = useDesktopContext()
@@ -21,15 +22,26 @@ const emit = defineEmits<{
   openLaunchpad: []
 }>()
 const selectorTarget = ref<HTMLElement | null>(null)
+const hoverZone = ref<HTMLElement | null>(null)
 const selectorPanel = ref<HTMLElement | null>(null)
 const selectorAppId = ref<DesktopAppId | null>(null)
 const bouncingAppId = ref<DesktopAppId | null>(null)
 const draggedAppId = ref<DesktopAppId | null>(null)
 const dragOverAppId = ref<DesktopAppId | null>(null)
 const dragOverSide = ref<'before' | 'after'>('before')
+const dockScale = ref(1)
+let dockResizeObserver: ResizeObserver | undefined
+const isVertical = computed(() => settingsStore.dockPosition !== 'bottom')
+const dockAxis = computed(() => (isVertical.value ? 'vertical' : 'horizontal'))
+const tooltipSide = computed(() => {
+  if (settingsStore.dockPosition === 'left') return 'right'
+  if (settingsStore.dockPosition === 'right') return 'left'
+  return 'top'
+})
 useDockMagnification(
   selectorTarget,
   computed(() => Boolean(draggedAppId.value)),
+  dockAxis,
 )
 const selectorPosition = ref<{
   x: number
@@ -50,10 +62,14 @@ const contextMenuOptions = computed(() => {
   const appIndex = desktopStore.dockAppIds.indexOf(appId)
   return [
     { key: 'new', label: '新建窗口', disabled: !desktopStore.canOpenWindow(appId) },
-    { key: 'move-left', label: '向左移动', disabled: appIndex <= 0 },
+    {
+      key: 'move-left',
+      label: isVertical.value ? '向上移动' : '向左移动',
+      disabled: appIndex <= 0,
+    },
     {
       key: 'move-right',
-      label: '向右移动',
+      label: isVertical.value ? '向下移动' : '向右移动',
       disabled: appIndex === -1 || appIndex >= desktopStore.dockAppIds.length - 1,
     },
     { key: 'unpin', label: '从 Dock 移除' },
@@ -69,6 +85,41 @@ const dockApps = computed<AppConfig[]>(() =>
 const childWindows = computed(() =>
   desktopStore.windows.filter((window) => window.parentId && !window.isClosing),
 )
+const dockStyle = computed<CSSProperties>(() => {
+  const scale = dockScale.value
+  const dockRadius =
+    settingsStore.cornerStyle === 'square'
+      ? 0
+      : settingsStore.cornerStyle === 'soft'
+        ? 10 * scale
+        : 18 * scale
+  return {
+    '--dock-gap': `${12 * scale}px`,
+    '--dock-item-size': `${52 * scale}px`,
+    '--dock-padding': `${10 * scale}px`,
+    '--dock-running-indicator-offset': `${7 * scale}px`,
+    '--dock-running-indicator-size': `${Math.max(3, 5 * scale)}px`,
+    '--dock-separator-size': `${34 * scale}px`,
+    '--dock-track-edge-padding': `${20 * scale}px`,
+    borderRadius: `${dockRadius}px`,
+  }
+})
+const dockIconSize = computed(() => 52 * dockScale.value)
+
+function updateDockScale() {
+  const zone = hoverZone.value
+  if (!zone) return
+
+  const vertical = isVertical.value
+  const edgeClearance = vertical ? 28 : 100
+  const availableSize = (vertical ? zone.clientHeight : zone.clientWidth) - edgeClearance
+  dockScale.value = calculateDockScale({
+    availableSize,
+    itemCount: 1 + dockApps.value.length + childWindows.value.length,
+    separatorCount: childWindows.value.length > 0 ? 2 : 1,
+    vertical,
+  })
+}
 
 watch(
   () => [
@@ -108,11 +159,25 @@ function handleGlobalPointerDown(event: PointerEvent) {
 
 onMounted(() => {
   window.addEventListener('pointerdown', handleGlobalPointerDown, true)
+  updateDockScale()
+  if (typeof ResizeObserver !== 'undefined' && hoverZone.value) {
+    dockResizeObserver = new ResizeObserver(updateDockScale)
+    dockResizeObserver.observe(hoverZone.value)
+  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('pointerdown', handleGlobalPointerDown, true)
+  dockResizeObserver?.disconnect()
 })
+
+watch(
+  [() => dockApps.value.length, () => childWindows.value.length, () => settingsStore.dockPosition],
+  async () => {
+    await nextTick()
+    updateDockScale()
+  },
+)
 
 function getAppWindows(appId: DesktopAppId) {
   return desktopStore.windows.filter((window) => window.appId === appId)
@@ -151,8 +216,13 @@ function handleOpen(event: MouseEvent, appId: DesktopAppId) {
   if (currentTarget instanceof HTMLElement) {
     const rect = currentTarget.getBoundingClientRect()
     selectorPosition.value = {
-      x: rect.left + rect.width / 2,
-      y: rect.top - 12,
+      x:
+        settingsStore.dockPosition === 'left'
+          ? rect.right + 12
+          : settingsStore.dockPosition === 'right'
+            ? rect.left - 12
+            : rect.left + rect.width / 2,
+      y: settingsStore.dockPosition === 'bottom' ? rect.top - 12 : rect.top + rect.height / 2,
     }
   }
 
@@ -266,8 +336,12 @@ function handleDragOver(event: DragEvent, appId: DesktopAppId) {
   dragOverAppId.value = appId
   const target = event.currentTarget
   if (target instanceof HTMLElement) {
-    dragOverSide.value =
-      event.clientX < target.getBoundingClientRect().left + target.offsetWidth / 2
+    const rect = target.getBoundingClientRect()
+    dragOverSide.value = isVertical.value
+      ? event.clientY < rect.top + target.offsetHeight / 2
+        ? 'before'
+        : 'after'
+      : event.clientX < rect.left + target.offsetWidth / 2
         ? 'before'
         : 'after'
   }
@@ -300,25 +374,29 @@ function openLaunchpad() {
 
 <template>
   <div
-    class="dock-hover-zone absolute inset-x-0 bottom-0 z-20 flex h-[12px] items-end justify-center"
+    ref="hoverZone"
+    class="dock-hover-zone absolute z-20 flex justify-center"
+    :data-position="settingsStore.dockPosition"
   >
     <footer
       ref="selectorTarget"
-      class="app-radius-card desktop-dock relative mb-[2px] rounded-[24px] p-[10px]"
+      class="app-radius-card desktop-dock relative"
       :class="{
         'dock-auto-hide': settingsStore.dockAutoHide,
         'dock-expanded': isDockExpanded,
         'dock-dragging': draggedAppId,
         'dock-dark': settingsStore.isDark,
       }"
+      :data-position="settingsStore.dockPosition"
+      :style="dockStyle"
       @contextmenu.prevent
     >
-      <div class="dock-track">
-        <DesktopTooltip>
+      <div class="dock-track" :class="{ 'dock-track-vertical': isVertical }">
+        <DesktopTooltip :side="tooltipSide">
           <template #trigger>
             <button
               type="button"
-              class="launchpad-trigger dock-item flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] border-0 bg-transparent p-0 cursor-pointer"
+              class="launchpad-trigger dock-item flex shrink-0 items-center justify-center border-0 bg-transparent p-0 cursor-pointer"
               data-dock-slot
               aria-label="打开启动台"
               @click="openLaunchpad"
@@ -326,16 +404,30 @@ function openLaunchpad() {
               <svg
                 class="launchpad-icon"
                 viewBox="0 0 128 128"
-                width="52"
-                height="52"
+                :width="dockIconSize"
+                :height="dockIconSize"
                 aria-hidden="true"
               >
                 <defs>
-                  <linearGradient id="launchpad-bg" x1="64" y1="6" x2="64" y2="122" gradientUnits="userSpaceOnUse">
+                  <linearGradient
+                    id="launchpad-bg"
+                    x1="64"
+                    y1="6"
+                    x2="64"
+                    y2="122"
+                    gradientUnits="userSpaceOnUse"
+                  >
                     <stop stop-color="#F7F8FB" />
                     <stop offset="1" stop-color="#B9BFCC" />
                   </linearGradient>
-                  <linearGradient id="launchpad-rim" x1="20" y1="8" x2="64" y2="70" gradientUnits="userSpaceOnUse">
+                  <linearGradient
+                    id="launchpad-rim"
+                    x1="20"
+                    y1="8"
+                    x2="64"
+                    y2="70"
+                    gradientUnits="userSpaceOnUse"
+                  >
                     <stop stop-color="#FFFFFF" />
                     <stop offset="1" stop-color="#FFFFFF" stop-opacity="0" />
                   </linearGradient>
@@ -391,7 +483,7 @@ function openLaunchpad() {
         </DesktopTooltip>
 
         <span
-          class="dock-separator h-[34px] w-px shrink-0 bg-[rgba(148,163,184,0.3)]"
+          class="dock-separator shrink-0 bg-[rgba(148,163,184,0.3)]"
           data-dock-slot
           aria-hidden="true"
         />
@@ -399,7 +491,7 @@ function openLaunchpad() {
         <TransitionGroup
           name="dock-app"
           tag="div"
-          class="dock-apps relative flex shrink-0 items-center gap-[12px]"
+          class="dock-apps dock-section relative flex shrink-0 items-center"
         >
           <div
             v-for="app in dockApps"
@@ -420,10 +512,10 @@ function openLaunchpad() {
             @drop="handleDrop($event, app.id)"
             @dragend="handleDragEnd"
           >
-            <DesktopTooltip>
+            <DesktopTooltip :side="tooltipSide">
               <template #trigger>
                 <button
-                  class="dock-item relative flex h-[52px] w-[52px] items-center justify-center border-0 bg-transparent p-0 cursor-pointer"
+                  class="dock-item relative flex items-center justify-center border-0 bg-transparent p-0 cursor-pointer"
                   type="button"
                   :aria-label="app.title"
                   @click="handleOpen($event, app.id)"
@@ -434,7 +526,7 @@ function openLaunchpad() {
                     class="dock-artwork"
                     :class="{ 'dock-item-bounce': bouncingAppId === app.id }"
                   >
-                    <AppIcon :name="app.icon" :size="52" themed />
+                    <AppIcon :name="app.icon" :size="dockIconSize" themed />
                   </span>
                 </button>
               </template>
@@ -442,7 +534,7 @@ function openLaunchpad() {
             </DesktopTooltip>
             <span
               v-if="isAppOpen(app.id)"
-              class="dock-running-indicator absolute bottom-[-7px] left-1/2 h-[5px] w-[5px] translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]"
+              class="dock-running-indicator absolute bottom-[-7px] left-1/2 translate-x-[-50%] rounded-full bg-[var(--app-primary-color)]"
               aria-hidden="true"
             />
           </div>
@@ -450,7 +542,7 @@ function openLaunchpad() {
 
         <template v-if="childWindows.length > 0">
           <span
-            class="dock-separator h-[34px] w-px shrink-0 bg-[rgba(148,163,184,0.3)]"
+            class="dock-separator shrink-0 bg-[rgba(148,163,184,0.3)]"
             data-dock-slot
             aria-hidden="true"
           />
@@ -458,7 +550,7 @@ function openLaunchpad() {
           <TransitionGroup
             name="dock-app"
             tag="div"
-            class="dock-child-windows relative flex shrink-0 items-center gap-[12px]"
+            class="dock-child-windows dock-section relative flex shrink-0 items-center"
             aria-label="已打开的子窗口"
           >
             <div
@@ -469,24 +561,24 @@ function openLaunchpad() {
               :data-dock-window-id="window.id"
               :data-running="true"
             >
-              <DesktopTooltip>
+              <DesktopTooltip :side="tooltipSide">
                 <template #trigger>
                   <button
                     type="button"
-                    class="dock-item dock-child-window-item relative flex h-[52px] w-[52px] items-center justify-center rounded-[16px] border-0 bg-transparent p-0 cursor-pointer"
+                    class="dock-item dock-child-window-item relative flex items-center justify-center border-0 bg-transparent p-0 cursor-pointer"
                     :class="{ 'dock-child-window-minimized': window.isMinimized }"
                     :aria-label="`切换到${window.title}`"
                     @click="activateWindow(window.id)"
                   >
                     <span class="dock-artwork">
-                      <AppIcon :name="window.icon" :size="52" themed />
+                      <AppIcon :name="window.icon" :size="dockIconSize" themed />
                     </span>
                   </button>
                 </template>
                 {{ window.title }}
               </DesktopTooltip>
               <span
-                class="dock-running-indicator absolute bottom-[-7px] left-1/2 h-[5px] w-[5px] translate-x-[-50%] rounded-full"
+                class="dock-running-indicator absolute bottom-[-7px] left-1/2 translate-x-[-50%] rounded-full"
                 :class="
                   desktopStore.activeWindowId === window.id
                     ? 'bg-[var(--app-primary-color)]'
@@ -508,7 +600,7 @@ function openLaunchpad() {
         <div
           v-if="selectorAppId && selectorPosition"
           ref="selectorPanel"
-          class="app-radius-surface fixed z-[9999] w-[220px] translate-x-[-50%] translate-y-[-100%] rounded-[16px] p-[10px]"
+          class="app-radius-surface dock-window-selector fixed z-[9999] w-[220px] rounded-[16px] p-[10px]"
           :class="[
             settingsStore.isDark
               ? 'border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.9)] shadow-[0_24px_70px_rgba(2,6,23,0.35)]'
@@ -518,6 +610,7 @@ function openLaunchpad() {
             left: `${selectorPosition.x}px`,
             top: `${selectorPosition.y}px`,
           }"
+          :data-position="settingsStore.dockPosition"
         >
           <div
             class="mb-[8px] text-[0.78rem]"
@@ -578,6 +671,44 @@ function openLaunchpad() {
 </template>
 
 <style scoped>
+.dock-hover-zone[data-position='bottom'] {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 12px;
+  align-items: flex-end;
+}
+
+.dock-hover-zone[data-position='left'],
+.dock-hover-zone[data-position='right'] {
+  top: var(--desktop-topbar-height);
+  bottom: 0;
+  width: 12px;
+  align-items: center;
+}
+
+.dock-hover-zone[data-position='left'] {
+  left: 0;
+  justify-content: flex-start;
+}
+
+.dock-hover-zone[data-position='right'] {
+  right: 0;
+  justify-content: flex-end;
+}
+
+.desktop-dock[data-position='bottom'] {
+  margin-bottom: var(--desktop-dock-edge-gap);
+}
+
+.desktop-dock[data-position='left'] {
+  margin-left: var(--desktop-dock-edge-gap);
+}
+
+.desktop-dock[data-position='right'] {
+  margin-right: var(--desktop-dock-edge-gap);
+}
+
 .dock-entry {
   display: flex;
   flex-shrink: 0;
@@ -591,8 +722,19 @@ function openLaunchpad() {
   transition: translate var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.desktop-dock[data-position='left'] .dock-entry,
+.desktop-dock[data-position='left'] .dock-separator,
+.desktop-dock[data-position='right'] .dock-entry,
+.desktop-dock[data-position='right'] .dock-separator {
+  translate: 0 var(--dock-shift, 0px);
+}
+
 .dock-entry[data-running='true'] {
   --dock-lift: -2px;
+}
+
+.desktop-dock[data-position='left'] .dock-entry[data-running='true'] {
+  --dock-lift: 2px;
 }
 
 .dock-entry-dragging {
@@ -625,12 +767,36 @@ function openLaunchpad() {
   z-index: 2;
 }
 
+.desktop-dock[data-position='left'] .dock-entry-drag-over::after,
+.desktop-dock[data-position='right'] .dock-entry-drag-over::after {
+  right: -5px;
+  left: -5px;
+  width: auto;
+  height: 3px;
+}
+
 .dock-entry-drag-over-before::after {
   left: -8px;
 }
 
 .dock-entry-drag-over-after::after {
   right: -8px;
+}
+
+.desktop-dock[data-position='left'] .dock-entry-drag-over-before::after,
+.desktop-dock[data-position='right'] .dock-entry-drag-over-before::after {
+  top: -8px;
+  right: -5px;
+  bottom: auto;
+  left: -5px;
+}
+
+.desktop-dock[data-position='left'] .dock-entry-drag-over-after::after,
+.desktop-dock[data-position='right'] .dock-entry-drag-over-after::after {
+  top: auto;
+  right: -5px;
+  bottom: -8px;
+  left: -5px;
 }
 
 .dock-app-enter-active,
@@ -657,7 +823,9 @@ function openLaunchpad() {
   display: flex;
   width: max-content;
   max-width: calc(100vw - 100px);
+  max-height: calc(100vh - var(--desktop-topbar-height) - 28px);
   border: 1px solid transparent;
+  padding: var(--dock-padding);
   /* No transform and no isolation here: either one turns the dock into the backdrop root of
      ::before, so the blur would sample the dock itself instead of the wallpaper. */
   transform: none;
@@ -689,6 +857,17 @@ function openLaunchpad() {
   content: '';
 }
 
+.desktop-dock[data-position='left']::before,
+.desktop-dock[data-position='right']::before {
+  top: calc(-1px - var(--dock-expansion, 0px) / 2);
+  bottom: calc(-1px - var(--dock-expansion, 0px) / 2);
+  left: -1px;
+  right: -1px;
+  transition:
+    top var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1),
+    bottom var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .desktop-dock.dock-dark::before {
   border-color: rgba(148, 163, 184, 0.16);
   background: rgba(15, 23, 42, 0.3);
@@ -702,7 +881,7 @@ function openLaunchpad() {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 12px;
+  gap: var(--dock-gap);
   overflow-x: auto;
   /* Let enlarged icons, the launch bounce, and running dots fit inside the scrollport. */
   padding: 40px 40px 10px;
@@ -710,11 +889,46 @@ function openLaunchpad() {
   scrollbar-width: none;
 }
 
+.dock-track-vertical {
+  max-height: none;
+  min-height: 0;
+  flex-direction: column;
+  overflow-x: visible;
+  overflow-y: visible;
+  padding: var(--dock-track-edge-padding) var(--dock-padding) var(--dock-track-edge-padding) 40px;
+  margin: 0 calc(-1 * var(--dock-padding)) 0 -40px;
+}
+
+.desktop-dock[data-position='right'] .dock-track-vertical {
+  padding: var(--dock-track-edge-padding) 40px var(--dock-track-edge-padding) var(--dock-padding);
+  margin: 0 -40px 0 calc(-1 * var(--dock-padding));
+}
+
+.dock-track-vertical .dock-section {
+  flex-direction: column;
+}
+
+.dock-section {
+  gap: var(--dock-gap);
+}
+
+.dock-track-vertical .dock-separator {
+  width: var(--dock-separator-size);
+  height: 1px;
+}
+
+.desktop-dock[data-position='bottom'] .dock-separator {
+  width: 1px;
+  height: var(--dock-separator-size);
+}
+
 .dock-track::-webkit-scrollbar {
   display: none;
 }
 
 .dock-item {
+  width: var(--dock-item-size);
+  height: var(--dock-item-size);
   transform: translateY(var(--dock-lift, 0px)) scale(var(--dock-scale, 1));
   transform-origin: center bottom;
   transition:
@@ -728,6 +942,67 @@ function openLaunchpad() {
     translate var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1),
     transform var(--dock-motion-duration) cubic-bezier(0.22, 1, 0.36, 1),
     background-color 160ms ease;
+}
+
+.desktop-dock[data-position='left'] .launchpad-trigger,
+.desktop-dock[data-position='right'] .launchpad-trigger {
+  translate: 0 var(--dock-shift, 0px);
+}
+
+.desktop-dock[data-position='left'] .dock-item {
+  transform: translateX(var(--dock-lift, 0px)) scale(var(--dock-scale, 1));
+  transform-origin: left center;
+}
+
+.desktop-dock[data-position='right'] .dock-item {
+  transform: translateX(var(--dock-lift, 0px)) scale(var(--dock-scale, 1));
+  transform-origin: right center;
+}
+
+.desktop-dock[data-position='left'] .dock-item:active {
+  transform: translateX(var(--dock-lift, 0px)) scale(calc(var(--dock-scale, 1) * 0.94));
+}
+
+.desktop-dock[data-position='right'] .dock-item:active {
+  transform: translateX(var(--dock-lift, 0px)) scale(calc(var(--dock-scale, 1) * 0.94));
+}
+
+.desktop-dock[data-position='left'] .dock-running-indicator,
+.desktop-dock[data-position='right'] .dock-running-indicator {
+  top: 50%;
+  bottom: auto;
+  left: auto;
+  translate: 0 -50%;
+  transform: none;
+}
+
+.dock-running-indicator {
+  width: var(--dock-running-indicator-size);
+  height: var(--dock-running-indicator-size);
+}
+
+.desktop-dock[data-position='left'] .dock-running-indicator {
+  right: calc(-1 * var(--dock-running-indicator-offset));
+}
+
+.desktop-dock[data-position='right'] .dock-running-indicator {
+  left: calc(-1 * var(--dock-running-indicator-offset));
+}
+
+.desktop-dock[data-position='bottom'] .dock-running-indicator {
+  bottom: calc(-1 * var(--dock-running-indicator-offset));
+}
+
+.dock-window-selector[data-position='bottom'] {
+  transform: translate(-50%, -100%);
+}
+
+.dock-window-selector[data-position='left'] {
+  transform: translateY(-50%);
+}
+
+.dock-window-selector[data-position='right'] {
+  transform: translate(-100%, -50%);
 }
 
 .launchpad-icon {
@@ -774,18 +1049,13 @@ function openLaunchpad() {
   .dock-track,
   .dock-apps,
   .dock-child-windows {
-    gap: 6px;
+    gap: var(--dock-gap);
   }
 
   .dock-entry {
     display: flex;
     flex: 0 0 auto;
     justify-content: center;
-  }
-
-  .dock-item {
-    width: 46px;
-    height: 46px;
   }
 }
 
@@ -809,6 +1079,14 @@ function openLaunchpad() {
 @media (hover: hover) and (pointer: fine) {
   .desktop-dock.dock-auto-hide:not(.dock-expanded) {
     transform: translateY(100%);
+  }
+
+  .desktop-dock[data-position='left'].dock-auto-hide:not(.dock-expanded) {
+    transform: translateX(-100%);
+  }
+
+  .desktop-dock[data-position='right'].dock-auto-hide:not(.dock-expanded) {
+    transform: translateX(100%);
   }
 
   .dock-hover-zone:hover .desktop-dock.dock-auto-hide:not(.dock-expanded),

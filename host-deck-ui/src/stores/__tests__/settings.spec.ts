@@ -69,6 +69,23 @@ describe('settings window controls style', () => {
     expect(window.localStorage.getItem('host-deck-ui.darkWindowBorder')).toBe('false')
   })
 
+  it('uses the bottom Dock by default and persists another position', async () => {
+    const settingsStore = useSettingsStore()
+
+    expect(settingsStore.dockPosition).toBe('bottom')
+
+    settingsStore.setDockPosition('left')
+    await nextTick()
+
+    expect(window.localStorage.getItem('host-deck-ui.dockPosition')).toBe('left')
+  })
+
+  it('falls back to the bottom Dock for an invalid saved position', () => {
+    window.localStorage.setItem('host-deck-ui.dockPosition', 'top')
+
+    expect(useSettingsStore().dockPosition).toBe('bottom')
+  })
+
   it('persists a custom window switch shortcut', async () => {
     const settingsStore = useSettingsStore()
 

@@ -5,6 +5,7 @@ import {
   createDefaultWindowSwitchShortcut,
   createDefaultWindowSwitcherToggleShortcut,
   normalizeKeyboardShortcut,
+  type DockPosition,
   type KeyboardShortcut,
 } from '@host-deck/webos'
 
@@ -12,6 +13,10 @@ export type CornerStyle = 'square' | 'soft' | 'rounded'
 
 export function normalizeCornerStyle(value: unknown): CornerStyle {
   return value === 'square' || value === 'soft' || value === 'rounded' ? value : 'rounded'
+}
+
+export function normalizeDockPosition(value: unknown): DockPosition {
+  return value === 'left' || value === 'right' || value === 'bottom' ? value : 'bottom'
 }
 
 /** Local desktop appearance only: no HTTP, terminal or editor settings. */
@@ -39,6 +44,7 @@ export const useDesktopPreferencesStore = defineStore('desktopPreferences', () =
     darkWindowBorder: storage.getItem('host-deck-ui.darkWindowBorder') !== 'false',
     cornerStyle: normalizeCornerStyle(storage.getItem('host-deck-ui.cornerStyle')),
     dockAutoHide: storage.getItem('host-deck-ui.dockAutoHide') === 'true',
+    dockPosition: normalizeDockPosition(storage.getItem('host-deck-ui.dockPosition')),
     windowSwitchShortcut: shortcut('windowSwitchShortcut', createDefaultWindowSwitchShortcut()),
     windowSwitcherToggleShortcut: shortcut(
       'windowSwitcherToggleShortcut',
@@ -51,6 +57,7 @@ export const useDesktopPreferencesStore = defineStore('desktopPreferences', () =
     'darkWindowBorder',
     'cornerStyle',
     'dockAutoHide',
+    'dockPosition',
     'windowSwitchShortcut',
     'windowSwitcherToggleShortcut',
   ] as const
@@ -77,6 +84,7 @@ export const useDesktopPreferencesStore = defineStore('desktopPreferences', () =
     darkWindowBorder,
     cornerStyle,
     dockAutoHide,
+    dockPosition,
     windowSwitchShortcut,
     windowSwitcherToggleShortcut,
   } = toRefs(preferences)
@@ -86,6 +94,7 @@ export const useDesktopPreferencesStore = defineStore('desktopPreferences', () =
     darkWindowBorder,
     cornerStyle,
     dockAutoHide,
+    dockPosition,
     windowSwitchShortcut,
     windowSwitcherToggleShortcut,
     setWindowControlsStyle(value: 'mac' | 'win') {
@@ -102,6 +111,9 @@ export const useDesktopPreferencesStore = defineStore('desktopPreferences', () =
     },
     setDockAutoHide(value: boolean) {
       preferences.dockAutoHide = value
+    },
+    setDockPosition(value: DockPosition) {
+      preferences.dockPosition = normalizeDockPosition(value)
     },
     setWindowSwitchShortcut(value: KeyboardShortcut) {
       preferences.windowSwitchShortcut = normalizeKeyboardShortcut(value)

@@ -308,10 +308,22 @@ async function exportLogs() {
                 </NSpace>
               </NRadioGroup>
             </NFormItem>
-            <NFormItem label="Dock 栏">
+            <NFormItem label="Dock 栏位置">
+              <NRadioGroup
+                :value="settingsStore.dockPosition"
+                @update:value="settingsStore.setDockPosition"
+              >
+                <NSpace>
+                  <NRadio value="left">左侧</NRadio>
+                  <NRadio value="right">右侧</NRadio>
+                  <NRadio value="bottom">底部</NRadio>
+                </NSpace>
+              </NRadioGroup>
+            </NFormItem>
+            <NFormItem label="自动隐藏 Dock 栏">
               <div class="flex w-full items-center justify-between gap-[16px]">
                 <div class="text-[12px] text-[rgba(148,163,184,0.96)]">
-                  开启后 Dock 栏会在鼠标移入屏幕底部时显示。
+                  开启后 Dock 栏会在鼠标移入对应屏幕边缘时显示。
                 </div>
                 <NSwitch
                   :value="settingsStore.dockAutoHide"

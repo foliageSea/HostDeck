@@ -76,9 +76,15 @@ const wallpaperElementStyle = computed<CSSProperties>(() => {
 })
 const desktopDockSafeArea = computed(() =>
   settingsStore.dockAutoHide
-    ? 'var(--desktop-dock-bottom-gap)'
-    : 'calc(var(--desktop-dock-bottom-gap) + var(--desktop-dock-height))',
+    ? 'var(--desktop-dock-edge-gap)'
+    : 'calc(var(--desktop-dock-edge-gap) + var(--desktop-dock-size))',
 )
+const desktopContentStyle = computed<CSSProperties>(() => ({
+  top: 'var(--desktop-topbar-height)',
+  right: settingsStore.dockPosition === 'right' ? desktopDockSafeArea.value : '0px',
+  bottom: settingsStore.dockPosition === 'bottom' ? desktopDockSafeArea.value : '0px',
+  left: settingsStore.dockPosition === 'left' ? desktopDockSafeArea.value : '0px',
+}))
 const desktopContextMenuOptions = computed<DesktopMenuOption[]>(() => [
   {
     key: 'widgets',
@@ -315,7 +321,8 @@ onBeforeUnmount(() => {
     ref="rootElement"
     class="webos-root desktop-shell"
     :data-theme="settingsStore.isDark ? 'dark' : 'light'"
-    :style="{ ...themeStyle, '--desktop-dock-safe-area': desktopDockSafeArea }"
+    :data-dock-position="settingsStore.dockPosition"
+    :style="themeStyle"
   >
     <video
       v-if="props.videoWallpaperUrl"
@@ -340,7 +347,8 @@ onBeforeUnmount(() => {
 
     <main
       ref="contentElement"
-      class="absolute z-0 [inset:var(--desktop-topbar-height)_0_var(--desktop-dock-safe-area)]"
+      class="absolute z-0"
+      :style="desktopContentStyle"
       @contextmenu.self.prevent="desktopContextMenu = { x: $event.clientX, y: $event.clientY }"
     >
       <slot
@@ -394,13 +402,13 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .desktop-shell {
-    --desktop-dock-height: 68px;
+    --desktop-dock-size: 68px;
   }
 
   .desktop-status-card {
     left: 16px;
     right: 16px;
-    bottom: calc(var(--desktop-dock-safe-area) - 18px);
+    bottom: calc(var(--desktop-dock-size) - 18px);
     width: auto;
   }
 }

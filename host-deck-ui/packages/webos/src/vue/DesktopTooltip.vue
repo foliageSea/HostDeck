@@ -9,6 +9,12 @@ import {
 import { useDesktopContext } from './context'
 
 const context = useDesktopContext()
+const props = withDefaults(
+  defineProps<{
+    side?: 'top' | 'right' | 'bottom' | 'left'
+  }>(),
+  { side: 'top' },
+)
 </script>
 
 <template>
@@ -21,7 +27,7 @@ const context = useDesktopContext()
       >
         <TooltipContent
           class="webos-tooltip rounded-[8px] px-[10px] py-[6px] text-[12px]"
-          side="top"
+          :side="props.side"
           :side-offset="8"
           :collision-boundary="context.overlayTarget?.value"
           :collision-padding="8"

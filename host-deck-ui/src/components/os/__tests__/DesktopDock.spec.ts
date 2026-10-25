@@ -3,6 +3,7 @@ import { nextTick } from 'vue'
 import { shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDesktopStore } from '@/stores/desktop'
+import { useSettingsStore } from '@/stores/settings'
 import DesktopDock from '../DesktopDock.vue'
 
 vi.mock('@/hooks/useDockMagnification', () => ({
@@ -70,5 +71,23 @@ describe('DesktopDock', () => {
     expect(dock.classes()).not.toContain('absolute')
     expect(dock.attributes('style') ?? '').not.toContain('transform')
     expect(wrapper.get('.dock-hover-zone').classes()).toContain('justify-center')
+  })
+
+  it('switches to a vertical track on the left or right edge', async () => {
+    const settingsStore = useSettingsStore()
+    const wrapper = mountDock()
+
+    settingsStore.setDockPosition('left')
+    await nextTick()
+
+    expect(wrapper.get('.dock-hover-zone').attributes('data-position')).toBe('left')
+    expect(wrapper.get('.desktop-dock').attributes('data-position')).toBe('left')
+    expect(wrapper.get('.dock-track').classes()).toContain('dock-track-vertical')
+
+    settingsStore.setDockPosition('right')
+    await nextTick()
+
+    expect(wrapper.get('.dock-hover-zone').attributes('data-position')).toBe('right')
+    expect(wrapper.get('.desktop-dock').attributes('data-position')).toBe('right')
   })
 })

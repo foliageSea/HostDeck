@@ -3,6 +3,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { settingsApi } from '@/api/settings'
 import { useDesktopPreferencesStore } from './desktop-preferences'
 export type { CornerStyle } from './desktop-preferences'
+export type { DockPosition } from '@host-deck/webos'
 import {
   createDefaultWallpaperSettings,
   type WallpaperSettings,
@@ -161,6 +162,7 @@ export const useSettingsStore = defineStore('settings', () => {
     darkWindowBorder,
     cornerStyle,
     dockAutoHide,
+    dockPosition,
     windowSwitchShortcut,
     windowSwitcherToggleShortcut,
   } = storeToRefs(desktopPreferences)
@@ -170,6 +172,7 @@ export const useSettingsStore = defineStore('settings', () => {
     setDarkWindowBorder,
     setCornerStyle,
     setDockAutoHide,
+    setDockPosition,
     setWindowSwitchShortcut,
     resetWindowSwitchShortcut,
     setWindowSwitcherToggleShortcut,
@@ -391,6 +394,7 @@ export const useSettingsStore = defineStore('settings', () => {
     darkWindowBorder,
     desktopWallpaper,
     dockAutoHide,
+    dockPosition,
     editorFontFamily,
     editorFontSize,
     initialize,
@@ -410,6 +414,7 @@ export const useSettingsStore = defineStore('settings', () => {
     setLoginWallpaper,
     setCornerStyle,
     setDockAutoHide,
+    setDockPosition,
     setDarkWindowBorder,
     setPrimaryColor,
     setWindowControlsStyle,

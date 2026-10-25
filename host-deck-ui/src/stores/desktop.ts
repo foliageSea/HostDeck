@@ -111,10 +111,20 @@ export const useDesktopStore = defineStore('desktop', () => {
     apps,
     defaultDockAppIds,
     storageKey: DOCK_APPS_STORAGE_KEY,
-    getBounds: () => ({
-      width: window.innerWidth,
-      height: Math.max(0, window.innerHeight - 40 - (useSettingsStore().dockAutoHide ? 12 : 84)),
-    }),
+    getBounds: () => {
+      const settings = useSettingsStore()
+      const dockInset = settings.dockAutoHide ? 2 : 76
+      return {
+        width: Math.max(
+          0,
+          window.innerWidth - (settings.dockPosition === 'bottom' ? 0 : dockInset),
+        ),
+        height: Math.max(
+          0,
+          window.innerHeight - 40 - (settings.dockPosition === 'bottom' ? dockInset : 0),
+        ),
+      }
+    },
     canOpen: (app, windows) =>
       !sessionWindowAppIds.has(app.id) ||
       windows.filter((window) => sessionWindowAppIds.has(window.appId) && !window.isClosing)
