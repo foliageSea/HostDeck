@@ -1775,7 +1775,7 @@ let resizeObserver: ResizeObserver | undefined
 }
 
 .agent-main {
-  --agent-content-width: 1040px;
+  --agent-content-width: 920px;
   --agent-content-gutter: 18px;
   display: flex;
   min-width: 0;
