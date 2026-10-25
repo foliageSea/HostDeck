@@ -737,6 +737,10 @@ function openLaunchpad() {
   --dock-lift: 2px;
 }
 
+.desktop-dock[data-position='right'] .dock-entry[data-running='true'] {
+  --dock-lift: -2px;
+}
+
 .dock-entry-dragging {
   opacity: 0.28;
   filter: saturate(0.7);
@@ -971,7 +975,6 @@ function openLaunchpad() {
 .desktop-dock[data-position='right'] .dock-running-indicator {
   top: 50%;
   bottom: auto;
-  left: auto;
   translate: 0 -50%;
   transform: none;
 }
@@ -981,12 +984,14 @@ function openLaunchpad() {
   height: var(--dock-running-indicator-size);
 }
 
+/* 指示点贴向屏幕边缘：左侧 Dock 在最左，右侧 Dock 在最右 */
 .desktop-dock[data-position='left'] .dock-running-indicator {
-  right: calc(-1 * var(--dock-running-indicator-offset));
+  left: calc(-1 * var(--dock-running-indicator-offset));
 }
 
 .desktop-dock[data-position='right'] .dock-running-indicator {
-  left: calc(-1 * var(--dock-running-indicator-offset));
+  left: auto;
+  right: calc(-1 * var(--dock-running-indicator-offset));
 }
 
 .desktop-dock[data-position='bottom'] .dock-running-indicator {
