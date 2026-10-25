@@ -70,6 +70,7 @@ interface ModelGroup {
 }
 
 const AGENT_SIDEBAR_WIDTH_STORAGE_KEY = 'host-deck:ai-agent:sidebar-width'
+const AGENT_SIDEBAR_OPEN_STORAGE_KEY = 'host-deck:ai-agent:sidebar-open'
 const DEFAULT_SIDEBAR_WIDTH = 240
 const MIN_SIDEBAR_WIDTH = 200
 const MAX_SIDEBAR_WIDTH = 420
@@ -112,7 +113,9 @@ const {
 const rootElement = ref<HTMLElement>()
 const compactLayout = ref(false)
 const containerWidth = ref(0)
-const sidebarOpen = ref(true)
+// 仅宽屏布局下持久化展开状态；窄屏侧边栏是临时抽屉，不写入偏好
+const sidebarOpenPreference = useLocalStorage(AGENT_SIDEBAR_OPEN_STORAGE_KEY, true)
+const sidebarOpen = ref(sidebarOpenPreference.value)
 const sidebarWidth = useLocalStorage(AGENT_SIDEBAR_WIDTH_STORAGE_KEY, DEFAULT_SIDEBAR_WIDTH)
 const sidebarResizing = ref(false)
 const resizeWidth = ref<number | null>(null)
@@ -293,6 +296,10 @@ function selectAiMode(mode: 'chat' | 'agent') {
   if (!sshStore.connectionId || running.value) return
   agentStore.setRunMode(mode)
 }
+
+watch(sidebarOpen, (open) => {
+  if (!compactLayout.value) sidebarOpenPreference.value = open
+})
 
 function closeSidebarOnNarrowScreen() {
   if (compactLayout.value) sidebarOpen.value = false
@@ -795,7 +802,7 @@ onMounted(() => {
       const compact = width < 760
       if (compact !== compactLayout.value) {
         compactLayout.value = compact
-        sidebarOpen.value = !compact
+        sidebarOpen.value = compact ? false : sidebarOpenPreference.value
       }
     })
     if (rootElement.value) resizeObserver.observe(rootElement.value)
