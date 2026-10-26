@@ -42,6 +42,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 import AiAgentMarkdown from './components/AiAgentMarkdown.vue'
 import AiAgentThinking from './components/AiAgentThinking.vue'
+import AiAgentTypingTitle from './components/AiAgentTypingTitle.vue'
 import AiAgentSkillPicker from './components/AiAgentSkillPicker.vue'
 import AiAgentQuestionPanel from './components/AiAgentQuestionPanel.vue'
 import AiAgentToolCall from './components/AiAgentToolCall.vue'
@@ -142,6 +143,10 @@ const hostLabel = computed(() => {
   const host = sshStore.host.trim() || '当前主机'
   return sshStore.username ? `${sshStore.username}@${host}` : host
 })
+
+const emptyStateTitle = computed(() =>
+  runMode.value === 'agent' ? '我们要维护什么？' : '今天想聊些什么？',
+)
 
 const filteredConversations = computed(() => {
   const keyword = query.value.trim().toLocaleLowerCase()
@@ -1042,7 +1047,7 @@ let resizeObserver: ResizeObserver | undefined
         </div>
         <div v-else-if="messages.length === 0 && toolCalls.length === 0" class="agent-empty-state">
           <div class="agent-empty-mark"><Bot :size="27" /></div>
-          <h1>{{ runMode === 'agent' ? '我们要维护什么？' : '今天想聊些什么？' }}</h1>
+          <AiAgentTypingTitle :text="emptyStateTitle" />
         </div>
         <div v-else class="agent-transcript">
           <template
