@@ -94,6 +94,18 @@ run 接口返回 `text/event-stream`，并发送代理刷新 padding。事件包
 
 当前模型调用按完整消息返回，因此 MVP 会在单个 `message-delta` 中发送最终文本；事件结构允许前端按增量方式消费。
 
+## 通知
+
+完成与提问通知完全由前端实现，使用浏览器 Web Notifications API，代码位于 `host-deck-ui/src/lib/browser-notification.ts` 与 `host-deck-ui/src/stores/ai-agent.ts`。不新增后端 API，审计边界不变。
+
+- 触发时机：run 结束且最终状态为 `success`、`limit` 或 `failed` 时发送完成通知，`cancelled`、`expired` 不发送；收到 SSE `question-required` 事件时发送提问通知，提问过期（`expired`）或跳过不额外通知。
+- 仅后台发送：页面隐藏、`document.hasFocus()` 为 false，或窗口系统通过 `setNotificationContext` 注入的 `isWindowActive()` 返回 false 时才发送；AI Agent 窗口在前台时保持静默。
+- 点击通知会尝试聚焦页面，并调用注入的 `focusWindow` 回调切回 AI Agent 窗口。
+- 两个开关默认开启：“任务完成时通知”（`runComplete`）和“Agent 提问时通知”（`question`），偏好保存在 `localStorage` 的 `host-deck-ui.aiAgent.notifications`；存储不可用时仅本次会话的内存状态生效。设置窗口的“通知”页可分别关闭或开启这两类通知，并查看当前权限状态；权限为“未决定”时可点击“允许通知”手动请求。
+- 权限：仅当权限为 `granted` 时发送。开启任一开关后首次启动 run 会请求一次权限，记录写入 `localStorage` 的 `host-deck-ui.aiAgent.notificationPrompted`，之后不再自动请求。
+- 环境要求：缺少 Notification API 或处于非安全上下文（非 HTTPS 且非 localhost）时通知不可用，只是跳过，不报错；Electron 桌面壳通常已具备权限。
+- 内容边界：标题为固定文案（任务完成、任务失败、需要你的回答），正文由会话标题、最近一条助手消息摘要或失败信息、提问文本组成，统一压缩空白并截断到 140 字符；不包含工具输出、命令、文件内容、skill 正文或密钥。
+
 ## 审计边界
 
 设置、skill 列表与数据库 skill 管理、会话 mutation、run、审批、拒绝、回答提问（`answer`）和取消由操作日志中间件记录，其中 skill 列表动作记为 `skillsList`。每次工具执行额外记录 `aiAgent` 分类以及稳定目标身份。提示词、提问和回答内容、skill 正文、描述和路径、模型输出、命令和命令输出、文件路径和内容、patch、API 密钥不会写入操作日志。

@@ -10,6 +10,7 @@
 - `src/api/`：后端 API 类型与请求封装。
 - `src/lib/http.ts`：Axios 实例、统一响应解包、会话错误处理。
 - `src/lib/ui.ts`：全局消息、通知、确认框桥接。
+- `src/lib/browser-notification.ts`：浏览器系统通知封装（支持检测、权限请求与发送）。
 - `src/stores/`：Pinia 状态。
 - `src/components/os/`：桌面壳 UI、窗口、Dock、顶栏。
 - `src/components/common/`：通用组件。

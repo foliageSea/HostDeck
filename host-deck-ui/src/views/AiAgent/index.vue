@@ -821,6 +821,13 @@ watch(running, (value) => {
 })
 
 onMounted(() => {
+  // 通知只在窗口不在前台时发送，点击通知需要能切回本窗口。
+  agentStore.setNotificationContext({
+    isWindowActive: () => !!props.windowId && desktopStore.activeWindowId === props.windowId,
+    focusWindow: () => {
+      if (props.windowId) desktopStore.focusWindow(props.windowId)
+    },
+  })
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(([entry]) => {
       const width = entry?.contentRect.width ?? 760
@@ -847,6 +854,7 @@ onBeforeUnmount(() => {
   stopSidebarResize()
   window.removeEventListener('beforeunload', handleBeforeUnload)
   window.removeEventListener('keydown', handleWindowKeydown)
+  agentStore.setNotificationContext(null)
   void (async () => {
     try {
       await agentStore.cancelRun()

@@ -24,6 +24,12 @@ import {
   type AiAgentTool,
   type AiAgentUsage,
 } from '@/api/ai-agent'
+import {
+  browserNotificationPermission,
+  requestBrowserNotificationPermission,
+  showBrowserNotification,
+  type BrowserNotificationPermission,
+} from '@/lib/browser-notification'
 
 const MAX_CONVERSATIONS = 200
 const MAX_MESSAGES = 300
@@ -35,6 +41,8 @@ type StreamDeltaEvent = Extract<AiAgentRunEvent, { event: 'message-delta' | 'thi
 
 const AUTO_RUN_STORAGE_KEY = 'host-deck-ui.aiAgent.autoRun'
 const THINKING_STORAGE_KEY = 'host-deck-ui.aiAgent.thinkingLevels'
+const NOTIFICATION_STORAGE_KEY = 'host-deck-ui.aiAgent.notifications'
+const NOTIFICATION_PROMPTED_STORAGE_KEY = 'host-deck-ui.aiAgent.notificationPrompted'
 const THINKING_LEVELS: AiAgentThinkingLevel[] = [
   'off',
   'minimal',
@@ -44,6 +52,66 @@ const THINKING_LEVELS: AiAgentThinkingLevel[] = [
   'xhigh',
   'max',
 ]
+
+export interface AiAgentNotificationPreferences {
+  /** Notify when a run finishes successfully or fails. */
+  runComplete: boolean
+  /** Notify when the agent asks the user a question and waits for an answer. */
+  question: boolean
+}
+
+const DEFAULT_NOTIFICATION_PREFERENCES: AiAgentNotificationPreferences = {
+  question: true,
+  runComplete: true,
+}
+
+/** UI-provided context so the store can tell whether the agent window is in front. */
+export interface AiAgentNotificationContext {
+  /** Returns true when the AI Agent desktop window is the active window. */
+  isWindowActive?: () => boolean
+  /** Brings the AI Agent window to the front when a notification is clicked. */
+  focusWindow?: () => void
+}
+
+function readNotificationPreferences(): AiAgentNotificationPreferences {
+  try {
+    const stored: unknown = JSON.parse(
+      window.localStorage.getItem(NOTIFICATION_STORAGE_KEY) ?? '{}',
+    )
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
+      return { ...DEFAULT_NOTIFICATION_PREFERENCES }
+    }
+    const record = stored as Record<string, unknown>
+    return {
+      question:
+        typeof record.question === 'boolean'
+          ? record.question
+          : DEFAULT_NOTIFICATION_PREFERENCES.question,
+      runComplete:
+        typeof record.runComplete === 'boolean'
+          ? record.runComplete
+          : DEFAULT_NOTIFICATION_PREFERENCES.runComplete,
+    }
+  } catch {
+    return { ...DEFAULT_NOTIFICATION_PREFERENCES }
+  }
+}
+
+function readNotificationPrompted() {
+  try {
+    return window.localStorage.getItem(NOTIFICATION_PROMPTED_STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function persistNotificationPrompted() {
+  try {
+    window.localStorage.setItem(NOTIFICATION_PROMPTED_STORAGE_KEY, 'true')
+  } catch {
+    // The in-memory guard still prevents repeated prompts this session.
+  }
+}
 
 function readThinkingPreferences(): Record<string, AiAgentThinkingLevel> {
   try {
@@ -315,6 +383,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   const running = ref(false)
   const streamingMessageId = ref<string | null>(null)
   const autoRun = ref(readStoredAutoRun())
+  const notificationPreferences = ref(readNotificationPreferences())
+  const notificationPermission = ref<BrowserNotificationPermission>(browserNotificationPermission())
 
   watch(autoRun, persistAutoRun)
   const runMode = ref<AiAgentRunMode>('agent')
@@ -330,6 +400,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   let runController: AbortController | null = null
   let runStartedAt: number | null = null
   let lastEventSequence = 0
+  let notificationContext: AiAgentNotificationContext = {}
+  let notificationPrompted = readNotificationPrompted()
 
   function finishRunTiming() {
     if (runStartedAt === null) return
@@ -339,6 +411,114 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
 
   const hasPendingApproval = computed(() => toolCalls.value.some((tool) => tool.approvalPending))
   const pendingQuestion = computed(() => toolCalls.value.find((tool) => tool.questionPending))
+
+  function setNotificationContext(context: AiAgentNotificationContext | null) {
+    notificationContext = context ?? {}
+  }
+
+  function setNotificationPreference(key: keyof AiAgentNotificationPreferences, value: boolean) {
+    notificationPreferences.value = { ...notificationPreferences.value, [key]: value }
+    try {
+      window.localStorage.setItem(
+        NOTIFICATION_STORAGE_KEY,
+        JSON.stringify(notificationPreferences.value),
+      )
+    } catch {
+      // The in-memory preference still works when storage is unavailable.
+    }
+    if (value && browserNotificationPermission() === 'default') {
+      void requestNotificationAccess().catch(() => undefined)
+    }
+  }
+
+  async function requestNotificationAccess() {
+    notificationPermission.value = await requestBrowserNotificationPermission()
+    return notificationPermission.value
+  }
+
+  function refreshNotificationPermission() {
+    notificationPermission.value = browserNotificationPermission()
+    return notificationPermission.value
+  }
+
+  // Browsers only show the permission prompt during a user gesture, so the
+  // first run started with notifications enabled is the natural moment to ask.
+  // Ask at most once; the settings view offers a manual retry afterwards.
+  function promptNotificationPermissionOnce() {
+    if (notificationPrompted) return
+    if (browserNotificationPermission() !== 'default') return
+    notificationPrompted = true
+    persistNotificationPrompted()
+    void requestNotificationAccess().catch(() => undefined)
+  }
+
+  function agentWindowIsBackgrounded() {
+    if (typeof document === 'undefined') return false
+    if (document.visibilityState === 'hidden') return true
+    if (typeof document.hasFocus === 'function' && !document.hasFocus()) return true
+    return notificationContext.isWindowActive ? !notificationContext.isWindowActive() : false
+  }
+
+  function truncateNotificationText(text: string, maxLength = 140) {
+    const normalized = text.replace(/\s+/g, ' ').trim()
+    return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1)}…` : normalized
+  }
+
+  function notificationConversationLabel() {
+    return selectedConversation.value?.title?.trim() || 'AI Agent 对话'
+  }
+
+  function latestAssistantContent() {
+    for (let index = messages.value.length - 1; index >= 0; index -= 1) {
+      const message = messages.value[index]
+      if (message?.role === 'assistant' && message.content.trim()) return message.content
+    }
+    return ''
+  }
+
+  function showAgentNotification(options: { title: string; body?: string; tag: string }) {
+    if (!agentWindowIsBackgrounded()) return
+    if (refreshNotificationPermission() !== 'granted') return
+    showBrowserNotification({
+      ...options,
+      onClick: () => notificationContext.focusWindow?.(),
+    })
+  }
+
+  function notifyRunFinished() {
+    if (!notificationPreferences.value.runComplete) return
+    const status = runStatus.value
+    if (status !== 'success' && status !== 'limit' && status !== 'failed') return
+    const label = notificationConversationLabel()
+    const tag = `ai-agent-run-${selectedConversation.value?.id ?? 'unknown'}`
+    if (status === 'failed') {
+      showAgentNotification({
+        body: truncateNotificationText(
+          error.value || `${label} 运行失败，请回到 HostDeck 查看详情。`,
+        ),
+        tag,
+        title: 'AI Agent 任务失败',
+      })
+      return
+    }
+    showAgentNotification({
+      body: truncateNotificationText([label, latestAssistantContent()].filter(Boolean).join(' · ')),
+      tag,
+      title: status === 'limit' ? 'AI Agent 任务已完成（工具预算用尽）' : 'AI Agent 任务已完成',
+    })
+  }
+
+  function notifyQuestion(questions: AiAgentQuestion[]) {
+    if (!notificationPreferences.value.question) return
+    const text = questions.find((question) => question.question?.trim())?.question ?? ''
+    showAgentNotification({
+      body: truncateNotificationText(
+        [notificationConversationLabel(), text].filter(Boolean).join('：'),
+      ),
+      tag: `ai-agent-question-${selectedConversation.value?.id ?? 'unknown'}`,
+      title: 'AI Agent 需要你的回答',
+    })
+  }
 
   async function loadSettings() {
     loadingSettings.value = true
@@ -799,6 +979,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
       if (event.event === 'approval-required' && autoRun.value) {
         void resolveApproval(event.callId, true).catch(() => undefined)
       }
+      if (event.event === 'question-required') notifyQuestion(event.questions)
     } else if (event.event === 'usage') {
       usage.value = event.usage
     } else if (event.event === 'done') {
@@ -822,6 +1003,9 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   ) {
     const trimmedInput = input.trim()
     if ((!trimmedInput && attachments.length === 0) || running.value) return false
+    if (notificationPreferences.value.runComplete || notificationPreferences.value.question) {
+      promptNotificationPermissionOnce()
+    }
     resetForConnection(connectionId)
     const runSkillIds = [...selectedSkillIds.value]
     const activeMode = runMode.value
@@ -961,6 +1145,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         lastEventSequence = 0
         runController = null
         selectedSkillIds.value = []
+        notifyRunFinished()
       }
     }
   }
@@ -1103,6 +1288,10 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     pendingQuestion,
     managedSkills,
     mcpServers,
+    notificationPermission,
+    notificationPreferences,
+    refreshNotificationPermission,
+    requestNotificationAccess,
     resetForConnection,
     resolveApproval,
     running,
@@ -1118,6 +1307,8 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     selectConversation,
     setAutoRun,
     settings,
+    setNotificationContext,
+    setNotificationPreference,
     setSelectedSkillIds,
     setRunMode,
     skills,

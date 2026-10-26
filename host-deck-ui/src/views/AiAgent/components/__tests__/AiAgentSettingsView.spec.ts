@@ -99,7 +99,8 @@ function mountView() {
         NSwitch: {
           props: ['value'],
           emits: ['update:value'],
-          template: '<input type="checkbox" :checked="value" />',
+          template:
+            '<input type="checkbox" :checked="value" @change="$emit(\'update:value\', $event.target.checked)" />',
         },
         NTabPane: { template: '<div><slot /></div>' },
         NTabs: defineComponent({ template: '<div><slot /></div>' }),
@@ -110,6 +111,13 @@ function mountView() {
 
 function getButton(wrapper: ReturnType<typeof mountView>, text: string) {
   return wrapper.findAll('button').find((button) => button.text() === text)
+}
+
+function getNotificationSwitch(wrapper: ReturnType<typeof mountView>, label: string) {
+  return wrapper
+    .findAll('.agent-notification-row')
+    .find((row) => row.text().includes(label))
+    ?.find('input[type="checkbox"]')
 }
 
 describe('AiAgentSettingsView', () => {
@@ -279,5 +287,92 @@ describe('AiAgentSettingsView', () => {
     options.onPositiveClick()
     await wrapper.vm.$nextTick()
     expect((wrapper.vm as unknown as { activeTab: string }).activeTab).toBe('tools')
+  })
+
+  it('renders the notification switches from the stored preferences', async () => {
+    const store = useAiAgentStore()
+    store.notificationPreferences = { question: false, runComplete: true }
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getNotificationSwitch(wrapper, '任务完成时通知')?.element).toHaveProperty(
+      'checked',
+      true,
+    )
+    expect(getNotificationSwitch(wrapper, 'Agent 提问时通知')?.element).toHaveProperty(
+      'checked',
+      false,
+    )
+  })
+
+  it('applies notification switches immediately instead of waiting for a save', async () => {
+    const store = useAiAgentStore()
+    const setPreference = vi.spyOn(store, 'setNotificationPreference')
+    const wrapper = mountView()
+    await flushPromises()
+
+    await getNotificationSwitch(wrapper, '任务完成时通知')?.setValue(false)
+    await getNotificationSwitch(wrapper, 'Agent 提问时通知')?.setValue(false)
+
+    expect(setPreference).toHaveBeenCalledWith('runComplete', false)
+    expect(setPreference).toHaveBeenCalledWith('question', false)
+  })
+
+  it('requests notification permission when the browser has not decided yet', async () => {
+    const store = useAiAgentStore()
+    store.notificationPermission = 'default'
+    const requestAccess = vi.spyOn(store, 'requestNotificationAccess').mockResolvedValue('granted')
+    const wrapper = mountView()
+    await flushPromises()
+
+    const allowButton = getButton(wrapper, '允许通知')
+    expect(allowButton).toBeDefined()
+    await allowButton?.trigger('click')
+    await flushPromises()
+
+    expect(requestAccess).toHaveBeenCalledOnce()
+  })
+
+  it('confirms a granted notification permission', async () => {
+    const store = useAiAgentStore()
+    store.notificationPermission = 'granted'
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('浏览器通知已授权')
+    expect(getButton(wrapper, '允许通知')).toBeUndefined()
+  })
+
+  it('explains how to recover from a denied notification permission', async () => {
+    const store = useAiAgentStore()
+    store.notificationPermission = 'denied'
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('浏览器已拒绝通知权限，请在浏览器的站点设置中重新允许')
+    expect(getButton(wrapper, '允许通知')).toBeUndefined()
+  })
+
+  it('reports environments without browser notification support', async () => {
+    const store = useAiAgentStore()
+    store.notificationPermission = 'unsupported'
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('当前环境不支持浏览器通知（需要 HTTPS 或 localhost）')
+    expect(getButton(wrapper, '允许通知')).toBeUndefined()
+  })
+
+  it('refreshes the permission state when the notifications tab opens', async () => {
+    const store = useAiAgentStore()
+    const refresh = vi.spyOn(store, 'refreshNotificationPermission')
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.setProps({ initialTab: 'notifications', tabRequestId: 1 })
+    await flushPromises()
+
+    expect(refresh).toHaveBeenCalledOnce()
+    expect((wrapper.vm as unknown as { activeTab: string }).activeTab).toBe('notifications')
   })
 })

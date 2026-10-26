@@ -25,7 +25,7 @@ import AiAgentToolList from './AiAgentToolList.vue'
 import AiAgentOAuthLogin from './AiAgentOAuthLogin.vue'
 
 const props = defineProps<{
-  initialTab?: 'mcp' | 'model' | 'skills' | 'tools'
+  initialTab?: 'mcp' | 'model' | 'skills' | 'tools' | 'notifications'
   tabRequestId?: number
   windowId?: string
 }>()
@@ -39,7 +39,7 @@ const activating = ref(false)
 const deleting = ref(false)
 const loadingModels = ref(false)
 const advancedOpen = ref(false)
-const activeTab = ref<'mcp' | 'model' | 'skills' | 'tools'>('model')
+const activeTab = ref<'mcp' | 'model' | 'skills' | 'tools' | 'notifications'>('model')
 const providerPickerOpen = ref(false)
 let initialized = false
 
@@ -159,9 +159,14 @@ function confirmLeavingSkills(action: () => void) {
 function changeTab(value: string | number) {
   if (value === activeTab.value) return
   confirmLeavingSkills(() => {
-    activeTab.value = value as 'model' | 'mcp' | 'skills' | 'tools'
+    activeTab.value = value as 'model' | 'mcp' | 'skills' | 'tools' | 'notifications'
   })
 }
+
+// 浏览器权限只在进入通知页时读取，避免每次渲染都查询权限状态。
+watch(activeTab, (tab) => {
+  if (tab === 'notifications') store.refreshNotificationPermission()
+})
 
 function selectProvider(provider: string) {
   form.provider = provider
@@ -488,6 +493,19 @@ async function toggleRemoteSkills(value: boolean) {
   }
 }
 
+// 通知开关即时生效，不进入“未保存修改”流程。
+function setRunCompleteNotification(value: boolean) {
+  store.setNotificationPreference('runComplete', value)
+}
+
+function setQuestionNotification(value: boolean) {
+  store.setNotificationPreference('question', value)
+}
+
+async function allowNotifications() {
+  await store.requestNotificationAccess()
+}
+
 function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) {
   if (provider.hasCredentials) return provider.id === 'openai-codex' ? '已登录' : '已配置'
   return '缺少凭据'
@@ -783,6 +801,53 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
           </NSwitch>
         </div>
         <AiAgentSkillSettings ref="skillSettings" />
+      </NTabPane>
+      <NTabPane name="notifications" tab="通知" class="agent-fill-settings-pane">
+        <div class="agent-notification-settings app-scrollbar app-scrollbar-compact">
+          <div class="agent-notification-list">
+            <div class="agent-notification-row">
+              <strong>任务完成时通知</strong>
+              <NSwitch
+                :value="store.notificationPreferences.runComplete"
+                @update:value="setRunCompleteNotification"
+              />
+            </div>
+            <div class="agent-notification-row">
+              <strong>Agent 提问时通知</strong>
+              <NSwitch
+                :value="store.notificationPreferences.question"
+                @update:value="setQuestionNotification"
+              />
+            </div>
+          </div>
+          <div class="agent-notification-permission">
+            <NAlert
+              v-if="store.notificationPermission === 'granted'"
+              type="success"
+              :bordered="false"
+            >
+              浏览器通知已授权
+            </NAlert>
+            <NAlert
+              v-else-if="store.notificationPermission === 'denied'"
+              type="warning"
+              :bordered="false"
+            >
+              浏览器已拒绝通知权限，请在浏览器的站点设置中重新允许
+            </NAlert>
+            <NAlert
+              v-else-if="store.notificationPermission === 'unsupported'"
+              type="warning"
+              :bordered="false"
+            >
+              当前环境不支持浏览器通知（需要 HTTPS 或 localhost）
+            </NAlert>
+            <div v-else class="agent-notification-permission-row">
+              <span>尚未授予浏览器通知权限</span>
+              <NButton size="small" type="primary" @click="allowNotifications"> 允许通知 </NButton>
+            </div>
+          </div>
+        </div>
       </NTabPane>
     </NTabs>
 
@@ -1149,6 +1214,55 @@ function providerStatusLabel(provider: { id: string; hasCredentials: boolean }) 
   padding: 18px 0;
   color: var(--n-text-color-3);
   text-align: center;
+  font-size: 12px;
+}
+
+.agent-notification-settings {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  align-content: start;
+  gap: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
+
+.agent-notification-list {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-notification-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--n-border-color);
+  border-radius: 9px;
+}
+
+.agent-notification-row strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agent-notification-permission {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-notification-permission-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--n-border-color);
+  border-radius: 9px;
+  color: var(--n-text-color-3);
   font-size: 12px;
 }
 
