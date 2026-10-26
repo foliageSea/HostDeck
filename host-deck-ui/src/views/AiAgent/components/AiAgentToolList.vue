@@ -9,6 +9,10 @@ const query = ref('')
 const props = defineProps<{ active: boolean }>()
 
 const labels: Record<string, { description: string; title: string }> = {
+  ask_user_question: {
+    description: '在缺少必要决策或信息时，向用户提出 1 到 4 个选择题并等待回答',
+    title: '询问用户',
+  },
   apply_patch: { description: '在远程工作目录应用 Git Patch', title: '应用补丁' },
   cron_create: {
     description: '创建定时任务，命令将按计划在远程主机无人值守执行',

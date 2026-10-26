@@ -42,7 +42,7 @@ const argumentsText = computed(() => {
 const isMcpTool = computed(() => props.tool.name.startsWith('mcp_'))
 const toolLabel = computed(() => {
   const labels: Record<string, string> = {
-    ask_user_question: '向你提问',
+    ask_user_question: '询问用户',
     apply_patch: '应用远程补丁',
     cron_create: '创建定时任务',
     cron_delete: '删除定时任务',
