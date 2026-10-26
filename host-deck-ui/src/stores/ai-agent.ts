@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import {
   aiAgentApi,
+  type AiAgentAnswer,
   type AiAgentConversation,
   type AiAgentImageAttachment,
   type AiAgentMessage,
@@ -14,6 +15,7 @@ import {
   type AiAgentToolResult,
   type AiAgentRunMode,
   type AiAgentProviderUpdate,
+  type AiAgentQuestion,
   type AiAgentProviderCatalog,
   type AiAgentThinkingLevel,
   type AiAgentSettings,
@@ -72,10 +74,14 @@ export interface AiAgentToolCall {
   arguments?: unknown
   result?: AiAgentToolResult
   approvalPending: boolean
+  /** The model asked the user a question and the run is waiting for the reply. */
+  questionPending?: boolean
+  questions?: AiAgentQuestion[]
   submitting: boolean
 }
 
 const TOOL_SUMMARIES: Record<string, string> = {
+  ask_user_question: 'Ask the user a question',
   apply_patch: 'Apply a remote patch',
   directory_list: 'List a remote directory',
   file_delete: 'Delete a remote file',
@@ -171,6 +177,7 @@ function restoreConversation(loaded: AiAgentMessage[]) {
         tools.push({
           arguments: call.arguments,
           approvalPending: false,
+          questionPending: false,
           callId: call.id,
           name: call.name,
           result: result ? { ...result.result, content: result.content } : undefined,
@@ -331,6 +338,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
   }
 
   const hasPendingApproval = computed(() => toolCalls.value.some((tool) => tool.approvalPending))
+  const pendingQuestion = computed(() => toolCalls.value.find((tool) => tool.questionPending))
 
   async function loadSettings() {
     loadingSettings.value = true
@@ -696,8 +704,13 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
         existing.arguments = event.arguments
         existing.approvalPending = true
         existing.status = 'pending'
+      } else if (event.event === 'question-required') {
+        existing.questions = event.questions
+        existing.questionPending = true
+        existing.status = 'pending'
       } else if (event.event === 'tool-result') {
         existing.approvalPending = false
+        existing.questionPending = false
         existing.result = event.result
         existing.status =
           event.status === 'expired'
@@ -715,11 +728,13 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     }
     const nextTool: AiAgentToolCall = {
       approvalPending: event.event === 'approval-required',
+      questionPending: event.event === 'question-required',
+      questions: event.event === 'question-required' ? event.questions : undefined,
       arguments: 'arguments' in event ? event.arguments : undefined,
       callId: event.callId,
       name: event.name,
       status:
-        event.event === 'approval-required'
+        event.event === 'approval-required' || event.event === 'question-required'
           ? 'pending'
           : event.event === 'tool-result'
             ? event.status === 'expired'
@@ -776,6 +791,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     } else if (
       event.event === 'tool-start' ||
       event.event === 'approval-required' ||
+      event.event === 'question-required' ||
       event.event === 'tool-result'
     ) {
       upsertRunStep(event)
@@ -1014,10 +1030,35 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     }
   }
 
+  /** Sends the user's answers, or skips the question when `answers` is omitted. */
+  async function answerQuestion(callId: string, answers?: AiAgentAnswer[]) {
+    const runId = activeRunId.value
+    const tool = toolCalls.value.find((item) => item.callId === callId)
+    if (!runId || !tool || !tool.questionPending || tool.submitting) return
+    tool.submitting = true
+    tool.questionPending = false
+    tool.status = 'running'
+    try {
+      await aiAgentApi.answer(runId, callId, answers)
+    } catch (answerError) {
+      tool.questionPending = true
+      tool.status = 'pending'
+      error.value = errorMessage(answerError)
+      throw answerError
+    } finally {
+      tool.submitting = false
+    }
+  }
+
+  function skipQuestion(callId: string) {
+    return answerQuestion(callId)
+  }
+
   function finishPendingTools(status: 'error' | 'rejected' | 'cancelled') {
     for (const tool of toolCalls.value) {
-      if (tool.approvalPending || tool.status === 'running') {
+      if (tool.approvalPending || tool.questionPending || tool.status === 'running') {
         tool.approvalPending = false
+        tool.questionPending = false
         tool.submitting = false
         tool.status = status
       }
@@ -1032,6 +1073,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     supportedThinkingLevels,
     thinkingLevel,
     activeRunId,
+    answerQuestion,
     autoRun,
     cancelRun,
     conversations,
@@ -1058,6 +1100,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     loadingSkills,
     loadingTools,
     messages,
+    pendingQuestion,
     managedSkills,
     mcpServers,
     resetForConnection,
@@ -1079,6 +1122,7 @@ export const useAiAgentStore = defineStore('ai-agent', () => {
     setRunMode,
     skills,
     skillsError,
+    skipQuestion,
     startRun,
     streamingMessageId,
     testSettings,

@@ -16,7 +16,16 @@ const modalVisible = ref(false)
 const outputQuery = ref('')
 const copied = ref(false)
 
+const isQuestionTool = computed(() => props.tool.name === 'ask_user_question')
+
 const statusLabel = computed(() => {
+  if (isQuestionTool.value) {
+    if (props.tool.questionPending) return '等待回答'
+    if (props.tool.status === 'success') {
+      return props.tool.result?.questionStatus === 'skipped' ? '已跳过' : '已回答'
+    }
+    if (props.tool.status === 'expired') return '提问已过期'
+  }
   if (props.tool.status === 'pending') return '等待批准'
   if (props.tool.status === 'running') return '执行中'
   if (props.tool.status === 'success') return '已完成'
@@ -33,6 +42,7 @@ const argumentsText = computed(() => {
 const isMcpTool = computed(() => props.tool.name.startsWith('mcp_'))
 const toolLabel = computed(() => {
   const labels: Record<string, string> = {
+    ask_user_question: '向你提问',
     apply_patch: '应用远程补丁',
     cron_create: '创建定时任务',
     cron_delete: '删除定时任务',
@@ -56,7 +66,31 @@ const toolLabel = computed(() => {
   }
   return labels[props.tool.name] ?? (isMcpTool.value ? props.tool.summary : props.tool.name)
 })
+/** Readable "question → answer" lines for an `ask_user_question` call. */
+const questionSummary = computed(() => {
+  if (!isQuestionTool.value) return ''
+  const status = props.tool.result?.questionStatus
+  if (status === 'skipped') return '你跳过了这些问题。'
+  if (status === 'expired') return '未在时限内回答。'
+  const answers = props.tool.result?.answers
+  if (!answers) return ''
+  const rawQuestions =
+    props.tool.questions ??
+    (props.tool.arguments as { questions?: Array<{ id?: string; question?: string }> } | undefined)
+      ?.questions ??
+    []
+  const texts = new Map(
+    rawQuestions.map((question, index) => [question.id ?? `q${index + 1}`, question.question]),
+  )
+  return answers
+    .map((answer) => {
+      const values = [...answer.selected, ...(answer.custom ? [answer.custom] : [])]
+      return `${texts.get(answer.id) ?? answer.id}\n→ ${values.join('、')}`
+    })
+    .join('\n')
+})
 const outputText = computed(() => {
+  if (isQuestionTool.value && questionSummary.value) return questionSummary.value
   const result = props.tool.result
   if (!result) return ''
   const sections = [result.content]
@@ -185,7 +219,11 @@ async function copyOutput() {
         @click="openModal"
       >
         <span class="agent-tool-status" aria-hidden="true">
-          <LoaderCircle v-if="tool.status === 'running'" :size="13" class="agent-spin" />
+          <LoaderCircle
+            v-if="tool.status === 'running' || tool.questionPending"
+            :size="13"
+            class="agent-spin"
+          />
           <Check v-else-if="tool.status === 'success'" :size="13" />
           <X v-else-if="tool.status === 'rejected'" :size="13" />
           <CircleAlert v-else :size="13" />

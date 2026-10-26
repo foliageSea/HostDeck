@@ -80,6 +80,36 @@ describe('buildTimelineEntries', () => {
     })
   })
 
+  it('renders a question step and its tool step as one call', () => {
+    const steps = [
+      {
+        callId: 'ask-1',
+        name: 'ask_user_question',
+        runId: 'run-1',
+        sequence: 1,
+        startedAt: 10,
+        status: 'running',
+        stepId: 'tool-1',
+        type: 'tool',
+      },
+      {
+        callId: 'ask-1',
+        name: 'ask_user_question',
+        runId: 'run-1',
+        sequence: 2,
+        startedAt: 11,
+        status: 'waiting-answer',
+        stepId: 'question-1',
+        type: 'question',
+      },
+    ] satisfies AiAgentRunStep[]
+
+    const entries = buildTimelineEntries([], steps)
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({ step: { stepId: 'tool-1', type: 'tool' } })
+  })
+
   it('hides the pre-tool empty model placeholder but keeps later thinking', () => {
     const emptyModelStep = (stepId: string, sequence: number): AiAgentRunStep => ({
       messageId: 'assistant-1',

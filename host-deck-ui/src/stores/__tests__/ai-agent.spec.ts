@@ -4,6 +4,7 @@ import type { AiAgentRunEvent, AiAgentSettings } from '@/api/ai-agent'
 import { MAX_SELECTED_SKILLS, useAiAgentStore } from '@/stores/ai-agent'
 
 const apiMocks = vi.hoisted(() => ({
+  answer: vi.fn(),
   approve: vi.fn(),
   cancel: vi.fn(),
   createConversation: vi.fn(),
@@ -506,6 +507,97 @@ describe('AI Agent store', () => {
     await run
     store.resetForConnection('connection-2')
     expect(store.autoRun).toBe(autoRun)
+  })
+
+  it.each([false, true])(
+    'waits for the user to answer a question even with autoRun=%s',
+    async (autoRun) => {
+      let finishRun!: () => void
+      apiMocks.run.mockImplementation(
+        async (
+          _conversationId: string,
+          _connectionId: string,
+          _input: string,
+          _skillIds: string[],
+          onEvent: (event: AiAgentRunEvent) => void,
+        ) => {
+          onEvent({ event: 'connected', runId: 'run-1' })
+          onEvent({
+            event: 'question-required',
+            callId: 'ask-1',
+            name: 'ask_user_question',
+            summary: 'Ask the user a question',
+            questions: [
+              {
+                id: 'env',
+                question: 'Where?',
+                multiSelect: false,
+                options: [{ label: 'a' }, { label: 'b' }],
+              },
+            ],
+          })
+          await new Promise<void>((resolve) => (finishRun = resolve))
+        },
+      )
+      apiMocks.answer.mockResolvedValue({ success: true })
+      const store = useAiAgentStore()
+      store.resetForConnection('connection-1')
+      store.autoRun = autoRun
+      const run = store.startRun('deploy', 'connection-1')
+      await vi.waitFor(() => expect(store.pendingQuestion?.callId).toBe('ask-1'))
+      expect(apiMocks.approve).not.toHaveBeenCalled()
+      expect(apiMocks.answer).not.toHaveBeenCalled()
+      expect(store.toolCalls[0]).toMatchObject({ questionPending: true, status: 'pending' })
+
+      await store.answerQuestion('ask-1', [{ id: 'env', selected: ['a'] }])
+      expect(apiMocks.answer).toHaveBeenCalledWith('run-1', 'ask-1', [
+        { id: 'env', selected: ['a'] },
+      ])
+      expect(store.pendingQuestion).toBeUndefined()
+      expect(store.toolCalls[0]).toMatchObject({ questionPending: false, status: 'running' })
+      finishRun()
+      await run
+    },
+  )
+
+  it('skips a question and reopens it when the request fails', async () => {
+    let finishRun!: () => void
+    apiMocks.run.mockImplementation(
+      async (
+        _conversationId: string,
+        _connectionId: string,
+        _input: string,
+        _skillIds: string[],
+        onEvent: (event: AiAgentRunEvent) => void,
+      ) => {
+        onEvent({ event: 'connected', runId: 'run-1' })
+        onEvent({
+          event: 'question-required',
+          callId: 'ask-1',
+          name: 'ask_user_question',
+          summary: 'Ask the user a question',
+          questions: [
+            {
+              id: 'q1',
+              question: 'Ok?',
+              multiSelect: false,
+              options: [{ label: 'a' }, { label: 'b' }],
+            },
+          ],
+        })
+        await new Promise<void>((resolve) => (finishRun = resolve))
+      },
+    )
+    apiMocks.answer.mockRejectedValueOnce(new Error('Question expired.'))
+    const store = useAiAgentStore()
+    const run = store.startRun('deploy', 'connection-1')
+    await vi.waitFor(() => expect(store.pendingQuestion).toBeDefined())
+
+    await expect(store.skipQuestion('ask-1')).rejects.toThrow('Question expired.')
+    expect(apiMocks.answer).toHaveBeenCalledWith('run-1', 'ask-1', undefined)
+    expect(store.pendingQuestion?.callId).toBe('ask-1')
+    finishRun()
+    await run
   })
 
   it('hydrates and persists the run permission preference', () => {

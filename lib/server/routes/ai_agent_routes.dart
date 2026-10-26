@@ -45,5 +45,6 @@ void registerAiAgentRoutes(Router router, AiAgentController controller) {
   router.post('/api/ai-agent/conversations/<id>/runs', controller.run);
   router.post('/api/ai-agent/runs/<id>/approve', controller.approve);
   router.post('/api/ai-agent/runs/<id>/reject', controller.reject);
+  router.post('/api/ai-agent/runs/<id>/answer', controller.answer);
   router.delete('/api/ai-agent/runs/<id>', controller.cancel);
 }

@@ -10,6 +10,7 @@ import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_errors.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_chat_model.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_question.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_secret_store.dart';
@@ -849,10 +850,276 @@ void main() {
       },
     );
   });
+
+  group('ask_user_question', () {
+    const askCall = AiAgentToolCall(
+      id: 'ask-1',
+      name: askUserQuestionToolName,
+      arguments: {
+        'questions': [
+          {
+            'id': 'env',
+            'header': 'Environment',
+            'question': 'Where should I deploy?',
+            'options': [
+              {'label': 'Staging (Recommended)', 'description': 'Safe'},
+              {'label': 'Production'},
+            ],
+          },
+          {
+            'question': 'Which services?',
+            'multiSelect': true,
+            'options': [
+              {'label': 'api'},
+              {'label': 'web'},
+            ],
+          },
+        ],
+      },
+    );
+
+    AiAgentRunStream startAsking() {
+      model.responses = const [
+        AiAgentModelResponse(text: '', toolCalls: [askCall]),
+        AiAgentModelResponse(text: 'Thanks'),
+      ];
+      return manager.start(
+        conversationId: 'conversation-1',
+        connectionId: 'connection-1',
+        targetKey: 'server:7',
+        ownerId: 'browser:test',
+        input: 'deploy',
+      );
+    }
+
+    test('offers the tool to the model', () async {
+      final run = startAsking();
+      final events = _collect(run.stream);
+      await events.questionRequired.future.timeout(const Duration(seconds: 2));
+      expect(
+        model.toolInputs.first.map((spec) => spec.name),
+        contains(askUserQuestionToolName),
+      );
+      manager.cancel(run.runId);
+      await events.done.future.timeout(const Duration(seconds: 2));
+    });
+
+    test('returns validated answers to the model without approval', () async {
+      final run = startAsking();
+      final events = _collect(run.stream);
+      await events.questionRequired.future.timeout(const Duration(seconds: 2));
+
+      expect(
+        manager.answerQuestion(
+          run.runId,
+          'wrong',
+          'browser:test',
+          skipped: true,
+        ),
+        AiAgentApprovalResult.mismatch,
+      );
+      expect(
+        manager.answerQuestion(
+          run.runId,
+          'ask-1',
+          'browser:other',
+          skipped: true,
+        ),
+        AiAgentApprovalResult.notFound,
+      );
+      // Unknown labels and multiple picks on a single-select are rejected and
+      // leave the question open.
+      expect(
+        () => manager.answerQuestion(
+          run.runId,
+          'ask-1',
+          'browser:test',
+          answers: [
+            {
+              'id': 'env',
+              'selected': ['Nowhere'],
+            },
+          ],
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => manager.answerQuestion(
+          run.runId,
+          'ask-1',
+          'browser:test',
+          answers: [
+            {
+              'id': 'env',
+              'selected': ['Staging', 'Production'],
+            },
+          ],
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        manager.answerQuestion(
+          run.runId,
+          'ask-1',
+          'browser:test',
+          answers: [
+            {
+              'id': 'q2',
+              'selected': ['api', 'web'],
+              'custom': ' and the worker ',
+            },
+            {
+              'id': 'env',
+              'selected': ['Staging'],
+            },
+          ],
+        ),
+        AiAgentApprovalResult.accepted,
+      );
+
+      final body = await events.done.future.timeout(const Duration(seconds: 2));
+      expect(body, contains('event: question-required'));
+      expect(body, contains('"recommended":true'));
+      expect(body, isNot(contains('event: approval-required')));
+      expect(body, contains('Thanks'));
+      expect(tools.executeCount, 0);
+
+      final result =
+          jsonDecode(model.inputs.last.last.content) as Map<String, dynamic>;
+      expect(result['status'], 'answered');
+      expect(result['answers'], [
+        {
+          'question': 'Where should I deploy?',
+          'id': 'env',
+          'selected': ['Staging'],
+        },
+        {
+          'question': 'Which services?',
+          'id': 'q2',
+          'selected': ['api', 'web'],
+          'custom': 'and the worker',
+        },
+      ]);
+      final stored = repository.listMessages('conversation-1');
+      expect(stored[2].role, 'tool');
+      expect(stored[2].toolStatus, 'success');
+    });
+
+    test('skipping tells the model and keeps the run going', () async {
+      final run = startAsking();
+      final events = _collect(run.stream);
+      await events.questionRequired.future.timeout(const Duration(seconds: 2));
+      expect(
+        manager.answerQuestion(
+          run.runId,
+          'ask-1',
+          'browser:test',
+          skipped: true,
+        ),
+        AiAgentApprovalResult.accepted,
+      );
+      final body = await events.done.future.timeout(const Duration(seconds: 2));
+      expect(body, contains('"status":"success"'));
+      final result =
+          jsonDecode(model.inputs.last.last.content) as Map<String, dynamic>;
+      expect(result['status'], 'skipped');
+      expect(result['answers'], isEmpty);
+    });
+
+    test('expires when the user does not answer', () async {
+      await manager.dispose();
+      final secretStore = AiAgentSecretStore(dataDir: dataDirectory.path);
+      await secretStore.init();
+      manager = AiAgentRunManager(
+        repository,
+        AiAgentSettingsService(repository, secretStore)
+          ..update(apiKey: 'test-key'),
+        modelFactory,
+        tools,
+        _FakeSshService(),
+        questionLifetime: const Duration(milliseconds: 50),
+      );
+      final run = startAsking();
+      final events = _collect(run.stream);
+      final body = await events.done.future.timeout(const Duration(seconds: 2));
+      expect(body, contains('"status":"expired"'));
+      final result =
+          jsonDecode(model.inputs.last.last.content) as Map<String, dynamic>;
+      expect(result['status'], 'expired');
+      expect(
+        manager.answerQuestion(
+          run.runId,
+          'ask-1',
+          'browser:test',
+          skipped: true,
+        ),
+        AiAgentApprovalResult.notFound,
+      );
+    });
+
+    test('cancellation closes the pending question', () async {
+      final run = startAsking();
+      final events = _collect(run.stream);
+      await events.questionRequired.future.timeout(const Duration(seconds: 2));
+      expect(manager.cancel(run.runId), isTrue);
+      final body = await events.done.future.timeout(const Duration(seconds: 2));
+      expect(body, contains('Run cancelled.'));
+      expect(
+        manager.answerQuestion(
+          run.runId,
+          'ask-1',
+          'browser:test',
+          skipped: true,
+        ),
+        AiAgentApprovalResult.notFound,
+      );
+    });
+
+    test('reports malformed questions back to the model', () async {
+      model.responses = const [
+        AiAgentModelResponse(
+          text: '',
+          toolCalls: [
+            AiAgentToolCall(
+              id: 'ask-1',
+              name: askUserQuestionToolName,
+              arguments: {
+                'questions': [
+                  {
+                    'question': 'Pick one',
+                    'options': [
+                      {'label': 'only'},
+                    ],
+                  },
+                ],
+              },
+            ),
+          ],
+        ),
+        AiAgentModelResponse(text: 'Retrying'),
+      ];
+      final run = manager.start(
+        conversationId: 'conversation-1',
+        connectionId: 'connection-1',
+        targetKey: 'server:7',
+        ownerId: 'browser:test',
+        input: 'deploy',
+      );
+      final body = await _collect(
+        run.stream,
+      ).done.future.timeout(const Duration(seconds: 2));
+      expect(body, isNot(contains('event: question-required')));
+      expect(
+        model.inputs.last.last.content,
+        contains('Invalid tool arguments'),
+      );
+    });
+  });
 }
 
 _CollectedEvents _collect(Stream<List<int>> stream) {
   final approvalRequired = Completer<void>();
+  final questionRequired = Completer<void>();
   final firstMessageDelta = Completer<String>();
   final done = Completer<String>();
   final buffer = StringBuffer();
@@ -865,6 +1132,10 @@ _CollectedEvents _collect(Stream<List<int>> stream) {
               buffer.toString().contains('event: approval-required')) {
             approvalRequired.complete();
           }
+          if (!questionRequired.isCompleted &&
+              buffer.toString().contains('event: question-required')) {
+            questionRequired.complete();
+          }
           if (!firstMessageDelta.isCompleted &&
               buffer.toString().contains('event: message-delta')) {
             firstMessageDelta.complete(buffer.toString());
@@ -873,18 +1144,25 @@ _CollectedEvents _collect(Stream<List<int>> stream) {
         onError: done.completeError,
         onDone: () => done.complete(buffer.toString()),
       );
-  return _CollectedEvents(approvalRequired, firstMessageDelta, done);
+  return _CollectedEvents(
+    approvalRequired,
+    firstMessageDelta,
+    done,
+    questionRequired,
+  );
 }
 
 class _CollectedEvents {
   final Completer<void> approvalRequired;
   final Completer<String> firstMessageDelta;
   final Completer<String> done;
+  final Completer<void> questionRequired;
 
   const _CollectedEvents(
     this.approvalRequired,
     this.firstMessageDelta,
     this.done,
+    this.questionRequired,
   );
 }
 

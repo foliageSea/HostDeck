@@ -101,4 +101,51 @@ describe('AiAgentToolCall', () => {
     expect(wrapper.emitted('approve')).toEqual([['call-1']])
     expect(wrapper.emitted('reject')).toEqual([['call-1']])
   })
+
+  it('summarizes answered and skipped questions instead of raw JSON', async () => {
+    const stubs = {
+      NButton: { template: '<button type="button"><slot /></button>' },
+      NModal: { props: ['show'], template: '<div v-if="show"><slot /></div>' },
+    }
+    const base = {
+      approvalPending: false,
+      questionPending: false,
+      callId: 'ask-1',
+      name: 'ask_user_question',
+      status: 'success' as const,
+      submitting: false,
+      summary: 'Ask the user a question',
+      arguments: { questions: [{ question: 'Where?', options: [] }] },
+    }
+    const answered = mount(AiAgentToolCall, {
+      props: {
+        tool: {
+          ...base,
+          result: {
+            content: '{}',
+            questionStatus: 'answered',
+            answers: [{ id: 'q1', selected: ['Staging'], custom: 'and canary' }],
+          },
+        },
+      },
+      global: { stubs },
+    })
+    expect(answered.get('.agent-tool-label').text()).toBe('已回答')
+    expect(answered.get('.agent-tool-inline-output').text()).toBe('Where?\n→ Staging、and canary')
+
+    const skipped = mount(AiAgentToolCall, {
+      props: {
+        tool: { ...base, result: { content: '{}', questionStatus: 'skipped', answers: [] } },
+      },
+      global: { stubs },
+    })
+    expect(skipped.get('.agent-tool-label').text()).toBe('已跳过')
+    expect(skipped.get('.agent-tool-inline-output').text()).toBe('你跳过了这些问题。')
+
+    const waiting = mount(AiAgentToolCall, {
+      props: { tool: { ...base, status: 'pending' as const, questionPending: true } },
+      global: { stubs },
+    })
+    expect(waiting.get('.agent-tool-label').text()).toBe('等待回答')
+  })
 })

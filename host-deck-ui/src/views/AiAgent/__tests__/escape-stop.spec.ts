@@ -90,6 +90,43 @@ describe('AiAgent escape', () => {
     wrapper.unmount()
   })
 
+  it('skips a pending question on Escape instead of cancelling the run', async () => {
+    const store = useAiAgentStore()
+    const cancelRun = vi.spyOn(store, 'cancelRun').mockResolvedValue(undefined)
+    const skipQuestion = vi.spyOn(store, 'skipQuestion').mockResolvedValue(undefined)
+
+    const wrapper = mountView()
+    ;(store as unknown as { running: boolean }).running = true
+    store.toolCalls = [
+      {
+        callId: 'ask-1',
+        name: 'ask_user_question',
+        summary: 'Ask the user a question',
+        status: 'pending',
+        approvalPending: false,
+        questionPending: true,
+        questions: [
+          {
+            id: 'q1',
+            question: 'Ok?',
+            multiSelect: false,
+            options: [{ label: 'a' }, { label: 'b' }],
+          },
+        ],
+        submitting: false,
+      },
+    ]
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.agent-question').exists()).toBe(true)
+
+    pressEscape(wrapper.element)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(skipQuestion).toHaveBeenCalledWith('ask-1')
+    expect(cancelRun).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('still cancels after a modal container has been left in the DOM', async () => {
     const store = useAiAgentStore()
     const cancelRun = vi.spyOn(store, 'cancelRun').mockResolvedValue(undefined)

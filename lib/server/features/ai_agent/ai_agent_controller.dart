@@ -12,6 +12,7 @@ import 'package:host_deck/server/features/ai_agent/ai_agent_errors.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_chat_model.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_models.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_mcp_service.dart';
+import 'package:host_deck/server/features/ai_agent/ai_agent_question.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_run_manager.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_settings_service.dart';
@@ -388,14 +389,19 @@ class AiAgentController {
   Future<Response> listTools(Request request) async {
     try {
       final refresh = request.url.queryParameters['refresh'] == 'true';
-      final specs = await _toolService.resolveSpecs(refresh: refresh);
+      final specs = [
+        ...await _toolService.resolveSpecs(refresh: refresh),
+        askUserQuestionSpec,
+      ];
       return Result.ok([
         for (final spec in specs)
           {
             'name': spec.name,
             'description': spec.description,
             'source': spec.name.startsWith('mcp_') ? 'mcp' : 'built-in',
-            'requiresApproval': _toolService.requiresApproval(spec.name),
+            'requiresApproval':
+                spec.name != askUserQuestionToolName &&
+                _toolService.requiresApproval(spec.name),
             'inputSchema': spec.inputJsonSchema,
           },
       ]);
@@ -584,6 +590,38 @@ class AiAgentController {
 
   Future<Response> reject(Request request, String runId) =>
       _approval(request, runId, approved: false);
+
+  /// Delivers the user's answers (or a skip) to a question the run asked.
+  Future<Response> answer(Request request, String runId) async {
+    try {
+      final data = await _readJson(request);
+      final callId = _requiredString(data, 'callId');
+      final skipped = _optionalBool(data, 'skipped') ?? false;
+      final result = _runManager.answerQuestion(
+        runId,
+        callId,
+        _principalId(request),
+        answers: data['answers'],
+        skipped: skipped,
+      );
+      return switch (result) {
+        AiAgentApprovalResult.accepted => Result.ok({'success': true}),
+        AiAgentApprovalResult.mismatch => Result.fail(
+          409,
+          'Answer does not match the pending question.',
+        ),
+        AiAgentApprovalResult.expired => Result.fail(410, 'Question expired.'),
+        AiAgentApprovalResult.notFound => Result.fail(
+          404,
+          'Pending question not found.',
+        ),
+      };
+    } on ArgumentError catch (error) {
+      return Result.fail(400, error.message?.toString() ?? 'Invalid request.');
+    } on FormatException catch (error) {
+      return Result.fail(400, error.message);
+    }
+  }
 
   Response cancel(Request request, String runId) {
     if (!_runManager.cancel(runId, ownerId: _principalId(request))) {

@@ -508,6 +508,12 @@ List<_OperationPolicy> _policies(
     'aiAgent',
     'reject',
   ),
+  _OperationPolicy(
+    'POST',
+    r'api/ai-agent/runs/([^/]+)/answer',
+    'aiAgent',
+    'answer',
+  ),
   _OperationPolicy('DELETE', r'api/ai-agent/runs/([^/]+)', 'aiAgent', 'cancel'),
   _OperationPolicy(
     'POST',

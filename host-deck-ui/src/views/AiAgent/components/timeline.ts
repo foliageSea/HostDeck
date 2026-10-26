@@ -9,7 +9,9 @@ export function isToolEntry(entry: AiAgentTimelineEntry | undefined) {
   return Boolean(
     entry &&
     entry.kind === 'step' &&
-    (entry.step.type === 'tool' || entry.step.type === 'approval'),
+    (entry.step.type === 'tool' ||
+      entry.step.type === 'approval' ||
+      entry.step.type === 'question'),
   )
 }
 
@@ -71,14 +73,20 @@ export function buildTimelineEntries(
   )
   let lastToolIndex = -1
   sortedSteps.forEach((step, index) => {
-    if (step.type === 'tool' || step.type === 'approval') lastToolIndex = index
+    if (step.type === 'tool' || step.type === 'approval' || step.type === 'question') {
+      lastToolIndex = index
+    }
   })
   const stepEntries = sortedSteps
     .filter((step, index) => {
       // The backend emits both a tool step and an approval step for a tool
       // requiring approval. They reference the same call, so render only the
       // tool step; its card switches to the approval state dynamically.
-      if (step.type === 'approval' && step.callId && toolStepCallIds.has(step.callId)) {
+      if (
+        (step.type === 'approval' || step.type === 'question') &&
+        step.callId &&
+        toolStepCallIds.has(step.callId)
+      ) {
         return false
       }
       if (step.type !== 'model' || step.content || step.thinking) return true

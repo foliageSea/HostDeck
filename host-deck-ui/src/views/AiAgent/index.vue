@@ -30,6 +30,7 @@ import {
 } from '@lucide/vue'
 import {
   aiAgentApi,
+  type AiAgentAnswer,
   type AiAgentConversation,
   type AiAgentImageAttachment,
   type AiAgentRunStep,
@@ -42,6 +43,7 @@ import { useSshStore } from '@/stores/ssh'
 import AiAgentMarkdown from './components/AiAgentMarkdown.vue'
 import AiAgentThinking from './components/AiAgentThinking.vue'
 import AiAgentSkillPicker from './components/AiAgentSkillPicker.vue'
+import AiAgentQuestionPanel from './components/AiAgentQuestionPanel.vue'
 import AiAgentToolCall from './components/AiAgentToolCall.vue'
 import AiAgentModelPicker from './components/AiAgentModelPicker.vue'
 import {
@@ -97,6 +99,7 @@ const {
   loadingConversation,
   loadingConversations,
   messages,
+  pendingQuestion,
   running,
   runMode,
   selectedConversation,
@@ -216,6 +219,7 @@ function isToolGroupStart(index: number) {
 
 const currentPhase = computed(() => {
   if (!running.value) return '已完成'
+  if (pendingQuestion.value) return '等待回答'
   if (toolCalls.value.some((tool) => tool.approvalPending)) return '等待授权'
   if (toolCalls.value.some((tool) => tool.status === 'running')) return '执行工具'
   const latestStep = [...runSteps.value].sort((a, b) => b.sequence - a.sequence)[0]
@@ -438,6 +442,12 @@ function handleWindowKeydown(event: KeyboardEvent) {
   if (isOverlayOpen()) return
   if (!running.value) return
   event.preventDefault()
+  // 有待回答的提问时，Esc 只跳过该提问；再按一次才会停止任务。
+  const question = pendingQuestion.value
+  if (question) {
+    void skipQuestion(question.callId)
+    return
+  }
   void stop()
 }
 
@@ -695,6 +705,22 @@ async function stop() {
     getUiApi().message.error(
       requestError instanceof Error ? requestError.message : '停止任务失败。',
     )
+  }
+}
+
+async function submitAnswers(callId: string, answers: AiAgentAnswer[]) {
+  try {
+    await agentStore.answerQuestion(callId, answers)
+  } catch {
+    // The store error remains visible while the question stays open.
+  }
+}
+
+async function skipQuestion(callId: string) {
+  try {
+    await agentStore.skipQuestion(callId)
+  } catch {
+    // The store error remains visible while the question stays open.
   }
 }
 
@@ -1127,7 +1153,9 @@ let resizeObserver: ResizeObserver | undefined
             </div>
             <div
               v-else-if="
-                (entry.step.type === 'tool' || entry.step.type === 'approval') &&
+                (entry.step.type === 'tool' ||
+                  entry.step.type === 'approval' ||
+                  entry.step.type === 'question') &&
                 toolForStep(entry.step)
               "
               class="agent-tools"
@@ -1203,7 +1231,16 @@ let resizeObserver: ResizeObserver | undefined
         >
           查看最新输出
         </button>
+        <AiAgentQuestionPanel
+          v-if="pendingQuestion?.questions"
+          :key="pendingQuestion.callId"
+          :questions="pendingQuestion.questions"
+          :submitting="pendingQuestion.submitting"
+          @submit="submitAnswers(pendingQuestion.callId, $event)"
+          @skip="skipQuestion(pendingQuestion.callId)"
+        />
         <div
+          v-show="!pendingQuestion"
           class="agent-composer"
           :class="{ 'agent-composer-running': running }"
           @paste="handlePaste"

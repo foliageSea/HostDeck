@@ -50,6 +50,7 @@ const categoryLabels: Record<string, string> = {
 }
 const actionLabels: Record<string, string> = {
   apply_patch: '应用补丁',
+  answer: '回答 Agent 提问',
   approve: '批准工具调用',
   buildCachePrune: '清理构建缓存',
   cancel: '取消运行',

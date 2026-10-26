@@ -58,6 +58,25 @@ run 可选传入 `reasoning`，取值为模型支持的思考档位，Chat 和 A
 
 审批只匹配当前 run 内不可变的精确 `callId` 和参数，五分钟后过期。拒绝会作为工具结果返回模型；取消或 SSH 断开会解除待审批、终止当前模型请求和工具等待，并阻止后续工具执行。正在执行的 `shell_execute` 会向 SSH 命令发送 TERM 并关闭 channel；已完成的文件、进程、端口转发或定时任务变更不会回滚，主动脱离 SSH 会话的后台进程也可能继续运行。每个用户消息最多发起 24 次模型请求、执行 64 个工具调用。请求预算用尽时 run 仍以 `limit` 状态成功结束并写入一条说明消息，模型可以在下一条消息里接着做；调用预算用尽则直接失败（`TOOL_CALL_LIMIT`）。run 的活跃时长上限为 30 分钟，等待人工审批的时间不计入。单次工具默认 60 秒超时，`shell_execute` 可用 `timeoutMs`（1000–600000）为构建、安装等长命令申请更长时间；工具输出上限为 64 KiB。
 
+## 向用户提问
+
+Agent 模式内置 `ask_user_question` 工具，让模型在缺少关键信息、存在多个合理方案时向用户提问，而不是自行猜测。该工具不属于主机工具：它由 run 管理器直接处理，不经过 SSH，也不需要审批，用户的回答不能替代任何工具审批。Chat 模式没有工具，因此不可用。
+
+参数为 `questions`（1–4 个），每项包含：
+
+- `id`：可选，字母、数字、`_`、`-`，最长 32 字符；省略时按序号补 `q1`、`q2`……
+- `header`：可选，短标题，最长 30 字符。
+- `question`：必填，最长 500 字符。
+- `multiSelect`：可选，默认单选。
+- `options`：2–6 项，每项 `label`（必填，最长 100 字符，题内不可重复）和可选 `description`（最长 300 字符）。`label` 以 `(Recommended)` 结尾表示推荐，服务端会去掉后缀并标记 `recommended: true`。
+
+参数不合法时按普通工具参数错误返回给模型，run 不中断。界面始终附带一行自由输入，不需要模型声明。
+
+- `POST /api/ai-agent/runs/<id>/answer`：JSON 为 `{ "callId": "...", "answers": [{ "id": "...", "selected": ["label"], "custom": "..." }] }`，或 `{ "callId": "...", "skipped": true }`。服务端校验 `id` 属于该提问、`selected` 为该题的选项 `label` 且无重复、单选最多一项、`custom` 最长 2000 字符；校验失败返回 400，提问保持等待。`callId` 不匹配返回 409，过期返回 410，run 不存在、已取消或归属不符返回 404。
+- 等待回答最多 10 分钟，等待时间与审批一样不计入 run 的活跃时长；取消 run 或 SSH 断开会解除等待。
+- 工具结果为 JSON 文本 `{ "status": "answered" | "skipped" | "expired", "answers": [...] }`。跳过和过期不会终止 run，由模型自行决定后续做法；过期的工具步骤状态为 `expired`。
+- 每次提问占用 1 次工具调用预算。提问文本和回答会发送给所配置的模型，系统提示要求模型不得索要密码或密钥。
+
 ## SSE
 
 run 接口返回 `text/event-stream`，并发送代理刷新 padding。事件包括：
@@ -66,6 +85,7 @@ run 接口返回 `text/event-stream`，并发送代理刷新 padding。事件包
 - `message-delta`：`{messageId,text}`
 - `tool-start`：`{callId,name,summary}`
 - `approval-required`：`{callId,name,summary,arguments}`
+- `question-required`：`{callId,name,summary,questions}`，对应步骤 `type` 为 `question`、`status` 为 `waiting-answer`；随后以 `tool-result` 结束，其中带 `questionStatus` 和 `answers`
 - `tool-result`：`{callId,name,success,summary}`
 - `usage`：可选 token 使用量
 - `done`：`{conversationId,messageId,status}`
@@ -76,4 +96,4 @@ run 接口返回 `text/event-stream`，并发送代理刷新 padding。事件包
 
 ## 审计边界
 
-设置、skill 列表与数据库 skill 管理、会话 mutation、run、审批、拒绝和取消由操作日志中间件记录，其中 skill 列表动作记为 `skillsList`。每次工具执行额外记录 `aiAgent` 分类以及稳定目标身份。提示词、skill 正文、描述和路径、模型输出、命令和命令输出、文件路径和内容、patch、API 密钥不会写入操作日志。
+设置、skill 列表与数据库 skill 管理、会话 mutation、run、审批、拒绝、回答提问（`answer`）和取消由操作日志中间件记录，其中 skill 列表动作记为 `skillsList`。每次工具执行额外记录 `aiAgent` 分类以及稳定目标身份。提示词、提问和回答内容、skill 正文、描述和路径、模型输出、命令和命令输出、文件路径和内容、patch、API 密钥不会写入操作日志。

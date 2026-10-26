@@ -162,11 +162,41 @@ export interface AiAgentUsage {
 
 export type AiAgentRunMode = 'chat' | 'agent'
 
-export type AiAgentRunStepType = 'model' | 'tool' | 'approval' | 'message' | 'error' | 'summary'
+export interface AiAgentQuestionOption {
+  label: string
+  description?: string
+  recommended?: boolean
+}
+
+export interface AiAgentQuestion {
+  id: string
+  header?: string
+  question: string
+  multiSelect: boolean
+  options: AiAgentQuestionOption[]
+}
+
+export interface AiAgentAnswer {
+  id: string
+  selected: string[]
+  custom?: string
+}
+
+export type AiAgentQuestionStatus = 'answered' | 'skipped' | 'expired'
+
+export type AiAgentRunStepType =
+  | 'model'
+  | 'tool'
+  | 'approval'
+  | 'question'
+  | 'message'
+  | 'error'
+  | 'summary'
 export type AiAgentRunStepStatus =
   | 'queued'
   | 'running'
   | 'waiting-approval'
+  | 'waiting-answer'
   | 'success'
   | 'failed'
   | 'rejected'
@@ -217,6 +247,8 @@ export interface AiAgentToolResult {
   structured?: unknown
   mcpServer?: string
   mcpTool?: string
+  questionStatus?: AiAgentQuestionStatus
+  answers?: AiAgentAnswer[]
 }
 
 interface AiAgentRunEventMeta {
@@ -252,6 +284,13 @@ export type AiAgentRunEvent =
       name: string
       summary: string
       arguments: unknown
+    } & AiAgentRunEventMeta)
+  | ({
+      event: 'question-required'
+      callId: string
+      name: string
+      summary: string
+      questions: AiAgentQuestion[]
     } & AiAgentRunEventMeta)
   | ({
       event: 'tool-result'
@@ -323,6 +362,7 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
       'thinking-end',
       'tool-start',
       'approval-required',
+      'question-required',
       'tool-result',
       'usage',
       'done',
@@ -385,6 +425,19 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
         name: requiredString(data, 'name'),
         summary: requiredString(data, 'summary'),
       }
+    case 'question-required': {
+      if (!Array.isArray(data.questions)) {
+        throw new Error('AI Agent 事件缺少字段 questions。')
+      }
+      return {
+        ...meta(data),
+        event,
+        callId: requiredString(data, 'callId'),
+        name: requiredString(data, 'name'),
+        summary: requiredString(data, 'summary'),
+        questions: data.questions as AiAgentQuestion[],
+      }
+    }
     case 'tool-result':
       if (typeof data.success !== 'boolean') {
         throw new Error('AI Agent 事件缺少字段 success。')
@@ -412,6 +465,12 @@ function parseRunEvent(event: string, rawData: string): AiAgentRunEvent | null {
                 ...(data.structured !== undefined ? { structured: data.structured } : {}),
                 ...(typeof data.mcpServer === 'string' ? { mcpServer: data.mcpServer } : {}),
                 ...(typeof data.mcpTool === 'string' ? { mcpTool: data.mcpTool } : {}),
+                ...(typeof data.questionStatus === 'string'
+                  ? { questionStatus: data.questionStatus as AiAgentQuestionStatus }
+                  : {}),
+                ...(Array.isArray(data.answers)
+                  ? { answers: data.answers as AiAgentAnswer[] }
+                  : {}),
               },
             }
           : {}),
@@ -705,6 +764,16 @@ export const aiAgentApi = {
   async reject(runId: string, callId: string) {
     return (await http.post(`/api/ai-agent/runs/${encodeURIComponent(runId)}/reject`, { callId }))
       .data
+  },
+
+  /** Answers the question a run is waiting on; `answers` is omitted when skipping. */
+  async answer(runId: string, callId: string, answers?: AiAgentAnswer[]) {
+    return (
+      await http.post(
+        `/api/ai-agent/runs/${encodeURIComponent(runId)}/answer`,
+        answers ? { callId, answers } : { callId, skipped: true },
+      )
+    ).data
   },
 
   async cancel(runId: string) {
