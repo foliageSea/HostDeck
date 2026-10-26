@@ -72,18 +72,18 @@ describe('settings window controls style', () => {
   it('uses the bottom Dock by default and persists another position', async () => {
     const settingsStore = useSettingsStore()
 
-    expect(settingsStore.dockPosition).toBe('bottom')
+    expect(settingsStore.dockPosition).toBe('left')
 
-    settingsStore.setDockPosition('left')
+    settingsStore.setDockPosition('right')
     await nextTick()
 
-    expect(window.localStorage.getItem('host-deck-ui.dockPosition')).toBe('left')
+    expect(window.localStorage.getItem('host-deck-ui.dockPosition')).toBe('right')
   })
 
   it('falls back to the bottom Dock for an invalid saved position', () => {
     window.localStorage.setItem('host-deck-ui.dockPosition', 'top')
 
-    expect(useSettingsStore().dockPosition).toBe('bottom')
+    expect(useSettingsStore().dockPosition).toBe('left')
   })
 
   it('persists a custom window switch shortcut', async () => {

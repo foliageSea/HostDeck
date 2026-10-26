@@ -32,7 +32,7 @@ export function createDesktopPreferences(initial: Partial<DesktopPreferences> = 
     darkWindowBorder: true,
     cornerStyle: 'rounded',
     dockAutoHide: false,
-    dockPosition: 'bottom',
+    dockPosition: 'left',
     windowSwitchShortcut: createDefaultWindowSwitchShortcut(),
     windowSwitcherToggleShortcut: createDefaultWindowSwitcherToggleShortcut(),
     ...initial,

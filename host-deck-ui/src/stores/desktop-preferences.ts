@@ -16,7 +16,7 @@ export function normalizeCornerStyle(value: unknown): CornerStyle {
 }
 
 export function normalizeDockPosition(value: unknown): DockPosition {
-  return value === 'left' || value === 'right' || value === 'bottom' ? value : 'bottom'
+  return value === 'left' || value === 'right' || value === 'bottom' ? value : 'left'
 }
 
 /** Local desktop appearance only: no HTTP, terminal or editor settings. */
