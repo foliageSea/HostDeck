@@ -20,7 +20,7 @@
 
 ## API 与通道
 
-- `GET /api/ws/terminal`：终端 WebSocket 通道。
+- `GET /api/ws/terminal`：终端 WebSocket 通道，服务端自带 20 秒协议级 ping（`webSocketHandler(pingInterval: ...)`），用于穿透代理空闲超时并发现死客户端。
 - `POST /api/terminal/session`：创建终端会话。
 - `DELETE /api/terminal/session`：关闭终端会话。
 
@@ -29,7 +29,7 @@
 - 终端是会话型能力，应明确创建、绑定、关闭和异常断开流程。
 - 前端窗口系统中 `terminal` 属于 session window，受 `maxSessionWindows = 8` 限制。
 - xterm 初始化、fit addon、web links addon 等逻辑应保持在终端 view 或 hook 内，不要扩散到全局 store。
-- 后端应在客户端断开时释放 SSH channel，避免远端 shell 泄漏。
+- 后端在终端 WebSocket 关闭或出错时立即 `closeSession` 释放远端 shell，并释放对应租约；不要依赖整条 SSH 连接被回收来兜底。
 - 终端设置属于前端体验配置，和后端 SSH 会话生命周期分离。
 
 ## 常见修改点

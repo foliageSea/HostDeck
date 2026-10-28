@@ -79,6 +79,7 @@ class ServerContainer {
   final SecureBrowserTunnelService secureBrowserTunnelService;
   final DockerSocketTunnelService dockerSocketTunnelService;
   final ApiRoutes apiRoutes;
+  final SshService sshService;
   final AccessAuthService accessService;
   final OperationLogService operationLogService;
   final PortForwardRepository portForwardRepository;
@@ -91,6 +92,7 @@ class ServerContainer {
     required this.secureBrowserTunnelService,
     required this.dockerSocketTunnelService,
     required this.apiRoutes,
+    required this.sshService,
     required this.accessService,
     required this.operationLogService,
     required this.portForwardRepository,
@@ -137,7 +139,10 @@ class ServerContainer {
         shellInvocationResolver: getIt<ShellInvocationResolver>(),
       ),
     );
-    getIt.registerLazySingleton<SshService>(SshService.new);
+    getIt.registerLazySingleton<SshService>(
+      SshService.new,
+      dispose: (service) => service.dispose(),
+    );
     getIt.registerSingletonAsync<AiAgentSecretStore>(() async {
       final store = AiAgentSecretStore(dataDir: dataDir);
       await store.init();
@@ -452,6 +457,7 @@ class ServerContainer {
       portForwardRepository: getIt<PortForwardRepository>(),
       serverRepository: getIt<ServerRepository>(),
       apiRoutes: getIt<ApiRoutes>(),
+      sshService: getIt<SshService>(),
     );
   }
 

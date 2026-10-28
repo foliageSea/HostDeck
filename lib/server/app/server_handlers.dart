@@ -7,6 +7,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_static/shelf_static.dart';
 
 import 'package:host_deck/server/routes/api_routes.dart';
+import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/access/access_middleware.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_middleware.dart';
@@ -50,6 +51,22 @@ Middleware accessLogMiddleware(Logger log) {
   };
 }
 
+/// 任何携带 connectionId 的 HTTP 请求都视为「这条 SSH 连接还在被使用」。
+///
+/// 浏览器的状态 WebSocket 可能静默失效（TCP 还挂着但收不到数据），而页面
+/// 本身仍在发请求；空闲回收器必须把这类活动算进去，否则会误杀会话。
+Middleware sshActivityMiddleware(SshService sshService) {
+  return (innerHandler) {
+    return (request) {
+      final connectionId = request.url.queryParameters['connectionId'];
+      if (connectionId != null && connectionId.isNotEmpty) {
+        sshService.touch(connectionId);
+      }
+      return innerHandler(request);
+    };
+  };
+}
+
 String formatAccessLog(Request request, int statusCode, Duration elapsed) {
   final path = request.url.path.isEmpty ? '/' : '/${request.url.path}';
   final query = request.url.hasQuery ? ' | ${request.url.query}' : '';
@@ -58,6 +75,7 @@ String formatAccessLog(Request request, int statusCode, Duration elapsed) {
 
 Future<Handler> buildServerHandler({
   required ApiRoutes apiRoutes,
+  required SshService sshService,
   required String staticPath,
   required Logger log,
   required AccessAuthService accessService,
@@ -136,5 +154,6 @@ Future<Handler> buildServerHandler({
 
   return Pipeline()
       .addMiddleware(accessLogMiddleware(log))
+      .addMiddleware(sshActivityMiddleware(sshService))
       .addHandler(cascade.handler);
 }

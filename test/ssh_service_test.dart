@@ -36,6 +36,39 @@ void main() {
     expect(service.getRuntimeSnapshot()['totalClients'], 0);
   });
 
+  test('leases track attached channels until released', () async {
+    final client = _FakeSshClient();
+    final service = _serviceWithClient(client);
+    final connectionId = await service.connect(
+      host: 'example.com',
+      port: 22,
+      username: 'user',
+    );
+
+    expect(service.leaseCount(connectionId), 0);
+    service.attachLease(connectionId, 'status-ws-1');
+    service.attachLease(connectionId, 'terminal-ws-1');
+    expect(service.leaseCount(connectionId), 2);
+    expect(service.lastActivityAt(connectionId), isNotNull);
+
+    service.detachLease(connectionId, 'status-ws-1');
+    expect(service.leaseCount(connectionId), 1);
+    service.detachLease(connectionId, 'terminal-ws-1');
+    expect(service.leaseCount(connectionId), 0);
+
+    await service.disconnect(connectionId);
+    expect(service.leaseCount(connectionId), 0);
+  });
+
+  test('attaching a lease to an unknown connection is ignored', () {
+    final service = SshService();
+
+    service.attachLease('missing-connection', 'lease');
+    service.detachLease('missing-connection', 'lease');
+
+    expect(service.leaseCount('missing-connection'), 0);
+  });
+
   test('active disconnect notifies listeners only once', () async {
     final client = _FakeSshClient();
     final service = _serviceWithClient(client);

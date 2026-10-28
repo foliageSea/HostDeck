@@ -11,6 +11,8 @@ import 'package:host_deck/server/features/system/monitor_history_service.dart';
 import 'package:host_deck/server/features/system/monitor_service.dart';
 
 class SystemMonitorWsHandler {
+  static int _channelSequence = 0;
+
   final MonitorHistoryService _monitorHistoryService;
   final SshService _sshService;
   final MonitorService _monitorService;
@@ -34,6 +36,19 @@ class SystemMonitorWsHandler {
         if (client == null) {
           channel.sink.close(4004, 'Connection not found');
           return;
+        }
+
+        final leaseId = 'monitor-ws-${_channelSequence++}';
+        _sshService.attachLease(connectionId, leaseId);
+        var isLeaseReleased = false;
+
+        void releaseLease() {
+          if (isLeaseReleased) {
+            return;
+          }
+
+          isLeaseReleased = true;
+          _sshService.detachLease(connectionId, leaseId);
         }
 
         bool isMonitoring = true;
@@ -78,6 +93,7 @@ class SystemMonitorWsHandler {
               try {
                 final session = await resolveMonitorSession();
                 final status = await _monitorService.getSystemStatus(session);
+                _sshService.touch(connectionId);
                 _monitorHistoryService.addSample(connectionId, status);
                 if (isMonitoring) {
                   channel.sink.add(
@@ -115,6 +131,7 @@ class SystemMonitorWsHandler {
               channel.sink.close(1011, 'SSH Connection Lost');
             }
           } finally {
+            releaseLease();
             await closeMonitorSession();
           }
         }
@@ -125,10 +142,12 @@ class SystemMonitorWsHandler {
           (message) {}, // Ignore incoming messages
           onDone: () {
             isMonitoring = false;
+            releaseLease();
             unawaited(closeMonitorSession());
           },
           onError: (e) {
             isMonitoring = false;
+            releaseLease();
             unawaited(closeMonitorSession());
           },
         );

@@ -87,6 +87,7 @@ class ServerService {
     );
     final handler = await buildServerHandler(
       apiRoutes: _container!.apiRoutes,
+      sshService: _container!.sshService,
       staticPath: staticPath,
       log: _log,
       accessService: _container!.accessService,

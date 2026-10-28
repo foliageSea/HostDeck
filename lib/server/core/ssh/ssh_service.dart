@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:logging/logging.dart';
 import 'package:host_deck/server/core/ssh/ssh_connection_handle.dart';
@@ -60,6 +61,18 @@ class SshService {
   static const maxSessions = 8;
   static const maxConcurrentOperations = 4;
 
+  /// 没有任何通道租约、且超过该时长没有可见活动时，才回收整条连接。
+  ///
+  /// 浏览器的 WebSocket 可能"假在线"（TCP 还挂着但收不到数据），所以不能把
+  /// 「WS 断开」直接当成「SSH 该断开」，必须留出足够宽限期给客户端重连。
+  static const channelIdleGrace = Duration(seconds: 120);
+
+  /// SSH 传输层完全收不到字节超过该时长，判定链路已死。
+  static const socketSilenceTimeout = Duration(minutes: 3);
+
+  static const _supervisionInterval = Duration(seconds: 15);
+  static const _socketSilenceCheckInterval = Duration(seconds: 30);
+
   final Map<String, SshSession> _sessions = {};
   final Map<String, Set<SshSessionPurpose>> _sessionPurposes = {};
   final Map<String, SSHClient> _clients = {};
@@ -69,6 +82,11 @@ class SshService {
   final List<FutureOr<void> Function(String connectionId)>
   _disconnectListeners = [];
   final Map<String, int> _pendingSessionCreations = {};
+  final Map<String, Set<String>> _channelLeases = {};
+  final Map<String, DateTime> _lastActivityAt = {};
+  final Map<String, DateTime> _lastSocketDataAt = {};
+  Timer? _idleReaperTimer;
+  Timer? _socketSilenceTimer;
   final SshSocketConnector _socketConnector;
   final SshClientFactory _clientFactory;
 
@@ -105,8 +123,18 @@ class SshService {
     String? privateKey,
   }) async {
     final socket = await _socketConnector(host, port);
-    final client = _clientFactory(
+    String? trackedConnectionId;
+    final trackedSocket = _TrackedSshSocket(
       socket,
+      onData: () {
+        final connectionId = trackedConnectionId;
+        if (connectionId != null) {
+          _lastSocketDataAt[connectionId] = DateTime.now();
+        }
+      },
+    );
+    final client = _clientFactory(
+      trackedSocket,
       username: username,
       password: password,
       privateKey: privateKey,
@@ -120,6 +148,7 @@ class SshService {
     }
 
     final connectionId = _generateId();
+    trackedConnectionId = connectionId;
     _clients[connectionId] = client;
     _connectionServerIds[connectionId] = serverId;
     _connectionMetadata[connectionId] = SshConnectionMetadata(
@@ -131,6 +160,9 @@ class SshService {
     _operationLimiters[connectionId] = SshOperationLimiter(
       maxConcurrentOperations: maxConcurrentOperations,
     );
+    _lastActivityAt[connectionId] = DateTime.now();
+    _lastSocketDataAt[connectionId] = DateTime.now();
+    _startSupervision();
 
     // Handle unexpected disconnection, including futures completed with errors.
     unawaited(
@@ -167,6 +199,7 @@ class SshService {
       throw Exception('Connection is closed');
     }
 
+    touch(connectionId);
     _reserveSessionCapacity(connectionId);
 
     try {
@@ -179,9 +212,11 @@ class SshService {
 
       // Pipe shell output to controller
       shell.stdout.listen((data) {
+        touch(connectionId);
         outputController.add(utf8.decode(data));
       });
       shell.stderr.listen((data) {
+        touch(connectionId);
         outputController.add(utf8.decode(data));
       });
 
@@ -223,6 +258,7 @@ class SshService {
       throw Exception('Connection is closed');
     }
 
+    touch(connectionId);
     _reserveSessionCapacity(connectionId);
 
     try {
@@ -274,6 +310,7 @@ class SshService {
       _disconnectInternal(connectionId);
       return null;
     }
+    touch(connectionId);
     return SshConnectionHandle(
       connectionId: connectionId,
       client: client,
@@ -307,6 +344,9 @@ class SshService {
             'port': metadata?.port,
             'isClosed': entry.value.isClosed,
             'sessionCount': sessionCounts[entry.key] ?? 0,
+            'leaseCount': leaseCount(entry.key),
+            'lastActivityAt': _lastActivityAt[entry.key]?.toIso8601String(),
+            'lastSocketDataAt': _lastSocketDataAt[entry.key]?.toIso8601String(),
             ...?_operationLimiters[entry.key]?.snapshot(),
           };
         }).toList()..sort(
@@ -361,6 +401,142 @@ class SshService {
     }
   }
 
+  /// 登记一个「还有消费者在用这条连接」的租约。
+  ///
+  /// 租约只描述「有没有消费者」，不描述「消费者是否还活着」：WebSocket 心跳
+  /// 超时后由持有方调用 [detachLease] 释放，真正的 SSH 回收交给
+  /// [channelIdleGrace] 的空闲判定，避免一次 WS 抖动把整条连接拆掉。
+  void attachLease(String connectionId, String leaseId) {
+    if (!_clients.containsKey(connectionId)) {
+      return;
+    }
+
+    _channelLeases.putIfAbsent(connectionId, () => <String>{}).add(leaseId);
+    touch(connectionId);
+  }
+
+  void detachLease(String connectionId, String leaseId) {
+    final leases = _channelLeases[connectionId];
+    if (leases == null) {
+      return;
+    }
+
+    leases.remove(leaseId);
+    if (leases.isEmpty) {
+      _channelLeases.remove(connectionId);
+    }
+  }
+
+  int leaseCount(String connectionId) =>
+      _channelLeases[connectionId]?.length ?? 0;
+
+  /// 记录一次「能证明这条连接还在被使用」的可见活动。
+  void touch(String connectionId) {
+    if (_clients.containsKey(connectionId)) {
+      _lastActivityAt[connectionId] = DateTime.now();
+    }
+  }
+
+  DateTime? lastActivityAt(String connectionId) =>
+      _lastActivityAt[connectionId];
+
+  void dispose() {
+    _idleReaperTimer?.cancel();
+    _idleReaperTimer = null;
+    _socketSilenceTimer?.cancel();
+    _socketSilenceTimer = null;
+
+    for (final client in _clients.values.toList()) {
+      client.close();
+    }
+
+    _clients.clear();
+    _sessions.clear();
+    _sessionPurposes.clear();
+    _connectionServerIds.clear();
+    _connectionMetadata.clear();
+    _operationLimiters.clear();
+    _channelLeases.clear();
+    _lastActivityAt.clear();
+    _lastSocketDataAt.clear();
+    _pendingSessionCreations.clear();
+  }
+
+  void _startSupervision() {
+    _idleReaperTimer ??= Timer.periodic(
+      _supervisionInterval,
+      (_) => unawaited(_reapIdleConnections()),
+    );
+    _socketSilenceTimer ??= Timer.periodic(
+      _socketSilenceCheckInterval,
+      (_) => unawaited(_closeDeadSockets()),
+    );
+  }
+
+  void _stopSupervisionIfIdle() {
+    if (_clients.isNotEmpty) {
+      return;
+    }
+
+    _idleReaperTimer?.cancel();
+    _idleReaperTimer = null;
+    _socketSilenceTimer?.cancel();
+    _socketSilenceTimer = null;
+  }
+
+  Future<void> _reapIdleConnections() async {
+    final now = DateTime.now();
+    for (final connectionId in _clients.keys.toList()) {
+      if (_channelLeases[connectionId]?.isNotEmpty ?? false) {
+        continue;
+      }
+
+      // 正在执行或排队的 SSH 操作也算「在用」，否则长命令（构建、大文件
+      // 传输、docker logs follow）会在无输出期间被误回收。
+      final limiter = _operationLimiters[connectionId];
+      if (limiter != null &&
+          (limiter.runningOperations > 0 || limiter.queuedOperations > 0)) {
+        continue;
+      }
+
+      final lastActivity = _lastActivityAt[connectionId];
+      final idle = lastActivity == null ? null : now.difference(lastActivity);
+      if (idle != null && idle < channelIdleGrace) {
+        continue;
+      }
+
+      logger.warning(
+        'Reaping idle SSH connection $connectionId '
+        '(no attached channel, idle=${idle?.inSeconds ?? 'unknown'}s)',
+      );
+      await disconnect(connectionId);
+    }
+  }
+
+  /// 半开连接检测：对端消失时 TCP 可能长时间保持 ESTABLISHED，
+  /// 只有「完全收不到字节」才是可靠信号。dartssh2 每 10 秒发一次
+  /// keep-alive 全局请求，正常链路必然有回包，所以沉默超过阈值即可判定已死。
+  Future<void> _closeDeadSockets() async {
+    final now = DateTime.now();
+    for (final connectionId in _clients.keys.toList()) {
+      final lastData = _lastSocketDataAt[connectionId];
+      if (lastData == null) {
+        continue;
+      }
+
+      final silence = now.difference(lastData);
+      if (silence < socketSilenceTimeout) {
+        continue;
+      }
+
+      logger.warning(
+        'SSH socket silent for ${silence.inSeconds}s on $connectionId; '
+        'closing dead connection',
+      );
+      await disconnect(connectionId);
+    }
+  }
+
   void _reserveSessionCapacity(String connectionId) {
     final sessionCount = _sessions.values
         .where((session) => session.connectionId == connectionId)
@@ -400,6 +576,10 @@ class SshService {
     _connectionServerIds.remove(connectionId);
     _connectionMetadata.remove(connectionId);
     _operationLimiters.remove(connectionId);
+    _channelLeases.remove(connectionId);
+    _lastActivityAt.remove(connectionId);
+    _lastSocketDataAt.remove(connectionId);
+    _stopSupervisionIfIdle();
     for (final listener in _disconnectListeners) {
       unawaited(Future.sync(() => listener(connectionId)));
     }
@@ -417,4 +597,31 @@ class SshService {
     return DateTime.now().millisecondsSinceEpoch.toString() +
         Random().nextInt(1000).toString();
   }
+}
+
+/// 记录 SSH 传输层最后一次收到字节的时间，用于识别半开连接。
+class _TrackedSshSocket implements SSHSocket {
+  final SSHSocket _inner;
+  final void Function() _onData;
+
+  _TrackedSshSocket(this._inner, {required void Function() onData})
+    : _onData = onData;
+
+  @override
+  Stream<Uint8List> get stream => _inner.stream.map((data) {
+    _onData();
+    return data;
+  });
+
+  @override
+  StreamSink<List<int>> get sink => _inner.sink;
+
+  @override
+  Future<void> get done => _inner.done;
+
+  @override
+  Future<void> close() => _inner.close();
+
+  @override
+  void destroy() => _inner.destroy();
 }

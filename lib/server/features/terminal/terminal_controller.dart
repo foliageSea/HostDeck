@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:shelf/shelf.dart';
@@ -11,6 +12,8 @@ import 'package:host_deck/server/features/terminal/terminal_snippet.dart';
 import 'package:host_deck/server/features/terminal/terminal_snippet_repository.dart';
 
 class TerminalController {
+  static int _channelSequence = 0;
+
   final SshService _sshService;
   final TerminalSnippetRepository _snippetRepository;
 
@@ -30,7 +33,7 @@ class TerminalController {
         } else {
           channel.sink.close(4000, 'Missing sessionId');
         }
-      })(request);
+      }, pingInterval: const Duration(seconds: 20))(request);
     };
   }
 
@@ -148,13 +151,40 @@ class TerminalController {
       return;
     }
 
+    final leaseId = 'terminal-ws-${_channelSequence++}';
+    _sshService.attachLease(session.connectionId, leaseId);
+    var isDetached = false;
+
+    Future<void> detach({required bool closeSession}) async {
+      if (isDetached) {
+        return;
+      }
+
+      isDetached = true;
+      _sshService.detachLease(session.connectionId, leaseId);
+      if (closeSession) {
+        // 浏览器已经走了，远端 shell 不能继续挂着。
+        await _sshService.closeSession(session.id);
+      }
+    }
+
     // Forward SSH output to WS
     final sub = session.output.listen(
       (data) {
-        channel.sink.add(data);
+        _sshService.touch(session.connectionId);
+        try {
+          channel.sink.add(data);
+        } catch (_) {
+          // 通道已经关闭时忽略，统一在 onDone 里收尾。
+        }
       },
       onDone: () {
-        channel.sink.close();
+        try {
+          channel.sink.close();
+        } catch (_) {
+          // 已经关闭。
+        }
+        unawaited(detach(closeSession: false));
       },
     );
 
@@ -177,6 +207,11 @@ class TerminalController {
       },
       onDone: () {
         sub.cancel();
+        unawaited(detach(closeSession: true));
+      },
+      onError: (error) {
+        sub.cancel();
+        unawaited(detach(closeSession: true));
       },
     );
   }

@@ -137,6 +137,8 @@ inspected or changed the host. Do not expose secrets.
     );
     controller.onCancel = () => cancel(runId);
     _runs[runId] = run;
+    // 长任务期间持有租约，避免空闲回收器把正在执行的 AI run 拆掉。
+    _sshService.attachLease(connectionId, 'ai-run-$runId');
     run.emitRaw(utf8.encode(': ${' '.padRight(2048)}\n\n'));
     run.emit('connected', {'runId': runId});
     unawaited(_execute(run, input, attachments));
@@ -287,6 +289,7 @@ inspected or changed the host. Do not expose secrets.
         'code': ?outcome.code,
       });
       _runs.remove(run.id);
+      _sshService.detachLease(run.connectionId, 'ai-run-${run.id}');
       await run.close();
     }
   }
