@@ -9,6 +9,10 @@ export { type SavedServer }
 
 type SessionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
 
+const reconnectDelaysMs = [1000, 2000, 4000, 8000]
+const heartbeatTimeoutMs = 25000
+let globalSessionListenersRegistered = false
+
 function omitSecrets(server: SavedServer): SavedServer {
   const safeServer = { ...server }
   delete safeServer.password
@@ -34,6 +38,8 @@ export const useSshStore = defineStore('ssh', () => {
   let sessionReconnectTimer: number | null = null
   let sessionPingTimer: number | null = null
   let isIntentionalClose = false
+  let lastPongAt = 0
+  let reconnectAttempt = 0
 
   function stopMonitorWs() {
     if (monitorReconnectTimer) {
@@ -110,6 +116,53 @@ export const useSshStore = defineStore('ssh', () => {
     void clearSession()
   }
 
+  function resumeSessionWs() {
+    if (!isConnected.value) {
+      return
+    }
+
+    const ws = sessionWs
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send('ping')
+      return
+    }
+
+    // 握手已在进行中，不要为了「立即恢复」反复重建连接。
+    if (ws && ws.readyState === WebSocket.CONNECTING) {
+      return
+    }
+
+    if (sessionReconnectTimer) {
+      clearTimeout(sessionReconnectTimer)
+      sessionReconnectTimer = null
+    }
+
+    sessionStatus.value = 'connecting'
+    startSessionWs()
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState !== 'visible') {
+      return
+    }
+
+    resumeSessionWs()
+  }
+
+  function registerGlobalSessionListeners() {
+    if (globalSessionListenersRegistered) {
+      return
+    }
+
+    globalSessionListenersRegistered = true
+    window.addEventListener('online', resumeSessionWs)
+    window.addEventListener('focus', resumeSessionWs)
+    window.addEventListener('pageshow', resumeSessionWs)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+  }
+
+  registerGlobalSessionListeners()
+
   function startSessionWs() {
     stopSessionWs()
     if (!connectionId.value) {
@@ -126,7 +179,10 @@ export const useSshStore = defineStore('ssh', () => {
         return
       }
 
+      lastPongAt = Date.now()
+      reconnectAttempt = 0
       sessionStatus.value = 'connected'
+      ws.send('ping')
     }
 
     ws.onmessage = (event) => {
@@ -135,6 +191,7 @@ export const useSshStore = defineStore('ssh', () => {
       }
 
       if (event.data === 'pong') {
+        lastPongAt = Date.now()
         return
       }
 
@@ -169,16 +226,24 @@ export const useSshStore = defineStore('ssh', () => {
       }
 
       sessionStatus.value = 'reconnecting'
+      const delay = reconnectDelaysMs[Math.min(reconnectAttempt, reconnectDelaysMs.length - 1)]
+      reconnectAttempt += 1
       sessionReconnectTimer = window.setTimeout(() => {
         sessionReconnectTimer = null
         sessionStatus.value = 'connecting'
         startSessionWs()
-      }, 3000)
+      }, delay)
     }
 
     sessionPingTimer = window.setInterval(() => {
-      if (sessionWs === ws && ws.readyState === WebSocket.OPEN) {
-        ws.send('ping')
+      if (sessionWs !== ws || ws.readyState !== WebSocket.OPEN) {
+        return
+      }
+
+      ws.send('ping')
+
+      if (Date.now() - lastPongAt > heartbeatTimeoutMs) {
+        ws.close(4001, 'heartbeat timeout')
       }
     }, 10000)
   }
@@ -283,6 +348,7 @@ export const useSshStore = defineStore('ssh', () => {
     username.value = nextUsername
     isConnected.value = true
     isIntentionalClose = false
+    reconnectAttempt = 0
     sessionStatus.value = 'connecting'
     connectPayload.value = payload ?? {
       host: nextHost,

@@ -6,6 +6,10 @@ import { getUiApi } from '@/lib/ui'
 
 type SessionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
 
+const reconnectDelaysMs = [1000, 2000, 4000, 8000]
+const heartbeatTimeoutMs = 25000
+let globalSessionListenersRegistered = false
+
 interface WindowConnectionState {
   connectionId: string | null
   isConnected: boolean
@@ -18,8 +22,10 @@ interface WindowConnectionState {
 
 interface WindowConnectionRuntime {
   isIntentionalClose: boolean
+  lastPongAt: number
   monitorReconnectTimer: number | null
   monitorWs: WebSocket | null
+  reconnectAttempt: number
   sessionPingTimer: number | null
   sessionReconnectTimer: number | null
   sessionWs: WebSocket | null
@@ -40,8 +46,10 @@ function createEmptyState(): WindowConnectionState {
 function createRuntime(): WindowConnectionRuntime {
   return {
     isIntentionalClose: false,
+    lastPongAt: 0,
     monitorReconnectTimer: null,
     monitorWs: null,
+    reconnectAttempt: 0,
     sessionPingTimer: null,
     sessionReconnectTimer: null,
     sessionWs: null,
@@ -156,6 +164,61 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
     await disconnectWindow(windowId)
   }
 
+  function resumeWindowSession(windowId: string) {
+    const state = states[windowId]
+    const runtime = runtimes.get(windowId)
+    if (!state?.isConnected || !runtime) {
+      return
+    }
+
+    const ws = runtime.sessionWs
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send('ping')
+      return
+    }
+
+    // 握手已在进行中，不要为了「立即恢复」反复重建连接。
+    if (ws && ws.readyState === WebSocket.CONNECTING) {
+      return
+    }
+
+    if (runtime.sessionReconnectTimer) {
+      clearTimeout(runtime.sessionReconnectTimer)
+      runtime.sessionReconnectTimer = null
+    }
+
+    state.sessionStatus = 'connecting'
+    startSessionWs(windowId)
+  }
+
+  function resumeWindowSessions() {
+    for (const windowId of Array.from(runtimes.keys())) {
+      resumeWindowSession(windowId)
+    }
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState !== 'visible') {
+      return
+    }
+
+    resumeWindowSessions()
+  }
+
+  function registerGlobalSessionListeners() {
+    if (globalSessionListenersRegistered) {
+      return
+    }
+
+    globalSessionListenersRegistered = true
+    window.addEventListener('online', resumeWindowSessions)
+    window.addEventListener('focus', resumeWindowSessions)
+    window.addEventListener('pageshow', resumeWindowSessions)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+  }
+
+  registerGlobalSessionListeners()
+
   function startSessionWs(windowId: string) {
     const state = ensureState(windowId)
     const runtime = ensureRuntime(windowId)
@@ -175,7 +238,10 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
         return
       }
 
+      runtime.lastPongAt = Date.now()
+      runtime.reconnectAttempt = 0
       state.sessionStatus = 'connected'
+      ws.send('ping')
     }
 
     ws.onmessage = (event) => {
@@ -184,6 +250,7 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
       }
 
       if (event.data === 'pong') {
+        runtime.lastPongAt = Date.now()
         return
       }
 
@@ -218,16 +285,25 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
       }
 
       state.sessionStatus = 'reconnecting'
+      const delay =
+        reconnectDelaysMs[Math.min(runtime.reconnectAttempt, reconnectDelaysMs.length - 1)]
+      runtime.reconnectAttempt += 1
       runtime.sessionReconnectTimer = window.setTimeout(() => {
         runtime.sessionReconnectTimer = null
         state.sessionStatus = 'connecting'
         startSessionWs(windowId)
-      }, 3000)
+      }, delay)
     }
 
     runtime.sessionPingTimer = window.setInterval(() => {
-      if (runtime.sessionWs === ws && ws.readyState === WebSocket.OPEN) {
-        ws.send('ping')
+      if (runtime.sessionWs !== ws || ws.readyState !== WebSocket.OPEN) {
+        return
+      }
+
+      ws.send('ping')
+
+      if (Date.now() - runtime.lastPongAt > heartbeatTimeoutMs) {
+        ws.close(4001, 'heartbeat timeout')
       }
     }, 10000)
   }
@@ -283,6 +359,7 @@ export const useWindowSessionStore = defineStore('windowSession', () => {
     const runtime = ensureRuntime(windowId)
 
     runtime.isIntentionalClose = false
+    runtime.reconnectAttempt = 0
     state.sessionStatus = 'connecting'
     connectPayloads[windowId] = { ...payload }
 
