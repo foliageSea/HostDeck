@@ -94,6 +94,7 @@ class ServerService {
       operationLogService: _container!.operationLogService,
       portForwardRepository: _container!.portForwardRepository,
       serverRepository: _container!.serverRepository,
+      codeServerProxy: _container!.codeServerProxy,
     );
 
     final bindAddress = _parseBindAddress(host);

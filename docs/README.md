@@ -21,6 +21,11 @@
 - `build-and-release.md`：构建与发布流程
 - `testing.md`：测试与校验流程
 
+## 专题分析
+
+- `analysis/code-server-feasibility.md`：集成 code-server 的可行性、方案对比、成本与风险
+- `analysis/code-server/remote-implementation-plan.md`：远端 Linux + 离线包 + 多会话的落地设计
+
 ## 模块文档
 
 - `modules/auth.md`：SSH 连接与认证
@@ -34,6 +39,7 @@
 - `modules/desktop-shell.md`：桌面工作台与窗口系统
 - `modules/settings.md`：设置、主题与壁纸
 - `modules/media-editor.md`：文本编辑与媒体预览
+- `modules/code-server.md`：远端 IDE（离线包安装、同源反代、多会话）
 
 ## 关键入口
 

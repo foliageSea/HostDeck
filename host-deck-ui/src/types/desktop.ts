@@ -18,6 +18,7 @@ export type AppIconKey =
   | 'realtime-log'
   | 'cron-task'
   | 'task-center'
+  | 'code-server'
 
 export type DesktopAppId =
   | 'terminal'
@@ -46,3 +47,4 @@ export type DesktopAppId =
   | 'realtime-logs'
   | 'cron-tasks'
   | 'task-center'
+  | 'code-server'

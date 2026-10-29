@@ -13,6 +13,7 @@ import DockerContainerStatsView from '@/views/Docker/components/DockerContainerS
 import DockerView from '@/views/Docker/index.vue'
 import CronTasksView from '@/views/CronTasks/index.vue'
 import FilesView from '@/views/Files/index.vue'
+import CodeServerView from '@/views/CodeServer/index.vue'
 import IframeAppView from '@/views/IframeApp/index.vue'
 import MediaViewerView from '@/views/MediaViewer/index.vue'
 import OperationLogsView from '@/views/OperationLogs/index.vue'
@@ -54,6 +55,18 @@ export function createHostDesktopApps(): AppConfig[] {
       height: 560,
       minWidth: 640,
       minHeight: 360,
+      showInLaunchpad: true,
+      singleInstance: false,
+    },
+    'code-server': {
+      id: 'code-server',
+      title: '远程 IDE',
+      icon: 'code-server',
+      component: CodeServerView,
+      width: 1280,
+      height: 800,
+      minWidth: 900,
+      minHeight: 560,
       showInLaunchpad: true,
       singleInstance: false,
     },

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Visual Studio Code">
+  <defs>
+    <linearGradient id="cs-bg" x1="32" y1="16" x2="224" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B67C2"/>
+      <stop offset="0.55" stop-color="#07539F"/>
+      <stop offset="1" stop-color="#062F63"/>
+    </linearGradient>
+    <linearGradient id="cs-glyph" x1="72" y1="52" x2="196" y2="204" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#B9E2FF"/>
+    </linearGradient>
+    <linearGradient id="cs-gloss" x1="128" y1="12" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="cs-tile">
+      <rect x="12" y="12" width="232" height="232" rx="54"/>
+    </clipPath>
+  </defs>
+
+  <rect x="12" y="12" width="232" height="232" rx="54" fill="url(#cs-bg)"/>
+  <g clip-path="url(#cs-tile)">
+    <rect x="12" y="12" width="232" height="118" fill="url(#cs-gloss)"/>
+    <circle cx="206" cy="54" r="84" fill="#2FA8FF" opacity="0.10"/>
+  </g>
+  <rect x="13" y="13" width="230" height="230" rx="53" fill="none" stroke="#8FD0FF" stroke-opacity="0.28" stroke-width="2"/>
+
+  <path
+    transform="translate(44 52) scale(7)"
+    fill="url(#cs-glyph)"
+    d="M23.15 2.587 18.21.21a1.494 1.494 0 0 0-1.705.29l-9.46 8.63-4.12-3.128a.999.999 0 0 0-1.276.057L.327 7.261A1 1 0 0 0 .326 8.74L3.899 12 .326 15.26a1 1 0 0 0 .001 1.479L1.65 17.94a.999.999 0 0 0 1.276.057l4.12-3.128 9.46 8.63a1.492 1.492 0 0 0 1.704.29l4.942-2.377A1.5 1.5 0 0 0 24 20.06V3.939a1.5 1.5 0 0 0-.85-1.352Zm-5.146 14.861L10.826 12l7.178-5.448v10.896Z"
+  />
+</svg>

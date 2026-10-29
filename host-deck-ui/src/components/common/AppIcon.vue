@@ -4,6 +4,7 @@ import {
   Settings,
   Activity,
   ChartLine,
+  Code,
   Document,
   Image,
   ListBoxes,
@@ -40,6 +41,7 @@ const iconMap: Record<AppIconKey, Component> = {
   'cron-task': Time,
   docker: LogoDocker,
   editor: Document,
+  'code-server': Code,
   folder: Folder,
   'iframe-app': ApplicationWeb,
   link: Launch,
@@ -62,7 +64,9 @@ const iconImageSrc = computed(() => {
     return themedAppIconMap[props.name]
   }
 
-  if (props.name === 'ai-agent') return themedAppIconMap[props.name]
+  if (props.name === 'ai-agent' || props.name === 'code-server') {
+    return themedAppIconMap[props.name]
+  }
   return props.name === 'process' ? themedAppIconMap.process : null
 })
 </script>

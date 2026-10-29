@@ -38,6 +38,7 @@ enum SshSessionPurpose {
   cronTask,
   processManagement,
   aiAgent,
+  codeServer,
 }
 
 class SshConnectionMetadata {
@@ -183,6 +184,10 @@ class SshService {
   int? getServerId(String connectionId) => _connectionServerIds[connectionId];
 
   SshConnectionMetadata? getConnectionMetadata(String connectionId) =>
+      _connectionMetadata[connectionId];
+
+  /// 与 [getConnectionMetadata] 等价的短别名，供 code-server 等模块使用。
+  SshConnectionMetadata? metadataFor(String connectionId) =>
       _connectionMetadata[connectionId];
 
   Future<SshSession> createShell(

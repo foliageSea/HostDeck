@@ -1,6 +1,7 @@
 import 'package:shelf_router/shelf_router.dart';
 
 import 'package:host_deck/server/features/auth/auth_controller.dart';
+import 'package:host_deck/server/features/code_server/code_server_controller.dart';
 import 'package:host_deck/server/features/access/access_controller.dart';
 import 'package:host_deck/server/features/agent/agent_controller.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_controller.dart';
@@ -19,6 +20,7 @@ import 'package:host_deck/server/features/settings/settings_controller.dart';
 import 'package:host_deck/server/features/system/system_controller.dart';
 import 'package:host_deck/server/features/terminal/terminal_controller.dart';
 import 'package:host_deck/server/routes/auth_routes.dart';
+import 'package:host_deck/server/routes/code_server_routes.dart';
 import 'package:host_deck/server/routes/access_routes.dart';
 import 'package:host_deck/server/routes/agent_routes.dart';
 import 'package:host_deck/server/routes/ai_agent_routes.dart';
@@ -56,6 +58,7 @@ class ApiRoutes {
   final SettingsController settingsController;
   final PortForwardController portForwardController;
   final SecureBrowserTunnelController secureBrowserTunnelController;
+  final CodeServerController codeServerController;
 
   ApiRoutes({
     required this.accessController,
@@ -76,6 +79,7 @@ class ApiRoutes {
     required this.settingsController,
     required this.portForwardController,
     required this.secureBrowserTunnelController,
+    required this.codeServerController,
   });
 
   Router get router {
@@ -90,6 +94,7 @@ class ApiRoutes {
     registerSettingsRoutes(router, settingsController);
     registerPortForwardRoutes(router, portForwardController);
     registerSecureBrowserTunnelRoutes(router, secureBrowserTunnelController);
+    registerCodeServerRoutes(router, codeServerController);
     registerSystemRoutes(router, systemController);
     registerProcessRoutes(router, processController);
     registerFileRoutes(router, fileController);

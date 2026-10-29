@@ -1,4 +1,5 @@
 import type { AppIconKey } from '@/types/desktop'
+import codeServerIconUrl from '@/assets/code-server.svg'
 import aiAgentIconUrl from '@/assets/ai-agent.svg'
 import dashboardIconUrl from '@/assets/mac-tahoe/src/apps/scalable/utilities-system-monitor.svg'
 import dockerIconUrl from '@/assets/mac-tahoe/src/apps/scalable/docker.svg'
@@ -39,6 +40,7 @@ export const themedAppIconMap: Record<AppIconKey, string> = {
   settings: settingsIconUrl,
   terminal: terminalIconUrl,
   'task-center': taskCenterIconUrl,
+  'code-server': codeServerIconUrl,
 }
 
 const preloadedIconUrls = new Map<string, Promise<void>>()

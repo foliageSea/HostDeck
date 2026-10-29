@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
+import 'package:path/path.dart' as p;
 
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
@@ -26,6 +27,12 @@ import 'package:host_deck/server/features/ai_agent/ai_agent_skill_service.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_skill_repository.dart';
 import 'package:host_deck/server/features/ai_agent/ai_agent_tool_service.dart';
 import 'package:host_deck/server/features/auth/auth_controller.dart';
+import 'package:host_deck/server/features/code_server/code_server_controller.dart';
+import 'package:host_deck/server/features/code_server/code_server_manager.dart';
+import 'package:host_deck/server/features/code_server/code_server_models.dart';
+import 'package:host_deck/server/features/code_server/code_server_proxy.dart';
+import 'package:host_deck/server/features/code_server/ide_package_store.dart';
+import 'package:host_deck/server/features/code_server/remote_ide_provider.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_repository.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_service.dart';
@@ -71,6 +78,7 @@ import 'package:host_deck/server/features/terminal/terminal_controller.dart';
 import 'package:host_deck/server/features/terminal/terminal_snippet_repository.dart';
 import 'package:host_deck/server/routes/api_routes.dart';
 import 'package:host_deck/utils/app_settings.dart';
+import 'package:host_deck/utils/runtime_paths.dart';
 
 class ServerContainer {
   final GetIt _getIt;
@@ -84,6 +92,8 @@ class ServerContainer {
   final OperationLogService operationLogService;
   final PortForwardRepository portForwardRepository;
   final ServerRepository serverRepository;
+  final CodeServerManager codeServerManager;
+  final CodeServerProxy codeServerProxy;
 
   ServerContainer._({
     required GetIt getIt,
@@ -97,6 +107,8 @@ class ServerContainer {
     required this.operationLogService,
     required this.portForwardRepository,
     required this.serverRepository,
+    required this.codeServerManager,
+    required this.codeServerProxy,
   }) : _getIt = getIt;
 
   static Future<ServerContainer> create({
@@ -354,6 +366,32 @@ class ServerContainer {
         log: log,
       ),
     );
+    getIt.registerSingletonAsync<IdePackageStore>(() async {
+      final dir = await RuntimePaths.resolveDataDirectory(
+        overridePath: dataDir,
+      );
+      final storeDir = Directory(p.join(dir.path, 'code-server'));
+      await storeDir.create(recursive: true);
+      return IdePackageStore(storeDir);
+    });
+    getIt.registerLazySingleton<RemoteIdeProvider>(
+      () => SshRemoteIdeProvider(getIt<SshService>(), getIt<SshRepository>()),
+    );
+    getIt.registerLazySingleton<CodeServerManager>(
+      () => CodeServerManager(
+        sshService: getIt<SshService>(),
+        provider: getIt<RemoteIdeProvider>(),
+        packages: getIt<IdePackageStore>(),
+      ),
+      dispose: (manager) => manager.dispose(),
+    );
+    getIt.registerLazySingleton<CodeServerProxy>(
+      () => CodeServerProxy(
+        resolver: getIt<CodeServerManager>(),
+        accessService: getIt<AccessAuthService>(),
+      ),
+      dispose: (proxy) => proxy.dispose(),
+    );
     getIt.registerLazySingleton<BackendPortsService>(
       () => BackendPortsService(
         serverHost: serverHost,
@@ -440,6 +478,11 @@ class ServerContainer {
           getIt<SecureBrowserTunnelService>(),
           chromeLauncher: chromeLauncher,
         ),
+        codeServerController: CodeServerController(
+          manager: getIt<CodeServerManager>(),
+          packages: getIt<IdePackageStore>(),
+          sshService: getIt<SshService>(),
+        ),
       ),
     );
 
@@ -456,6 +499,8 @@ class ServerContainer {
       operationLogService: getIt<OperationLogService>(),
       portForwardRepository: getIt<PortForwardRepository>(),
       serverRepository: getIt<ServerRepository>(),
+      codeServerManager: getIt<CodeServerManager>(),
+      codeServerProxy: getIt<CodeServerProxy>(),
       apiRoutes: getIt<ApiRoutes>(),
       sshService: getIt<SshService>(),
     );

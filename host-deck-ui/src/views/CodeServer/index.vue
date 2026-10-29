@@ -1,0 +1,1271 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  FolderOpen,
+  HardDrive,
+  Package,
+  Play,
+  Power,
+  RefreshCw,
+  Server,
+  Trash2,
+  TriangleAlert,
+  Upload,
+} from '@lucide/vue'
+import {
+  codeServerApi,
+  uploadPackage,
+  type CodeServerArch,
+  type CodeServerPackage,
+  type CodeServerPreflight,
+  type CodeServerSession,
+  type CodeServerSessionState,
+  type CodeServerTargetStatus,
+} from '@/api/code-server'
+import { getUiApi } from '@/lib/ui'
+import { useSettingsStore } from '@/stores/settings'
+import { useSshStore } from '@/stores/ssh'
+
+const props = defineProps<{
+  path?: string
+}>()
+
+const settingsStore = useSettingsStore()
+const sshStore = useSshStore()
+
+const loading = ref(true)
+const refreshing = ref(false)
+const fatalError = ref('')
+const actionError = ref('')
+const status = ref<CodeServerTargetStatus | null>(null)
+const packages = ref<CodeServerPackage[]>([])
+const packagesLoading = ref(false)
+const packagesVisible = ref(false)
+const deletingId = ref<string | null>(null)
+const installing = ref(false)
+const starting = ref(false)
+const stopping = ref(false)
+
+const showUpload = ref(false)
+const pendingFile = ref<File | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
+const uploadVersion = ref('')
+const uploadArch = ref<CodeServerArch>('amd64')
+const uploading = ref(false)
+const uploadLoaded = ref(0)
+const uploadTotal = ref(0)
+const selectedPackageId = ref<string | null>(null)
+
+const packageNamePattern = /code-server-([0-9][^/]*?)-linux-(amd64|arm64)\.(?:tar\.gz|tgz)$/i
+const archOptions = [
+  { label: 'linux-amd64（x86_64）', value: 'amd64' },
+  { label: 'linux-arm64（aarch64）', value: 'arm64' },
+]
+
+const sessionStateLabels: Record<CodeServerSessionState, string> = {
+  installing: '安装中',
+  starting: '启动中',
+  running: '运行中',
+  stopping: '停止中',
+  stopped: '已停止',
+  error: '异常',
+}
+
+type TagType = 'default' | 'success' | 'warning' | 'error' | 'info'
+
+let pollTimer: number | null = null
+let statusRequestSeq = 0
+let isUnmounted = false
+
+const hasConnection = computed(() => Boolean(sshStore.connectionId && sshStore.isConnected))
+const connectionText = computed(() => {
+  if (!hasConnection.value) return '未连接 SSH'
+  return sshStore.username + '@' + sshStore.host + ':' + String(sshStore.port ?? '')
+})
+const preflight = computed<CodeServerPreflight | null>(() => status.value?.preflight ?? null)
+const session = computed<CodeServerSession | null>(() => status.value?.session ?? null)
+const issues = computed(() => preflight.value?.issues ?? [])
+const preflightError = computed(() => status.value?.preflightError ?? '')
+const supported = computed(() => {
+  if (preflightError.value) return false
+  return preflight.value?.supported ?? true
+})
+const installedVersion = computed(() => preflight.value?.installedVersion ?? null)
+const targetArch = computed<CodeServerArch>(() => {
+  const arch = preflight.value?.arch ?? ''
+  return arch === 'aarch64' || arch === 'arm64' ? 'arm64' : 'amd64'
+})
+const archDetected = computed(() => preflight.value?.arch || '未知')
+const CODE_SERVER_FALLBACK_VERSION = '4.143.1'
+const codeServerReleasesUrl = 'https://github.com/coder/code-server/releases'
+const downloadVersion = computed(
+  () => matchingPackages.value[0]?.version || CODE_SERVER_FALLBACK_VERSION,
+)
+const downloadUrl = computed(
+  () =>
+    'https://github.com/coder/code-server/releases/download/v' +
+    downloadVersion.value +
+    '/code-server-' +
+    downloadVersion.value +
+    '-linux-' +
+    targetArch.value +
+    '.tar.gz',
+)
+
+const folderText = computed(() => props.path?.trim() || '目标用户主目录')
+const matchingPackages = computed(() =>
+  packages.value.filter((item) => item.arch === targetArch.value),
+)
+const packageOptions = computed(() =>
+  matchingPackages.value.map((item) => ({
+    label: 'v' + item.version + ' · ' + formatBytes(item.size),
+    value: item.id,
+  })),
+)
+const selectedPackage = computed(
+  () => matchingPackages.value.find((item) => item.id === selectedPackageId.value) ?? null,
+)
+const sessionState = computed<CodeServerSessionState | null>(() => session.value?.state ?? null)
+const sessionLabel = computed(() =>
+  sessionState.value ? sessionStateLabels[sessionState.value] : '',
+)
+const sessionTagType = computed<TagType>(() => {
+  switch (sessionState.value) {
+    case 'running':
+      return 'success'
+    case 'installing':
+    case 'starting':
+    case 'stopping':
+      return 'warning'
+    case 'error':
+      return 'error'
+    default:
+      return 'default'
+  }
+})
+const isRunning = computed(() => sessionState.value === 'running' && Boolean(session.value?.url))
+const isWorking = computed(
+  () =>
+    installing.value ||
+    starting.value ||
+    stopping.value ||
+    sessionState.value === 'installing' ||
+    sessionState.value === 'starting' ||
+    sessionState.value === 'stopping',
+)
+const canStop = computed(
+  () => Boolean(session.value) && sessionState.value !== 'stopped' && !stopping.value,
+)
+const sessionProgressPercent = computed<number | null>(() => {
+  const progress = session.value?.progress
+  if (typeof progress !== 'number' || !Number.isFinite(progress)) return null
+  const percent = progress <= 1 ? progress * 100 : progress
+  return Math.max(0, Math.min(100, Math.round(percent)))
+})
+const uploadPercent = computed(() => {
+  if (uploadTotal.value <= 0) return 0
+  return Math.max(0, Math.min(100, Math.round((uploadLoaded.value / uploadTotal.value) * 100)))
+})
+const ideUrl = computed(() => {
+  const rawUrl = session.value?.url
+  if (!rawUrl) return ''
+  let base = rawUrl
+  if (!base.includes('?') && !base.endsWith('/')) base += '/'
+  const folder = props.path?.trim()
+  if (!folder || base.includes('folder=')) return base
+  return base + (base.includes('?') ? '&' : '?') + 'folder=' + encodeURIComponent(folder)
+})
+
+function formatBytes(bytes: number | null | undefined): string {
+  if (bytes === null || bytes === undefined) return '未知'
+  if (bytes < 1024) return String(bytes) + ' B'
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let value = bytes / 1024
+  let index = 0
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024
+    index += 1
+  }
+  return value.toFixed(value >= 100 ? 0 : 1) + ' ' + units[index]
+}
+
+function formatTimestamp(value: string | null | undefined): string {
+  if (!value) return '未知'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(parsed)
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message
+  return fallback
+}
+
+function shouldPoll(): boolean {
+  return (
+    installing.value ||
+    starting.value ||
+    stopping.value ||
+    sessionState.value === 'installing' ||
+    sessionState.value === 'starting' ||
+    sessionState.value === 'stopping'
+  )
+}
+
+function syncPolling() {
+  if (shouldPoll()) {
+    if (pollTimer === null) {
+      pollTimer = window.setInterval(() => {
+        void fetchStatus({ silent: true })
+      }, 1000)
+    }
+    return
+  }
+
+  if (pollTimer !== null) {
+    window.clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+function selectPackage() {
+  const candidates = matchingPackages.value
+  if (!candidates.length) {
+    selectedPackageId.value = null
+    return
+  }
+
+  if (selectedPackageId.value && candidates.some((item) => item.id === selectedPackageId.value)) {
+    return
+  }
+
+  const installed = installedVersion.value
+  const preferred = installed ? candidates.find((item) => item.version === installed) : undefined
+  selectedPackageId.value = (preferred ?? candidates[0]).id
+}
+
+function maybeRevealUpload() {
+  if (!preflight.value) return
+  if (!installedVersion.value && matchingPackages.value.length === 0) {
+    showUpload.value = true
+  }
+}
+
+async function fetchStatus(options: { silent?: boolean } = {}) {
+  const connectionId = sshStore.connectionId
+  if (!connectionId) {
+    status.value = null
+    loading.value = false
+    syncPolling()
+    return
+  }
+
+  const requestSeq = ++statusRequestSeq
+  if (!options.silent) refreshing.value = true
+
+  try {
+    const nextStatus = await codeServerApi.status(connectionId)
+    if (requestSeq !== statusRequestSeq || isUnmounted) return
+    status.value = nextStatus
+    fatalError.value = ''
+    selectPackage()
+    maybeRevealUpload()
+  } catch (error) {
+    if (requestSeq !== statusRequestSeq || isUnmounted) return
+    if (!options.silent) fatalError.value = errorMessage(error, '加载 IDE 状态失败。')
+  } finally {
+    if (requestSeq === statusRequestSeq) {
+      if (!options.silent) refreshing.value = false
+      loading.value = false
+      syncPolling()
+    }
+  }
+}
+
+async function fetchPackages(silent = false) {
+  if (!silent) packagesLoading.value = true
+  try {
+    packages.value = await codeServerApi.listPackages()
+    selectPackage()
+    maybeRevealUpload()
+  } catch (error) {
+    if (!silent) getUiApi().message.error(errorMessage(error, '加载离线包列表失败。'))
+  } finally {
+    if (!silent) packagesLoading.value = false
+  }
+}
+
+async function copyDownloadUrl() {
+  try {
+    await navigator.clipboard.writeText(downloadUrl.value)
+    getUiApi().message.success('下载地址已复制。')
+  } catch {
+    getUiApi().message.error('复制失败，请手动选择地址复制。')
+  }
+}
+
+function refreshStatus() {
+  void fetchStatus()
+  void fetchPackages(true)
+}
+
+async function installSelected() {
+  const connectionId = sshStore.connectionId
+  const pkg = selectedPackage.value
+  if (!connectionId || !pkg || installing.value) return
+
+  installing.value = true
+  actionError.value = ''
+  syncPolling()
+  try {
+    await codeServerApi.install(connectionId, pkg.id)
+    getUiApi().message.success('已安装 code-server ' + pkg.version + '。')
+    await fetchStatus({ silent: true })
+  } catch (error) {
+    actionError.value = errorMessage(error, '安装离线包失败。')
+  } finally {
+    installing.value = false
+    syncPolling()
+  }
+}
+
+async function startIde() {
+  const connectionId = sshStore.connectionId
+  if (!connectionId || starting.value) return
+
+  // 浏览器里先同步占位打开新标签页，避免 start 完成后被弹窗拦截；
+  // Electron 会把 window.open 交给系统浏览器，不能预开 about:blank。
+  let tab: Window | null = null
+  if (!window.hostDeck) {
+    try {
+      tab = window.open('about:blank', '_blank')
+      if (tab) {
+        tab.opener = null
+        try {
+          tab.document.title = '正在启动 IDE…'
+          if (tab.document.body) {
+            tab.document.body.textContent = '正在远端启动 code-server…'
+          }
+        } catch {
+          // about:blank 写入失败不影响后续跳转。
+        }
+      }
+    } catch {
+      tab = null
+    }
+  }
+
+  starting.value = true
+  actionError.value = ''
+  syncPolling()
+  try {
+    const folder = props.path?.trim()
+    await codeServerApi.start(connectionId, folder || undefined)
+    await fetchStatus({ silent: true })
+    if (ideUrl.value) {
+      const target = new URL(ideUrl.value, window.location.href).href
+      if (tab && !tab.closed) {
+        tab.location.href = target
+      } else {
+        openIdeTab()
+      }
+      return
+    }
+    tab?.close()
+    actionError.value = 'IDE 已启动，但没有拿到访问地址，请刷新状态后重试。'
+  } catch (error) {
+    tab?.close()
+    actionError.value = errorMessage(error, '启动 IDE 失败。')
+  } finally {
+    starting.value = false
+    syncPolling()
+  }
+}
+
+async function stopIde() {
+  const connectionId = sshStore.connectionId
+  if (!connectionId || stopping.value) return
+
+  stopping.value = true
+  actionError.value = ''
+  syncPolling()
+  try {
+    await codeServerApi.stop(connectionId)
+    await fetchStatus({ silent: true })
+  } catch (error) {
+    actionError.value = errorMessage(error, '停止 IDE 失败。')
+  } finally {
+    stopping.value = false
+    syncPolling()
+  }
+}
+
+function openIdeTab() {
+  if (!ideUrl.value) return
+  const target = new URL(ideUrl.value, window.location.href)
+  window.open(target.href, '_blank', 'noopener,noreferrer')
+}
+
+async function scanPackages() {
+  if (packagesLoading.value) return
+  packagesLoading.value = true
+  try {
+    await codeServerApi.scanPackages()
+    await fetchPackages(true)
+    getUiApi().message.success('已扫描离线包目录。')
+  } catch (error) {
+    getUiApi().message.error(errorMessage(error, '扫描离线包目录失败。'))
+  } finally {
+    packagesLoading.value = false
+  }
+}
+
+async function deletePackage(pkg: CodeServerPackage) {
+  if (deletingId.value) return
+  deletingId.value = pkg.id
+  try {
+    await codeServerApi.deletePackage(pkg.id)
+    packages.value = packages.value.filter((item) => item.id !== pkg.id)
+    if (selectedPackageId.value === pkg.id) selectedPackageId.value = null
+    selectPackage()
+    getUiApi().message.success('已删除离线包 ' + pkg.version + '。')
+  } catch (error) {
+    getUiApi().message.error(errorMessage(error, '删除离线包失败。'))
+  } finally {
+    deletingId.value = null
+  }
+}
+
+function openUploadPanel() {
+  packagesVisible.value = false
+  showUpload.value = true
+}
+
+function pickFile() {
+  fileInput.value?.click()
+}
+
+function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+  pendingFile.value = file
+  input.value = ''
+
+  if (!file) return
+
+  const matched = packageNamePattern.exec(file.name)
+  if (matched) {
+    uploadVersion.value = matched[1]
+    uploadArch.value = matched[2].toLowerCase() === 'arm64' ? 'arm64' : 'amd64'
+    return
+  }
+
+  getUiApi().message.warning('无法从文件名解析版本与架构，请手动填写。')
+}
+
+async function submitUpload() {
+  const file = pendingFile.value
+  const version = uploadVersion.value.trim()
+  if (!file || uploading.value) return
+  if (!version) {
+    getUiApi().message.warning('请填写 code-server 版本号。')
+    return
+  }
+  if (!/^\d+\.\d+\.\d+$/.test(version)) {
+    getUiApi().message.warning('版本号格式应为 x.y.z，例如 4.143.1。')
+    return
+  }
+
+  uploading.value = true
+  actionError.value = ''
+  uploadLoaded.value = 0
+  uploadTotal.value = file.size
+
+  try {
+    const uploaded = await uploadPackage(file, {
+      version,
+      arch: uploadArch.value,
+      onProgress: (loaded, total) => {
+        uploadLoaded.value = loaded
+        uploadTotal.value = total
+      },
+    })
+    getUiApi().message.success('离线包 v' + uploaded.version + '（' + uploaded.arch + '）已上传。')
+    pendingFile.value = null
+    uploadVersion.value = ''
+    uploadLoaded.value = 0
+    uploadTotal.value = 0
+    await fetchPackages(true)
+    selectedPackageId.value = uploaded.id
+    selectPackage()
+  } catch (error) {
+    actionError.value = errorMessage(error, '上传离线包失败。')
+  } finally {
+    uploading.value = false
+  }
+}
+
+onMounted(() => {
+  if (!hasConnection.value) {
+    loading.value = false
+    return
+  }
+
+  void fetchPackages()
+  void fetchStatus()
+})
+
+onBeforeUnmount(() => {
+  isUnmounted = true
+  if (pollTimer !== null) {
+    window.clearInterval(pollTimer)
+    pollTimer = null
+  }
+})
+
+watch(
+  () => sshStore.connectionId,
+  (nextConnectionId, previousConnectionId) => {
+    if (nextConnectionId === previousConnectionId) return
+
+    status.value = null
+    fatalError.value = ''
+    actionError.value = ''
+    loading.value = Boolean(nextConnectionId)
+    if (!nextConnectionId) {
+      syncPolling()
+      return
+    }
+
+    void fetchPackages()
+    void fetchStatus()
+  },
+)
+
+
+</script>
+
+<template>
+  <div class="code-server-view" :class="{ 'code-server-dark': settingsStore.isDark }">
+    <header class="cs-toolbar">
+      <div class="cs-target">
+        <Server :size="16" aria-hidden="true" />
+        <span class="cs-target-text" :title="connectionText">{{ connectionText }}</span>
+        <NTag v-if="sessionLabel" size="small" :type="sessionTagType" :bordered="false">
+          {{ sessionLabel }}
+        </NTag>
+      </div>
+      <div class="cs-actions">
+        <NButton size="small" quaternary :loading="refreshing" @click="refreshStatus">
+          <template #icon><RefreshCw :size="15" /></template>
+          刷新
+        </NButton>
+        <NButton size="small" quaternary @click="packagesVisible = true">
+          <template #icon><Package :size="15" /></template>
+          离线包 {{ packages.length }}
+        </NButton>
+        <NButton
+          v-if="canStop"
+          size="small"
+          type="error"
+          secondary
+          :loading="stopping"
+          @click="stopIde"
+        >
+          <template #icon><Power :size="15" /></template>
+          停止
+        </NButton>
+      </div>
+    </header>
+
+    <div v-if="!hasConnection" class="cs-center">
+      <NEmpty description="未连接 SSH，无法打开远端 IDE">
+        <template #extra>
+          <span class="cs-muted">请先在主界面连接一台 Linux 主机。</span>
+        </template>
+      </NEmpty>
+    </div>
+
+    <div v-else class="cs-body">
+      <div v-if="loading" class="cs-center">
+        <NSpin size="medium" />
+      </div>
+
+      <div v-else-if="isRunning" class="cs-running">
+        <div class="cs-running-card">
+          <div class="cs-running-head">
+            <FolderOpen :size="18" aria-hidden="true" />
+            <div class="cs-running-copy">
+              <strong>IDE 正在运行</strong>
+              <span class="cs-muted">工作区：{{ folderText }}</span>
+            </div>
+          </div>
+          <p class="cs-running-tip">
+            IDE 正在运行。启动时会自动在新标签页打开；若被浏览器拦截，请点击下方按钮重新打开。
+          </p>
+          <div class="cs-running-actions">
+            <NButton type="primary" @click="openIdeTab">
+              <template #icon><ExternalLink :size="16" /></template>
+              打开 IDE
+            </NButton>
+            <NButton secondary :loading="refreshing" @click="refreshStatus">
+              <template #icon><RefreshCw :size="16" /></template>
+              刷新状态
+            </NButton>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="cs-setup">
+        <NAlert v-if="fatalError" type="error" title="无法加载 IDE 状态">
+          {{ fatalError }}
+        </NAlert>
+        <NAlert v-if="actionError" type="error" closable @close="actionError = ''">
+          {{ actionError }}
+        </NAlert>
+        <NAlert v-if="preflightError" type="warning" title="目标机检查失败">
+          {{ preflightError }}
+        </NAlert>
+        <NAlert v-if="issues.length" type="warning" title="目标机不满足运行条件">
+          <ul class="cs-issue-list">
+            <li v-for="issue in issues" :key="issue">{{ issue }}</li>
+          </ul>
+        </NAlert>
+        <NAlert v-if="session?.error" type="error" title="IDE 会话异常">
+          {{ session.error }}
+        </NAlert>
+
+        <section class="cs-card">
+          <header class="cs-card-header">
+            <HardDrive :size="15" aria-hidden="true" />
+            <h2>目标环境</h2>
+          </header>
+          <dl class="cs-facts">
+            <div>
+              <dt>架构</dt>
+              <dd>{{ archDetected }}（{{ targetArch }}）</dd>
+            </div>
+            <div>
+              <dt>glibc</dt>
+              <dd>{{ preflight?.libc || '未知' }}</dd>
+            </div>
+            <div>
+              <dt>磁盘可用</dt>
+              <dd>{{ formatBytes(preflight?.diskFreeBytes) }}</dd>
+            </div>
+            <div>
+              <dt>已安装版本</dt>
+              <dd>{{ installedVersion ? 'v' + installedVersion : '未安装' }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section v-if="!installedVersion" class="cs-card">
+          <header class="cs-card-header">
+            <Package :size="15" aria-hidden="true" />
+            <h2>安装 IDE</h2>
+          </header>
+          <p class="cs-muted">通过 SSH 将离线包推送到目标机安装，无需目标机联网。</p>
+          <div v-if="matchingPackages.length" class="cs-row">
+            <NSelect
+              v-model:value="selectedPackageId"
+              class="cs-grow"
+              :options="packageOptions"
+              placeholder="选择与目标架构匹配的离线包"
+            />
+            <NButton
+              type="primary"
+              :loading="installing"
+              :disabled="!selectedPackage || !supported"
+              @click="installSelected"
+            >
+              <template #icon><Play :size="15" /></template>
+              安装
+            </NButton>
+          </div>
+          <div v-else class="cs-empty-row">
+            <TriangleAlert :size="15" aria-hidden="true" />
+            <span>当前架构（{{ targetArch }}）暂无离线包。</span>
+            <NButton size="small" type="primary" @click="showUpload = true">上传离线包</NButton>
+          </div>
+          <div class="cs-download">
+            <div class="cs-download-head">
+              <span>离线包下载地址（Linux {{ targetArch }}）</span>
+              <div class="cs-download-actions">
+                <a :href="downloadUrl" target="_blank" rel="noopener noreferrer">下载</a>
+                <NButton text size="tiny" @click="copyDownloadUrl">复制</NButton>
+              </div>
+            </div>
+            <code class="cs-download-url">{{ downloadUrl }}</code>
+            <p class="cs-download-tip">
+              版本 v{{ downloadVersion }}，下载后在上方选择文件上传。
+              <a :href="codeServerReleasesUrl" target="_blank" rel="noopener noreferrer">
+                查看所有版本
+              </a>
+            </p>
+          </div>
+        </section>
+
+        <section v-else class="cs-card">
+          <header class="cs-card-header">
+            <Play :size="15" aria-hidden="true" />
+            <h2>启动 IDE</h2>
+          </header>
+          <p class="cs-muted">将以 {{ folderText }} 作为工作区打开。</p>
+          <div class="cs-row cs-row-between">
+            <span class="cs-installed">已安装 v{{ installedVersion }}</span>
+            <NButton type="primary" :loading="starting" :disabled="!supported" @click="startIde">
+              <template #icon><Play :size="15" /></template>
+              启动 IDE
+            </NButton>
+          </div>
+        </section>
+
+        <section v-if="isWorking && sessionProgressPercent !== null" class="cs-card">
+          <div class="cs-progress-row">
+            <span>{{ sessionLabel || '处理中' }}</span>
+            <span class="cs-muted">{{ sessionProgressPercent }}%</span>
+          </div>
+          <div class="cs-progress-track">
+            <div class="cs-progress-fill" :style="{ width: sessionProgressPercent + '%' }" />
+          </div>
+        </section>
+
+        <section class="cs-card">
+          <button class="cs-collapse" type="button" @click="showUpload = !showUpload">
+            <ChevronDown v-if="showUpload" :size="15" aria-hidden="true" />
+            <ChevronRight v-else :size="15" aria-hidden="true" />
+            <span>上传离线包</span>
+            <Upload :size="15" class="cs-collapse-icon" aria-hidden="true" />
+          </button>
+
+          <div v-if="showUpload" class="cs-upload">
+            <input
+              ref="fileInput"
+              type="file"
+              accept=".tar.gz,.tgz,application/gzip"
+              class="hidden"
+              @change="handleFileChange"
+            />
+            <div class="cs-row">
+              <NButton size="small" :disabled="uploading" @click="pickFile">
+                <template #icon><Upload :size="14" /></template>
+                选择文件
+              </NButton>
+              <span class="cs-muted cs-file-name">{{ pendingFile?.name || '未选择文件' }}</span>
+            </div>
+            <div class="cs-row">
+              <NInput
+                v-model:value="uploadVersion"
+                class="cs-grow"
+                placeholder="版本号，例如 4.143.1"
+                :disabled="uploading"
+              />
+              <NSelect
+                v-model:value="uploadArch"
+                class="cs-arch"
+                :options="archOptions"
+                :disabled="uploading"
+              />
+              <NButton
+                type="primary"
+                size="small"
+                :loading="uploading"
+                :disabled="!pendingFile || !uploadVersion.trim()"
+                @click="submitUpload"
+              >
+                上传
+              </NButton>
+            </div>
+            <div v-if="uploading || uploadTotal > 0" class="cs-upload-progress">
+              <div class="cs-progress-track">
+                <div class="cs-progress-fill" :style="{ width: uploadPercent + '%' }" />
+              </div>
+              <span class="cs-muted">
+                {{ formatBytes(uploadLoaded) }} / {{ formatBytes(uploadTotal) }}（{{
+                  uploadPercent
+                }}%）
+              </span>
+            </div>
+            <p class="cs-tip">
+              文件名需包含版本与架构，例如 hostdeck-code-server-4.143.1-linux-amd64.tar.gz。
+            </p>
+            <div class="cs-download">
+              <div class="cs-download-head">
+                <span>官方下载地址（Linux {{ targetArch }}）</span>
+                <div class="cs-download-actions">
+                  <a :href="downloadUrl" target="_blank" rel="noopener noreferrer">下载</a>
+                  <NButton text size="tiny" @click="copyDownloadUrl">复制</NButton>
+                </div>
+              </div>
+              <code class="cs-download-url">{{ downloadUrl }}</code>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <NDrawer
+      v-model:show="packagesVisible"
+      placement="right"
+      width="min(520px, calc(100vw - 24px))"
+    >
+      <NDrawerContent title="code-server 离线包" closable>
+        <div class="cs-drawer">
+          <div class="cs-row">
+            <NButton size="small" :loading="packagesLoading" @click="scanPackages">
+              <template #icon><RefreshCw :size="14" /></template>
+              扫描离线目录
+            </NButton>
+            <NButton size="small" type="primary" @click="openUploadPanel"> 上传新包 </NButton>
+          </div>
+
+          <NEmpty v-if="!packages.length && !packagesLoading" description="还没有可用的离线包" />
+          <ul v-else class="cs-package-list">
+            <li v-for="pkg in packages" :key="pkg.id" class="cs-package">
+              <div class="cs-package-main">
+                <strong>v{{ pkg.version }}</strong>
+                <NTag size="small" :bordered="false">{{ pkg.arch }}</NTag>
+                <span class="cs-muted">{{ formatBytes(pkg.size) }}</span>
+              </div>
+              <div class="cs-package-meta">
+                <span class="cs-muted">上传于 {{ formatTimestamp(pkg.createdAt) }}</span>
+                <NPopconfirm @positive-click="deletePackage(pkg)">
+                  <template #trigger>
+                    <NButton size="tiny" quaternary type="error" :loading="deletingId === pkg.id">
+                      <template #icon><Trash2 :size="13" /></template>
+                      删除
+                    </NButton>
+                  </template>
+                  删除离线包 v{{ pkg.version }}（{{ pkg.arch }}）？
+                </NPopconfirm>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </NDrawerContent>
+    </NDrawer>
+  </div>
+</template>
+
+<style scoped>
+.code-server-view {
+  --cs-border: rgba(148, 163, 184, 0.22);
+  --cs-surface: rgba(255, 255, 255, 0.72);
+  --cs-surface-soft: rgba(148, 163, 184, 0.08);
+  --cs-text: #1e293b;
+  --cs-muted: #64748b;
+  --cs-primary: #2563eb;
+  --cs-danger: #dc2626;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  color: var(--cs-text);
+}
+
+.code-server-dark {
+  --cs-border: rgba(148, 163, 184, 0.16);
+  --cs-surface: rgba(30, 32, 42, 0.78);
+  --cs-surface-soft: rgba(148, 163, 184, 0.1);
+  --cs-text: #e2e8f0;
+  --cs-muted: #94a3b8;
+  --cs-primary: #60a5fa;
+  --cs-danger: #f87171;
+}
+
+.cs-toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--cs-border);
+  background: var(--cs-surface);
+}
+
+.cs-target {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-target svg {
+  flex: none;
+  color: var(--cs-primary);
+}
+
+.cs-target-text {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cs-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.cs-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.cs-center {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  place-items: center;
+  padding: 24px;
+}
+
+.cs-running {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.cs-running-card {
+  display: flex;
+  width: min(100%, 440px);
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--app-radius-card, 12px);
+  background: var(--cs-surface-soft);
+}
+
+.cs-running-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--cs-primary, #2563eb);
+}
+
+.cs-running-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cs-running-copy strong {
+  color: var(--cs-text);
+  font-size: 14px;
+}
+
+.cs-running-tip {
+  margin: 0;
+  color: var(--cs-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.cs-running-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cs-setup {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow: auto;
+}
+
+.cs-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--cs-border);
+  border-radius: 12px;
+  background: var(--cs-surface);
+}
+
+.cs-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-card-header svg {
+  color: var(--cs-primary);
+}
+
+.cs-card-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.cs-muted {
+  color: var(--cs-muted);
+  font-size: 12px;
+}
+
+.cs-issue-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.cs-facts {
+  display: grid;
+  margin: 0;
+  gap: 8px 18px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.cs-facts div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--cs-surface-soft);
+}
+
+.cs-facts dt {
+  color: var(--cs-muted);
+  font-size: 12px;
+}
+
+.cs-facts dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-row-between {
+  justify-content: space-between;
+}
+
+.cs-grow {
+  min-width: 0;
+  flex: 1;
+}
+
+.cs-arch {
+  width: 190px;
+}
+
+.cs-installed {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cs-empty-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cs-muted);
+  font-size: 13px;
+}
+
+.cs-empty-row svg {
+  flex: none;
+  color: #d97706;
+}
+
+.cs-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.cs-progress-track {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cs-surface-soft);
+}
+
+.cs-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cs-primary);
+  transition: width 0.2s ease;
+}
+
+.cs-collapse {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cs-collapse-icon {
+  margin-left: auto;
+  color: var(--cs-muted);
+}
+
+.cs-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.cs-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cs-upload-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cs-tip {
+  margin: 0;
+  color: var(--cs-muted);
+  font-size: 12px;
+}
+
+.cs-download {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid var(--cs-border);
+  border-radius: 10px;
+  background: var(--cs-surface-soft);
+}
+
+.cs-download-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--cs-muted);
+  font-size: 12px;
+}
+
+.cs-download-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cs-download-actions a,
+.cs-download-tip a {
+  color: var(--cs-primary);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.cs-download-actions a:hover,
+.cs-download-tip a:hover {
+  text-decoration: underline;
+}
+
+.cs-download-url {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--cs-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  user-select: all;
+}
+
+.cs-download-tip {
+  margin: 0;
+  color: var(--cs-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.cs-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cs-package-list {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+
+.cs-package {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--cs-border);
+  border-radius: 10px;
+}
+
+.cs-package-main,
+.cs-package-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-package-main strong {
+  font-size: 14px;
+}
+
+.cs-package-meta {
+  justify-content: space-between;
+}
+
+@media (max-width: 640px) {
+  .cs-setup {
+    padding: 10px;
+  }
+
+  .cs-arch {
+    width: 140px;
+  }
+}
+</style>

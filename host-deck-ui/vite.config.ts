@@ -172,6 +172,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: false,
           ws: true,
         },
+        '/ide': {
+          target: proxyTarget,
+          changeOrigin: false,
+          ws: true,
+        },
         '/wallpapers': {
           target: proxyTarget,
           changeOrigin: false,

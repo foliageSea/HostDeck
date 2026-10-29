@@ -10,6 +10,8 @@ import 'package:host_deck/server/routes/api_routes.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/access/access_middleware.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
+import 'package:host_deck/server/features/code_server/code_server_proxy.dart';
+import 'package:host_deck/server/features/code_server/code_server_proxy_middleware.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_middleware.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_repository.dart';
@@ -28,7 +30,10 @@ Middleware accessLogMiddleware(Logger log) {
           response.statusCode,
           stopwatch.elapsed,
         );
-        if (response.statusCode >= 500) {
+        // IDE 静态资源请求很多，避免 access log 淹没正常日志。
+        if (request.url.path.startsWith('ide/')) {
+          log.fine(message);
+        } else if (response.statusCode >= 500) {
           log.severe(message);
         } else if (response.statusCode >= 400) {
           log.warning(message);
@@ -82,6 +87,7 @@ Future<Handler> buildServerHandler({
   required OperationLogService operationLogService,
   required PortForwardRepository portForwardRepository,
   required ServerRepository serverRepository,
+  required CodeServerProxy codeServerProxy,
 }) async {
   Handler? staticHandler;
   final wallpaperDir = await AppSettings.resolveWallpaperDirectory();
@@ -155,5 +161,6 @@ Future<Handler> buildServerHandler({
   return Pipeline()
       .addMiddleware(accessLogMiddleware(log))
       .addMiddleware(sshActivityMiddleware(sshService))
+      .addMiddleware(codeServerProxyMiddleware(codeServerProxy))
       .addHandler(cascade.handler);
 }
