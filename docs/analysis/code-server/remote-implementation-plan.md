@@ -243,4 +243,4 @@ GET    /ide/<sessionId>/...                    代理（自行鉴权，非 /api�
 
 未完成（见 docs/modules/code-server.md「已知限制」）：重启接管、SSE 进度、VSIX 离线安装、版本切换 UI、CLI 配置、共享主机强隔离。
 
-- 展示方式调整：启动后直接在新标签页打开 IDE，不再使用内嵌 iframe（代理与鉴权不变）。
+- 展示方式调整：运行窗口内嵌 iframe 加载 IDE，同时保留新标签页打开按钮（代理与鉴权不变）。

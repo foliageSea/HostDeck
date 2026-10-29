@@ -54,6 +54,35 @@ describe('standalone desktop components', () => {
     value.desktop.dispose()
   })
 
+  it('renders icon title-bar actions with dynamic labels and visibility', async () => {
+    const value = context()
+    const Icon = defineComponent({ render: () => h('svg', { 'data-action-icon': '' }) })
+    value.desktop.apps.custom!.actions = [
+      {
+        id: 'toggle',
+        label: (window) => (window.props?.collapsed ? 'Expand' : 'Collapse'),
+        icon: () => Icon,
+        run: (window) =>
+          value.desktop.updateWindowProps(window.id, { collapsed: !window.props?.collapsed }),
+      },
+      { id: 'hidden', label: 'Hidden', visible: () => false, run: vi.fn() },
+    ]
+    value.desktop.openWindow('custom')
+    const wrapper = mount(DesktopWindow, {
+      props: { window: value.desktop.windows[0]! },
+      global: { provide: { [desktopContextKey as symbol]: value } },
+    })
+    expect(wrapper.find('[aria-label="Hidden"]').exists()).toBe(false)
+    const button = wrapper.get('[aria-label="Collapse"]')
+    expect(button.find('[data-action-icon]').exists()).toBe(true)
+    expect(button.text()).toBe('')
+    await button.trigger('click')
+    await wrapper.setProps({ window: value.desktop.windows[0]! })
+    expect(wrapper.find('[aria-label="Expand"]').exists()).toBe(true)
+    wrapper.unmount()
+    value.desktop.dispose()
+  })
+
   it('measures its container, scopes theme and ignores shortcuts after an outside pointer event', async () => {
     const value = context()
     const wrapper = shallowMount(DesktopShell, {

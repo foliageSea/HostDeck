@@ -21,7 +21,12 @@ export interface AppConfig {
 
 export interface WindowAction {
   id: string
-  label: string
+  /** 固定文案，或按窗口状态动态计算（用于切换类按钮）。 */
+  label: string | ((window: WindowState) => string)
+  /** 可选图标；提供后按钮只显示图标，label 用作 title/aria-label。 */
+  icon?: (window: WindowState) => Component
+  /** 返回 false 时隐藏该按钮。 */
+  visible?: (window: WindowState) => boolean
   run: (window: WindowState) => void | Promise<void>
 }
 

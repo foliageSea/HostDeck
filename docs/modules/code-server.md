@@ -8,7 +8,7 @@
 - IDE 只运行在 **SSH 目标 Linux 主机**，不在 HostDeck 所在机启动。
 - 安装使用 **离线包**：管理员上传或放入数据目录，经 SSH/SFTP 推送到目标机，不依赖目标机外网。
 - 每个 SSH 连接一个 IDE 会话；同一目标重复打开时复用（按 hostKey 判断）。
-- 启动后在新标签页打开 **同源 /ide/ 反向代理**；code-server 只监听远端 127.0.0.1，不暴露端口，也不再使用内嵌 iframe。
+- 运行窗口内嵌 iframe 加载同源 /ide/ 反向代理；code-server 只监听远端 127.0.0.1，不暴露端口；工具栏保留“新标签页”按钮。
 
 ## 代码入口
 
@@ -33,7 +33,7 @@
 前端：
 
 - host-deck-ui/src/api/code-server.ts
-- host-deck-ui/src/views/CodeServer/index.vue（状态、预检、上传、安装、启动、包管理抽屉；启动后打开新标签页）
+- host-deck-ui/src/views/CodeServer/index.vue（状态、预检、上传、安装、启动、iframe、包管理抽屉；支持新标签页打开）
 - host-deck-ui/src/lib/host-desktop-apps.ts、types/desktop.ts、lib/app-icons.ts、components/common/AppIcon.vue（应用注册）
 - host-deck-ui/vite.config.ts（开发态 /ide 代理，ws: true）
 

@@ -1,4 +1,5 @@
 import { computed, markRaw, onScopeDispose, ref, toRef } from 'vue'
+import { PanelTopClose, PanelTopOpen } from '@lucide/vue'
 import { defineStore } from 'pinia'
 import { createDesktop, type OpenWindowOptions } from '@host-deck/webos'
 import { getUiApi } from '@/lib/ui'
@@ -140,6 +141,18 @@ export const useDesktopStore = defineStore('desktop', () => {
   })
   runtime.apps['iframe-app']!.actions = [
     { id: 'refresh', label: '刷新', run: (window) => refreshIframeWindow(window.id) },
+  ]
+  // 远程 IDE 的顶部操作区开关放在窗口标题栏，状态存在窗口 props 里供视图读取。
+  runtime.apps['code-server']!.actions = [
+    {
+      id: 'toggle-toolbar',
+      label: (window) => (window.props?.toolbarCollapsed ? '展开顶部操作区' : '收起顶部操作区'),
+      icon: (window) => (window.props?.toolbarCollapsed ? PanelTopOpen : PanelTopClose),
+      run: (window) =>
+        runtime.updateWindowProps(window.id, {
+          toolbarCollapsed: !window.props?.toolbarCollapsed,
+        }),
+    },
   ]
   onScopeDispose(() => runtime.dispose())
   const sessionWindowCount = computed(

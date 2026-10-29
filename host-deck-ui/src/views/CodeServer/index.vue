@@ -14,6 +14,8 @@ import {
   Trash2,
   TriangleAlert,
   Upload,
+  ZoomIn,
+  ZoomOut,
 } from '@lucide/vue'
 import {
   codeServerApi,
@@ -26,13 +28,18 @@ import {
   type CodeServerTargetStatus,
 } from '@/api/code-server'
 import { getUiApi } from '@/lib/ui'
+import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 
 const props = defineProps<{
   path?: string
+  windowId?: string
+  /** 由窗口标题栏的开关写入窗口 props。 */
+  toolbarCollapsed?: boolean
 }>()
 
+const desktopStore = useDesktopStore()
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 
@@ -48,6 +55,38 @@ const deletingId = ref<string | null>(null)
 const installing = ref(false)
 const starting = ref(false)
 const stopping = ref(false)
+const frameKey = ref(0)
+const frameLoaded = ref(false)
+const localHeaderCollapsed = ref(false)
+// 收起状态存在窗口 props 中，标题栏按钮和视图共用同一份状态。
+const headerCollapsed = computed({
+  get: () => (props.windowId ? Boolean(props.toolbarCollapsed) : localHeaderCollapsed.value),
+  set: (value: boolean) => {
+    if (props.windowId) {
+      desktopStore.updateWindowProps(props.windowId, { toolbarCollapsed: value })
+    } else {
+      localHeaderCollapsed.value = value
+    }
+  },
+})
+
+const FRAME_ZOOM_STORAGE_KEY = 'host-deck:code-server:frame-zoom'
+const FRAME_ZOOM_MIN = 0.5
+const FRAME_ZOOM_MAX = 2
+const FRAME_ZOOM_STEP = 0.1
+const frameZoom = ref(loadFrameZoom())
+const frameZoomPercent = computed(() => Math.round(frameZoom.value * 100))
+// transform 缩放后用反比宽高铺满容器，避免出现空白或滚动条。
+const frameStyle = computed(() => {
+  const zoom = frameZoom.value
+  if (zoom === 1) return undefined
+  return {
+    width: `${100 / zoom}%`,
+    height: `${100 / zoom}%`,
+    transform: `scale(${zoom})`,
+    transformOrigin: '0 0',
+  }
+})
 
 const showUpload = ref(false)
 const pendingFile = ref<File | null>(null)
@@ -147,6 +186,11 @@ const sessionTagType = computed<TagType>(() => {
   }
 })
 const isRunning = computed(() => sessionState.value === 'running' && Boolean(session.value?.url))
+
+watch(isRunning, (running) => {
+  // 启动进入运行态后默认收起顶部操作区；手动展开后不会被状态刷新重新收起。
+  headerCollapsed.value = running
+})
 const isWorking = computed(
   () =>
     installing.value ||
@@ -341,28 +385,6 @@ async function startIde() {
   const connectionId = sshStore.connectionId
   if (!connectionId || starting.value) return
 
-  // 浏览器里先同步占位打开新标签页，避免 start 完成后被弹窗拦截；
-  // Electron 会把 window.open 交给系统浏览器，不能预开 about:blank。
-  let tab: Window | null = null
-  if (!window.hostDeck) {
-    try {
-      tab = window.open('about:blank', '_blank')
-      if (tab) {
-        tab.opener = null
-        try {
-          tab.document.title = '正在启动 IDE…'
-          if (tab.document.body) {
-            tab.document.body.textContent = '正在远端启动 code-server…'
-          }
-        } catch {
-          // about:blank 写入失败不影响后续跳转。
-        }
-      }
-    } catch {
-      tab = null
-    }
-  }
-
   starting.value = true
   actionError.value = ''
   syncPolling()
@@ -370,19 +392,9 @@ async function startIde() {
     const folder = props.path?.trim()
     await codeServerApi.start(connectionId, folder || undefined)
     await fetchStatus({ silent: true })
-    if (ideUrl.value) {
-      const target = new URL(ideUrl.value, window.location.href).href
-      if (tab && !tab.closed) {
-        tab.location.href = target
-      } else {
-        openIdeTab()
-      }
-      return
-    }
-    tab?.close()
-    actionError.value = 'IDE 已启动，但没有拿到访问地址，请刷新状态后重试。'
+    frameLoaded.value = false
+    frameKey.value += 1
   } catch (error) {
-    tab?.close()
     actionError.value = errorMessage(error, '启动 IDE 失败。')
   } finally {
     starting.value = false
@@ -406,6 +418,54 @@ async function stopIde() {
     stopping.value = false
     syncPolling()
   }
+}
+
+function refreshFrame() {
+  frameLoaded.value = false
+  frameKey.value += 1
+}
+
+function clampFrameZoom(value: number) {
+  const rounded = Math.round(value * 10) / 10
+  return Math.min(FRAME_ZOOM_MAX, Math.max(FRAME_ZOOM_MIN, rounded))
+}
+
+function loadFrameZoom() {
+  try {
+    const stored = Number(window.localStorage.getItem(FRAME_ZOOM_STORAGE_KEY))
+    return Number.isFinite(stored) && stored > 0 ? clampFrameZoom(stored) : 1
+  } catch {
+    return 1
+  }
+}
+
+function setFrameZoom(value: number) {
+  frameZoom.value = clampFrameZoom(value)
+  try {
+    window.localStorage.setItem(FRAME_ZOOM_STORAGE_KEY, String(frameZoom.value))
+  } catch {
+    // 存储不可用时仅本次生效。
+  }
+}
+
+function zoomFrameIn() {
+  setFrameZoom(frameZoom.value + FRAME_ZOOM_STEP)
+}
+
+function zoomFrameOut() {
+  setFrameZoom(frameZoom.value - FRAME_ZOOM_STEP)
+}
+
+function resetFrameZoom() {
+  setFrameZoom(1)
+}
+
+function refreshTop() {
+  if (isRunning.value) {
+    refreshFrame()
+    return
+  }
+  void refreshStatus()
 }
 
 function openIdeTab() {
@@ -539,6 +599,7 @@ watch(
     status.value = null
     fatalError.value = ''
     actionError.value = ''
+    frameLoaded.value = false
     loading.value = Boolean(nextConnectionId)
     if (!nextConnectionId) {
       syncPolling()
@@ -550,23 +611,67 @@ watch(
   },
 )
 
-
+watch(
+  () => props.path,
+  () => {
+    if (isRunning.value) refreshFrame()
+  },
+)
 </script>
 
 <template>
   <div class="code-server-view" :class="{ 'code-server-dark': settingsStore.isDark }">
-    <header class="cs-toolbar">
+    <header v-if="!headerCollapsed" class="cs-toolbar">
       <div class="cs-target">
         <Server :size="16" aria-hidden="true" />
         <span class="cs-target-text" :title="connectionText">{{ connectionText }}</span>
         <NTag v-if="sessionLabel" size="small" :type="sessionTagType" :bordered="false">
           {{ sessionLabel }}
         </NTag>
+        <span v-if="isRunning" class="cs-folder" :title="folderText">
+          <FolderOpen :size="13" aria-hidden="true" />
+          <span class="cs-folder-text">{{ folderText }}</span>
+        </span>
       </div>
       <div class="cs-actions">
-        <NButton size="small" quaternary :loading="refreshing" @click="refreshStatus">
+        <div v-if="isRunning" class="cs-zoom" role="group" aria-label="IDE 缩放">
+          <NButton
+            size="small"
+            quaternary
+            :disabled="frameZoom <= FRAME_ZOOM_MIN"
+            title="缩小"
+            aria-label="缩小"
+            @click="zoomFrameOut"
+          >
+            <template #icon><ZoomOut :size="15" /></template>
+          </NButton>
+          <button
+            type="button"
+            class="cs-zoom-value"
+            title="重置为 100%"
+            aria-label="重置缩放"
+            @click="resetFrameZoom"
+          >
+            {{ frameZoomPercent }}%
+          </button>
+          <NButton
+            size="small"
+            quaternary
+            :disabled="frameZoom >= FRAME_ZOOM_MAX"
+            title="放大"
+            aria-label="放大"
+            @click="zoomFrameIn"
+          >
+            <template #icon><ZoomIn :size="15" /></template>
+          </NButton>
+        </div>
+        <NButton size="small" quaternary :loading="!isRunning && refreshing" @click="refreshTop">
           <template #icon><RefreshCw :size="15" /></template>
-          刷新
+          {{ isRunning ? '刷新' : '刷新状态' }}
+        </NButton>
+        <NButton v-if="isRunning" size="small" quaternary @click="openIdeTab">
+          <template #icon><ExternalLink :size="15" /></template>
+          新标签页
         </NButton>
         <NButton size="small" quaternary @click="packagesVisible = true">
           <template #icon><Package :size="15" /></template>
@@ -600,27 +705,21 @@ watch(
       </div>
 
       <div v-else-if="isRunning" class="cs-running">
-        <div class="cs-running-card">
-          <div class="cs-running-head">
-            <FolderOpen :size="18" aria-hidden="true" />
-            <div class="cs-running-copy">
-              <strong>IDE 正在运行</strong>
-              <span class="cs-muted">工作区：{{ folderText }}</span>
-            </div>
+        <div class="cs-frame-wrap">
+          <div v-if="!frameLoaded" class="cs-frame-loading">
+            <NSpin size="small" />
+            <span>正在载入 IDE…</span>
           </div>
-          <p class="cs-running-tip">
-            IDE 正在运行。启动时会自动在新标签页打开；若被浏览器拦截，请点击下方按钮重新打开。
-          </p>
-          <div class="cs-running-actions">
-            <NButton type="primary" @click="openIdeTab">
-              <template #icon><ExternalLink :size="16" /></template>
-              打开 IDE
-            </NButton>
-            <NButton secondary :loading="refreshing" @click="refreshStatus">
-              <template #icon><RefreshCw :size="16" /></template>
-              刷新状态
-            </NButton>
-          </div>
+          <iframe
+            :key="frameKey"
+            class="cs-frame"
+            :class="{ 'cs-frame-ready': frameLoaded }"
+            :style="frameStyle"
+            :src="ideUrl"
+            title="code-server IDE"
+            allow="clipboard-read; clipboard-write; fullscreen"
+            @load="frameLoaded = true"
+          />
         </div>
       </div>
 
@@ -865,6 +964,7 @@ watch(
   --cs-muted: #64748b;
   --cs-primary: #2563eb;
   --cs-danger: #dc2626;
+  position: relative;
   display: flex;
   height: 100%;
   min-height: 0;
@@ -887,14 +987,15 @@ watch(
   flex: none;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 5px 10px;
   border-bottom: 1px solid var(--cs-border);
   background: var(--cs-surface);
 }
 
 .cs-target {
   display: flex;
+  flex: 1;
   min-width: 0;
   align-items: center;
   gap: 8px;
@@ -913,11 +1014,70 @@ watch(
   white-space: nowrap;
 }
 
+.cs-folder {
+  display: flex;
+  min-width: 0;
+  max-width: 360px;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  padding-left: 8px;
+  border-left: 1px solid var(--cs-border);
+  color: var(--cs-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cs-folder svg {
+  flex: none;
+  color: var(--cs-muted);
+}
+
+.cs-folder-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .cs-folder {
+    display: none;
+  }
+}
+
 .cs-actions {
   display: flex;
   flex: none;
   align-items: center;
   gap: 4px;
+}
+
+.cs-zoom {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+  padding-right: 8px;
+  border-right: 1px solid var(--cs-border);
+}
+
+.cs-zoom-value {
+  min-width: 44px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cs-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cs-zoom-value:hover {
+  background: var(--cs-surface-soft);
+  color: var(--cs-text);
 }
 
 .cs-body {
@@ -939,52 +1099,40 @@ watch(
   display: flex;
   min-height: 0;
   flex: 1;
+  flex-direction: column;
+}
+
+.cs-frame-wrap {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.cs-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.cs-frame-ready {
+  opacity: 1;
+}
+
+.cs-frame-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-}
-
-.cs-running-card {
-  display: flex;
-  width: min(100%, 440px);
-  flex-direction: column;
-  gap: 14px;
-  padding: 20px;
-  border: 1px solid var(--cs-border);
-  border-radius: var(--app-radius-card, 12px);
-  background: var(--cs-surface-soft);
-}
-
-.cs-running-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--cs-primary, #2563eb);
-}
-
-.cs-running-copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.cs-running-copy strong {
-  color: var(--cs-text);
-  font-size: 14px;
-}
-
-.cs-running-tip {
-  margin: 0;
-  color: var(--cs-muted);
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.cs-running-actions {
-  display: flex;
-  flex-wrap: wrap;
   gap: 8px;
+  color: #64748b;
+  font-size: 13px;
+  background: #f8fafc;
 }
 
 .cs-setup {

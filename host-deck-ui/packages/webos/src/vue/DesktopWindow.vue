@@ -2,7 +2,7 @@
 import { computed, onUnmounted, ref } from 'vue'
 import { Minus, Square, X } from '@lucide/vue'
 import { useDesktop as useDesktopStore, useDesktopPreferences as useSettingsStore } from './context'
-import type { WindowState } from '../core/types'
+import type { WindowAction, WindowState } from '../core/types'
 
 const props = defineProps<{
   window: WindowState
@@ -102,7 +102,15 @@ function closeWindow() {
   void desktopStore.requestCloseWindow(props.window.id).catch(desktopStore.reportLifecycleError)
 }
 
-const windowActions = computed(() => desktopStore.apps[props.window.appId]?.actions ?? [])
+const windowActions = computed(() =>
+  (desktopStore.apps[props.window.appId]?.actions ?? []).filter(
+    (action) => action.visible?.(props.window) ?? true,
+  ),
+)
+
+function actionLabel(action: WindowAction) {
+  return typeof action.label === 'function' ? action.label(props.window) : action.label
+}
 
 function isWindowControlActionTarget(target: EventTarget | null) {
   return target instanceof HTMLElement && Boolean(target.closest('[data-window-control-action]'))
@@ -301,11 +309,12 @@ onUnmounted(() => {
                 ]
           "
           type="button"
-          :title="action.label"
-          :aria-label="action.label"
+          :title="actionLabel(action)"
+          :aria-label="actionLabel(action)"
           @click="action.run(window)"
         >
-          {{ action.label }}
+          <component :is="action.icon(window)" v-if="action.icon" :size="16" aria-hidden="true" />
+          <template v-else>{{ actionLabel(action) }}</template>
         </button>
         <template v-if="!isMacWindowControls">
           <button

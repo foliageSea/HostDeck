@@ -4,7 +4,7 @@
 > 结论先行：**技术上可行，推荐「同源子路径反向代理 + 按需托管 code-server」**；iframe 直连端口不可行（上游返回 `X-Frame-Options: SAMEORIGIN`）。
 > 配套材料：[`backend.md`](backend.md)（后端接入点）、[`frontend.md`](frontend.md)（前端承载点）、[`distribution.md`](distribution.md)（分发/部署）、[`poc-subpath-proxy.md`](poc-subpath-proxy.md)（实测记录）。
 > 决策收敛（2026-10-29）：目标锁定 **SSH 目标 Linux 主机**、**离线安装包**、**多会话**；落地设计见 [`remote-implementation-plan.md`](code-server/remote-implementation-plan.md)。
-> 展示方式调整（2026-10-29）：启动后直接在新标签页打开 IDE，不再使用内嵌 iframe；同源 /ide/ 反向代理仍然保留。
+> 展示方式调整（2026-10-29）：运行窗口内嵌 iframe 加载 IDE，同时保留新标签页打开按钮；同源 /ide/ 反向代理不变。
 
 ## 0. 结论摘要
 
