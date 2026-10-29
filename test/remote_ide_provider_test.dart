@@ -346,6 +346,37 @@ void main() {
       expect(sshService.closedSessionIds, isNotEmpty);
     });
 
+    test('merges watcher excludes into remote user settings', () async {
+      final base = _startHandler();
+      var settingsWrite = '';
+      repository.handler = (command) {
+        if (command.startsWith('cat ') && command.contains('settings.json')) {
+          return _ok(
+            '{"editor.fontSize":14,"files.watcherExclude":{"**/custom/**":true}}${String.fromCharCode(10)}',
+          );
+        }
+        if (command.contains('settings.json') &&
+            command.startsWith("printf '%s'")) {
+          settingsWrite = command;
+          return _ok();
+        }
+        return base(command);
+      };
+
+      await provider.start(
+        'connection-1',
+        sessionId: sessionId,
+        hostKey: hostKey,
+        version: version,
+      );
+
+      expect(settingsWrite, isNotEmpty);
+      expect(settingsWrite, contains('editor.fontSize'));
+      expect(settingsWrite, contains('**/custom/**'));
+      expect(settingsWrite, contains('**/.dart_tool/**'));
+      expect(settingsWrite, contains('search.followSymlinks'));
+    });
+
     test('retries the next port when the preferred one is listening', () async {
       final preferred = SshRemoteIdeProvider.preferredPortFor(hostKey);
       var listeningChecks = 0;

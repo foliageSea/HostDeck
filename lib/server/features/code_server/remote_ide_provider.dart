@@ -40,6 +40,20 @@ class SshRemoteIdeProvider implements RemoteIdeProvider {
   static const Duration _archiveTimeout = Duration(minutes: 10);
   static const Duration _cleanupTimeout = Duration(seconds: 60);
 
+  /// 首次打开大仓库时，VS Code 的递归文件监听会拖慢文件树。
+  /// 只补充缺失项，不覆盖用户已有配置。
+  static const Map<String, Object> _defaultWatcherExcludes = {
+    '**/.git/objects/**': true,
+    '**/.git/subtree-cache/**': true,
+    '**/node_modules/**': true,
+    '**/.dart_tool/**': true,
+    '**/build/**': true,
+    '**/dist/**': true,
+    '**/release/**': true,
+    '**/.fvm/**': true,
+    '**/.gradle/**': true,
+  };
+
   static const String _installRootSuffix = '.local/lib/hostdeck/code-server';
   static const String _dataRootSuffix = '.local/share/hostdeck/code-server';
 
@@ -406,6 +420,7 @@ rm -f __SESSION_FILE__
     final dataRoot = '$home/$_dataRootSuffix/$resolvedHostKey';
     final dataDir = '$dataRoot/data';
     final extensionsDir = '$dataRoot/extensions';
+    await _ensureUserSettings(session, dataDir);
     final logDir = '$dataRoot/logs';
     final sessionDir = '$dataRoot/sessions';
     final logFile = '$logDir/code-server.log';
@@ -563,6 +578,62 @@ rm -f __SESSION_FILE__
     }
     _remoteHomes[session.connectionId] = home;
     return home;
+  }
+
+  Future<void> _ensureUserSettings(SshSession session, String dataDir) async {
+    final userDir = '$dataDir/User';
+    final settingsPath = '$userDir/settings.json';
+    try {
+      await _ensureDir(session, userDir);
+      final result = await _tryExec(
+        session,
+        'cat ${_quote(settingsPath)} 2>/dev/null',
+        timeout: _probeTimeout,
+      );
+      final raw = result.stdout.trim();
+      final settings = <String, dynamic>{};
+      if (raw.isNotEmpty) {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          settings.addAll(decoded);
+        } else if (decoded is Map) {
+          for (final entry in decoded.entries) {
+            settings[entry.key.toString()] = entry.value;
+          }
+        } else {
+          return;
+        }
+      }
+
+      var changed = false;
+      final watcherRaw = settings['files.watcherExclude'];
+      final watcherExcludes = watcherRaw is Map
+          ? Map<String, dynamic>.from(watcherRaw)
+          : <String, dynamic>{};
+      if (watcherRaw is! Map) changed = true;
+      for (final entry in _defaultWatcherExcludes.entries) {
+        if (!watcherExcludes.containsKey(entry.key)) {
+          watcherExcludes[entry.key] = entry.value;
+          changed = true;
+        }
+      }
+      settings['files.watcherExclude'] = watcherExcludes;
+      if (!settings.containsKey('search.followSymlinks')) {
+        settings['search.followSymlinks'] = false;
+        changed = true;
+      }
+
+      if (!changed) return;
+      await _exec(
+        session,
+        "printf '%s' ${_quote(jsonEncode(settings))} > ${_quote(settingsPath)}",
+        timeout: _probeTimeout,
+        context: '写入 IDE 推荐设置',
+      );
+      _log.info('已为远端 IDE 补充文件监听排除项：$settingsPath');
+    } catch (error) {
+      _log.warning('写入远端 IDE 推荐设置失败：$error');
+    }
   }
 
   Future<String?> _installedVersion(

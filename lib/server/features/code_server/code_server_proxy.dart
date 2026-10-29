@@ -73,7 +73,13 @@ class CodeServerProxy {
     final upstreamQuery = request.url.hasQuery ? request.url.query : null;
 
     if (isUpgrade) {
-      _proxyWebSocket(request, upstream, upstreamPath, upstreamQuery);
+      _proxyWebSocket(
+        request,
+        upstream,
+        upstreamPath,
+        upstreamQuery,
+        sessionId,
+      );
       throw StateError('unreachable');
     }
 
@@ -138,6 +144,7 @@ class CodeServerProxy {
     CodeServerUpstream upstream,
     String path,
     String? query,
+    String sessionId,
   ) {
     final key = request.headers['sec-websocket-key'];
     final version = request.headers['sec-websocket-version'] ?? '13';
@@ -145,7 +152,12 @@ class CodeServerProxy {
 
     request.hijack((channel) {
       unawaited(() async {
+        final startedAt = DateTime.now();
         Socket? socket;
+        var browserToUpstreamBytes = 0;
+        var upstreamToBrowserBytes = 0;
+        var firstClose = 'none';
+        Object? lastError;
         try {
           socket = await Socket.connect(
             upstream.host,
@@ -168,14 +180,20 @@ class CodeServerProxy {
           buffer.write('\r\n');
           socket.add(buffer.toString().codeUnits);
           await socket.flush();
+          _log.fine('IDE WebSocket opened session=$sessionId path=$path');
 
           final done = Completer<void>();
           socket.listen(
-            channel.sink.add,
-            onError: (Object _) {
+            (data) {
+              browserToUpstreamBytes += data.length;
+              channel.sink.add(data);
+            },
+            onError: (Object error) {
+              lastError = error;
               if (!done.isCompleted) done.complete();
             },
             onDone: () {
+              if (firstClose == 'none') firstClose = 'upstream';
               try {
                 channel.sink.close();
               } catch (_) {}
@@ -184,12 +202,17 @@ class CodeServerProxy {
             cancelOnError: false,
           );
           channel.stream.listen(
-            socket.add,
-            onError: (Object _) {
+            (data) {
+              upstreamToBrowserBytes += data.length;
+              socket?.add(data);
+            },
+            onError: (Object error) {
+              lastError = error;
               socket?.destroy();
               if (!done.isCompleted) done.complete();
             },
             onDone: () {
+              if (firstClose == 'none') firstClose = 'browser';
               socket?.destroy();
               if (!done.isCompleted) done.complete();
             },
@@ -197,7 +220,12 @@ class CodeServerProxy {
           );
           await done.future;
         } catch (error, stackTrace) {
-          _log.fine('IDE WebSocket proxy closed: $error', error, stackTrace);
+          lastError = error;
+          _log.warning(
+            'IDE WebSocket proxy error session=$sessionId path=$path: $error',
+            error,
+            stackTrace,
+          );
         } finally {
           socket?.destroy();
           try {
@@ -205,6 +233,16 @@ class CodeServerProxy {
           } catch (_) {
             // 对端已关闭时忽略。
           }
+          final durationMs = DateTime.now()
+              .difference(startedAt)
+              .inMilliseconds;
+          _log.info(
+            'IDE WebSocket closed session=$sessionId path=$path '
+            'firstClose=$firstClose durationMs=$durationMs '
+            'browserToUpstreamBytes=$browserToUpstreamBytes '
+            'upstreamToBrowserBytes=$upstreamToBrowserBytes '
+            'error=$lastError',
+          );
         }
       }());
     });

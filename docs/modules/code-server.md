@@ -110,3 +110,12 @@ code-server 固定参数：
 - fvm flutter test test/code_server_proxy_test.dart test/code_server_package_store_test.dart test/remote_ide_provider_test.dart
 - pnpm --dir host-deck-ui build
 - 真实链路（本地 sshd + 219MB 离线包）：上传 → 安装（约 17s）→ 启动（约 2s）→ /ide/ HTML 200、workbench.js 5.4MB 200、/healthz 正常、带 Cookie 的 WS 升级成功。
+
+## 性能与诊断
+
+- 每次启动 code-server 前，会在远端 dataDir/User/settings.json 中补充缺失的
+  files.watcherExclude（node_modules、.dart_tool、build、dist、release、.fvm、.gradle 等），
+  并只在缺失时写入 search.followSymlinks=false；已有配置不覆盖，JSONC/非法 JSON 会跳过。
+- 代理对每条 WebSocket 记录 open/close 日志：
+  session、path、firstClose（browser/upstream）、durationMs、双向字节数和错误，
+  用于区分是页面关闭/刷新、上游结束还是代理异常。
