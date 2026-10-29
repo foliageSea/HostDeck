@@ -191,6 +191,11 @@ export function createFileStore(connection: FileStoreConnection) {
     return true
   }
 
+  /**
+   * Loads the directory listing for `nextPath` (or the current path when omitted).
+   * On failure the error is rethrown to the caller and currentPath / files keep
+   * their previous values; only `loading` is reset.
+   */
   async function fetchFiles(nextPath?: string) {
     loading.value = true
 
@@ -220,6 +225,11 @@ export function createFileStore(connection: FileStoreConnection) {
     }
   }
 
+  /**
+   * Loads a directory. Rejects when the directory cannot be read, leaving
+   * currentPath, files and the navigation histories untouched so callers can
+   * surface the failure without losing the current view.
+   */
   async function navigateTo(path: string) {
     const targetPath = resolve(currentPath.value, path)
     if (targetPath === currentPath.value) {
@@ -229,10 +239,8 @@ export function createFileStore(connection: FileStoreConnection) {
 
     const previousPath = currentPath.value
     await fetchFiles(targetPath)
-    if (currentPath.value === targetPath) {
-      backHistory.value = [...backHistory.value, previousPath]
-      forwardHistory.value = []
-    }
+    backHistory.value = [...backHistory.value, previousPath]
+    forwardHistory.value = []
   }
 
   async function navigateUp() {

@@ -1,6 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { filesApi, type FileItem } from '@/api/files'
+import { getUiApi } from '@/lib/ui'
+import { resetNotifyOnceCache } from '../../utils/fileError'
 import FileColumnBrowser from '../FileColumnBrowser.vue'
 
 vi.mock('@/api/files', () => ({
@@ -9,6 +11,14 @@ vi.mock('@/api/files', () => ({
 
 vi.mock('@/stores/settings', () => ({
   useSettingsStore: () => ({ isDark: false }),
+}))
+
+const messageError = vi.fn()
+
+vi.mock('@/lib/ui', () => ({
+  getUiApi: () => ({
+    message: { error: messageError },
+  }),
 }))
 
 const directory = (filename: string): FileItem => ({
@@ -44,9 +54,62 @@ function createWrapper(currentPath = '/var') {
   })
 }
 
+// Mirrors the backend-translated AxiosError message (code 3 -> 权限不足)
+const permissionDenied = () => Object.assign(new Error('权限不足'), { code: 3 })
+
 describe('FileColumnBrowser', () => {
   beforeEach(() => {
     vi.mocked(filesApi.list).mockReset()
+    messageError.mockReset()
+    resetNotifyOnceCache()
+  })
+
+  it('shows a message bubble including the path when a column fails to load', async () => {
+    vi.mocked(filesApi.list)
+      .mockResolvedValueOnce([directory('var')])
+      .mockRejectedValueOnce(permissionDenied())
+
+    const wrapper = createWrapper('/var')
+    await flushPromises()
+
+    expect(getUiApi().message.error).toHaveBeenCalledTimes(1)
+    expect(messageError.mock.calls[0]?.[0]).toContain('/var')
+    expect(wrapper.text()).toContain('加载失败，点击重试')
+  })
+
+  it('only notifies once when the same path fails twice in a row', async () => {
+    vi.mocked(filesApi.list)
+      .mockResolvedValueOnce([directory('var')])
+      .mockRejectedValueOnce(permissionDenied())
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(permissionDenied())
+
+    const wrapper = createWrapper('/var')
+    await flushPromises()
+    expect(messageError).toHaveBeenCalledTimes(1)
+
+    await (wrapper.vm as unknown as { refresh: () => Promise<void> }).refresh()
+    await flushPromises()
+
+    expect(messageError).toHaveBeenCalledTimes(1)
+    expect(messageError.mock.calls[0]?.[0]).toContain('/var')
+  })
+
+  it('retries a failed column when the error placeholder is clicked', async () => {
+    vi.mocked(filesApi.list)
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(permissionDenied())
+      .mockResolvedValueOnce([file('notes.txt')])
+
+    const wrapper = createWrapper('/var')
+    await flushPromises()
+
+    const retry = wrapper.findAll('button').find((item) => item.text().includes('加载失败，点击重试'))
+    expect(retry).toBeTruthy()
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('notes.txt')
   })
 
   it('loads each directory in the current path as a column', async () => {

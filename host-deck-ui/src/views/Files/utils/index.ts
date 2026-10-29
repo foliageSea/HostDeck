@@ -1,4 +1,5 @@
 export * from './archive'
+export * from './fileError'
 export * from './fileOpen'
 export * from './format'
 export * from './permissions'

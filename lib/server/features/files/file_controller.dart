@@ -8,6 +8,7 @@ import 'package:host_deck/server/core/http/server_sent_event.dart';
 import 'package:host_deck/server/core/ssh/shared_ssh_session_resolver.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
+import 'package:host_deck/server/features/files/file_error.dart';
 import 'package:host_deck/server/features/files/file_service.dart';
 import 'package:host_deck/server/features/files/file_task.dart';
 import 'package:host_deck/server/features/files/file_task_manager.dart';
@@ -171,7 +172,7 @@ class FileController {
           .toList();
       return Result.ok(jsonItems);
     } catch (e) {
-      return Result.fail(500, e.toString());
+      return Result.fail(500, describeFileOperationError(e));
     }
   }
 
@@ -192,7 +193,7 @@ class FileController {
       final size = await _fileService.getDirectorySize(session, path);
       return Result.ok({'size': size});
     } catch (e) {
-      return Result.fail(500, e.toString());
+      return Result.fail(500, describeFileOperationError(e));
     }
   }
 
@@ -237,7 +238,7 @@ class FileController {
 
       return Response.ok(stream, headers: headers);
     } catch (e) {
-      return Response.internalServerError(body: e.toString());
+      return Response.internalServerError(body: describeFileOperationError(e));
     }
   }
 
@@ -258,7 +259,7 @@ class FileController {
       await _fileService.writeFileStream(session, path, request.read());
       return Result.ok('File written');
     } catch (e) {
-      return Result.fail(500, e.toString());
+      return Result.fail(500, describeFileOperationError(e));
     }
   }
 
@@ -298,7 +299,7 @@ class FileController {
 
       return Result.ok('Upload complete');
     } catch (e) {
-      return Result.fail(500, e.toString());
+      return Result.fail(500, describeFileOperationError(e));
     }
   }
 
@@ -334,7 +335,7 @@ class FileController {
         },
       );
     } catch (e) {
-      return Response.internalServerError(body: e.toString());
+      return Response.internalServerError(body: describeFileOperationError(e));
     }
   }
 
@@ -355,7 +356,7 @@ class FileController {
       await _fileService.rename(session, oldPath, newPath);
       return Result.ok('Renamed');
     } catch (e) {
-      return Result.fail(500, e.toString());
+      return Result.fail(500, describeFileOperationError(e));
     }
   }
 
@@ -375,7 +376,7 @@ class FileController {
       await _fileService.mkdir(session, path);
       return Result.ok('Directory created');
     } catch (e) {
-      return Result.fail(500, e.toString());
+      return Result.fail(500, describeFileOperationError(e));
     }
   }
 
@@ -403,7 +404,7 @@ class FileController {
     } on ArgumentError catch (e) {
       return Result.fail(400, e.message?.toString() ?? e.toString());
     } catch (e) {
-      return Result.fail(500, e.toString());
+      return Result.fail(500, describeFileOperationError(e));
     }
   }
 
@@ -424,7 +425,7 @@ class FileController {
       await _fileService.copy(session, source, target);
       return Result.ok('Copied');
     } catch (e) {
-      return Result.fail(500, e.toString());
+      return Result.fail(500, describeFileOperationError(e));
     }
   }
 
@@ -451,7 +452,7 @@ class FileController {
     } on UnsupportedError catch (e) {
       return Result.fail(400, e.message?.toString() ?? e.toString());
     } catch (e) {
-      return Result.fail(500, e.toString());
+      return Result.fail(500, describeFileOperationError(e));
     }
   }
 
@@ -472,7 +473,7 @@ class FileController {
       await _fileService.delete(session, path);
       return Result.ok('Deleted');
     } catch (e) {
-      return Result.fail(500, e.toString());
+      return Result.fail(500, describeFileOperationError(e));
     }
   }
 }

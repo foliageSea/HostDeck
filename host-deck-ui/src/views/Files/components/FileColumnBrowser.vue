@@ -5,6 +5,7 @@ import { filesApi, type FileItem } from '@/api/files'
 import type { FileSortDirection, FileSortKey } from '@/stores/file'
 import { useSettingsStore } from '@/stores/settings'
 import { resolve } from '@/utils/path'
+import { notifyFileOpenError } from '../utils/fileError'
 import FileMediaPreview from './FileMediaPreview.vue'
 
 interface FileColumn {
@@ -69,6 +70,8 @@ async function loadPath(path: string, generation: number) {
     return await filesApi.list(props.connectionId, path)
   } catch (error) {
     console.error(`Failed to load file column ${path}`, error)
+    // 去重 key 含路径：自动展开路径链会并发加载多列，避免同一路径短时间重复弹窗
+    notifyFileOpenError(path, error)
     return null
   } finally {
     if (generation !== loadGeneration.value) return

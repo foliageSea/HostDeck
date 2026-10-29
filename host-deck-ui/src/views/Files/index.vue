@@ -40,7 +40,7 @@ import { useDesktopStore } from '@/stores/desktop'
 import { createFileStore, type FileSortKey } from '@/stores/file'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
-import { resolve } from '@/utils/path'
+import { dirname, resolve } from '@/utils/path'
 import FileActionToolbar from './components/FileActionToolbar.vue'
 import FileBrowserContent from './components/FileBrowserContent.vue'
 import FileColumnBrowser from './components/FileColumnBrowser.vue'
@@ -66,6 +66,7 @@ import {
   getExtractDirectoryName,
   getFileOpenCategory,
   getPermissionFromLongname,
+  notifyFileOpenError,
   permissionMatrixToMode,
   permissionModeToMatrix,
   permissionToMode,
@@ -103,6 +104,7 @@ const fileStore = createFileStore({
 })
 
 const currentPathInput = ref('/')
+const pathToolbarInput = ref('/')
 const createDialogMode = ref<'directory' | 'file'>('directory')
 const newItemName = ref('')
 const renameValue = ref('')
@@ -141,8 +143,23 @@ function renderMenuIcon(icon: Component) {
   return () => h(NIcon, { size: 16 }, { default: () => h(icon) })
 }
 
+/**
+ * Shows a deduplicated error bubble for a failed directory open. The store keeps
+ * the previous listing and currentPath, so the view simply stays where it was.
+ */
+function notifyOpenError(path: string, error: unknown) {
+  console.error(`Failed to open directory ${path}`, error)
+  notifyFileOpenError(path, error)
+}
+
 async function refreshVisibleFiles() {
-  await fileStore.fetchFiles()
+  try {
+    await fileStore.fetchFiles()
+  } catch (error) {
+    notifyOpenError(fileStore.currentPath, error)
+    return
+  }
+
   if (fileStore.viewMode === 'columns') await columnBrowserRef.value?.refresh()
 }
 
@@ -442,6 +459,7 @@ const propertiesSizeText = computed(() => {
 
 function syncPathInput() {
   currentPathInput.value = fileStore.currentPath
+  pathToolbarInput.value = fileStore.currentPath
 }
 
 function startPathEditing() {
@@ -498,7 +516,13 @@ function openColumnBlankContextMenu(path: string, event: MouseEvent) {
 }
 
 async function activateColumnDirectory(path: string) {
-  await fileStore.navigateTo(path)
+  try {
+    await fileStore.navigateTo(path)
+  } catch (error) {
+    notifyOpenError(path, error)
+    return
+  }
+
   clearSearch()
   syncPathInput()
 }
@@ -729,26 +753,48 @@ async function openFile(file: FileItem) {
     return
   }
 
-  await fileStore.navigateTo(resolve(selectedParentPath.value, file.filename))
+  const targetPath = resolve(selectedParentPath.value, file.filename)
+  try {
+    await fileStore.navigateTo(targetPath)
+  } catch (error) {
+    notifyOpenError(targetPath, error)
+    return
+  }
+
   clearSearch()
   syncPathInput()
 }
 
-async function submitPath() {
-  const targetPath = resolve(fileStore.currentPath, currentPathInput.value)
-  if (targetPath === fileStore.currentPath) {
+async function submitToolbarPath() {
+  const previousPath = fileStore.currentPath
+  const targetPath = resolve(previousPath, pathToolbarInput.value)
+  if (targetPath === previousPath) {
+    pathToolbarInput.value = previousPath
+    editingPath.value = false
+    return
+  }
+
+  try {
+    await fileStore.navigateTo(targetPath)
+  } catch (error) {
+    notifyOpenError(targetPath, error)
     syncPathInput()
     editingPath.value = false
     return
   }
 
-  await fileStore.navigateTo(targetPath)
   syncPathInput()
   editingPath.value = false
 }
 
 async function navigateToPath(path: string) {
-  await fileStore.navigateTo(path)
+  try {
+    await fileStore.navigateTo(path)
+  } catch (error) {
+    notifyOpenError(path, error)
+    return
+  }
+
   syncPathInput()
   editingPath.value = false
 }
@@ -816,17 +862,50 @@ function handleUploadSelect(key: string | number) {
 }
 
 async function navigateBack() {
-  await fileStore.navigateBack()
+  const targetPath = fileStore.backHistory[fileStore.backHistory.length - 1]
+  if (!targetPath) {
+    return
+  }
+
+  try {
+    await fileStore.navigateBack()
+  } catch (error) {
+    notifyOpenError(targetPath, error)
+    return
+  }
+
   syncPathInput()
 }
 
 async function navigateForward() {
-  await fileStore.navigateForward()
+  const targetPath = fileStore.forwardHistory[fileStore.forwardHistory.length - 1]
+  if (!targetPath) {
+    return
+  }
+
+  try {
+    await fileStore.navigateForward()
+  } catch (error) {
+    notifyOpenError(targetPath, error)
+    return
+  }
+
   syncPathInput()
 }
 
 async function navigateUp() {
-  await fileStore.navigateUp()
+  const targetPath = dirname(fileStore.currentPath)
+  if (targetPath === fileStore.currentPath) {
+    return
+  }
+
+  try {
+    await fileStore.navigateUp()
+  } catch (error) {
+    notifyOpenError(targetPath, error)
+    return
+  }
+
   syncPathInput()
 }
 
@@ -1217,7 +1296,13 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 onMounted(async () => {
-  await fileStore.fetchFiles(props.path || '/')
+  const initialPath = props.path || '/'
+  try {
+    await fileStore.fetchFiles(initialPath)
+  } catch (error) {
+    notifyOpenError(resolve(initialPath), error)
+  }
+
   syncPathInput()
   await restoreRemoteTasks()
 })
@@ -1279,7 +1364,7 @@ onMounted(async () => {
 
       <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-[14px] p-[16px]">
         <FilePathToolbar
-          v-model:current-path-input="currentPathInput"
+          v-model:current-path-input="pathToolbarInput"
           :breadcrumbs="breadcrumbs"
           :editing-path="editingPath"
           :favorite-paths="fileStore.favoritePaths"
@@ -1290,7 +1375,7 @@ onMounted(async () => {
           @remove-favorite="removeFavoritePath"
           @start-editing="startPathEditing"
           @stop-editing="stopPathEditing"
-          @submit-path="submitPath"
+          @submit-path="submitToolbarPath"
           @toggle-favorite="toggleCurrentFavorite"
           @toggle-pin="toggleCurrentDesktopPin"
         />
