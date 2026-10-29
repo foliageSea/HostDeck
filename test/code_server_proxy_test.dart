@@ -27,6 +27,32 @@ void main() {
     upstream = await shelf_io.serve(
       (Request request) async {
         seenPaths.add('/${request.url.path}');
+        if (request.url.path.startsWith('proxy/5173/')) {
+          final route = request.url.path.substring('proxy/5173/'.length);
+          if (route == 'redirect') {
+            return Response.found('/login?next=1');
+          }
+          final html =
+              '<script type="module" src="/@vite/client"></script>'
+              '<script type="module" src="/renderer/src/main.ts"></script>';
+          if (route == 'gzip') {
+            return Response.ok(
+              gzip.encode(utf8.encode(html)),
+              headers: {
+                'content-type': 'text/html',
+                'content-encoding': 'gzip',
+                'etag': 'upstream-version',
+              },
+            );
+          }
+          if (route == 'binary') {
+            return Response.ok(
+              [0, 255, 1, 128],
+              headers: {'content-type': 'image/png'},
+            );
+          }
+          return Response.ok(html, headers: {'content-type': 'text/html'});
+        }
         if (request.url.path == 'missing') {
           return Response.notFound('missing');
         }
@@ -92,6 +118,55 @@ void main() {
     final response = await request.close();
     expect(response.statusCode, 301);
     expect(response.headers.value('location'), '/ide/abc12345/');
+  });
+
+  test(
+    'rewrites forwarded Vite page resources without changing IDE responses',
+    () async {
+      final response = await get('/ide/abc12345/proxy/5173/');
+      final html = await response.transform(utf8.decoder).join();
+      expect(html, contains('src="/ide/abc12345/proxy/5173/@vite/client"'));
+      expect(
+        html,
+        contains('src="/ide/abc12345/proxy/5173/renderer/src/main.ts"'),
+      );
+      expect(seenPaths.single, '/proxy/5173/');
+    },
+  );
+
+  test('decompresses forwarded HTML and discards stale validators', () async {
+    final response = await get('/ide/abc12345/proxy/5173/gzip');
+    expect(response.headers.value('content-encoding'), isNull);
+    expect(response.headers.value('etag'), isNull);
+    expect(
+      await response.transform(utf8.decoder).join(),
+      contains('/ide/abc12345/proxy/5173/@vite/client'),
+    );
+  });
+
+  test('keeps binary forwarded responses unchanged', () async {
+    final response = await get('/ide/abc12345/proxy/5173/binary');
+    expect(
+      await response.fold<List<int>>(
+        [],
+        (bytes, chunk) => bytes..addAll(chunk),
+      ),
+      [0, 255, 1, 128],
+    );
+  });
+
+  test('keeps forwarded redirects within the application prefix', () async {
+    final request = await client.getUrl(
+      Uri.parse(
+        'http://127.0.0.1:${proxy.port}/ide/abc12345/proxy/5173/redirect',
+      ),
+    );
+    request.followRedirects = false;
+    final response = await request.close();
+    expect(
+      response.headers.value('location'),
+      '/ide/abc12345/proxy/5173/login?next=1',
+    );
   });
 
   test('forwards POST body', () async {

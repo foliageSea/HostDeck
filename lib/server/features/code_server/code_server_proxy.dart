@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:logging/logging.dart';
@@ -6,6 +7,7 @@ import 'package:shelf/shelf.dart';
 
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/code_server/code_server_models.dart';
+import 'package:host_deck/server/features/code_server/ide_port_proxy_rewriter.dart';
 
 /// 把 `/ide/<sessionId>/...` 反向代理到 code-server。
 ///
@@ -106,11 +108,26 @@ class CodeServerProxy {
           .openUrl(request.method, uri)
           .timeout(const Duration(seconds: 15));
       upstreamRequest.followRedirects = false;
+      final portProxy = IdePortProxyRewriter.fromPath(
+        request.requestedUri.path,
+      );
       request.headers.forEach((name, value) {
         if (_skipRequestHeader(name)) return;
+        if (portProxy != null &&
+            const {
+              'if-none-match',
+              'if-modified-since',
+              'range',
+              'if-range',
+            }.contains(name.toLowerCase())) {
+          return;
+        }
         upstreamRequest!.headers.set(name, value);
       });
-      upstreamRequest.headers.set('accept-encoding', 'gzip');
+      upstreamRequest.headers.set(
+        'accept-encoding',
+        portProxy == null ? 'gzip' : 'identity',
+      );
       if (request.method != 'GET' && request.method != 'HEAD') {
         await upstreamRequest.addStream(request.read());
       }
@@ -124,9 +141,38 @@ class CodeServerProxy {
         headers[name] = values.join(',');
       });
 
+      final location = headers['location'];
+      if (portProxy != null && location != null) {
+        headers['location'] = portProxy.rewriteUrl(location);
+      }
+      Object body = response;
+      final contentType = headers['content-type'] ?? '';
+      if (portProxy != null &&
+          request.method != 'HEAD' &&
+          response.statusCode != 304 &&
+          portProxy.rewritesContentType(contentType)) {
+        Stream<List<int>> bytes = response;
+        if (headers['content-encoding'] == 'gzip') {
+          bytes = response.transform(gzip.decoder);
+        } else if (headers.containsKey('content-encoding') &&
+            headers['content-encoding'] != 'identity') {
+          return Response(
+            response.statusCode,
+            body: response,
+            headers: headers,
+          );
+        }
+        final source = await utf8.decoder.bind(bytes).join();
+        body = portProxy.rewrite(source, contentType, path);
+        headers.remove('content-encoding');
+        headers.remove('etag');
+        headers.remove('content-md5');
+        headers['cache-control'] = 'no-store';
+      }
+
       return Response(
         response.statusCode,
-        body: response,
+        body: body,
         headers: headers,
         context: const {'shelf.io.buffer_output': false},
       );

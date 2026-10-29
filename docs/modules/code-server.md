@@ -94,6 +94,12 @@ code-server 固定参数：
 - 停止：SIGTERM → 轮询 → SIGKILL，删除远端 sessions/<sessionId>.json；SSH 断开时关闭 bridge，远端进程靠 --idle-timeout-seconds 兜底。
 - HostDeck 退出时 best-effort 停止所有会话。
 
+## IDE 端口预览
+
+通过 `/ide/<sessionId>/proxy/<port>/` 访问远端应用时，代理会为 HTML、JavaScript 和 CSS 中的根路径资源补上转发前缀，并适配 Vite 客户端的 HMR WebSocket 地址；根路径重定向也留在同一预览目录。gzip 文本解压后重写，图片等二进制资源保持透传。只有端口预览响应启用此逻辑，IDE 工作台本身不做正文重写。
+
+这是常见开发服务器的兼容处理：动态拼接的根路径、写死的绝对域名、自定义 WebSocket 地址、Service Worker 作用域及基于站点根目录的路由，仍可能需要被预览应用配置自己的 base/public path。应用已经配置完整转发前缀时不会重复添加。
+
 ## 已知限制
 
 1. 未实现 HostDeck 重启后的远端进程**接管**：重启后会按新端口启动新实例，旧实例依赖 1 小时 idle timeout 回收。
