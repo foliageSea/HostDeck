@@ -395,8 +395,6 @@ async function startIde() {
     const folder = props.path?.trim()
     await codeServerApi.start(connectionId, folder || undefined)
     await fetchStatus({ silent: true })
-    frameLoaded.value = false
-    frameKey.value += 1
   } catch (error) {
     actionError.value = errorMessage(error, '启动 IDE 失败。')
   } finally {

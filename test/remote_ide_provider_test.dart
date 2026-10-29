@@ -947,6 +947,9 @@ class _SocketForwardChannel implements SSHForwardChannel {
   Future<void> get done => _socket.done;
 
   @override
+  Future<void> flush() => _socket.flush();
+
+  @override
   Future<void> close() async {
     await _socket.close();
   }

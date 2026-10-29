@@ -352,10 +352,11 @@ void main() {
       ).writeAsBytes(_payloadB, flush: true);
 
       final imported = await store.scan();
-      expect(imported.map((item) => item.id), [
-        '4.101.2-linux-amd64',
-        '4.101.3-linux-arm64',
-      ]);
+      // Directory enumeration order differs across filesystems.
+      expect(
+        imported.map((item) => item.id),
+        unorderedEquals(['4.101.2-linux-amd64', '4.101.3-linux-arm64']),
+      );
       expect(
         await File(
           p.join(tempRoot.path, 'packages', '4.101.3', 'linux-arm64.tar.gz'),

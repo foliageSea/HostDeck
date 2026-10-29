@@ -628,5 +628,8 @@ class _TrackedSshSocket implements SSHSocket {
   Future<void> close() => _inner.close();
 
   @override
+  Future<void> flush() => _inner.flush();
+
+  @override
   void destroy() => _inner.destroy();
 }

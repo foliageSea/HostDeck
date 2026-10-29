@@ -121,6 +121,12 @@ code-server 固定参数：
 
 ## 性能与诊断
 
+- SSH 依赖使用 dartssh2 4.1.0+：旧版 2.22.0 在背压暂停期间耗尽 2 MiB 接收窗口后，
+  恢复读取也不会补窗，可能表现为 WebSocket 握手成功但初始化持续超时、反复重连。
+  回归测试 test/ide_ssh_flow_control_test.dart 覆盖暂停恢复和延迟订阅两条路径。
+  升级后需重启 HostDeck 后端并重新建立 SSH 连接，已有通道不会自动获得修复。
+- 启动成功后由 running 状态挂载 iframe，不再额外修改 key 重建；手动刷新仍会重新加载。
+
 - 每次启动 code-server 前，会在远端 dataDir/User/settings.json 中补充缺失的
   files.watcherExclude（node_modules、.dart_tool、build、dist、release、.fvm、.gradle 等），
   并只在缺失时写入 search.followSymlinks=false；已有配置不覆盖，JSONC/非法 JSON 会跳过。
