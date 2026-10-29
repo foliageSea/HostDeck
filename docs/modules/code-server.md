@@ -47,6 +47,7 @@
 - POST /api/code-server/targets/<connectionId>/install {packageId}
 - POST /api/code-server/targets/<connectionId>/start {folder?}
 - POST /api/code-server/targets/<connectionId>/stop
+- POST /api/code-server/targets/<connectionId>/uninstall：停止同一目标的 IDE 会话并卸载 HostDeck 管理的所有 code-server 版本，保留项目、用户设置、扩展和 HostDeck 离线包。
 - GET /ide/<sessionId>/...：反向代理（自行鉴权，不受 /api 中间件保护）。
 
 普通接口使用 Result.ok/fail。注意：Cascade 会在 404 时继续往下走，因此控制器不要依赖 404 传递业务错误（connection 缺失时 status 返回 200 + preflightError）。
@@ -92,6 +93,7 @@ code-server 固定参数：
 - 安装/启动期间持有 code-server:op:<sessionId> 租约，运行期间持有 code-server:<sessionId> 租约；代理请求会 touch 连接，避免 120s 空闲回收拆掉隧道。
 - 健康检查由 HostDeck 经本地 bridge 请求 /healthz，不依赖远端 curl。
 - 停止：SIGTERM → 轮询 → SIGKILL，删除远端 sessions/<sessionId>.json；SSH 断开时关闭 bridge，远端进程靠 --idle-timeout-seconds 兜底。
+- 卸载：在 IDE 工具栏点击“卸载 IDE”并确认；先停止同目标的已知会话，再移除远端所有 HostDeck 管理的程序版本。保留项目、设置和扩展，离线包可用于重新安装。安装、启动与卸载按目标互斥，停止失败时中止卸载。
 - HostDeck 退出时 best-effort 停止所有会话。
 
 ## IDE 端口预览

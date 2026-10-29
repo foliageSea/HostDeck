@@ -24,6 +24,7 @@ class CodeServerManager implements CodeServerUpstreamResolver {
   final Map<String, int> _pids = {};
   final Set<String> _busy = {};
   final Map<String, _CachedPreflight> _preflightCache = {};
+  int _preflightGeneration = 0;
   final Random _random = Random.secure();
 
   CodeServerManager({
@@ -48,8 +49,11 @@ class CodeServerManager implements CodeServerUpstreamResolver {
         DateTime.now().difference(cached.at) < const Duration(seconds: 20)) {
       return cached.value;
     }
+    final generation = _preflightGeneration;
     final value = await _provider.preflight(connectionId);
-    _preflightCache[connectionId] = _CachedPreflight(DateTime.now(), value);
+    if (generation == _preflightGeneration) {
+      _preflightCache[connectionId] = _CachedPreflight(DateTime.now(), value);
+    }
     return value;
   }
 
@@ -96,6 +100,7 @@ class CodeServerManager implements CodeServerUpstreamResolver {
     String connectionId, {
     required String packageId,
   }) async {
+    _ensureIdle(connectionId);
     final existing = _sessions[connectionId];
     final hostKey = hostKeyFor(connectionId);
     final runningElsewhere = _sessions.values.any(
@@ -184,6 +189,7 @@ class CodeServerManager implements CodeServerUpstreamResolver {
     String connectionId, {
     String? folder,
   }) async {
+    _ensureIdle(connectionId);
     final existing = _sessions[connectionId];
     if (existing != null && existing.state == IdeSessionState.running) {
       return existing;
@@ -197,8 +203,6 @@ class CodeServerManager implements CodeServerUpstreamResolver {
         return item;
       }
     }
-    await _reclaimOrphans(hostKey, via: connectionId);
-
     _ensureIdle(connectionId);
     _busy.add(connectionId);
 
@@ -207,6 +211,7 @@ class CodeServerManager implements CodeServerUpstreamResolver {
     final operationLease = 'code-server:op:$sessionId';
     _sshService.attachLease(connectionId, operationLease);
     try {
+      await _reclaimOrphans(hostKey, via: connectionId);
       final preflight = await this.preflight(connectionId, force: true);
       _checkSupported(preflight);
 
@@ -305,27 +310,97 @@ class CodeServerManager implements CodeServerUpstreamResolver {
   }
 
   Future<IdeSessionSnapshot> stop(String connectionId) async {
+    _ensureIdle(connectionId);
     final owner = _ownerConnectionFor(connectionId);
     final snapshot = owner == null ? null : _sessions[owner];
     if (owner == null || snapshot == null) {
       throw StateError('IDE 会话不存在。');
     }
-    _updateSession(
-      owner,
-      snapshot.copyWith(state: IdeSessionState.stopping, error: null),
-    );
-    await _cleanupConnection(
-      owner,
-      killRemote: true,
-      fallbackConnectionId: connectionId,
-    );
-    final stopped = _sessions[owner]!.copyWith(
-      state: IdeSessionState.stopped,
-      progress: null,
-      error: null,
-    );
-    _updateSession(owner, stopped);
-    return stopped;
+    _busy.add(owner);
+    try {
+      _updateSession(
+        owner,
+        snapshot.copyWith(state: IdeSessionState.stopping, error: null),
+      );
+      await _cleanupConnection(
+        owner,
+        killRemote: true,
+        fallbackConnectionId: connectionId,
+      );
+      final stopped = _sessions[owner]!.copyWith(
+        state: IdeSessionState.stopped,
+        progress: null,
+        error: null,
+      );
+      _updateSession(owner, stopped);
+      return stopped;
+    } finally {
+      _busy.remove(owner);
+    }
+  }
+
+  /// 先严格停止同目标的全部会话，再删除共享安装树。失败保留进程信息供重试。
+  Future<void> uninstall(String connectionId) async {
+    final hostKey = hostKeyFor(connectionId);
+    if (hostKey == null) throw StateError('SSH 连接不存在或已断开。');
+    _ensureIdle(connectionId);
+    final operationLease = 'code-server:uninstall:$hostKey';
+    _ensureSession(connectionId);
+    _busy.add(connectionId);
+    try {
+      _sshService.attachLease(connectionId, operationLease);
+      final owners = _sessions.entries
+          .where((entry) => entry.value.hostKey == hostKey)
+          .map((entry) => entry.key)
+          .toList();
+      for (final owner in owners) {
+        final snapshot = _sessions[owner]!;
+        _updateSession(
+          owner,
+          snapshot.copyWith(state: IdeSessionState.stopping, error: null),
+        );
+        try {
+          final pid = _pids[owner];
+          if (pid != null) {
+            await _provider.stop(
+              connectionId,
+              sessionId: snapshot.id,
+              pid: pid,
+            );
+            _pids.remove(owner);
+          }
+          await _cleanupConnection(owner, killRemote: false);
+          _updateSession(
+            owner,
+            snapshot.copyWith(
+              state: IdeSessionState.stopped,
+              progress: null,
+              error: null,
+            ),
+          );
+        } catch (error) {
+          _updateSession(
+            owner,
+            snapshot.copyWith(
+              state: IdeSessionState.error,
+              error: _describe(error),
+            ),
+          );
+          rethrow;
+        }
+      }
+      await _provider.uninstall(connectionId);
+      for (final owner in owners) {
+        final snapshot = _sessions.remove(owner);
+        if (snapshot != null) _sessionIdToConnection.remove(snapshot.id);
+      }
+    } finally {
+      // 同目标旧连接及并发 status 的探测结果都不能留下旧安装版本。
+      _preflightGeneration++;
+      _preflightCache.clear();
+      _sshService.detachLease(connectionId, operationLease);
+      _busy.remove(connectionId);
+    }
   }
 
   Future<void> _cleanupConnection(
@@ -424,7 +499,14 @@ class CodeServerManager implements CodeServerUpstreamResolver {
   }
 
   void _ensureIdle(String connectionId) {
-    if (_busy.contains(connectionId)) {
+    final hostKey =
+        hostKeyFor(connectionId) ?? _sessions[connectionId]?.hostKey;
+    if (_busy.contains(connectionId) ||
+        (hostKey != null &&
+            _busy.any(
+              (owner) =>
+                  (hostKeyFor(owner) ?? _sessions[owner]?.hostKey) == hostKey,
+            ))) {
       throw StateError('该连接已有 IDE 操作正在进行。');
     }
   }

@@ -11,4 +11,5 @@ void registerCodeServerRoutes(Router router, CodeServerController controller) {
   router.post('/api/code-server/targets/<cid>/install', controller.install);
   router.post('/api/code-server/targets/<cid>/start', controller.start);
   router.post('/api/code-server/targets/<cid>/stop', controller.stop);
+  router.post('/api/code-server/targets/<cid>/uninstall', controller.uninstall);
 }

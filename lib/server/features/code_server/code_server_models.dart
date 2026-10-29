@@ -184,6 +184,9 @@ abstract class RemoteIdeProvider {
     bool Function()? isCancelled,
   });
 
+  /// 删除 HostDeck 管理的安装目录，保留用户数据和项目。
+  Future<void> uninstall(String connectionId);
+
   Future<IdeLaunch> start(
     String connectionId, {
     required String sessionId,

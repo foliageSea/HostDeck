@@ -115,6 +115,10 @@ export const codeServerApi = {
     return response.data
   },
 
+  uninstall: async (connectionId: string) => {
+    await http.post(`/api/code-server/targets/${encodeURIComponent(connectionId)}/uninstall`)
+  },
+
   start: async (connectionId: string, folder?: string) => {
     const response = await http.post<CodeServerSession>(
       `/api/code-server/targets/${encodeURIComponent(connectionId)}/start`,

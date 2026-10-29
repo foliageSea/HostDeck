@@ -122,7 +122,13 @@ if [ "$pid" -gt 0 ] 2>/dev/null; then
   done
   if kill -0 "$pid" 2>/dev/null; then
     kill -KILL "$pid" 2>/dev/null || true
+    i=0
+    while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 20 ]; do
+      sleep 0.2
+      i=$((i+1))
+    done
   fi
+  if kill -0 "$pid" 2>/dev/null; then exit 1; fi
 fi
 rm -f __SESSION_FILE__
 ''';
@@ -209,6 +215,39 @@ rm -f __SESSION_FILE__
       ),
     );
   }
+
+  @override
+  Future<void> uninstall(String connectionId) => _withSession(connectionId, (
+    session,
+  ) async {
+    final home = await _home(session);
+    if (home == '/' ||
+        home.split('/').any((part) => part == '..' || part == '.')) {
+      throw StateError('远端 HOME 目录不安全，拒绝卸载。');
+    }
+    // 不跟随安装树任何父目录的符号链接，也不触碰 share 数据树。
+    final script =
+        r'''
+set -e
+base=__HOME__
+for part in .local lib hostdeck code-server; do
+  base="$base/$part"
+  if [ -L "$base" ]; then
+    printf '%s\n' '安装路径包含符号链接，拒绝卸载' >&2
+    exit 1
+  fi
+  if [ -e "$base" ] && [ ! -d "$base" ]; then exit 1; fi
+done
+rm -rf -- "$base"
+[ ! -e "$base" ] && [ ! -L "$base" ]
+'''
+            .replaceAll('__HOME__', _quote(home));
+    final result = await _tryExec(session, script, timeout: _cleanupTimeout);
+    if (result.exitCode != 0) {
+      throw StateError('卸载 code-server 失败：${_commandError(result)}');
+    }
+    _remoteHomes.remove(connectionId);
+  });
 
   /// 18090 + FNV-1a(hostKey) % 100，同一 hostKey 始终得到同一端口。
   static int preferredPortFor(String hostKey) {
@@ -521,7 +560,7 @@ rm -f __SESSION_FILE__
     _validateSessionId(sessionId);
     final home = await _home(session);
     final dataRoot = '$home/$_dataRootSuffix';
-    final cachedSessionFile = _sessionFiles.remove(sessionId);
+    final cachedSessionFile = _sessionFiles[sessionId];
     final sessionFileExpression = cachedSessionFile != null
         ? _quote(cachedSessionFile)
         : "${_quote(dataRoot)}/*/sessions/${_quote(sessionId)}.json";
@@ -530,12 +569,10 @@ rm -f __SESSION_FILE__
         .replaceAll('__PID__', '$pid')
         .replaceAll('__SESSION_FILE__', sessionFileExpression);
     final result = await _tryExec(session, script, timeout: _stopTimeout);
-    if (result.exitCode != null && result.exitCode != 0) {
-      _log.warning(
-        '停止 code-server 时远端命令返回 ${result.exitCode}：'
-        '${_commandError(result)}',
-      );
+    if (result.exitCode != 0) {
+      throw StateError('停止 code-server 失败：${_commandError(result)}');
     }
+    _sessionFiles.remove(sessionId);
     _log.info(
       'code-server 会话已停止（connection=$connectionId, '
       'session=$sessionId, pid=$pid）',

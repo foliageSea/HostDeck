@@ -177,6 +177,16 @@ class CodeServerController {
     }
   }
 
+  Future<Response> uninstall(Request request, String connectionId) async {
+    try {
+      await _manager.uninstall(connectionId);
+      return Result.ok(null);
+    } catch (error) {
+      _log.warning('code-server 卸载失败（connection=$connectionId）：$error');
+      return Result.fail(500, _describe(error));
+    }
+  }
+
   Map<String, dynamic> _sessionJson(IdeSessionSnapshot session) => {
     ...session.toJson(),
     'url': session.state == IdeSessionState.running

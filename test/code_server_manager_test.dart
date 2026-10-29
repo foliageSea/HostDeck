@@ -1,5 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
+
+import 'package:shelf/shelf.dart';
+import 'package:shelf_router/shelf_router.dart';
+import 'package:host_deck/server/features/code_server/code_server_controller.dart';
+import 'package:host_deck/server/routes/code_server_routes.dart';
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
@@ -96,23 +102,156 @@ void main() {
       expect(provider.starts, ['old', 'new']);
     },
   );
+  test(
+    'uninstall stops a running session via reconnect and clears leases and proxy',
+    () async {
+      ssh.online('old');
+      final started = await manager.start('old');
+      ssh.online('new');
+      await ssh.disconnect('old');
+      await manager.preflight('new');
+      await manager.uninstall('new');
+      expect(provider.stops.single, (connectionId: 'new', pid: 4242));
+      expect(provider.uninstalls, ['new']);
+      expect(manager.sessionFor('new'), isNull);
+      expect(await manager.resolve(started.id), isNull);
+      expect(ssh.leases, isEmpty);
+      final probes = provider.probes;
+      await manager.preflight('new');
+      expect(provider.probes, probes + 1);
+    },
+  );
+
+  test(
+    'uninstall failure to stop aborts deletion and retains pid for retry',
+    () async {
+      ssh.online('old');
+      await manager.start('old');
+      ssh.online('new');
+      provider.failStop = true;
+      await expectLater(manager.uninstall('new'), throwsStateError);
+      expect(provider.uninstalls, isEmpty);
+      expect(manager.sessionFor('old')?.state, IdeSessionState.error);
+      provider.failStop = false;
+      await manager.uninstall('new');
+      expect(provider.stops, hasLength(2));
+      expect(provider.uninstalls, ['new']);
+      expect(ssh.leases, isEmpty);
+    },
+  );
+
+  test(
+    'uninstall locks all connections for target and releases lock after deletion fails',
+    () async {
+      ssh.online('old');
+      ssh.online('new');
+      provider.uninstallGate = Completer<void>();
+      provider.failUninstall = true;
+      final uninstall = manager.uninstall('old');
+      final failed = expectLater(uninstall, throwsStateError);
+      await Future<void>.delayed(Duration.zero);
+      await expectLater(manager.start('new'), throwsStateError);
+      await expectLater(
+        manager.install('new', packageId: 'unused'),
+        throwsStateError,
+      );
+      await expectLater(manager.stop('new'), throwsStateError);
+      await expectLater(manager.uninstall('new'), throwsStateError);
+      provider.uninstallGate!.complete();
+      await failed;
+      expect(ssh.leases, isEmpty);
+      provider.failUninstall = false;
+      await manager.uninstall('new');
+    },
+  );
+
+  test('uninstall invalidates an in-flight preflight cache result', () async {
+    ssh.online('target');
+    provider.preflightGate = Completer<void>();
+    final pending = manager.preflight('target');
+    await manager.uninstall('target');
+    provider.preflightGate!.complete();
+    await pending;
+    await manager.preflight('target');
+    expect(provider.probes, 2);
+  });
+
+  test(
+    'uninstall route accepts no body and returns Result void or failure',
+    () async {
+      ssh.online('target');
+      final router = Router();
+      registerCodeServerRoutes(
+        router,
+        CodeServerController(
+          manager: manager,
+          packages: IdePackageStore(tempDir),
+          sshService: ssh,
+        ),
+      );
+      final response = await router(
+        Request(
+          'POST',
+          Uri.parse(
+            'http://localhost/api/code-server/targets/target/uninstall',
+          ),
+        ),
+      );
+      expect(response.statusCode, 200);
+      expect(jsonDecode(await response.readAsString()), {
+        'code': 200,
+        'message': 'Success',
+        'data': null,
+      });
+      provider.failUninstall = true;
+      final failure = await router(
+        Request(
+          'POST',
+          Uri.parse(
+            'http://localhost/api/code-server/targets/target/uninstall',
+          ),
+        ),
+      );
+      final body = jsonDecode(await failure.readAsString()) as Map;
+      expect(body['code'], 500);
+      expect(body['data'], isNull);
+    },
+  );
 }
 
 class _FakeProvider implements RemoteIdeProvider {
   final List<String> starts = [];
+  final List<String> uninstalls = [];
+  Completer<void>? uninstallGate;
+  Completer<void>? preflightGate;
+  bool failStop = false;
+  bool failUninstall = false;
+  int probes = 0;
+
+  @override
+  Future<void> uninstall(String connectionId) async {
+    uninstalls.add(connectionId);
+    await uninstallGate?.future;
+    if (failUninstall) throw StateError('remove failed');
+  }
+
   final List<({String connectionId, int pid})> stops = [];
 
   @override
   Future<IdePreflight> preflight(
     String connectionId, {
     String? expectedVersion,
-  }) async => const IdePreflight(
-    arch: 'amd64',
-    libc: 'glibc 2.39',
-    diskFreeBytes: 1 << 40,
-    installedVersion: '4.143.1',
-    issues: [],
-  );
+  }) async {
+    probes++;
+    await preflightGate?.future;
+    return const IdePreflight(
+      arch: 'amd64',
+      libc: 'glibc 2.39',
+      diskFreeBytes: 1 << 40,
+      installedVersion: '4.143.1',
+      issues: [],
+    );
+  }
 
   @override
   Future<void> install(
@@ -145,6 +284,7 @@ class _FakeProvider implements RemoteIdeProvider {
     required int pid,
   }) async {
     stops.add((connectionId: connectionId, pid: pid));
+    if (failStop) throw StateError('stop failed');
   }
 }
 
@@ -153,6 +293,7 @@ class _FakeSshService extends SshService {
 
   final int upstreamPort;
   final Set<String> _connected = {};
+  final Set<String> leases = {};
   final List<FutureOr<void> Function(String)> _listeners = [];
 
   void online(String connectionId) => _connected.add(connectionId);
@@ -185,10 +326,14 @@ class _FakeSshService extends SshService {
       : null;
 
   @override
-  void attachLease(String connectionId, String leaseId) {}
+  void attachLease(String connectionId, String leaseId) {
+    leases.add('$connectionId:$leaseId');
+  }
 
   @override
-  void detachLease(String connectionId, String leaseId) {}
+  void detachLease(String connectionId, String leaseId) {
+    leases.remove('$connectionId:$leaseId');
+  }
 
   @override
   void touch(String connectionId) {}

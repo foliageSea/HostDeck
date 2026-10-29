@@ -55,6 +55,7 @@ const deletingId = ref<string | null>(null)
 const installing = ref(false)
 const starting = ref(false)
 const stopping = ref(false)
+const uninstalling = ref(false)
 const frameKey = ref(0)
 const frameLoaded = ref(false)
 const localHeaderCollapsed = ref(false)
@@ -196,6 +197,7 @@ const isWorking = computed(
     installing.value ||
     starting.value ||
     stopping.value ||
+    uninstalling.value ||
     sessionState.value === 'installing' ||
     sessionState.value === 'starting' ||
     sessionState.value === 'stopping',
@@ -258,6 +260,7 @@ function shouldPoll(): boolean {
     installing.value ||
     starting.value ||
     stopping.value ||
+    uninstalling.value ||
     sessionState.value === 'installing' ||
     sessionState.value === 'starting' ||
     sessionState.value === 'stopping'
@@ -418,6 +421,56 @@ async function stopIde() {
     stopping.value = false
     syncPolling()
   }
+}
+
+function confirmUninstall() {
+  const connectionId = sshStore.connectionId
+  if (!connectionId || !hasConnection.value || isWorking.value || isUnmounted) return
+
+  getUiApi().dialog.warning({
+    title: '卸载在线 IDE',
+    content:
+      '将停止 ' +
+      connectionText.value +
+      ' 上的 IDE 会话，并移除 HostDeck 安装的所有 code-server 版本。项目文件、用户设置和扩展会保留，HostDeck 中的离线包也会保留。',
+    positiveText: '卸载 IDE',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      if (
+        connectionId !== sshStore.connectionId ||
+        !hasConnection.value ||
+        isWorking.value ||
+        isUnmounted
+      ) {
+        getUiApi().message.warning('连接或 IDE 状态已变化，请重新确认卸载。')
+        return
+      }
+
+      uninstalling.value = true
+      actionError.value = ''
+      syncPolling()
+      try {
+        await codeServerApi.uninstall(connectionId)
+        if (connectionId === sshStore.connectionId && !isUnmounted) {
+          // 使卸载前发出的状态请求失效，立即移除失效的 iframe。
+          statusRequestSeq += 1
+          status.value = null
+          frameLoaded.value = false
+          frameKey.value += 1
+          headerCollapsed.value = false
+        }
+        getUiApi().message.success('在线 IDE 已卸载，项目、设置和扩展已保留。')
+      } catch (error) {
+        const message = errorMessage(error, '卸载 IDE 失败。')
+        if (connectionId === sshStore.connectionId && !isUnmounted) actionError.value = message
+        getUiApi().message.error(message)
+      } finally {
+        if (connectionId === sshStore.connectionId && !isUnmounted) await fetchStatus()
+        uninstalling.value = false
+        if (!isUnmounted) syncPolling()
+      }
+    },
+  })
 }
 
 function refreshFrame() {
@@ -683,10 +736,23 @@ watch(
           type="error"
           secondary
           :loading="stopping"
+          :disabled="uninstalling"
           @click="stopIde"
         >
           <template #icon><Power :size="15" /></template>
           停止
+        </NButton>
+        <NButton
+          v-if="installedVersion || isRunning || uninstalling"
+          size="small"
+          type="error"
+          quaternary
+          :loading="uninstalling"
+          :disabled="!hasConnection || isWorking"
+          @click="confirmUninstall"
+        >
+          <template #icon><Trash2 :size="15" /></template>
+          卸载 IDE
         </NButton>
       </div>
     </header>
@@ -783,7 +849,7 @@ watch(
             <NButton
               type="primary"
               :loading="installing"
-              :disabled="!selectedPackage || !supported"
+              :disabled="!selectedPackage || !supported || isWorking"
               @click="installSelected"
             >
               <template #icon><Play :size="15" /></template>
@@ -821,7 +887,12 @@ watch(
           <p class="cs-muted">将以 {{ folderText }} 作为工作区打开。</p>
           <div class="cs-row cs-row-between">
             <span class="cs-installed">已安装 v{{ installedVersion }}</span>
-            <NButton type="primary" :loading="starting" :disabled="!supported" @click="startIde">
+            <NButton
+              type="primary"
+              :loading="starting"
+              :disabled="!supported || isWorking"
+              @click="startIde"
+            >
               <template #icon><Play :size="15" /></template>
               启动 IDE
             </NButton>
@@ -897,16 +968,6 @@ watch(
             <p class="cs-tip">
               文件名需包含版本与架构，例如 hostdeck-code-server-4.143.1-linux-amd64.tar.gz。
             </p>
-            <div class="cs-download">
-              <div class="cs-download-head">
-                <span>官方下载地址（Linux {{ targetArch }}）</span>
-                <div class="cs-download-actions">
-                  <a :href="downloadUrl" target="_blank" rel="noopener noreferrer">下载</a>
-                  <NButton text size="tiny" @click="copyDownloadUrl">复制</NButton>
-                </div>
-              </div>
-              <code class="cs-download-url">{{ downloadUrl }}</code>
-            </div>
           </div>
         </section>
       </div>

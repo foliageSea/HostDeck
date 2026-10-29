@@ -286,6 +286,93 @@ void main() {
       provider = SshRemoteIdeProvider(sshService, repository);
     });
 
+    test(
+      'uninstall removes only managed installation and preserves data and projects',
+      () async {
+        final home = await Directory.systemTemp.createTemp(
+          "hostdeck uninstall ' ",
+        );
+        addTearDown(() => home.delete(recursive: true));
+        final install = Directory(
+          '${home.path}/.local/lib/hostdeck/code-server',
+        );
+        await install.create(recursive: true);
+        await File('${install.path}/binary').writeAsString('managed');
+        final data = File(
+          '${home.path}/.local/share/hostdeck/code-server/key/extensions/keep',
+        );
+        await data.parent.create(recursive: true);
+        await data.writeAsString('extension');
+        final project = File('${home.path}/project.txt');
+        await project.writeAsString('project');
+        repository.handler = (command) {
+          if (command.startsWith("printf '%s")) return _ok('${home.path}\n');
+          final result = Process.runSync('sh', ['-c', command]);
+          return SshExecResult(
+            exitCode: result.exitCode,
+            stdout: result.stdout as String,
+            stderr: result.stderr as String,
+            durationMs: 0,
+          );
+        };
+        await provider.uninstall('connection-1');
+        expect(install.existsSync(), isFalse);
+        expect(await data.readAsString(), 'extension');
+        expect(await project.readAsString(), 'project');
+        await provider.uninstall('connection-1');
+        expect(repository.calls.last.timeout, isNotNull);
+      },
+    );
+
+    test('uninstall rejects symlinked installation ancestors', () async {
+      final home = await Directory.systemTemp.createTemp(
+        'hostdeck_uninstall_link_',
+      );
+      addTearDown(() => home.delete(recursive: true));
+      final outside = Directory('${home.path}/outside');
+      await outside.create();
+      final keep = File('${outside.path}/keep');
+      await keep.writeAsString('safe');
+      await Link('${home.path}/.local').create(outside.path);
+      repository.handler = (command) {
+        if (command.startsWith("printf '%s")) return _ok('${home.path}\n');
+        final result = Process.runSync('sh', ['-c', command]);
+        return SshExecResult(
+          exitCode: result.exitCode,
+          stdout: result.stdout as String,
+          stderr: result.stderr as String,
+          durationMs: 0,
+        );
+      };
+      await expectLater(provider.uninstall('connection-1'), throwsStateError);
+      expect(await keep.readAsString(), 'safe');
+    });
+
+    test(
+      'uninstall and stop reject unsuccessful or unknown exit status',
+      () async {
+        for (final exitCode in [1, null]) {
+          repository.handler = (command) {
+            if (command.startsWith("printf '%s")) return _ok('/home/tester\n');
+            return SshExecResult(
+              exitCode: exitCode,
+              stdout: '',
+              stderr: 'denied',
+              durationMs: 0,
+            );
+          };
+          await expectLater(
+            provider.uninstall('connection-1'),
+            throwsStateError,
+          );
+          await expectLater(
+            provider.stop('connection-1', sessionId: sessionId, pid: 4321),
+            throwsStateError,
+          );
+        }
+      },
+    );
+
     test('preferred ports are stable and inside the configured range', () {
       final first = SshRemoteIdeProvider.preferredPortFor(hostKey);
       final second = SshRemoteIdeProvider.preferredPortFor(hostKey);
