@@ -959,6 +959,8 @@ watch(
 .code-server-view {
   --cs-border: rgba(148, 163, 184, 0.22);
   --cs-surface: rgba(255, 255, 255, 0.72);
+  --cs-frame-bg: #ffffff;
+  --cs-loading-bg: #f8fafc;
   --cs-surface-soft: rgba(148, 163, 184, 0.08);
   --cs-text: #1e293b;
   --cs-muted: #64748b;
@@ -975,6 +977,8 @@ watch(
 .code-server-dark {
   --cs-border: rgba(148, 163, 184, 0.16);
   --cs-surface: rgba(30, 32, 42, 0.78);
+  --cs-frame-bg: #1e202a;
+  --cs-loading-bg: #1e202a;
   --cs-surface-soft: rgba(148, 163, 184, 0.1);
   --cs-text: #e2e8f0;
   --cs-muted: #94a3b8;
@@ -1107,7 +1111,7 @@ watch(
   min-height: 0;
   flex: 1;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--cs-frame-bg);
 }
 
 .cs-frame {
@@ -1130,9 +1134,9 @@ watch(
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: #64748b;
+  color: var(--cs-muted);
   font-size: 13px;
-  background: #f8fafc;
+  background: var(--cs-loading-bg);
 }
 
 .cs-setup {
