@@ -3,7 +3,6 @@ import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import {
   Copy,
   Laptop,
-  Maximize2,
   Network,
   Pencil,
   Plus,
@@ -425,14 +424,6 @@ onMounted(() => {
           <strong>{{ totalCount }}</strong
           ><span>规则</span>
         </div>
-        <NTooltip>
-          <template #trigger>
-            <NButton circle secondary aria-label="适配画布" @click="fitDiagram">
-              <template #icon><Maximize2 :size="16" /></template>
-            </NButton>
-          </template>
-          适配全部流程
-        </NTooltip>
         <NTooltip>
           <template #trigger>
             <NButton circle secondary :loading="loading" aria-label="刷新" @click="fetchRules">
