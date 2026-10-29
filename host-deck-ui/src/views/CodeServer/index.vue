@@ -740,18 +740,6 @@ watch(
           <template #icon><Power :size="15" /></template>
           停止
         </NButton>
-        <NButton
-          v-if="installedVersion || isRunning || uninstalling"
-          size="small"
-          type="error"
-          quaternary
-          :loading="uninstalling"
-          :disabled="!hasConnection || isWorking"
-          @click="confirmUninstall"
-        >
-          <template #icon><Trash2 :size="15" /></template>
-          卸载 IDE
-        </NButton>
       </div>
     </header>
 
@@ -885,15 +873,27 @@ watch(
           <p class="cs-muted">将以 {{ folderText }} 作为工作区打开。</p>
           <div class="cs-row cs-row-between">
             <span class="cs-installed">已安装 v{{ installedVersion }}</span>
-            <NButton
-              type="primary"
-              :loading="starting"
-              :disabled="!supported || isWorking"
-              @click="startIde"
-            >
-              <template #icon><Play :size="15" /></template>
-              启动 IDE
-            </NButton>
+            <div class="cs-row">
+              <NButton
+                type="error"
+                quaternary
+                :loading="uninstalling"
+                :disabled="!hasConnection || isWorking"
+                @click="confirmUninstall"
+              >
+                <template #icon><Trash2 :size="15" /></template>
+                卸载 IDE
+              </NButton>
+              <NButton
+                type="primary"
+                :loading="starting"
+                :disabled="!supported || isWorking"
+                @click="startIde"
+              >
+                <template #icon><Play :size="15" /></template>
+                启动 IDE
+              </NButton>
+            </div>
           </div>
         </section>
 
@@ -1051,8 +1051,10 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 5px 10px;
-  border-bottom: 1px solid var(--cs-border);
+  margin: 16px 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--cs-border);
+  border-radius: 12px;
   background: var(--cs-surface);
 }
 
@@ -1163,6 +1165,10 @@ watch(
   min-height: 0;
   flex: 1;
   flex-direction: column;
+}
+
+.cs-toolbar + .cs-body .cs-running {
+  margin-top: 12px;
 }
 
 .cs-frame-wrap {
@@ -1280,6 +1286,7 @@ watch(
 }
 
 .cs-row-between {
+  flex-wrap: wrap;
   justify-content: space-between;
 }
 
@@ -1471,6 +1478,10 @@ watch(
 }
 
 @media (max-width: 640px) {
+  .cs-toolbar {
+    margin: 10px 10px 0;
+  }
+
   .cs-setup {
     padding: 10px;
   }
