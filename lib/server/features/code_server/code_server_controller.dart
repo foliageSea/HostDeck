@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:logging/logging.dart';
 import 'package:shelf/shelf.dart';
 
 import 'package:host_deck/server/core/http/result.dart';
@@ -12,6 +13,7 @@ import 'package:host_deck/server/features/code_server/ide_package_store.dart';
 
 class CodeServerController {
   static const _maxPackageBytes = 600 * 1024 * 1024;
+  static final _log = Logger('CodeServerController');
 
   final CodeServerManager _manager;
   final IdePackageStore _packages;
@@ -143,6 +145,7 @@ class CodeServerController {
       );
       return Result.ok(_sessionJson(session));
     } catch (error) {
+      _log.warning('code-server 操作失败（connection=$connectionId）：$error');
       return Result.fail(500, _describe(error));
     }
   }
@@ -159,6 +162,7 @@ class CodeServerController {
       );
       return Result.ok(_sessionJson(session));
     } catch (error) {
+      _log.warning('code-server 操作失败（connection=$connectionId）：$error');
       return Result.fail(500, _describe(error));
     }
   }
@@ -168,6 +172,7 @@ class CodeServerController {
       final session = await _manager.stop(connectionId);
       return Result.ok(_sessionJson(session));
     } catch (error) {
+      _log.warning('code-server 操作失败（connection=$connectionId）：$error');
       return Result.fail(500, _describe(error));
     }
   }

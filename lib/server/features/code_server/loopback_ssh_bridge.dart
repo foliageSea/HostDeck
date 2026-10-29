@@ -134,11 +134,15 @@ class LoopbackSshBridge {
           _log.fine('bridge 本地到远端方向中断：$error');
         }),
       );
+      // 本地对端（HostDeck 代理）先关闭时，写入失败会在 socket.done 上抛出
+      // Broken pipe；每个 done future 都要有处理器，避免未捕获的异步错误。
+      final socketDone = socket.done.then<void>((_) {}, onError: (Object _) {});
+      final channelDone = channel.done.then<void>(
+        (_) {},
+        onError: (Object _) {},
+      );
       unawaited(
-        Future.any<void>([
-          socket.done.catchError((Object _) {}),
-          channel.done.catchError((Object _) {}),
-        ]).whenComplete(() {
+        Future.any<void>([socketDone, channelDone]).whenComplete(() {
           connection.destroy();
           _connections.remove(connection);
         }),

@@ -183,10 +183,27 @@ class CodeServerProxy {
           _log.fine('IDE WebSocket opened session=$sessionId path=$path');
 
           final done = Completer<void>();
+          final upstreamSocket = socket;
+          // 对端先断开时 flush 失败会以异步错误出现在 done 上，必须吞掉，
+          // 否则会变成进程级的 "Asynchronous error: Broken pipe"。
+          unawaited(
+            upstreamSocket.done.then<void>(
+              (_) {},
+              onError: (Object error) {
+                lastError ??= error;
+                if (!done.isCompleted) done.complete();
+              },
+            ),
+          );
           socket.listen(
             (data) {
               browserToUpstreamBytes += data.length;
-              channel.sink.add(data);
+              try {
+                channel.sink.add(data);
+              } catch (error) {
+                lastError ??= error;
+                if (!done.isCompleted) done.complete();
+              }
             },
             onError: (Object error) {
               lastError = error;
@@ -204,7 +221,12 @@ class CodeServerProxy {
           channel.stream.listen(
             (data) {
               upstreamToBrowserBytes += data.length;
-              socket?.add(data);
+              try {
+                upstreamSocket.add(data);
+              } catch (error) {
+                lastError ??= error;
+                if (!done.isCompleted) done.complete();
+              }
             },
             onError: (Object error) {
               lastError = error;

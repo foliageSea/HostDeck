@@ -54,16 +54,36 @@ class CodeServerManager implements CodeServerUpstreamResolver {
   }
 
   IdeSessionSnapshot? sessionFor(String connectionId) {
+    final owner = _ownerConnectionFor(connectionId);
+    return owner == null ? null : _sessions[owner];
+  }
+
+  /// 找到真正持有会话的 connectionId。
+  ///
+  /// 同一目标重连后会得到新的 connectionId，但运行中的会话仍登记在旧连接上；
+  /// status 会按 hostKey 复用它，stop 也必须操作同一个会话，否则会报“会话不存在”。
+  String? _ownerConnectionFor(String connectionId) {
     final direct = _sessions[connectionId];
-    if (direct != null) return direct;
+    if (direct != null && direct.state != IdeSessionState.stopped) {
+      return connectionId;
+    }
     final hostKey = hostKeyFor(connectionId);
-    if (hostKey == null) return null;
-    for (final item in _sessions.values) {
-      if (item.hostKey == hostKey && item.state == IdeSessionState.running) {
-        return item;
+    if (hostKey != null) {
+      String? orphan;
+      for (final entry in _sessions.entries) {
+        if (entry.key == connectionId || entry.value.hostKey != hostKey) {
+          continue;
+        }
+        if (entry.value.state == IdeSessionState.running) return entry.key;
+        // 旧连接断开后留下的远端进程（还记着 pid），允许从新连接停止。
+        if (_pids.containsKey(entry.key)) orphan ??= entry.key;
+      }
+      if (orphan != null &&
+          (direct == null || !_pids.containsKey(connectionId))) {
+        return orphan;
       }
     }
-    return null;
+    return direct == null ? null : connectionId;
   }
 
   String? hostKeyFor(String connectionId) {
@@ -177,6 +197,7 @@ class CodeServerManager implements CodeServerUpstreamResolver {
         return item;
       }
     }
+    await _reclaimOrphans(hostKey, via: connectionId);
 
     _ensureIdle(connectionId);
     _busy.add(connectionId);
@@ -284,38 +305,64 @@ class CodeServerManager implements CodeServerUpstreamResolver {
   }
 
   Future<IdeSessionSnapshot> stop(String connectionId) async {
-    final snapshot = _sessions[connectionId];
-    if (snapshot == null) {
+    final owner = _ownerConnectionFor(connectionId);
+    final snapshot = owner == null ? null : _sessions[owner];
+    if (owner == null || snapshot == null) {
       throw StateError('IDE 会话不存在。');
     }
     _updateSession(
-      connectionId,
+      owner,
       snapshot.copyWith(state: IdeSessionState.stopping, error: null),
     );
-    await _cleanupConnection(connectionId, killRemote: true);
-    final stopped = _sessions[connectionId]!.copyWith(
+    await _cleanupConnection(
+      owner,
+      killRemote: true,
+      fallbackConnectionId: connectionId,
+    );
+    final stopped = _sessions[owner]!.copyWith(
       state: IdeSessionState.stopped,
       progress: null,
       error: null,
     );
-    _updateSession(connectionId, stopped);
+    _updateSession(owner, stopped);
     return stopped;
   }
 
   Future<void> _cleanupConnection(
     String connectionId, {
     required bool killRemote,
+    String? fallbackConnectionId,
+    bool keepPid = false,
   }) async {
     final bridge = _bridges.remove(connectionId);
     await bridge?.close();
 
-    final pid = _pids.remove(connectionId);
+    final pid = keepPid ? _pids[connectionId] : _pids.remove(connectionId);
     final snapshot = _sessions[connectionId];
     if (killRemote && pid != null && snapshot != null) {
-      try {
-        await _provider.stop(connectionId, sessionId: snapshot.id, pid: pid);
-      } catch (error) {
-        _log.fine('Stop remote code-server failed: $error');
+      // 持有会话的旧连接可能已断开，此时用发起请求的连接（同一目标机）结束进程。
+      final candidates = <String>{
+        if (_sshService.metadataFor(connectionId) != null) connectionId,
+        ?fallbackConnectionId,
+      };
+      var stopped = false;
+      for (final candidate in candidates) {
+        try {
+          await _provider.stop(candidate, sessionId: snapshot.id, pid: pid);
+          stopped = true;
+          break;
+        } catch (error) {
+          _log.warning(
+            'Stop remote code-server via $candidate failed '
+            '(session=${snapshot.id}, pid=$pid): $error',
+          );
+        }
+      }
+      if (!stopped) {
+        _log.warning(
+          'Remote code-server may still be running '
+          '(session=${snapshot.id}, pid=$pid); idle timeout will reclaim it.',
+        );
       }
     }
 
@@ -413,16 +460,47 @@ class CodeServerManager implements CodeServerUpstreamResolver {
         .join();
   }
 
+  /// 结束同一目标机上旧连接遗留的远端进程，避免重复启动多个 code-server。
+  Future<void> _reclaimOrphans(String hostKey, {required String via}) async {
+    final orphans = _sessions.entries
+        .where(
+          (entry) =>
+              entry.key != via &&
+              entry.value.hostKey == hostKey &&
+              entry.value.state != IdeSessionState.running &&
+              _pids.containsKey(entry.key),
+        )
+        .map((entry) => entry.key)
+        .toList(growable: false);
+    for (final owner in orphans) {
+      await _cleanupConnection(
+        owner,
+        killRemote: true,
+        fallbackConnectionId: via,
+      );
+      final snapshot = _sessions[owner];
+      if (snapshot != null) {
+        _updateSession(
+          owner,
+          snapshot.copyWith(state: IdeSessionState.stopped, progress: null),
+        );
+      }
+    }
+  }
+
   Future<void> _handleDisconnect(String connectionId) async {
     if (!_sessions.containsKey(connectionId)) return;
-    await _cleanupConnection(connectionId, killRemote: false);
+    // 远端进程还在，保留 pid，用户重连后仍可从新连接把它停掉。
+    await _cleanupConnection(connectionId, killRemote: false, keepPid: true);
     final snapshot = _sessions[connectionId];
     if (snapshot != null) {
+      final orphaned = _pids.containsKey(connectionId);
       _updateSession(
         connectionId,
         snapshot.copyWith(
-          state: IdeSessionState.stopped,
-          error: 'SSH 连接已断开',
+          // 远端进程仍在时标记为 error，前端会显示“停止”按钮。
+          state: orphaned ? IdeSessionState.error : IdeSessionState.stopped,
+          error: orphaned ? 'SSH 连接已断开，远端 IDE 可能仍在运行，可点击停止结束' : 'SSH 连接已断开',
           progress: null,
         ),
       );
