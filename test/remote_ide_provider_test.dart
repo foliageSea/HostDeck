@@ -97,6 +97,36 @@ void main() {
       expect(preflight.issues.join('；'), contains('glibc 版本过低'));
     });
 
+    test(
+      'does not retry version detection when no installation exists',
+      () async {
+        repository.handler = _preflightHandler();
+
+        final preflight = await provider.preflight('connection-1');
+
+        expect(preflight.installedVersion, isNull);
+        final probes = repository.calls.where(
+          (call) => call.command.startsWith('for bin in'),
+        );
+        expect(probes, hasLength(1));
+        expect(probes.single.command, contains('exit 0; done; exit 44'));
+      },
+    );
+
+    test('retries when an installed executable returns no version', () async {
+      final handler = _preflightHandler();
+      repository.handler = (command) =>
+          command.startsWith('for bin in') ? _ok() : handler(command);
+
+      final preflight = await provider.preflight('connection-1');
+
+      expect(preflight.installedVersion, isNull);
+      expect(
+        repository.calls.where((call) => call.command.startsWith('for bin in')),
+        hasLength(3),
+      );
+    });
+
     test('reads the expected installed version', () async {
       repository.handler = _preflightHandler(installedVersion: '4.143.1');
 
@@ -728,6 +758,14 @@ _ExecHandler _preflightHandler({
       return _ok('${lines.join('\n')}\n');
     }
     if (command.contains('bin/code-server')) {
+      if (installedVersion.isEmpty && command.startsWith('for bin in')) {
+        return const SshExecResult(
+          exitCode: 44,
+          stdout: '',
+          stderr: '',
+          durationMs: 0,
+        );
+      }
       return _ok(installedVersion.isEmpty ? '' : '$installedVersion\n');
     }
     return _ok();

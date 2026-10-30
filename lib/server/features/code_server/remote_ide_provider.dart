@@ -688,12 +688,14 @@ rm -rf -- "$base"
         : 'for bin in ${_quote(root)}/*/bin/code-server; do '
               '[ -x "\$bin" ] || continue; '
               '"\$bin" --version | head -n 1; '
-              'break; done';
+              'exit 0; done; exit 44';
 
     // WSL/网络文件系统上刚 mv 完立刻执行偶发失败；重试几次再判定“未知版本”。
     SshExecResult? lastResult;
     for (var attempt = 0; attempt < 3; attempt++) {
       final result = await _tryExec(session, command, timeout: _versionTimeout);
+      // 自动探测未找到安装是正常状态，不需要重试或记录版本读取警告。
+      if (expected.isEmpty && result.exitCode == 44) return null;
       final parsed = _parseVersion(result.stdout);
       if (parsed != null) return parsed;
       lastResult = result;
