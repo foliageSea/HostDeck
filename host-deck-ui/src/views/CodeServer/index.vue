@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   ChevronDown,
   ChevronRight,
@@ -168,7 +168,9 @@ const packageOptions = computed(() =>
 const selectedPackage = computed(
   () => matchingPackages.value.find((item) => item.id === selectedPackageId.value) ?? null,
 )
-const sessionState = computed<CodeServerSessionState | null>(() => session.value?.state ?? null)
+const sessionState = computed<CodeServerSessionState | null>(() =>
+  stopping.value ? 'stopping' : session.value?.state ?? null,
+)
 const sessionLabel = computed(() =>
   sessionState.value ? sessionStateLabels[sessionState.value] : '',
 )
@@ -186,7 +188,9 @@ const sessionTagType = computed<TagType>(() => {
       return 'default'
   }
 })
-const isRunning = computed(() => sessionState.value === 'running' && Boolean(session.value?.url))
+const isRunning = computed(
+  () => !stopping.value && sessionState.value === 'running' && Boolean(session.value?.url),
+)
 
 watch(isRunning, (running) => {
   // 启动进入运行态后默认收起顶部操作区；手动展开后不会被状态刷新重新收起。
@@ -408,10 +412,19 @@ async function stopIde() {
   if (!connectionId || stopping.value) return
 
   stopping.value = true
+  frameLoaded.value = false
   actionError.value = ''
   syncPolling()
   try {
-    await codeServerApi.stop(connectionId)
+    await nextTick()
+    const stoppedSession = await codeServerApi.stop(connectionId)
+    if (connectionId !== sshStore.connectionId || isUnmounted) return
+
+    // 停止结果直接驱动 iframe 卸载，旧状态请求不能恢复已停止的会话。
+    statusRequestSeq += 1
+    refreshing.value = false
+    if (status.value) status.value = { ...status.value, session: stoppedSession }
+    frameLoaded.value = false
     await fetchStatus({ silent: true })
   } catch (error) {
     actionError.value = errorMessage(error, '停止 IDE 失败。')
@@ -754,6 +767,13 @@ watch(
     <div v-else class="cs-body">
       <div v-if="loading" class="cs-center">
         <NSpin size="medium" />
+      </div>
+
+      <div v-else-if="stopping" class="cs-center" role="status" aria-live="polite" aria-busy="true">
+        <div class="cs-stopping">
+          <NSpin size="medium" />
+          <span>正在停止 IDE…</span>
+        </div>
       </div>
 
       <div v-else-if="isRunning" class="cs-running">
@@ -1165,6 +1185,15 @@ watch(
   min-height: 0;
   flex: 1;
   flex-direction: column;
+}
+
+.cs-stopping {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--cs-muted);
+  font-size: 13px;
 }
 
 .cs-toolbar + .cs-body .cs-running {
