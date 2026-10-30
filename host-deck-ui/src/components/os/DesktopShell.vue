@@ -37,15 +37,7 @@ const videoWallpaperUrl = computed(() => {
   const wallpaper = settings.desktopWallpaper
   if (wallpaper.mode !== 'custom' || wallpaper.customType !== 'video' || !wallpaper.customDataUrl)
     return undefined
-  const url = wallpaper.customDataUrl
-  if (url.startsWith('/') && import.meta.env.DEV && import.meta.env.VITE_DEV_PROXY_TARGET) {
-    try {
-      return new URL(url, import.meta.env.VITE_DEV_PROXY_TARGET).toString()
-    } catch {
-      return url
-    }
-  }
-  return url
+  return wallpaper.customDataUrl
 })
 </script>
 

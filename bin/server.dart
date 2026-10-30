@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:logging/logging.dart';
 import 'package:host_deck/server/app/server_cli.dart';
@@ -46,14 +47,36 @@ Future<void> main(List<String> args) async {
         'true',
     logService: logging.logService,
     chromeLauncher: chromeLauncher,
+    tlsEnabled: config.tlsEnabled,
+    tlsCertificatePath: config.tlsCertificatePath,
+    tlsPrivateKeyPath: config.tlsPrivateKeyPath,
   );
 
   final log = Logger('ServerEntrypoint');
 
   try {
     await server.start();
+    if (config.readyFile != null) {
+      final file = File(config.readyFile!);
+      await file.parent.create(recursive: true);
+      await file.create(exclusive: true);
+      if (!Platform.isWindows) {
+        final result = await Process.run('chmod', ['600', file.path]);
+        if (result.exitCode != 0) {
+          throw StateError('Cannot protect ready file.');
+        }
+      }
+      await file.writeAsString(
+        jsonEncode({
+          'pid': pid,
+          'baseUrl': '${server.scheme}://127.0.0.1:${server.listeningPort}',
+          'certificatePem': server.tlsCertificatePem,
+        }),
+        flush: true,
+      );
+    }
     log.info(
-      'HostDeck server started at http://${config.host}:${config.port} (web: ${config.webDir ?? 'disabled'})',
+      'HostDeck server started at ${server.scheme}://${config.host}:${server.listeningPort} (web: ${config.webDir ?? 'disabled'})',
     );
   } catch (e, st) {
     log.severe('Failed to start server: $e', e, st);

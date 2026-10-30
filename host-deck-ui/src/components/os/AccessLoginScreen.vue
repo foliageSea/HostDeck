@@ -29,23 +29,9 @@ const isVideoWallpaper = computed(
     settingsStore.desktopWallpaper.customType === 'video' &&
     Boolean(settingsStore.desktopWallpaper.customDataUrl),
 )
-const loginVideoWallpaperUrl = computed(() => {
-  const wallpaperUrl = settingsStore.desktopWallpaper.customDataUrl
-  if (
-    !wallpaperUrl ||
-    !wallpaperUrl.startsWith('/') ||
-    !import.meta.env.DEV ||
-    !import.meta.env.VITE_DEV_PROXY_TARGET
-  ) {
-    return wallpaperUrl ?? undefined
-  }
-
-  try {
-    return new URL(wallpaperUrl, import.meta.env.VITE_DEV_PROXY_TARGET).toString()
-  } catch {
-    return wallpaperUrl
-  }
-})
+const loginVideoWallpaperUrl = computed(
+  () => settingsStore.desktopWallpaper.customDataUrl ?? undefined,
+)
 
 function selectLoginMode(mode: 'password' | 'totp') {
   loginMode.value = mode

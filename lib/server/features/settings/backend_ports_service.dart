@@ -6,6 +6,7 @@ import 'package:host_deck/server/features/port_forwards/secure_browser_tunnel_se
 class BackendPortsService {
   final String Function() _serverHost;
   final int Function() _serverPort;
+  final String Function() _serverScheme;
   final PortForwardService _portForwardService;
   final SecureBrowserTunnelService _secureBrowserTunnelService;
   final DockerSocketTunnelService _dockerSocketTunnelService;
@@ -14,12 +15,14 @@ class BackendPortsService {
   BackendPortsService({
     required String Function() serverHost,
     required int Function() serverPort,
+    String Function()? serverScheme,
     required PortForwardService portForwardService,
     required SecureBrowserTunnelService secureBrowserTunnelService,
     required DockerSocketTunnelService dockerSocketTunnelService,
     required CodeServerManager codeServerManager,
   }) : _serverHost = serverHost,
        _serverPort = serverPort,
+       _serverScheme = serverScheme ?? (() => 'http'),
        _portForwardService = portForwardService,
        _secureBrowserTunnelService = secureBrowserTunnelService,
        _dockerSocketTunnelService = dockerSocketTunnelService,
@@ -33,6 +36,7 @@ class BackendPortsService {
         'name': 'HostDeck 主服务',
         'host': _serverHost(),
         'port': _serverPort(),
+        'scheme': _serverScheme(),
         'purpose': 'Web 页面、HTTP API、WebSocket 与事件流',
         'status': 'running',
       },

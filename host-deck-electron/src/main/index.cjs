@@ -19,7 +19,11 @@ const { createSettingsStore } = require('./settings-store.cjs')
 const { createShellPageLoader } = require('./shell-pages.cjs')
 const { createTabManager } = require('./tab-manager.cjs')
 const { registerIpcHandlers } = require('./ipc.cjs')
-const { resolveConfiguredDevUrl, waitForUrl } = require('../shared/dev-server.cjs')
+const {
+  resolveConfiguredDevUrl,
+  waitForUrl,
+  configureDevTrust,
+} = require('../shared/dev-server.cjs')
 const {
   frontendRoot,
   frontendViteConfigPath,
@@ -50,6 +54,7 @@ const serverRuntime = createServerRuntime({
   isPackaged: () => app.isPackaged,
   readSettings: settingsStore.read,
   repoRoot,
+  session,
 })
 
 const tabManager = createTabManager({
@@ -201,7 +206,6 @@ async function restartApplicationServer() {
 
   await serverRuntime.stop()
   applicationUrl = await serverRuntime.start()
-  await waitForUrl(applicationUrl, 15000)
   tabManager.reloadAll(applicationUrl)
   return applicationUrl
 }
@@ -255,7 +259,7 @@ function createWindow() {
 
 async function loadApplication() {
   applicationUrl = await resolveAppUrl()
-  await waitForUrl(applicationUrl, useDevServers ? 15000 : 30000)
+  if (useDevServers) await waitForUrl(applicationUrl, 15000)
   if (await loadShellPage('tabs')) {
     tabManager.createTab(applicationUrl)
   }
@@ -285,6 +289,8 @@ app
       : null
 
     if (useDevServers) {
+      const appUrl = await resolveAppUrl()
+      configureDevTrust(session.defaultSession, [shellDevServerUrl, appUrl])
       await waitForUrl(shellDevServerUrl, 30000)
     }
 

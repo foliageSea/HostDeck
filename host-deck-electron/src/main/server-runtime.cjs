@@ -2,8 +2,11 @@ const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const net = require('node:net')
 const path = require('node:path')
+const { randomUUID } = require('node:crypto')
+const { configureBackendTrust, probeOptions } = require('./backend-tls.cjs')
+const { waitForUrl } = require('../shared/dev-server.cjs')
 
-function createServerRuntime({ app, frontendRoot, isPackaged, readSettings, repoRoot }) {
+function createServerRuntime({ app, frontendRoot, isPackaged, readSettings, repoRoot, session }) {
   let serverProcess = null
   let serverLogStream = null
 
@@ -91,12 +94,13 @@ function createServerRuntime({ app, frontendRoot, isPackaged, readSettings, repo
     const logStream = openServerLogStream()
     serverLogStream = logStream
     const port = await resolveServerPort(host, logStream)
-    const localUrl = `http://127.0.0.1:${port}`
+    const readyFile = path.join(dataDir, `server-ready-${randomUUID()}.json`)
 
     args.push('--host', host)
     args.push('--port', String(port))
     args.push('--web-dir', webDir)
     args.push('--data-dir', dataDir)
+    args.push('--ready-file', readyFile)
 
     if (logStream) {
       writeServerLog(logStream, `command: ${command}\n`)
@@ -142,7 +146,39 @@ function createServerRuntime({ app, frontendRoot, isPackaged, readSettings, repo
       if (serverProcess === child) serverProcess = null
     })
 
-    return localUrl
+    try {
+      const deadline = Date.now() + 30000
+      while (Date.now() < deadline) {
+        if (child.exitCode !== null || child.signalCode !== null) {
+          throw new Error('HostDeck backend exited before it was ready')
+        }
+        if (fs.existsSync(readyFile)) {
+          let ready
+          try {
+            ready = JSON.parse(fs.readFileSync(readyFile, 'utf8'))
+          } catch {
+            // The file can be observed while its first write is in progress.
+          }
+          if (ready && ready.pid === child.pid) {
+            const url = new URL(ready.baseUrl)
+            if (
+              url.hostname !== '127.0.0.1' ||
+              Number(url.port) !== port ||
+              !['http:', 'https:'].includes(url.protocol)
+            ) {
+              throw new Error('Invalid HostDeck backend ready URL')
+            }
+            configureBackendTrust(session.defaultSession, ready.baseUrl, ready.certificatePem)
+            await waitForUrl(ready.baseUrl, 15000, probeOptions(ready.certificatePem))
+            return ready.baseUrl
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      throw new Error('HostDeck backend did not become ready')
+    } finally {
+      fs.rmSync(readyFile, { force: true })
+    }
   }
 
   function stop() {

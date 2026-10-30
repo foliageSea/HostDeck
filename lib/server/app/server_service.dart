@@ -9,6 +9,7 @@ import 'package:host_deck/server/app/server_handlers.dart';
 import 'package:host_deck/server/features/logs/server_log_service.dart';
 import 'package:host_deck/server/features/port_forwards/chrome_launcher.dart';
 import 'package:host_deck/utils/hostdeck_discovery.dart';
+import 'package:host_deck/server/features/settings/tls_service.dart';
 
 class ServerService {
   final _log = Logger('ServerService');
@@ -23,6 +24,10 @@ class ServerService {
   String? apiToken;
   String? totpSecret;
   bool secureCookies;
+  final bool? tlsEnabled;
+  final String? tlsCertificatePath;
+  final String? tlsPrivateKeyPath;
+  TlsService? _tlsService;
   final ServerLogService logService;
   final bool _ownsLogService;
   final ChromeLauncher? chromeLauncher;
@@ -32,6 +37,8 @@ class ServerService {
   bool get isRunning => _server != null;
   String get listeningHost => _server?.address.address ?? host;
   int get listeningPort => _server?.port ?? port;
+  String get scheme => _tlsService?.scheme ?? 'http';
+  String? get tlsCertificatePem => _tlsService?.activeCertificate;
 
   ServerService({
     this.port = 8080,
@@ -44,6 +51,9 @@ class ServerService {
     this.apiToken,
     this.totpSecret,
     this.secureCookies = false,
+    this.tlsEnabled,
+    this.tlsCertificatePath,
+    this.tlsPrivateKeyPath,
     ServerLogService? logService,
     this.chromeLauncher,
   }) : logService = logService ?? ServerLogService(),
@@ -71,6 +81,14 @@ class ServerService {
       );
     }
 
+    final tlsService = TlsService(
+      dataDir: dataDir,
+      enabledOverride: tlsEnabled,
+      certificatePath: tlsCertificatePath,
+      privateKeyPath: tlsPrivateKeyPath,
+    );
+    await tlsService.init();
+    _tlsService = tlsService;
     _container = await ServerContainer.create(
       dataDir: dataDir,
       logDir: logDir,
@@ -79,7 +97,8 @@ class ServerService {
       adminPassword: adminPassword,
       apiToken: apiToken,
       totpSecret: totpSecret,
-      secureCookies: secureCookies,
+      secureCookies: secureCookies || tlsService.enabled,
+      tlsService: tlsService,
       logService: logService,
       chromeLauncher: chromeLauncher,
       serverHost: () => listeningHost,
@@ -99,11 +118,17 @@ class ServerService {
     );
 
     final bindAddress = _parseBindAddress(host);
-    _server = await shelf_io.serve(handler, bindAddress, port);
+    _server = await shelf_io.serve(
+      handler,
+      bindAddress,
+      port,
+      securityContext: tlsService.securityContext,
+    );
     port = _server!.port;
     try {
       await HostDeckDiscovery.writeInstance(
-        baseUrl: HostDeckDiscovery.localBaseUrl(port),
+        baseUrl: HostDeckDiscovery.localBaseUrl(port, scheme: scheme),
+        certificatePem: tlsService.activeCertificate,
         host: _discoveryHost(host),
         port: port,
         dataDir: dataDir,
@@ -112,7 +137,8 @@ class ServerService {
       _log.warning('Failed to write HostDeck discovery file: $e');
     }
 
-    final startMsg = 'Server running on port ${_server?.port}';
+    final startMsg =
+        'Server running at $scheme://$listeningHost:$listeningPort';
     _log.info(startMsg);
   }
 

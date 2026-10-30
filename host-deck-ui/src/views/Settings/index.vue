@@ -8,6 +8,7 @@ import { createKeyboardShortcut, formatKeyboardShortcut } from '@/lib/keyboard-s
 import { getUiApi } from '@/lib/ui'
 import BackendPortsSection from './components/BackendPortsSection.vue'
 import TotpSecuritySection from './components/TotpSecuritySection.vue'
+import TlsSecuritySection from './components/TlsSecuritySection.vue'
 import WallpaperSection from './components/WallpaperSection.vue'
 import { useWallpaperSettings } from './hooks/useWallpaperSettings'
 
@@ -470,6 +471,7 @@ async function exportLogs() {
             <span>安全</span>
           </span>
         </template>
+        <TlsSecuritySection />
         <TotpSecuritySection />
       </NTabPane>
 

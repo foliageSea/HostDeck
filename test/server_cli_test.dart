@@ -2,6 +2,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:host_deck/server/app/server_cli.dart';
 
 void main() {
+  test('parses TLS settings and recovery override', () {
+    final config = parseServerArgs([
+      '--tls',
+      'true',
+      '--tls-cert',
+      'cert.pem',
+      '--tls-key',
+      'key.pem',
+    ]);
+    expect(config.tlsEnabled, isTrue);
+    expect(config.tlsCertificatePath, 'cert.pem');
+    expect(config.tlsPrivateKeyPath, 'key.pem');
+    expect(parseServerArgs(['--tls', 'false']).tlsEnabled, isFalse);
+  });
   test('secure browser launch is disabled by default', () {
     final config = parseServerArgs(const []);
 

@@ -7,6 +7,11 @@ import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
 import Components from 'unplugin-vue-components/vite'
 import { fileURLToPath, URL } from 'node:url'
 import { cpSync, mkdirSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { resolve } from 'node:path'
+
+const { readDevHttps, readDevProxy } = createRequire(import.meta.url)('./scripts/dev-tls.cjs')
+const repoRootPath = fileURLToPath(new URL('../', import.meta.url))
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
   version: string
@@ -148,9 +153,14 @@ function legalFilesPlugin(): Plugin {
 }
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
-  const proxyTarget = env.VITE_DEV_PROXY_TARGET || 'http://localhost:8080'
+export default defineConfig(({ mode, command }) => {
+  const env = {
+    ...loadEnv(mode, fileURLToPath(new URL('./', import.meta.url)), ''),
+    ...process.env,
+  }
+  const https = command === 'serve' ? readDevHttps(env, repoRootPath) : undefined
+  const proxy = command === 'serve' ? readDevProxy(env, repoRootPath) : {}
+  const proxyTarget = proxy.target
 
   return {
     define: {
@@ -162,6 +172,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      https,
       port: 5178,
       watch: {
         ignored: ['**/src/assets/mac-tahoe/**'],
@@ -169,31 +180,63 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': {
           target: proxyTarget,
+          agent: proxy.agent,
           changeOrigin: false,
           ws: true,
         },
         '/ide': {
           target: proxyTarget,
+          agent: proxy.agent,
           changeOrigin: false,
           ws: true,
         },
         '/port-forward': {
           target: proxyTarget,
+          agent: proxy.agent,
           changeOrigin: false,
           ws: true,
         },
         '/wallpapers': {
           target: proxyTarget,
+          agent: proxy.agent,
           changeOrigin: false,
         },
         '/api/ws/terminal': {
           target: proxyTarget,
+          agent: proxy.agent,
           changeOrigin: false,
           ws: true,
         },
       },
     },
     plugins: [
+      {
+        name: 'hostdeck-dev-backend',
+        configureServer(server) {
+          const readyFile = env.HOSTDECK_DEV_BACKEND_READY_FILE
+          if (!readyFile) return
+          const absolute = resolve(repoRootPath, readyFile)
+          let previous = readFileSync(absolute, 'utf8')
+          server.watcher.add(absolute)
+          const restart = (file: string) => {
+            if (file !== absolute) return
+            try {
+              const next = readFileSync(absolute, 'utf8')
+              JSON.parse(next)
+              if (next === previous) return
+              previous = next
+              void server.restart().catch((error) => server.config.logger.error(String(error)))
+            } catch {
+              // The backend may still be writing the ready file.
+            }
+          }
+          server.watcher.on('add', restart).on('change', restart)
+          server.httpServer?.once('close', () => {
+            server.watcher.off('add', restart).off('change', restart)
+            proxy.agent?.destroy()
+          })
+        },
+      },
       legalFilesPlugin(),
       vue(),
       UnoCSS({

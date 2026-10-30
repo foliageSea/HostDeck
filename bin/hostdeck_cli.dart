@@ -14,6 +14,7 @@ Future<void> main(List<String> args) async {
   final client = HostDeckAgentClient(
     baseUrl: parser.option('hostdeck-url'),
     token: parser.option('token') ?? HostDeckAgentClient.tokenFromEnvironment(),
+    trustedCertificatePath: parser.option('ca-cert'),
   );
 
   try {
@@ -121,6 +122,7 @@ Usage:
 Options:
   --hostdeck-url <url>       HostDeck server URL, default: http://127.0.0.1:8080
   --token <token>            API token, or use HOSTDECK_TOKEN
+  --ca-cert <path>           Trusted PEM certificate, or use HOSTDECK_CA_CERT
   --connection <id>          SSH connection id from HostDeck
   --cwd <path>               Remote working directory
   --path <path>              Remote file path

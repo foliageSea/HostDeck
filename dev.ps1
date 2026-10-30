@@ -21,17 +21,19 @@ $ErrorActionPreference = "Stop"
 $projectRoot = $PSScriptRoot
 $backendProcess = $null
 $frontendProcess = $null
+$backendReadyFile = Join-Path ([System.IO.Path]::GetTempPath()) ("hostdeck-dev-" + [guid]::NewGuid().ToString() + ".json")
+$frontendScheme = if ($env:HOSTDECK_DEV_TLS -eq "true") { "https" } else { "http" }
 $frontendHost = "127.0.0.1"
 $isWildcardBackendHost = $BackendHost -in @("0.0.0.0", "::", "[::]")
 $isLoopbackBackendHost = $BackendHost -in @("127.0.0.1", "localhost", "::1", "[::1]")
 $backendConnectHost = if ($isWildcardBackendHost) { "127.0.0.1" } elseif ($BackendHost -eq "[::1]") { "::1" } else { $BackendHost }
 $backendUrlHost = if ($backendConnectHost.Contains(":")) { "[$backendConnectHost]" } else { $backendConnectHost }
-$backendProxyTarget = "http://${backendUrlHost}:${BackendPort}"
 
 if (-not $isLoopbackBackendHost -and
     [string]::IsNullOrWhiteSpace($env:HOSTDECK_ACCESS_PASSWORD) -and
+    [string]::IsNullOrWhiteSpace($env:HOSTDECK_ACCESS_TOTP_SECRET) -and
     [string]::IsNullOrWhiteSpace($env:HOSTDECK_API_TOKEN)) {
-    throw "Non-loopback binding requires HOSTDECK_ACCESS_PASSWORD or HOSTDECK_API_TOKEN. Set one before running this script."
+    throw "Non-loopback binding requires HOSTDECK_ACCESS_PASSWORD, HOSTDECK_ACCESS_TOTP_SECRET or HOSTDECK_API_TOKEN."
 }
 
 function Test-TcpPort {
@@ -84,7 +86,7 @@ function Wait-Backend {
             $Process.WaitForExit()
             throw "Backend exited during startup (exit code: $($Process.ExitCode))."
         }
-        if (Test-TcpPort -HostName $backendConnectHost -Port $BackendPort) {
+        if ((Test-Path $backendReadyFile) -and (Test-TcpPort -HostName $backendConnectHost -Port $BackendPort)) {
             return
         }
         Start-Sleep -Milliseconds 200
@@ -98,10 +100,11 @@ function Start-Backend {
         throw "Backend port ${BackendHost}:${BackendPort} is already in use."
     }
 
-    Write-Host "Starting backend on ${BackendHost}:${BackendPort} (local proxy: $backendProxyTarget) ..." -ForegroundColor Cyan
+    Remove-Item $backendReadyFile -ErrorAction SilentlyContinue
+    Write-Host "Starting backend on ${BackendHost}:${BackendPort} ..." -ForegroundColor Cyan
     $process = Start-Process `
         -FilePath "fvm" `
-        -ArgumentList @("dart", "run", "--enable-experiment=native-assets", "bin/server.dart", "--host", $BackendHost, "--port", $BackendPort, "--enable-secure-browser") `
+        -ArgumentList @("dart", "run", "--enable-experiment=native-assets", "bin/server.dart", "--host", $BackendHost, "--port", $BackendPort, "--enable-secure-browser", "--ready-file", ('"' + $backendReadyFile + '"')) `
         -WorkingDirectory $projectRoot `
         -NoNewWindow `
         -PassThru
@@ -121,7 +124,7 @@ function Restart-Backend {
     Write-Host "Restarting backend ..." -ForegroundColor Yellow
     Stop-ProcessTree -Process $script:backendProcess
     $script:backendProcess = Start-Backend
-    Write-Host "Frontend is available at http://localhost:$FrontendPort" -ForegroundColor Green
+    Write-Host "Frontend is available at ${frontendScheme}://localhost:$FrontendPort" -ForegroundColor Green
 }
 
 function Wait-Frontend {
@@ -148,7 +151,7 @@ function Start-Frontend {
         throw "Frontend port localhost:$FrontendPort is already in use. Stop the existing frontend process before running this script."
     }
 
-    Write-Host "Starting frontend at http://localhost:$FrontendPort (backend: $backendProxyTarget) ..." -ForegroundColor Cyan
+    Write-Host "Starting frontend at ${frontendScheme}://localhost:$FrontendPort ..." -ForegroundColor Cyan
 
     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
     $startInfo.FileName = $env:ComSpec
@@ -156,12 +159,13 @@ function Start-Frontend {
     $startInfo.WorkingDirectory = $projectRoot
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
-    $startInfo.EnvironmentVariables["VITE_DEV_PROXY_TARGET"] = $backendProxyTarget
+    $startInfo.EnvironmentVariables["HOSTDECK_DEV_BACKEND_READY_FILE"] = $backendReadyFile
+    $startInfo.EnvironmentVariables["HOSTDECK_DEV_BACKEND_HOST"] = $backendUrlHost
 
     $process = [System.Diagnostics.Process]::Start($startInfo)
     try {
         Wait-Frontend -Process $process
-        Write-Host "Frontend is ready (PID $($process.Id), backend: $backendProxyTarget)." -ForegroundColor Green
+        Write-Host "Frontend is ready (PID $($process.Id))." -ForegroundColor Green
         return $process
     }
     catch {
@@ -188,4 +192,5 @@ finally {
     Write-Host "Stopping development services ..." -ForegroundColor Yellow
     Stop-ProcessTree -Process $frontendProcess
     Stop-ProcessTree -Process $backendProcess
+    Remove-Item $backendReadyFile -ErrorAction SilentlyContinue
 }

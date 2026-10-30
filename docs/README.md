@@ -19,6 +19,7 @@
 - `api-contract.md`：API 合约说明
 - `development.md`：本地开发流程
 - `build-and-release.md`：构建与发布流程
+- `tls.md`：TLS 开关、证书管理与客户端信任
 - `testing.md`：测试与校验流程
 
 ## 专题分析

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:host_deck/utils/hostdeck_discovery.dart';
+import 'package:crypto/crypto.dart';
 
 /// Result of resolving which HostDeck server to talk to.
 class HostDeckAgentDiscovery {
@@ -45,11 +46,17 @@ class HostDeckAgentClient {
   final String? _explicitBaseUrl;
   final String? _token;
   final HttpClient Function()? _httpClientFactory;
+  final String? _trustedCertificatePath;
 
-  HostDeckAgentClient({String? baseUrl, String? token})
-    : _explicitBaseUrl = _normalize(baseUrl),
-      _token = _normalize(token),
-      _httpClientFactory = null;
+  HostDeckAgentClient({
+    String? baseUrl,
+    String? token,
+    String? trustedCertificatePath,
+  }) : _explicitBaseUrl = _normalize(baseUrl),
+       _token = _normalize(token),
+       _httpClientFactory = null,
+       _trustedCertificatePath =
+           trustedCertificatePath ?? Platform.environment['HOSTDECK_CA_CERT'];
 
   /// Test hook that allows injecting a custom [HttpClient] factory.
   HostDeckAgentClient.withFactory({
@@ -58,7 +65,8 @@ class HostDeckAgentClient {
     required HttpClient Function() httpClientFactory,
   }) : _explicitBaseUrl = _normalize(baseUrl),
        _token = _normalize(token),
-       _httpClientFactory = httpClientFactory;
+       _httpClientFactory = httpClientFactory,
+       _trustedCertificatePath = null;
 
   static String? _normalize(String? value) {
     final trimmed = value?.trim();
@@ -206,7 +214,7 @@ class HostDeckAgentClient {
   }
 
   Future<Map<String, dynamic>> get(String baseUrl, String path) async {
-    final client = (_httpClientFactory ?? HttpClient.new)();
+    final client = await _createClient(baseUrl);
     try {
       final uri = Uri.parse(baseUrl).resolve(path);
       final request = await client.getUrl(uri);
@@ -234,7 +242,7 @@ class HostDeckAgentClient {
     String path,
     Map<String, dynamic> body,
   ) async {
-    final client = (_httpClientFactory ?? HttpClient.new)();
+    final client = await _createClient(baseUrl);
     try {
       final uri = Uri.parse(baseUrl).resolve(path);
       final request = await client.postUrl(uri);
@@ -257,6 +265,48 @@ class HostDeckAgentClient {
     } finally {
       client.close(force: true);
     }
+  }
+
+  Future<HttpClient> _createClient(String baseUrl) async {
+    if (_httpClientFactory != null) return _httpClientFactory();
+    final context = SecurityContext(withTrustedRoots: true);
+    final trustedPath = _trustedCertificatePath;
+    if (trustedPath != null) {
+      context.setTrustedCertificatesBytes(
+        await File(trustedPath).readAsBytes(),
+      );
+    }
+    final client = HttpClient(context: context);
+    final uri = Uri.parse(baseUrl);
+    // Only the local discovery file can opt a loopback endpoint into pinning.
+    // Explicit remote URLs continue to use normal CA and hostname validation.
+    if (uri.scheme == 'https' &&
+        ['127.0.0.1', '::1', 'localhost'].contains(uri.host) &&
+        trustedPath == null) {
+      try {
+        final instance = await HostDeckDiscovery.readInstance();
+        final pem = instance?['certificatePem'];
+        if (instance?['baseUrl'] == baseUrl && pem is String) {
+          final match = RegExp(
+            r'-----BEGIN CERTIFICATE-----\s*([\s\S]*?)-----END CERTIFICATE-----',
+          ).firstMatch(pem);
+          if (match != null) {
+            final fingerprint = sha256
+                .convert(base64.decode(match[1]!.replaceAll(RegExp(r'\s'), '')))
+                .toString();
+            client.badCertificateCallback = (certificate, host, port) =>
+                host == uri.host &&
+                port == uri.port &&
+                sha256.convert(certificate.der).toString() == fingerprint &&
+                DateTime.now().isAfter(certificate.startValidity) &&
+                DateTime.now().isBefore(certificate.endValidity);
+          }
+        }
+      } catch (_) {
+        // Missing discovery trust never disables certificate validation.
+      }
+    }
+    return client;
   }
 
   void _addAuthorization(HttpClientRequest request) {

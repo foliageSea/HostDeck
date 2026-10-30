@@ -23,23 +23,6 @@ export const wallpaperPresets: WallpaperPreset[] = []
 
 const wallpaperPresetMap = new Map(wallpaperPresets.map((preset) => [preset.id, preset]))
 
-function resolveWallpaperUrl(url: string): string {
-  if (!url.startsWith('/')) {
-    return url
-  }
-
-  const devProxyTarget = import.meta.env.DEV ? import.meta.env.VITE_DEV_PROXY_TARGET?.trim() : ''
-  if (!devProxyTarget) {
-    return url
-  }
-
-  try {
-    return new URL(url, devProxyTarget).toString()
-  } catch {
-    return url
-  }
-}
-
 export function createDefaultWallpaperSettings(): WallpaperSettings {
   return {
     mode: 'default',
@@ -69,7 +52,7 @@ export function resolveWallpaperBackground(
   isDark: boolean,
 ): string {
   if (settings.mode === 'custom' && settings.customDataUrl) {
-    return `url("${resolveWallpaperUrl(settings.customDataUrl)}")`
+    return `url("${settings.customDataUrl}")`
   }
 
   if (settings.mode === 'preset' && settings.presetId) {

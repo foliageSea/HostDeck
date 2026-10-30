@@ -23,6 +23,7 @@ class HostDeckDiscovery {
     required int port,
     required String host,
     String? dataDir,
+    String? certificatePem,
   }) async {
     final file = await instanceFile();
     await file.parent.create(recursive: true);
@@ -32,10 +33,12 @@ class HostDeckDiscovery {
       'host': host,
       'port': port,
       'baseUrl': baseUrl,
+      'certificatePem': ?certificatePem,
       'startedAt': DateTime.now().toUtc().toIso8601String(),
       if (dataDir != null && dataDir.isNotEmpty) 'dataDir': dataDir,
     };
     await file.writeAsString(jsonEncode(payload));
+    if (!Platform.isWindows) await Process.run('chmod', ['600', file.path]);
   }
 
   static Future<Map<String, dynamic>?> readInstance() async {
@@ -69,7 +72,8 @@ class HostDeckDiscovery {
     }
   }
 
-  static String localBaseUrl(int port) => 'http://127.0.0.1:$port';
+  static String localBaseUrl(int port, {String scheme = 'http'}) =>
+      '$scheme://127.0.0.1:$port';
 
   static String _resolveHomeDirectory() {
     return Platform.environment['HOME'] ??

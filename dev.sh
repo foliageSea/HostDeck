@@ -19,6 +19,10 @@ totp_debug_enabled=false
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 backend_pid=""
 frontend_pid=""
+runtime_directory=""
+backend_ready_file=""
+frontend_scheme="http"
+if [[ "${HOSTDECK_DEV_TLS:-false}" == "true" ]]; then frontend_scheme="https"; fi
 
 usage() {
   cat <<'EOF'
@@ -32,6 +36,11 @@ Options:
   --totp-secret SECRET               Set HOSTDECK_ACCESS_TOTP_SECRET for the backend
   --enable-totp                      Enable a fixed development TOTP Secret
   -h, --help                         Show this help message
+
+Development HTTPS:
+  HOSTDECK_DEV_TLS=true
+  HOSTDECK_DEV_TLS_CERT=/absolute/path/cert.pem
+  HOSTDECK_DEV_TLS_KEY=/absolute/path/key.pem
 EOF
 }
 
@@ -121,8 +130,6 @@ else
   backend_url_host="$backend_host"
 fi
 
-backend_url="http://${backend_url_host}:${backend_port}"
-
 if [[ "$backend_host" != "127.0.0.1" && "$backend_host" != "localhost" && \
   "$backend_host" != "::1" && "$backend_host" != "[::1]" ]] && \
   [[ -z "${HOSTDECK_ACCESS_PASSWORD:-}" && \
@@ -168,7 +175,7 @@ wait_backend() {
       return 1
     fi
 
-    if test_tcp_port; then
+    if [[ -s "$backend_ready_file" ]] && test_tcp_port; then
       return 0
     fi
 
@@ -186,13 +193,13 @@ start_backend() {
     return 1
   fi
 
-  printf 'Starting backend on %s:%s (local proxy: %s) ...\n' \
-    "$backend_host" "$backend_port" "$backend_url"
+  rm -f "$backend_ready_file"
+  printf 'Starting backend on %s:%s ...\n' "$backend_host" "$backend_port"
   (
     cd "$project_root"
     exec fvm dart run --enable-experiment=native-assets bin/server.dart \
       --host "$backend_host" --port "$backend_port" \
-      --enable-secure-browser
+      --enable-secure-browser --ready-file "$backend_ready_file"
   ) &
   backend_pid=$!
 
@@ -210,29 +217,33 @@ restart_backend() {
   stop_process_tree "$backend_pid"
   backend_pid=""
   start_backend
-  printf 'Frontend is available at http://localhost:%s\n' "$frontend_port"
+  printf 'Frontend is available at %s://localhost:%s\n' "$frontend_scheme" "$frontend_port"
 }
 
 start_frontend() {
-  printf 'Starting frontend at http://localhost:%s ...\n' "$frontend_port"
+  printf 'Starting frontend at %s://localhost:%s ...\n' "$frontend_scheme" "$frontend_port"
   (
     cd "$project_root"
-    export VITE_DEV_PROXY_TARGET="$backend_url"
+    export HOSTDECK_DEV_BACKEND_READY_FILE="$backend_ready_file"
+    export HOSTDECK_DEV_BACKEND_HOST="$backend_url_host"
     exec pnpm --dir host-deck-ui dev --port "$frontend_port" --strictPort
-  ) >/dev/null 2>&1 &
+  ) &
   frontend_pid=$!
   printf 'Frontend started (PID %s).\n' "$frontend_pid"
 }
 
 cleanup() {
-  [[ -n "$frontend_pid" || -n "$backend_pid" ]] || return
   printf 'Stopping development services ...\n'
   stop_process_tree "$frontend_pid"
   stop_process_tree "$backend_pid"
+  if [[ -n "$backend_ready_file" ]]; then rm -f "$backend_ready_file"; fi
+  if [[ -n "$runtime_directory" ]]; then rmdir "$runtime_directory" 2>/dev/null || true; fi
 }
 
 trap cleanup EXIT INT TERM
 
+runtime_directory="$(mktemp -d "${TMPDIR:-/tmp}/hostdeck-dev.XXXXXX")"
+backend_ready_file="$runtime_directory/backend-ready.json"
 start_backend
 if [[ "$totp_debug_enabled" == true ]]; then
   printf 'Development TOTP is enabled. Configure this Secret in your Authenticator app: %s\n' \

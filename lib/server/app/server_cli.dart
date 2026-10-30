@@ -11,6 +11,10 @@ class ServerConfig {
   final int logMaxDays;
   final bool enableSecureBrowser;
   final String? chromePath;
+  final bool? tlsEnabled;
+  final String? tlsCertificatePath;
+  final String? tlsPrivateKeyPath;
+  final String? readyFile;
 
   const ServerConfig({
     required this.host,
@@ -21,6 +25,10 @@ class ServerConfig {
     required this.logMaxDays,
     required this.enableSecureBrowser,
     required this.chromePath,
+    this.tlsEnabled,
+    this.tlsCertificatePath,
+    this.tlsPrivateKeyPath,
+    this.readyFile,
   });
 }
 
@@ -67,6 +75,11 @@ ServerConfig parseServerArgs(List<String> args) {
     printServerUsageAndExit(exitCode: 64);
   }
 
+  final tlsValue = values['tls'] ?? Platform.environment['HOSTDECK_TLS'];
+  if (tlsValue != null && !['true', 'false'].contains(tlsValue)) {
+    stderr.writeln('Invalid TLS value: expected true or false');
+    printServerUsageAndExit(exitCode: 64);
+  }
   return ServerConfig(
     host: values['host'] ?? '127.0.0.1',
     port: port,
@@ -76,6 +89,12 @@ ServerConfig parseServerArgs(List<String> args) {
     logMaxDays: logMaxDays,
     enableSecureBrowser: enableSecureBrowser,
     chromePath: values['chrome-path'],
+    tlsEnabled: tlsValue == null ? null : tlsValue == 'true',
+    tlsCertificatePath:
+        values['tls-cert'] ?? Platform.environment['HOSTDECK_TLS_CERT'],
+    tlsPrivateKeyPath:
+        values['tls-key'] ?? Platform.environment['HOSTDECK_TLS_KEY'],
+    readyFile: values['ready-file'],
   );
 }
 
@@ -102,6 +121,9 @@ Options:
   --enable-secure-browser
                          Allow this process to launch proxied Chrome windows
   --chrome-path <path>  Chrome executable path (auto-detected by default)
+  --tls <true|false>    Override saved TLS setting; false enables recovery
+  --tls-cert <path>     PEM certificate chain (server certificate first)
+  --tls-key <path>      Unencrypted PEM private key
   --help               Show this help
 
 Environment:
@@ -109,6 +131,9 @@ Environment:
   HOSTDECK_ACCESS_TOTP_SECRET Enable Authenticator/TOTP login (Base32)
   HOSTDECK_API_TOKEN       Enable Bearer authentication for CLI/API clients
   HOSTDECK_SECURE_COOKIES  Set true when HTTPS terminates at a reverse proxy
+  HOSTDECK_TLS             Override saved TLS setting (true or false)
+  HOSTDECK_TLS_CERT        PEM certificate chain path
+  HOSTDECK_TLS_KEY         PEM private key path
 ''');
   exit(exitCode);
 }

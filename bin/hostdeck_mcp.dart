@@ -13,7 +13,11 @@ Future<void> main(List<String> args) async {
   final token = options['token'] ?? HostDeckAgentClient.tokenFromEnvironment();
 
   final server = HostDeckMcpServer(
-    client: HostDeckAgentClient(baseUrl: options['hostdeck-url'], token: token),
+    client: HostDeckAgentClient(
+      baseUrl: options['hostdeck-url'],
+      token: token,
+      trustedCertificatePath: options['ca-cert'],
+    ),
   );
 
   // MCP runs over stdio; keep stdout protocol-clean and log to stderr only.
@@ -60,6 +64,7 @@ Options:
                          HOSTDECK_URL > ~/.config/host-deck/instance.json >
                          http://127.0.0.1:8080
   --token <token>        API token, or use HOSTDECK_TOKEN
+  --ca-cert <path>       Trusted PEM certificate, or use HOSTDECK_CA_CERT
 
 Tools:
   hostdeck_discover      Resolve and probe the HostDeck server endpoint.

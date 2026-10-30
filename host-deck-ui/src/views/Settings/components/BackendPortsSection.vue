@@ -93,7 +93,8 @@ onMounted(refresh)
             </NTag>
           </div>
           <div class="mt-[6px] break-all font-mono text-[13px] text-[rgba(71,85,105,0.94)]">
-            {{ portInfo.host }}:{{ portInfo.port }}
+            <template v-if="portInfo.scheme">{{ portInfo.scheme }}://</template
+            >{{ portInfo.host }}:{{ portInfo.port }}
           </div>
           <div
             v-if="portInfo.purpose"

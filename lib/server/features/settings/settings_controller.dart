@@ -11,15 +11,67 @@ import 'package:host_deck/server/core/http/result.dart';
 import 'package:host_deck/server/features/settings/log_export_service.dart';
 import 'package:host_deck/server/features/settings/backend_ports_service.dart';
 import 'package:host_deck/utils/app_settings.dart';
+import 'package:host_deck/server/features/settings/tls_service.dart';
 
 class SettingsController {
   final LogExportService _logExportService;
   final BackendPortsService? _backendPortsService;
+  final TlsService? _tlsService;
 
   SettingsController(
     this._logExportService, {
     BackendPortsService? backendPortsService,
-  }) : _backendPortsService = backendPortsService;
+    TlsService? tlsService,
+  }) : _backendPortsService = backendPortsService,
+       _tlsService = tlsService;
+
+  Response getTlsSettings(Request request) {
+    final service = _tlsService;
+    if (service == null) return Result.fail(503, 'TLS 配置服务不可用。');
+    return Result.ok(
+      service.state(),
+    ).change(headers: {'cache-control': 'no-store'});
+  }
+
+  Future<Response> saveTlsSettings(Request request) async {
+    final service = _tlsService;
+    if (service == null) return Result.fail(503, 'TLS 配置服务不可用。');
+    try {
+      final bytes = <int>[];
+      await for (final chunk in request.read()) {
+        if (bytes.length + chunk.length > 400000) {
+          return Result.fail(400, 'TLS 配置请求过大。');
+        }
+        bytes.addAll(chunk);
+      }
+      final data = jsonDecode(utf8.decode(bytes));
+      if (data is! Map<String, dynamic>) return Result.fail(400, 'TLS 配置无效。');
+      return Result.ok(await service.save(data));
+    } on TlsValidationException catch (error) {
+      return Result.fail(400, error.message);
+    } on FormatException {
+      return Result.fail(400, 'TLS 配置格式无效。');
+    } catch (_) {
+      return Result.fail(500, '保存 TLS 配置失败。');
+    }
+  }
+
+  Future<Response> downloadTlsCertificate(Request request) async {
+    try {
+      final pem = await _tlsService?.savedCertificate();
+      if (pem == null) return Result.fail(404, '尚未配置 TLS 证书。');
+      return Response.ok(
+        pem,
+        headers: {
+          'content-type': 'application/x-pem-file',
+          'content-disposition': 'attachment; filename="hostdeck-cert.pem"',
+          'cache-control': 'no-store',
+        },
+      );
+    } catch (_) {
+      return Result.fail(500, '读取 TLS 证书失败。');
+    }
+  }
 
   Future<Response> getServiceVersion(Request request) async {
     try {

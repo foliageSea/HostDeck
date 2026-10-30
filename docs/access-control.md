@@ -30,7 +30,7 @@ $env:HOSTDECK_ACCESS_TOTP_SECRET = 'BASE32-SECRET-FROM-YOUR-AUTHENTICATOR'
 dart run bin/server.dart --host 0.0.0.0 --web-dir host-deck-ui/dist
 ```
 
-Docker 部署需要通过 `-e HOSTDECK_ACCESS_PASSWORD=...` 或 `-e HOSTDECK_API_TOKEN=...` 传入凭据。网络访问还应在 HTTPS 反向代理后提供；认证不能替代 TLS。反向代理通过 HTTP 连接 HostDeck 时，同时设置 `HOSTDECK_SECURE_COOKIES=true`，确保浏览器会话 Cookie 带有 `Secure` 属性。
+Docker 部署需要通过 `-e HOSTDECK_ACCESS_PASSWORD=...` 或 `-e HOSTDECK_API_TOKEN=...` 传入凭据。网络访问可以开启 [原生 TLS](tls.md)，或通过 HTTPS 反向代理提供。原生 TLS 自动为会话 Cookie 设置 `Secure`；反向代理通过 HTTP 连接 HostDeck 时，设置 `HOSTDECK_SECURE_COOKIES=true`。
 
 ## 协议
 

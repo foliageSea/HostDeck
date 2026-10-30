@@ -22,6 +22,7 @@
     "format": "prettier --write . \"!packages/webos/**\" --ignore-path ../.prettierignore",
     "format:check": "prettier --check . \"!packages/webos/**\" --ignore-path ../.prettierignore",
     "test": "pnpm build:webos && vitest run --project host",
+    "test:dev-tls": "pnpm build:webos && node --test scripts/dev-tls.integration.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
