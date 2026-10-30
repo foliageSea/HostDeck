@@ -958,7 +958,7 @@ watch(
             <Upload :size="15" class="cs-collapse-icon" aria-hidden="true" />
           </button>
 
-          <div class="cs-download">
+          <div v-if="showUpload" class="cs-download">
             <div class="cs-download-head">
               <span>离线包下载地址（Linux {{ targetArch }}）</span>
               <div class="cs-download-actions">

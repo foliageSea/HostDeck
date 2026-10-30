@@ -136,6 +136,7 @@ describe('CodeServer package downloads', () => {
     mocks.api.status.mockResolvedValue(status)
 
     const view = await mountView()
+    await button(view, '上传离线包').trigger('click')
     const download = view.get('.cs-download')
     const url = 'https://github.com/coder/code-server/releases/download/v4.143.1/code-server-4.143.1-linux-amd64.tar.gz'
 
@@ -144,16 +145,17 @@ describe('CodeServer package downloads', () => {
     expect(download.findAll('a')[1]?.attributes('href')).toBe('https://github.com/coder/code-server/releases')
   })
 
-  it('keeps downloads visible when the installed IDE upload panel is collapsed', async () => {
+  it('collapses downloads together with the installed IDE upload panel', async () => {
     const view = await mountView()
     expect(view.find('.cs-upload').exists()).toBe(false)
-    expect(view.find('.cs-download').exists()).toBe(true)
+    expect(view.find('.cs-download').exists()).toBe(false)
 
     await button(view, '上传离线包').trigger('click')
     expect(view.find('.cs-upload').exists()).toBe(true)
+    expect(view.find('.cs-download').exists()).toBe(true)
     await button(view, '上传离线包').trigger('click')
     expect(view.find('.cs-upload').exists()).toBe(false)
-    expect(view.find('.cs-download').exists()).toBe(true)
+    expect(view.find('.cs-download').exists()).toBe(false)
   })
 
   it('copies the installed target architecture download URL', async () => {
@@ -164,6 +166,7 @@ describe('CodeServer package downloads', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText } })
     const view = await mountView()
 
+    await button(view, '上传离线包').trigger('click')
     await button(view, '复制').trigger('click')
     await flushPromises()
 
