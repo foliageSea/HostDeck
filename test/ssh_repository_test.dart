@@ -8,6 +8,56 @@ import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_session.dart';
 
 void main() {
+  test(
+    'a stalled SFTP upload times out and closes only its SFTP channel',
+    () async {
+      final writer = _UploadWriter();
+      final file = _UploadFile(writer);
+      final sftp = _UploadSftp(file);
+      final session = _UploadSession(sftp);
+
+      await expectLater(
+        SshRepository().writeFileStream(
+          session,
+          '/archive.tar.gz',
+          const Stream.empty(),
+          idleTimeout: const Duration(milliseconds: 20),
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      expect(sftp.closed, isTrue);
+      expect(writer.aborted, isTrue);
+    },
+  );
+
+  test(
+    'SFTP progress uses remote acknowledgements and closes the file',
+    () async {
+      final writer = _UploadWriter();
+      final file = _UploadFile(writer);
+      final sftp = _UploadSftp(file);
+      final progress = <int>[];
+      final upload = SshRepository().writeFileStream(
+        _UploadSession(sftp),
+        '/archive.tar.gz',
+        const Stream.empty(),
+        onProgress: progress.add,
+        idleTimeout: const Duration(seconds: 1),
+      );
+      await file.started.future;
+      expect(progress, isEmpty);
+      file.onProgress!(16384);
+      writer.completion.complete();
+      await upload;
+
+      expect(progress, [16384]);
+      expect(file.closed, isTrue);
+      expect(sftp.closed, isFalse);
+      expect(writer.aborted, isFalse);
+    },
+  );
+
   for (final operation
       in <String, Future<void> Function(SshRepository, SshSession)>{
         'copy': (repository, session) =>
@@ -78,6 +128,80 @@ void main() {
     );
     expect(client.executed.isCompleted, isFalse);
   });
+}
+
+class _UploadWriter implements SftpFileWriter {
+  final completion = Completer<void>();
+  bool aborted = false;
+
+  @override
+  Future<void> get done => completion.future;
+
+  @override
+  Future<void> abort() async {
+    aborted = true;
+    if (!completion.isCompleted) completion.complete();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UploadFile implements SftpFile {
+  final _UploadWriter writer;
+  final started = Completer<void>();
+  void Function(int)? onProgress;
+  bool closed = false;
+
+  _UploadFile(this.writer);
+
+  @override
+  SftpFileWriter write(
+    Stream<Uint8List> stream, {
+    int offset = 0,
+    void Function(int)? onProgress,
+    int chunkSize = 16384,
+    int maxPendingRequests = 64,
+  }) {
+    this.onProgress = onProgress;
+    started.complete();
+    return writer;
+  }
+
+  @override
+  Future<void> close() async => closed = true;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UploadSftp implements SftpClient {
+  final _UploadFile file;
+  bool closed = false;
+
+  _UploadSftp(this.file);
+
+  @override
+  Future<SftpFile> open(
+    String path, {
+    SftpFileOpenMode mode = SftpFileOpenMode.read,
+  }) async => file;
+
+  @override
+  Future<void> close() async => closed = true;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UploadSession extends _FakeSshSession {
+  final _UploadSftp channel;
+
+  _UploadSession(this.channel)
+    : super(_ExecutingSshClient(_CancellableSshProcess()));
+
+  @override
+  Future<SftpClient> sftp() async => channel;
 }
 
 class _FakeSshClient implements SSHClient {

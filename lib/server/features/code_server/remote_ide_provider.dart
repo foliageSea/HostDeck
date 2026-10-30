@@ -350,16 +350,28 @@ rm -rf -- "$base"
     await _ensureDir(session, installRoot);
     _checkCancelled(isCancelled);
 
+    var loggedPercent = -10;
+    _log.info(
+      '开始传输 code-server 离线包（connection=${session.connectionId}, '
+      'version=$version, bytes=${package.size}）',
+    );
     try {
       await _repository.writeFileStream(
         session,
         archivePath,
-        _progressStream(
-          file: archive,
-          total: package.size,
-          onProgress: onProgress,
-          isCancelled: isCancelled,
-        ),
+        _progressStream(file: archive, isCancelled: isCancelled),
+        onProgress: (bytes) {
+          onProgress?.call(bytes, package.size);
+          final percent = package.size > 0 ? bytes * 100 ~/ package.size : 0;
+          if (percent >= loggedPercent + 10) {
+            loggedPercent = percent;
+            _log.info(
+              'code-server 离线包传输进度：$percent% '
+              '（connection=${session.connectionId}, bytes=$bytes/${package.size}）',
+            );
+          }
+        },
+        idleTimeout: const Duration(seconds: 60),
       );
     } catch (error) {
       await _cleanupArtifacts(
@@ -375,7 +387,9 @@ rm -rf -- "$base"
     _checkCancelled(isCancelled);
 
     try {
+      _log.info('离线包传输完成，开始校验（connection=${session.connectionId}）');
       await _verifyArchiveSha256(session, archivePath, package.sha256);
+      _log.info('开始解压 code-server 离线包（connection=${session.connectionId}）');
       await _extractArchive(
         session,
         version: version,
@@ -941,15 +955,10 @@ rm -rf -- "$base"
 
   Stream<List<int>> _progressStream({
     required File file,
-    required int total,
-    required void Function(int received, int total)? onProgress,
     required bool Function()? isCancelled,
   }) async* {
-    var received = 0;
     await for (final chunk in file.openRead()) {
       _checkCancelled(isCancelled);
-      received += chunk.length;
-      onProgress?.call(received, total > 0 ? total : received);
       yield chunk;
     }
   }

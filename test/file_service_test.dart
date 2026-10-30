@@ -16,8 +16,10 @@ class _RecordingSshRepository extends SshRepository {
   Future<void> writeFileStream(
     SshSession session,
     String path,
-    Stream<List<int>> content,
-  ) async {
+    Stream<List<int>> content, {
+    void Function(int bytes)? onProgress,
+    Duration? idleTimeout,
+  }) async {
     this.path = path;
     writtenBytes = await content.expand((chunk) => chunk).toList();
   }

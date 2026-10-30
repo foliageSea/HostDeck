@@ -84,8 +84,10 @@ uptimeSeconds=1307520
   Future<void> writeFileStream(
     SshOperationContext session,
     String path,
-    Stream<List<int>> content,
-  ) => throw UnimplementedError();
+    Stream<List<int>> content, {
+    void Function(int bytes)? onProgress,
+    Duration? idleTimeout,
+  }) => throw UnimplementedError();
   @override
   Future<void> rename(SshSession session, String oldPath, String newPath) =>
       throw UnimplementedError();

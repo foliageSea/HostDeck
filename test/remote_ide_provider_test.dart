@@ -868,13 +868,16 @@ class _FakeSshRepository extends SshRepository {
   Future<void> writeFileStream(
     SshSession session,
     String path,
-    Stream<List<int>> content,
-  ) async {
+    Stream<List<int>> content, {
+    void Function(int bytes)? onProgress,
+    Duration? idleTimeout,
+  }) async {
     uploadedPath = path;
     final builder = BytesBuilder(copy: true);
     await for (final chunk in content) {
       uploadChunks++;
       builder.add(chunk);
+      onProgress?.call(builder.length);
     }
     uploadedBytes = builder.takeBytes();
   }

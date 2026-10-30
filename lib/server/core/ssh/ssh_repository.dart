@@ -345,20 +345,66 @@ class SshRepository {
   Future<void> writeFileStream(
     SshSession session,
     String path,
-    Stream<List<int>> content,
-  ) async {
-    final sftp = await session.sftp();
-    final file = await sftp.open(
+    Stream<List<int>> content, {
+    void Function(int bytes)? onProgress,
+    Duration? idleTimeout,
+  }) async {
+    final sftp = await (idleTimeout == null
+        ? session.sftp()
+        : session.sftp().timeout(idleTimeout));
+    final opening = sftp.open(
       path,
       mode:
           SftpFileOpenMode.write |
           SftpFileOpenMode.create |
           SftpFileOpenMode.truncate,
     );
+    final file = await (idleTimeout == null
+        ? opening
+        : opening.timeout(
+            idleTimeout,
+            onTimeout: () {
+              unawaited(sftp.close().catchError((Object _) {}));
+              throw TimeoutException('打开远端文件超时', idleTimeout);
+            },
+          ));
+    Timer? idleTimer;
+    var timedOut = false;
+    final stalled = Completer<void>();
+    SftpFileWriter? writer;
+    void resetIdleTimer() {
+      if (idleTimeout == null || timedOut) return;
+      idleTimer?.cancel();
+      idleTimer = Timer(idleTimeout, () {
+        timedOut = true;
+        stalled.completeError(
+          TimeoutException('SFTP 传输持续无进展，请检查 SSH 连接后重试', idleTimeout),
+        );
+        // 只关闭当前 SFTP 子通道，不关闭共享 SSH 连接。
+        unawaited(sftp.close().catchError((Object _) {}));
+        unawaited(writer?.abort().catchError((Object _) {}));
+      });
+    }
+
     try {
-      await file.write(content.cast<Uint8List>());
+      writer = file.write(
+        content.map(
+          (chunk) => chunk is Uint8List ? chunk : Uint8List.fromList(chunk),
+        ),
+        onProgress: (bytes) {
+          if (timedOut) return;
+          resetIdleTimer();
+          onProgress?.call(bytes);
+        },
+      );
+      resetIdleTimer();
+      await Future.any([writer.done, stalled.future]);
     } finally {
-      await file.close();
+      idleTimer?.cancel();
+      if (!timedOut) {
+        final closing = file.close();
+        await (idleTimeout == null ? closing : closing.timeout(idleTimeout));
+      }
     }
   }
 
