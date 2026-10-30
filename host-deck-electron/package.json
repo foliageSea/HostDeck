@@ -37,6 +37,7 @@
     "appId": "com.foliagesea.hostdeck",
     "productName": "HostDeck",
     "artifactName": "host-deck-electron-windows-${version}.${ext}",
+    "afterPack": "src/scripts/after-pack.cjs",
     "directories": {
       "output": "release"
     },
@@ -77,7 +78,11 @@
       ]
     },
     "mac": {
-      "identity": null,
+      "icon": "../host-deck-ui/public/favicon.png",
+      "identity": "-",
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "HostDeck 需要访问本地网络，以通过 SSH 连接和管理局域网中的服务器。"
+      },
       "artifactName": "host-deck-electron-macos-arm64-${version}.${ext}",
       "target": [
         "dmg",
