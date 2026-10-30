@@ -106,6 +106,9 @@ class IdeLaunch {
   });
 }
 
+/// 安装阶段；仅 transferring 提供字节传输百分比。
+enum IdeInstallStage { transferring, verifying, extracting, finalizing }
+
 /// 会话快照，用于 API 与代理解析。
 class IdeSessionSnapshot {
   final String id;
@@ -116,6 +119,7 @@ class IdeSessionSnapshot {
   final String? error;
   final String? version;
   final double? progress;
+  final IdeInstallStage? installStage;
   final DateTime? startedAt;
 
   const IdeSessionSnapshot({
@@ -127,6 +131,7 @@ class IdeSessionSnapshot {
     required this.error,
     required this.version,
     required this.progress,
+    this.installStage,
     required this.startedAt,
   });
 
@@ -135,6 +140,7 @@ class IdeSessionSnapshot {
     String? error,
     String? version,
     double? progress,
+    IdeInstallStage? installStage,
     DateTime? startedAt,
     String? folder,
   }) => IdeSessionSnapshot(
@@ -146,6 +152,7 @@ class IdeSessionSnapshot {
     error: error,
     version: version ?? this.version,
     progress: progress,
+    installStage: installStage,
     startedAt: startedAt ?? this.startedAt,
   );
 
@@ -158,6 +165,7 @@ class IdeSessionSnapshot {
     'error': error,
     'version': version,
     'progress': progress,
+    'installStage': installStage?.name,
     'startedAt': startedAt?.toIso8601String(),
   };
 }
@@ -182,11 +190,12 @@ abstract class RemoteIdeProvider {
     String? expectedVersion,
   });
 
-  /// 安装离线包。`onProgress` 参数为已传输/总字节。
+  /// 安装离线包。`onProgress` 参数为已传输/总字节，`onStage` 通知阶段切换。
   Future<void> install(
     String connectionId,
     IdePackage package, {
     void Function(int received, int total)? onProgress,
+    void Function(IdeInstallStage stage)? onStage,
     bool Function()? isCancelled,
   });
 

@@ -135,6 +135,7 @@ class CodeServerManager implements CodeServerUpstreamResolver {
         _sessions[connectionId]!.copyWith(
           state: IdeSessionState.installing,
           progress: 0,
+          installStage: IdeInstallStage.transferring,
           error: null,
         ),
       );
@@ -147,6 +148,16 @@ class CodeServerManager implements CodeServerUpstreamResolver {
             connectionId,
             _sessions[connectionId]!.copyWith(
               progress: (received / total).clamp(0, 1).toDouble(),
+              installStage: IdeInstallStage.transferring,
+            ),
+          );
+        },
+        onStage: (stage) {
+          _updateSession(
+            connectionId,
+            _sessions[connectionId]!.copyWith(
+              installStage: stage,
+              progress: stage == IdeInstallStage.transferring ? 0 : null,
             ),
           );
         },
@@ -228,6 +239,7 @@ class CodeServerManager implements CodeServerUpstreamResolver {
           _sessions[connectionId]!.copyWith(
             state: IdeSessionState.installing,
             progress: 0,
+            installStage: IdeInstallStage.transferring,
             error: null,
             folder: folder,
           ),
@@ -241,6 +253,16 @@ class CodeServerManager implements CodeServerUpstreamResolver {
               connectionId,
               _sessions[connectionId]!.copyWith(
                 progress: (received / total).clamp(0, 1).toDouble(),
+                installStage: IdeInstallStage.transferring,
+              ),
+            );
+          },
+          onStage: (stage) {
+            _updateSession(
+              connectionId,
+              _sessions[connectionId]!.copyWith(
+                installStage: stage,
+                progress: stage == IdeInstallStage.transferring ? 0 : null,
               ),
             );
           },

@@ -129,6 +129,37 @@ afterEach(() => {
   wrapper = undefined
 })
 
+describe('CodeServer install progress', () => {
+  it.each([
+    ['transferring', '正在传输离线包', 0.42, '42%'],
+    ['verifying', '正在校验离线包', null, null],
+    ['extracting', '正在解压离线包', null, null],
+    ['finalizing', '正在完成安装', null, null],
+  ] as const)('shows the %s stage', async (stage, label, progress, percent) => {
+    const status = targetStatus(true)
+    status.session = { ...status.session!, state: 'installing', installStage: stage, progress }
+    mocks.api.status.mockResolvedValue(status)
+
+    const view = await mountView()
+    const card = view.get('.cs-session-progress')
+    expect(card.text()).toContain(label)
+    expect(card.find('.cs-progress-indeterminate').exists()).toBe(percent === null)
+    if (percent) expect(card.text()).toContain(percent)
+    else {
+      expect(card.text()).not.toContain('%')
+      expect(card.get('[role="progressbar"]').attributes('aria-valuenow')).toBeUndefined()
+    }
+  })
+
+  it('does not display stale transfer percentage during verification', async () => {
+    const status = targetStatus(true)
+    status.session = { ...status.session!, state: 'installing', installStage: 'verifying', progress: 1 }
+    mocks.api.status.mockResolvedValue(status)
+    const view = await mountView()
+    expect(view.get('.cs-session-progress').text()).not.toContain('100%')
+  })
+})
+
 describe('CodeServer package downloads', () => {
   it.each([null, '4.143.1'])('shows download links with installed version %s', async (version) => {
     const status = targetStatus()

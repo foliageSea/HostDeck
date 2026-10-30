@@ -211,10 +211,23 @@ const canStop = computed(
   () => Boolean(session.value) && sessionState.value !== 'stopped' && !stopping.value,
 )
 const sessionProgressPercent = computed<number | null>(() => {
+  if (session.value?.installStage && session.value.installStage !== 'transferring') return null
   const progress = session.value?.progress
   if (typeof progress !== 'number' || !Number.isFinite(progress)) return null
   const percent = progress <= 1 ? progress * 100 : progress
   return Math.max(0, Math.min(100, Math.round(percent)))
+})
+const installStageLabels = {
+  transferring: '正在传输离线包',
+  verifying: '正在校验离线包',
+  extracting: '正在解压离线包',
+  finalizing: '正在完成安装',
+} as const
+const sessionProgressLabel = computed(() => {
+  const stage = session.value?.installStage
+  if (sessionState.value === 'installing' && stage) return installStageLabels[stage]
+  if (installing.value || sessionState.value === 'installing') return '正在准备安装'
+  return sessionLabel.value || '处理中'
 })
 const uploadPercent = computed(() => {
   if (uploadTotal.value <= 0) return 0
@@ -938,13 +951,24 @@ watch(
           </div>
         </section>
 
-        <section v-if="isWorking && sessionProgressPercent !== null" class="cs-card">
+        <section v-if="isWorking" class="cs-card cs-session-progress" role="status" aria-live="polite">
           <div class="cs-progress-row">
-            <span>{{ sessionLabel || '处理中' }}</span>
-            <span class="cs-muted">{{ sessionProgressPercent }}%</span>
+            <span>{{ sessionProgressLabel }}</span>
+            <span v-if="sessionProgressPercent !== null" class="cs-muted">{{ sessionProgressPercent }}%</span>
           </div>
-          <div class="cs-progress-track">
-            <div class="cs-progress-fill" :style="{ width: sessionProgressPercent + '%' }" />
+          <div
+            class="cs-progress-track"
+            role="progressbar"
+            :aria-label="sessionProgressLabel"
+            :aria-valuenow="sessionProgressPercent ?? undefined"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <div
+              class="cs-progress-fill"
+              :class="{ 'cs-progress-indeterminate': sessionProgressPercent === null }"
+              :style="sessionProgressPercent === null ? undefined : { width: sessionProgressPercent + '%' }"
+            />
           </div>
         </section>
 
@@ -1396,6 +1420,24 @@ watch(
   border-radius: 999px;
   background: var(--cs-primary);
   transition: width 0.2s ease;
+}
+
+.cs-progress-indeterminate {
+  width: 35%;
+  animation: cs-progress-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes cs-progress-pulse {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(286%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-progress-indeterminate {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
 }
 
 .cs-collapse {

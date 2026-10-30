@@ -167,6 +167,7 @@ rm -f __SESSION_FILE__
     String connectionId,
     IdePackage package, {
     void Function(int received, int total)? onProgress,
+    void Function(IdeInstallStage stage)? onStage,
     bool Function()? isCancelled,
   }) {
     return _withSession(
@@ -175,6 +176,7 @@ rm -f __SESSION_FILE__
         session,
         package,
         onProgress: onProgress,
+        onStage: onStage,
         isCancelled: isCancelled,
       ),
     );
@@ -323,6 +325,7 @@ rm -rf -- "$base"
     SshSession session,
     IdePackage package, {
     void Function(int received, int total)? onProgress,
+    void Function(IdeInstallStage stage)? onStage,
     bool Function()? isCancelled,
   }) async {
     final version = package.version.trim();
@@ -350,6 +353,7 @@ rm -rf -- "$base"
     await _ensureDir(session, installRoot);
     _checkCancelled(isCancelled);
 
+    onStage?.call(IdeInstallStage.transferring);
     var loggedPercent = -10;
     _log.info(
       '开始传输 code-server 离线包（connection=${session.connectionId}, '
@@ -388,8 +392,10 @@ rm -rf -- "$base"
 
     try {
       _log.info('离线包传输完成，开始校验（connection=${session.connectionId}）');
+      onStage?.call(IdeInstallStage.verifying);
       await _verifyArchiveSha256(session, archivePath, package.sha256);
       _log.info('开始解压 code-server 离线包（connection=${session.connectionId}）');
+      onStage?.call(IdeInstallStage.extracting);
       await _extractArchive(
         session,
         version: version,
@@ -409,6 +415,7 @@ rm -rf -- "$base"
       rethrow;
     }
 
+    onStage?.call(IdeInstallStage.finalizing);
     final installedVersion = await _installedVersion(
       session,
       home,

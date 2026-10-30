@@ -169,10 +169,12 @@ void main() {
       repository.handler = _installHandler(package);
 
       final progress = <List<int>>[];
+      final stages = <IdeInstallStage>[];
       await provider.install(
         'connection-1',
         package,
         onProgress: (received, total) => progress.add([received, total]),
+        onStage: stages.add,
       );
 
       expect(
@@ -182,6 +184,7 @@ void main() {
       );
       expect(repository.uploadedBytes, _archiveBytes());
       expect(progress.last, [package.size, package.size]);
+      expect(stages, IdeInstallStage.values);
       expect(repository.uploadChunks, greaterThan(0));
       expect(
         sshService.purposes.every(
@@ -233,9 +236,10 @@ void main() {
     test('fails and cleans up when the remote sha256 differs', () async {
       final package = await _createPackage(tempDir);
       repository.handler = _installHandler(package, remoteSha256: 'deadbeef');
+      final stages = <IdeInstallStage>[];
 
       await expectLater(
-        provider.install('connection-1', package),
+        provider.install('connection-1', package, onStage: stages.add),
         throwsA(
           isA<StateError>().having(
             (error) => error.message,
@@ -245,6 +249,7 @@ void main() {
         ),
       );
 
+      expect(stages, [IdeInstallStage.transferring, IdeInstallStage.verifying]);
       expect(
         repository.calls.any(
           (call) =>

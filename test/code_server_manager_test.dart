@@ -46,6 +46,46 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
+  for (final autoInstall in [false, true]) {
+    test(
+      'installation stages reset transfer progress (auto=$autoInstall)',
+      () async {
+        ssh.online('target');
+        provider.installedVersion = autoInstall ? null : '4.143.1';
+        final archive = File('${tempDir.path}/source.tar.gz');
+        await archive.writeAsBytes([1, 2, 3]);
+        final package = await IdePackageStore(
+          tempDir,
+        ).importFile(archive, version: '4.143.1', arch: 'amd64');
+        final snapshots = <IdeSessionSnapshot>[];
+        provider.afterInstallUpdate = () =>
+            snapshots.add(manager.sessionFor('target')!);
+
+        final result = autoInstall
+            ? await manager.start('target')
+            : await manager.install('target', packageId: package.id);
+
+        expect(snapshots.map((item) => item.installStage), [
+          IdeInstallStage.transferring,
+          IdeInstallStage.transferring,
+          IdeInstallStage.verifying,
+          IdeInstallStage.extracting,
+          IdeInstallStage.finalizing,
+        ]);
+        expect(snapshots.map((item) => item.progress), [
+          0,
+          0.5,
+          null,
+          null,
+          null,
+        ]);
+        expect(snapshots[2].toJson()['installStage'], 'verifying');
+        expect(result.installStage, isNull);
+        expect(result.progress, isNull);
+      },
+    );
+  }
+
   test(
     'stop from a reconnected connection stops the running session',
     () async {
@@ -227,6 +267,8 @@ class _FakeProvider implements RemoteIdeProvider {
   bool failStop = false;
   bool failUninstall = false;
   int probes = 0;
+  String? installedVersion = '4.143.1';
+  void Function()? afterInstallUpdate;
 
   @override
   Future<void> uninstall(String connectionId) async {
@@ -244,11 +286,11 @@ class _FakeProvider implements RemoteIdeProvider {
   }) async {
     probes++;
     await preflightGate?.future;
-    return const IdePreflight(
+    return IdePreflight(
       arch: 'amd64',
       libc: 'glibc 2.39',
       diskFreeBytes: 1 << 40,
-      installedVersion: '4.143.1',
+      installedVersion: installedVersion,
       issues: [],
     );
   }
@@ -258,8 +300,18 @@ class _FakeProvider implements RemoteIdeProvider {
     String connectionId,
     IdePackage package, {
     void Function(int received, int total)? onProgress,
+    void Function(IdeInstallStage stage)? onStage,
     bool Function()? isCancelled,
-  }) async {}
+  }) async {
+    onStage?.call(IdeInstallStage.transferring);
+    afterInstallUpdate?.call();
+    onProgress?.call(1, 2);
+    afterInstallUpdate?.call();
+    for (final stage in IdeInstallStage.values.skip(1)) {
+      onStage?.call(stage);
+      afterInstallUpdate?.call();
+    }
+  }
 
   @override
   Future<IdeLaunch> start(

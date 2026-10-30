@@ -42,6 +42,7 @@ export interface CodeServerSession {
   error: string | null
   version: string | null
   progress: number | null
+  installStage?: 'transferring' | 'verifying' | 'extracting' | 'finalizing' | null
   startedAt: string | null
   /** 同源相对路径，例如 /ide/<sessionId>/，由后端代理提供。 */
   url?: string | null
