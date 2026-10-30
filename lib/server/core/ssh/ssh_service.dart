@@ -62,6 +62,18 @@ class SshService {
   static const maxSessions = 8;
   static const maxConcurrentOperations = 4;
 
+  // Prefer CTR to avoid the pure-Dart GCM path's per-block GHASH cost during
+  // bulk transfers. Keep modern fallbacks and the library's KEX/MAC defaults.
+  static const defaultAlgorithms = SSHAlgorithms(
+    cipher: [
+      SSHCipherType.aes128ctr,
+      SSHCipherType.aes256ctr,
+      SSHCipherType.chacha20poly1305,
+      SSHCipherType.aes256gcm,
+      SSHCipherType.aes128gcm,
+    ],
+  );
+
   /// 没有任何通道租约、且超过该时长没有可见活动时，才回收整条连接。
   ///
   /// 浏览器的 WebSocket 可能"假在线"（TCP 还挂着但收不到数据），所以不能把
@@ -108,6 +120,7 @@ class SshService {
     return SSHClient(
       socket,
       username: username,
+      algorithms: defaultAlgorithms,
       onPasswordRequest: password != null ? () => password : null,
       identities: privateKey != null && privateKey.trim().isNotEmpty
           ? [...SSHKeyPair.fromPem(privateKey)]

@@ -5,6 +5,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 
 void main() {
+  test('default algorithms prefer AES-128-CTR for bulk transfers', () {
+    expect(SshService.defaultAlgorithms.cipher.first, SSHCipherType.aes128ctr);
+    expect(SshService.defaultAlgorithms.cipher[1], SSHCipherType.aes256ctr);
+  });
+
+  test('default algorithms retain all modern cipher fallbacks', () {
+    expect(
+      SshService.defaultAlgorithms.cipher,
+      unorderedEquals(const SSHAlgorithms().cipher),
+    );
+  });
+
+  test('default algorithms preserve secure KEX, host key and MAC defaults', () {
+    const defaults = SSHAlgorithms();
+
+    expect(SshService.defaultAlgorithms.kex, defaults.kex);
+    expect(SshService.defaultAlgorithms.hostkey, defaults.hostkey);
+    expect(SshService.defaultAlgorithms.mac, defaults.mac);
+  });
+
   test(
     'disconnecting an unknown connection preserves an empty runtime snapshot',
     () async {
