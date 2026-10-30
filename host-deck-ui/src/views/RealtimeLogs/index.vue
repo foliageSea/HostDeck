@@ -146,14 +146,11 @@ function formatLag(value?: number) {
   return value === undefined ? '--' : `${value.toFixed(value >= 10 ? 0 : 1)} ms`
 }
 
-watch(
-  () => filteredLogs.value.length,
-  () => {
-    if (autoScroll.value && followsLatest.value) {
-      scrollToLatest()
-    }
-  },
-)
+watch(filteredLogs, () => {
+  if (autoScroll.value && followsLatest.value) {
+    scrollToLatest()
+  }
+})
 
 watch(autoScroll, (enabled) => {
   if (enabled) scrollToLatest()
