@@ -46,6 +46,16 @@
 
 全局消息、通知、确认框应走 `src/lib/ui.ts`。工具函数和 store 不应直接创建新的 UI 实例，避免多套消息通道并存。
 
+## PWA
+
+生产构建通过 `vite-plugin-pwa` 生成 `manifest.webmanifest` 和 Service Worker，支持将 HostDeck 安装为独立窗口应用。使用浏览器地址栏的安装入口；iOS Safari 使用分享菜单中的“添加到主屏幕”。远程部署需使用受信任的 HTTPS，本机可使用 `http://localhost`。普通 HTTP 局域网地址不支持 Service Worker。
+
+`src/lib/pwa.ts` 在 UI 挂载后注册 Service Worker，仅在生产环境、安全上下文且非 Electron 时启用。应用每小时、回到前台或恢复网络时检查更新；发现新版本后通过全局通知提供手动刷新入口，不自动刷新正在使用的工作台。
+
+缓存仅包含构建生成的 HTML、JS、CSS、图标和字体，不缓存 API 响应、远程文件、壁纸或代理内容。`/api`、`/ide`、`/port-forward`、`/wallpapers`、`/licenses` 不使用 Service Worker 的页面回退。首次成功加载并完成缓存后，断网仍可打开应用；连接失败时显示重试页面，主机管理功能仍需连接后端。
+
+验证 PWA 时先执行 `pnpm --dir host-deck-ui build`，再通过 Dart 服务的 `--web-dir host-deck-ui/dist` 或 `pnpm --dir host-deck-ui preview` 提供构建产物。Vite 开发模式不注册 Service Worker。
+
 ## TypeScript 约束
 
 `tsconfig.app.json` 开启了严格的无用代码检查，包括：

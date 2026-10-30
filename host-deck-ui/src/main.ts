@@ -1,7 +1,9 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { VueQueryPlugin } from '@tanstack/vue-query'
+import { isAxiosError } from 'axios'
 import App from './App.vue'
+import StartupUnavailable from '@/components/common/StartupUnavailable.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useAccessStore } from '@/stores/access'
 import './style.css'
@@ -16,9 +18,17 @@ app.use(VueQueryPlugin)
 
 const settingsStore = useSettingsStore(pinia)
 const accessStore = useAccessStore(pinia)
-await accessStore.initialize()
-if (accessStore.authenticated) {
-  await settingsStore.initialize()
-}
+try {
+  await accessStore.initialize()
+  if (accessStore.authenticated) {
+    await settingsStore.initialize()
+  }
 
-app.mount('#app')
+  app.mount('#app')
+} catch (error) {
+  if (isAxiosError(error) && !error.response) {
+    createApp(StartupUnavailable).mount('#app')
+  } else {
+    throw error
+  }
+}

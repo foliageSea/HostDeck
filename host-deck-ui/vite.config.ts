@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import type { Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { VitePWA } from 'vite-plugin-pwa'
 import UnoCSS from 'unocss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
@@ -238,6 +239,33 @@ export default defineConfig(({ mode, command }) => {
         },
       },
       legalFilesPlugin(),
+      VitePWA({
+        registerType: 'prompt',
+        injectRegister: false,
+        includeAssets: ['favicon.svg', 'favicon-dark.svg', 'apple-touch-icon.png'],
+        manifest: {
+          id: '/',
+          name: 'HostDeck',
+          short_name: 'HostDeck',
+          description: '跨平台远程主机工作台',
+          lang: 'zh-CN',
+          start_url: '/',
+          scope: '/',
+          display: 'standalone',
+          theme_color: '#ffffff',
+          background_color: '#ffffff',
+          icons: [
+            { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+            { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          ],
+        },
+        workbox: {
+          globPatterns: ['index.html', 'assets/*.{js,css,svg,png,woff2,ttf}'],
+          maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+          navigateFallbackDenylist: [/^\/(?:api|ide|port-forward|wallpapers|licenses)(?:\/|$)/],
+          cleanupOutdatedCaches: true,
+        },
+      }),
       vue(),
       UnoCSS({
         configFile: fileURLToPath(new URL('./uno.config.ts', import.meta.url)),

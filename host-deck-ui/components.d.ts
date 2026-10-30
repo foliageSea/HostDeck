@@ -72,6 +72,7 @@ declare module 'vue' {
     NTree: typeof import('naive-ui')['NTree']
     PerformanceMonitorWidget: typeof import('./src/components/widgets/PerformanceMonitorWidget.vue')['default']
     RoundedButton: typeof import('./src/components/common/RoundedButton.vue')['default']
+    StartupUnavailable: typeof import('./src/components/common/StartupUnavailable.vue')['default']
     UiApiBridge: typeof import('./src/components/common/UiApiBridge.vue')['default']
     WidgetSparkline: typeof import('./src/components/widgets/WidgetSparkline.vue')['default']
   }
