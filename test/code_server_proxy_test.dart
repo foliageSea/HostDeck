@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:logging/logging.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import 'package:host_deck/server/app/server_handlers.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/code_server/code_server_models.dart';
 import 'package:host_deck/server/features/code_server/code_server_proxy.dart';
@@ -17,6 +19,8 @@ void main() {
   late HttpServer proxy;
   late List<String> seenPaths;
   late HttpClient client;
+  late CodeServerProxy proxyServer;
+  late _FakeResolver resolver;
 
   setUp(() async {
     client = HttpClient();
@@ -72,12 +76,14 @@ void main() {
       0,
     );
 
-    final proxyServer = CodeServerProxy(
-      resolver: _FakeResolver(CodeServerUpstream('127.0.0.1', upstream.port)),
+    resolver = _FakeResolver(CodeServerUpstream('127.0.0.1', upstream.port));
+    proxyServer = CodeServerProxy(
+      resolver: resolver,
       accessService: AccessAuthService(),
     );
     proxy = await shelf_io.serve(
       const Pipeline()
+          .addMiddleware(accessLogMiddleware(Logger('ServerService')))
           .addMiddleware(codeServerProxyMiddleware(proxyServer))
           .addHandler((_) => Response.notFound('fallback')),
       '127.0.0.1',
@@ -87,6 +93,7 @@ void main() {
 
   tearDown(() async {
     client.close(force: true);
+    await proxyServer.dispose();
     await proxy.close(force: true);
     await upstream.close(force: true);
   });
@@ -103,6 +110,98 @@ void main() {
     expect(response.statusCode, 200);
     expect(await response.transform(utf8.decoder).join(), 'hello');
     expect(seenPaths.single, '/hello');
+  });
+
+  test('logs IDE requests once under CodeServerProxy', () async {
+    final previousLevel = Logger.root.level;
+    Logger.root.level = Level.ALL;
+    final records = <LogRecord>[];
+    final subscription = Logger.root.onRecord.listen(records.add);
+    try {
+      for (final path in [
+        '/ide/abc12345/hello?x=1',
+        '/ide/abc12345/missing',
+        '/ide',
+      ]) {
+        final response = await get(path);
+        await response.drain<void>();
+      }
+      expect(records, hasLength(3));
+      expect(
+        records.map((record) => record.loggerName),
+        everyElement('CodeServerProxy'),
+      );
+      expect(records.map((record) => record.level), everyElement(Level.FINE));
+      expect(
+        records.first.message,
+        matches(r'^GET /ide/abc12345/hello 200 \d+ms \| x=1$'),
+      );
+      expect(records[1].message, contains('/ide/abc12345/missing 404 '));
+      expect(records[2].message, contains('/ide 404 '));
+
+      records.clear();
+      final response = await get('/idea');
+      await response.drain<void>();
+      expect(records, hasLength(1));
+      expect(records.single.loggerName, 'ServerService');
+      expect(records.single.level, Level.WARNING);
+    } finally {
+      await subscription.cancel();
+      Logger.root.level = previousLevel;
+    }
+  });
+
+  test('logs unexpected IDE failures once and rethrows them', () async {
+    final previousLevel = Logger.root.level;
+    Logger.root.level = Level.ALL;
+    final records = <LogRecord>[];
+    final subscription = Logger.root.onRecord.listen(records.add);
+    final error = StateError('resolver failed');
+    resolver.error = error;
+    try {
+      final handler = accessLogMiddleware(Logger('ServerService'))(
+        codeServerProxyMiddleware(proxyServer)(
+          (_) => Response.notFound('fallback'),
+        ),
+      );
+      await expectLater(
+        handler(Request('GET', Uri.parse('http://localhost/ide/abc12345/'))),
+        throwsA(same(error)),
+      );
+      expect(records, hasLength(1));
+      expect(records.single.loggerName, 'CodeServerProxy');
+      expect(records.single.level, Level.SEVERE);
+      expect(records.single.message, contains('/ide/abc12345/ 500 '));
+      expect(records.single.error, same(error));
+      expect(records.single.stackTrace, isNotNull);
+    } finally {
+      await subscription.cancel();
+      Logger.root.level = previousLevel;
+    }
+  });
+
+  test('uses the custom logger for IDE access logs', () async {
+    final previousLevel = Logger.root.level;
+    Logger.root.level = Level.ALL;
+    final records = <LogRecord>[];
+    final subscription = Logger.root.onRecord.listen(records.add);
+    final customProxy = CodeServerProxy(
+      resolver: resolver,
+      accessService: AccessAuthService(),
+      log: Logger('custom-ide-proxy'),
+    );
+    try {
+      final response = await customProxy.handle(
+        Request('GET', Uri.parse('http://localhost/ide')),
+      );
+      expect(response.statusCode, 404);
+      expect(records, hasLength(1));
+      expect(records.single.loggerName, 'custom-ide-proxy');
+    } finally {
+      await customProxy.dispose();
+      await subscription.cancel();
+      Logger.root.level = previousLevel;
+    }
   });
 
   test('passes upstream 404 through instead of SPA fallback', () async {
@@ -218,10 +317,13 @@ void main() {
 
 class _FakeResolver implements CodeServerUpstreamResolver {
   final CodeServerUpstream upstream;
+  Object? error;
 
   _FakeResolver(this.upstream);
 
   @override
-  Future<CodeServerUpstream?> resolve(String sessionId) async =>
-      sessionId == 'abc12345' ? upstream : null;
+  Future<CodeServerUpstream?> resolve(String sessionId) async {
+    if (error != null) throw error!;
+    return sessionId == 'abc12345' ? upstream : null;
+  }
 }

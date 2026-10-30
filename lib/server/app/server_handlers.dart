@@ -26,7 +26,8 @@ export 'package:host_deck/server/core/http/access_log.dart'
 Middleware accessLogMiddleware(Logger log) {
   return (innerHandler) {
     return (request) async {
-      if (PortForwardHttpProxy.handlesRequest(request)) {
+      if (PortForwardHttpProxy.handlesRequest(request) ||
+          CodeServerProxy.handlesRequest(request)) {
         return innerHandler(request);
       }
       final stopwatch = Stopwatch()..start();
@@ -38,10 +39,7 @@ Middleware accessLogMiddleware(Logger log) {
           response.statusCode,
           stopwatch.elapsed,
         );
-        // IDE 静态资源请求很多，避免 access log 淹没正常日志。
-        if (request.url.path.startsWith('ide/')) {
-          log.fine(message);
-        } else if (response.statusCode >= 500) {
+        if (response.statusCode >= 500) {
           log.severe(message);
         } else if (response.statusCode >= 400) {
           log.warning(message);

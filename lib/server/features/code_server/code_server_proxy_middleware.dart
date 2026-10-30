@@ -9,8 +9,7 @@ import 'package:host_deck/server/features/code_server/code_server_proxy.dart';
 Middleware codeServerProxyMiddleware(CodeServerProxy proxy) {
   return (innerHandler) {
     return (request) {
-      final segments = request.url.pathSegments;
-      if (segments.isEmpty || segments.first != 'ide') {
+      if (!CodeServerProxy.handlesRequest(request)) {
         return innerHandler(request);
       }
       return proxy.handle(request);
