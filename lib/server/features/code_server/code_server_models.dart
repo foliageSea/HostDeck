@@ -60,6 +60,8 @@ class IdePreflight {
   final String? libc;
   final int? diskFreeBytes;
   final String? installedVersion;
+  final String? installRoot;
+  final String? dataRoot;
   final List<String> issues;
 
   const IdePreflight({
@@ -67,6 +69,8 @@ class IdePreflight {
     required this.libc,
     required this.diskFreeBytes,
     required this.installedVersion,
+    this.installRoot,
+    this.dataRoot,
     required this.issues,
   });
 
@@ -80,6 +84,8 @@ class IdePreflight {
     'libc': libc,
     'diskFreeBytes': diskFreeBytes,
     'installedVersion': installedVersion,
+    'installRoot': installRoot,
+    'dataRoot': dataRoot,
     'issues': issues,
     'supported': supported,
   };

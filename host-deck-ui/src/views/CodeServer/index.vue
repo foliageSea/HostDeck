@@ -538,6 +538,25 @@ function openIdeTab() {
   window.open(target.href, '_blank', 'noopener,noreferrer')
 }
 
+function openIdeDirectory(kind: 'installRoot' | 'dataRoot') {
+  const connectionId = sshStore.connectionId
+  const path = preflight.value?.[kind]
+  if (!hasConnection.value || !connectionId || !path) return
+
+  try {
+    desktopStore.openWindow('files', {
+      connectionId,
+      host: sshStore.host,
+      port: sshStore.port,
+      username: sshStore.username,
+      path,
+      title: kind === 'installRoot' ? 'IDE 安装目录' : 'IDE 数据目录',
+    })
+  } catch (error) {
+    getUiApi().message.error(errorMessage(error, '打开 IDE 目录失败。'))
+  }
+}
+
 async function scanPackages() {
   if (packagesLoading.value) return
   packagesLoading.value = true
@@ -740,6 +759,26 @@ watch(
         <NButton size="small" quaternary @click="packagesVisible = true">
           <template #icon><Package :size="15" /></template>
           离线包 {{ packages.length }}
+        </NButton>
+        <NButton
+          size="small"
+          quaternary
+          :disabled="!hasConnection || !preflight?.installRoot"
+          :title="preflight?.installRoot || ''"
+          @click="openIdeDirectory('installRoot')"
+        >
+          <template #icon><FolderOpen :size="15" /></template>
+          打开安装目录
+        </NButton>
+        <NButton
+          size="small"
+          quaternary
+          :disabled="!hasConnection || !preflight?.dataRoot"
+          :title="preflight?.dataRoot || ''"
+          @click="openIdeDirectory('dataRoot')"
+        >
+          <template #icon><FolderOpen :size="15" /></template>
+          打开数据目录
         </NButton>
         <NButton
           v-if="canStop"

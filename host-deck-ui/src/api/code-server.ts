@@ -29,6 +29,8 @@ export interface CodeServerPreflight {
   libc: string | null
   diskFreeBytes: number | null
   installedVersion: string | null
+  installRoot?: string | null
+  dataRoot?: string | null
   issues: string[]
   supported: boolean
 }

@@ -44,6 +44,16 @@ void main() {
       expect(preflight.libc, 'glibc 2.31');
       expect(preflight.diskFreeBytes, 5000000 * 1024);
       expect(preflight.installedVersion, isNull);
+      expect(
+        preflight.installRoot,
+        '/home/tester/.local/lib/hostdeck/code-server',
+      );
+      expect(
+        preflight.dataRoot,
+        '/home/tester/.local/share/hostdeck/code-server',
+      );
+      expect(preflight.toJson()['installRoot'], preflight.installRoot);
+      expect(preflight.toJson()['dataRoot'], preflight.dataRoot);
       expect(preflight.issues, isEmpty);
       expect(preflight.supported, isTrue);
       expect(preflight.hasDiskSpace, isTrue);

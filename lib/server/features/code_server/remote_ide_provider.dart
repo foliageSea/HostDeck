@@ -313,6 +313,8 @@ rm -rf -- "$base"
       libc: libc,
       diskFreeBytes: diskFreeBytes,
       installedVersion: installedVersion,
+      installRoot: '$home/$_installRootSuffix',
+      dataRoot: '$home/$_dataRootSuffix',
       issues: issues,
     );
   }

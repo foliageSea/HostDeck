@@ -9,13 +9,14 @@ const mocks = vi.hoisted(() => ({
   message: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
   ssh: { connectionId: 'conn-1', isConnected: true, username: 'alice', host: 'host-1', port: 22 },
   updateWindowProps: vi.fn(),
+  openWindow: vi.fn(),
 }))
 
 vi.mock('@/api/code-server', () => ({ codeServerApi: mocks.api, uploadPackage: vi.fn() }))
 vi.mock('@/stores/ssh', () => ({ useSshStore: () => mocks.ssh }))
 vi.mock('@/stores/settings', () => ({ useSettingsStore: () => ({ isDark: false }) }))
 vi.mock('@/stores/desktop', () => ({
-  useDesktopStore: () => ({ updateWindowProps: mocks.updateWindowProps }),
+  useDesktopStore: () => ({ updateWindowProps: mocks.updateWindowProps, openWindow: mocks.openWindow }),
 }))
 vi.mock('@/lib/ui', () => ({
   getUiApi: () => ({ dialog: { warning: vi.fn() }, message: mocks.message }),
@@ -35,6 +36,8 @@ function targetStatus(running = false): CodeServerTargetStatus {
       libc: '2.35',
       diskFreeBytes: 1024 ** 3,
       installedVersion: '4.143.1',
+      installRoot: '/srv/alice/.local/lib/hostdeck/code-server',
+      dataRoot: '/srv/alice/.local/share/hostdeck/code-server',
       issues: [],
       supported: true,
     },
@@ -168,6 +171,36 @@ describe('CodeServer package downloads', () => {
       'https://github.com/coder/code-server/releases/download/v4.143.1/code-server-4.143.1-linux-arm64.tar.gz',
     )
     expect(mocks.message.success).toHaveBeenCalledWith('下载地址已复制。')
+  })
+})
+
+describe('CodeServer directories', () => {
+  it.each([false, true])('opens remote directories in file manager when running is %s', async (running) => {
+    mocks.api.status.mockResolvedValue(targetStatus(running))
+    const view = await mountView()
+
+    await button(view, '打开安装目录').trigger('click')
+    expect(mocks.openWindow).toHaveBeenLastCalledWith('files', {
+      connectionId: 'conn-1', host: 'host-1', port: 22, username: 'alice',
+      path: '/srv/alice/.local/lib/hostdeck/code-server', title: 'IDE 安装目录',
+    })
+    await button(view, '打开数据目录').trigger('click')
+    expect(mocks.openWindow).toHaveBeenLastCalledWith('files', {
+      connectionId: 'conn-1', host: 'host-1', port: 22, username: 'alice',
+      path: '/srv/alice/.local/share/hostdeck/code-server', title: 'IDE 数据目录',
+    })
+  })
+
+  it('disables directory buttons when preflight has no paths', async () => {
+    const status = targetStatus()
+    delete status.preflight!.installRoot
+    delete status.preflight!.dataRoot
+    mocks.api.status.mockResolvedValue(status)
+    const view = await mountView()
+
+    expect(button(view, '打开安装目录').attributes('disabled')).toBeDefined()
+    expect(button(view, '打开数据目录').attributes('disabled')).toBeDefined()
+    expect(mocks.openWindow).not.toHaveBeenCalled()
   })
 })
 
