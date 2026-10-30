@@ -867,22 +867,6 @@ watch(
             <span>当前架构（{{ targetArch }}）暂无离线包。</span>
             <NButton size="small" type="primary" @click="showUpload = true">上传离线包</NButton>
           </div>
-          <div class="cs-download">
-            <div class="cs-download-head">
-              <span>离线包下载地址（Linux {{ targetArch }}）</span>
-              <div class="cs-download-actions">
-                <a :href="downloadUrl" target="_blank" rel="noopener noreferrer">下载</a>
-                <NButton text size="tiny" @click="copyDownloadUrl">复制</NButton>
-              </div>
-            </div>
-            <code class="cs-download-url">{{ downloadUrl }}</code>
-            <p class="cs-download-tip">
-              版本 v{{ downloadVersion }}，下载后在上方选择文件上传。
-              <a :href="codeServerReleasesUrl" target="_blank" rel="noopener noreferrer">
-                查看所有版本
-              </a>
-            </p>
-          </div>
         </section>
 
         <section v-else class="cs-card">
@@ -934,6 +918,23 @@ watch(
             <span>上传离线包</span>
             <Upload :size="15" class="cs-collapse-icon" aria-hidden="true" />
           </button>
+
+          <div class="cs-download">
+            <div class="cs-download-head">
+              <span>离线包下载地址（Linux {{ targetArch }}）</span>
+              <div class="cs-download-actions">
+                <a :href="downloadUrl" target="_blank" rel="noopener noreferrer">下载</a>
+                <NButton text size="tiny" @click="copyDownloadUrl">复制</NButton>
+              </div>
+            </div>
+            <code class="cs-download-url">{{ downloadUrl }}</code>
+            <p class="cs-download-tip">
+              版本 v{{ downloadVersion }}
+              <a :href="codeServerReleasesUrl" target="_blank" rel="noopener noreferrer">
+                查看所有版本
+              </a>
+            </p>
+          </div>
 
           <div v-if="showUpload" class="cs-upload">
             <input

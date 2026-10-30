@@ -119,10 +119,56 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   observer?.disconnect()
   observer = undefined
   wrapper?.unmount()
   wrapper = undefined
+})
+
+describe('CodeServer package downloads', () => {
+  it.each([null, '4.143.1'])('shows download links with installed version %s', async (version) => {
+    const status = targetStatus()
+    status.preflight!.installedVersion = version
+    mocks.api.status.mockResolvedValue(status)
+
+    const view = await mountView()
+    const download = view.get('.cs-download')
+    const url = 'https://github.com/coder/code-server/releases/download/v4.143.1/code-server-4.143.1-linux-amd64.tar.gz'
+
+    expect(download.get('code').text()).toBe(url)
+    expect(download.get('a').attributes('href')).toBe(url)
+    expect(download.findAll('a')[1]?.attributes('href')).toBe('https://github.com/coder/code-server/releases')
+  })
+
+  it('keeps downloads visible when the installed IDE upload panel is collapsed', async () => {
+    const view = await mountView()
+    expect(view.find('.cs-upload').exists()).toBe(false)
+    expect(view.find('.cs-download').exists()).toBe(true)
+
+    await button(view, '上传离线包').trigger('click')
+    expect(view.find('.cs-upload').exists()).toBe(true)
+    await button(view, '上传离线包').trigger('click')
+    expect(view.find('.cs-upload').exists()).toBe(false)
+    expect(view.find('.cs-download').exists()).toBe(true)
+  })
+
+  it('copies the installed target architecture download URL', async () => {
+    const status = targetStatus()
+    status.preflight!.arch = 'aarch64'
+    mocks.api.status.mockResolvedValue(status)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const view = await mountView()
+
+    await button(view, '复制').trigger('click')
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(
+      'https://github.com/coder/code-server/releases/download/v4.143.1/code-server-4.143.1-linux-arm64.tar.gz',
+    )
+    expect(mocks.message.success).toHaveBeenCalledWith('下载地址已复制。')
+  })
 })
 
 describe('CodeServer startup', () => {
