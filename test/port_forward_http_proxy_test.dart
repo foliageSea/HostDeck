@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:host_deck/server/core/http/path_http_proxy.dart';
+import 'package:host_deck/server/app/server_handlers.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_http_proxy.dart';
@@ -82,7 +84,9 @@ void main() {
       accessService: AccessAuthService(),
     );
     server = await shelf_io.serve(
-      portForwardProxyMiddleware(proxy)((_) => Response.ok('SPA fallback')),
+      accessLogMiddleware(Logger('ServerService'))(
+        portForwardProxyMiddleware(proxy)((_) => Response.ok('SPA fallback')),
+      ),
       '127.0.0.1',
       0,
     );
@@ -96,6 +100,72 @@ void main() {
   });
 
   Uri url(String path) => Uri.parse('http://127.0.0.1:${server.port}$path');
+
+  test('logs proxy requests once under PortForwardHttpProxy', () async {
+    final previousLevel = Logger.root.level;
+    Logger.root.level = Level.ALL;
+    final records = <LogRecord>[];
+    final subscription = Logger.root.onRecord.listen(records.add);
+    try {
+      for (final path in [
+        '/port-forward/12/binary?next=1',
+        '/port-forward/12/missing',
+        '/port-forward',
+      ]) {
+        final response = await (await client.getUrl(url(path))).close();
+        await response.drain<void>();
+      }
+      expect(records, hasLength(3));
+      expect(
+        records.map((record) => record.loggerName),
+        everyElement('PortForwardHttpProxy'),
+      );
+      expect(records.map((record) => record.level), everyElement(Level.FINE));
+      expect(
+        records.first.message,
+        matches(r'^GET /port-forward/12/binary 200 \d+ms \| next=1$'),
+      );
+      expect(records[1].message, contains('/port-forward/12/missing 404 '));
+      expect(records[2].message, contains('/port-forward 404 '));
+
+      records.clear();
+      final response = await (await client.getUrl(url('/api/other'))).close();
+      await response.drain<void>();
+      expect(records, hasLength(1));
+      expect(records.single.loggerName, 'ServerService');
+      expect(records.single.level, Level.INFO);
+    } finally {
+      await subscription.cancel();
+      Logger.root.level = previousLevel;
+    }
+  });
+
+  test('logs unexpected proxy failures once and rethrows them', () async {
+    final previousLevel = Logger.root.level;
+    Logger.root.level = Level.ALL;
+    final records = <LogRecord>[];
+    final subscription = Logger.root.onRecord.listen(records.add);
+    final error = StateError('resolver failed');
+    service.error = error;
+    try {
+      final handler = accessLogMiddleware(Logger('ServerService'))(
+        portForwardProxyMiddleware(proxy)((_) => Response.ok('SPA fallback')),
+      );
+      await expectLater(
+        handler(Request('GET', url('/port-forward/12/'))),
+        throwsA(same(error)),
+      );
+      expect(records, hasLength(1));
+      expect(records.single.loggerName, 'PortForwardHttpProxy');
+      expect(records.single.level, Level.SEVERE);
+      expect(records.single.message, contains('/port-forward/12/ 500 '));
+      expect(records.single.error, same(error));
+      expect(records.single.stackTrace, isNotNull);
+    } finally {
+      await subscription.cancel();
+      Logger.root.level = previousLevel;
+    }
+  });
 
   test(
     'maps encoded paths and query, rewrites gzip HTML and strips credentials',
@@ -247,9 +317,12 @@ void main() {
 class _Resolver extends PortForwardService {
   final int port;
   bool running = true;
+  Object? error;
   _Resolver(this.port) : super(SshService());
 
   @override
-  HttpProxyUpstream? resolveHttp(String id) =>
-      running && id == '12' ? HttpProxyUpstream('127.0.0.1', port) : null;
+  HttpProxyUpstream? resolveHttp(String id) {
+    if (error != null) throw error!;
+    return running && id == '12' ? HttpProxyUpstream('127.0.0.1', port) : null;
+  }
 }

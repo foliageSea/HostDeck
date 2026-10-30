@@ -7,6 +7,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_static/shelf_static.dart';
 
 import 'package:host_deck/server/routes/api_routes.dart';
+import 'package:host_deck/server/core/http/access_log.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/access/access_middleware.dart';
 import 'package:host_deck/server/features/access/access_auth_service.dart';
@@ -19,9 +20,15 @@ import 'package:host_deck/server/features/port_forwards/port_forward_http_proxy.
 import 'package:host_deck/server/features/servers/server_repository.dart';
 import 'package:host_deck/utils/app_settings.dart';
 
+export 'package:host_deck/server/core/http/access_log.dart'
+    show formatAccessLog;
+
 Middleware accessLogMiddleware(Logger log) {
   return (innerHandler) {
     return (request) async {
+      if (PortForwardHttpProxy.handlesRequest(request)) {
+        return innerHandler(request);
+      }
       final stopwatch = Stopwatch()..start();
       try {
         final response = await innerHandler(request);
@@ -32,8 +39,7 @@ Middleware accessLogMiddleware(Logger log) {
           stopwatch.elapsed,
         );
         // IDE 静态资源请求很多，避免 access log 淹没正常日志。
-        if (request.url.path.startsWith('ide/') ||
-            request.url.path.startsWith('port-forward/')) {
+        if (request.url.path.startsWith('ide/')) {
           log.fine(message);
         } else if (response.statusCode >= 500) {
           log.severe(message);
@@ -72,12 +78,6 @@ Middleware sshActivityMiddleware(SshService sshService) {
       return innerHandler(request);
     };
   };
-}
-
-String formatAccessLog(Request request, int statusCode, Duration elapsed) {
-  final path = request.url.path.isEmpty ? '/' : '/${request.url.path}';
-  final query = request.url.hasQuery ? ' | ${request.url.query}' : '';
-  return '${request.method} $path $statusCode ${elapsed.inMilliseconds}ms$query';
 }
 
 Future<Handler> buildServerHandler({
