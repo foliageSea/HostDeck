@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { portForwardApi, type PortForwardRule } from '@/api/port-forward'
 import { Add } from '@vicons/carbon'
 import { Box, ChevronDown, Ellipsis, LogIn, RefreshCw, Search } from '@lucide/vue'
 import type { DockerContainer } from '@/api/docker'
@@ -19,11 +20,67 @@ const selectedPort = ref('')
 const portActionVisible = ref(false)
 const creatingForward = ref(false)
 const forwardedUrl = ref<string | null>(null)
+const checkingForward = ref(false)
+const forwardCheckFailed = ref(false)
+const existingForward = ref<PortForwardRule | null>(null)
+let forwardCheckVersion = 0
 const canCreateForward = computed(() => Boolean(parseDockerHttpPort(selectedPort.value)))
 const selectedPortUrl = computed(() => props.controller.getContainerPortUrl(selectedPort.value))
 const selectedPortPinned = computed(() =>
   props.controller.isContainerPortPinned(selectedPort.value),
 )
+const portActionMenuOptions = computed(() => [
+  ...(forwardedUrl.value
+    ? [
+        { key: 'open-forward', label: '打开转发' },
+        { key: 'copy-forward', label: '复制转发地址' },
+      ]
+    : [
+        {
+          key: 'create-forward',
+          label: checkingForward.value ? '正在检查转发' : forwardCheckFailed.value ? '重新检查转发' : existingForward.value ? '启动 HTTP 转发' : '创建 HTTP 转发',
+          disabled: !canCreateForward.value || creatingForward.value || checkingForward.value,
+        },
+      ]),
+  { key: 'divider-port', type: 'divider' },
+  {
+    key: 'pin',
+    label: selectedPortPinned.value ? '取消固定' : '固定到桌面',
+    disabled: !selectedPortUrl.value,
+  },
+])
+
+async function checkExistingForward() {
+  const version = ++forwardCheckVersion
+  forwardedUrl.value = null
+  existingForward.value = null
+  forwardCheckFailed.value = false
+  const target = parseDockerHttpPort(selectedPort.value)
+  if (!portActionVisible.value || !target) {
+    checkingForward.value = false
+    return
+  }
+  checkingForward.value = true
+  try {
+    const rules = await portForwardApi.list()
+    if (version !== forwardCheckVersion) return
+    const matches = rules.filter((rule) => rule.protocol === 'http' &&
+      rule.remoteHost === target.remoteHost && rule.remotePort === target.remotePort)
+    const rule = matches.find((rule) => rule.status === 'running') ?? matches[0]
+    existingForward.value = rule ?? null
+    if (rule?.status === 'running' && rule.accessPath) {
+      forwardedUrl.value = new URL(rule.accessPath, window.location.origin).href
+    }
+  } catch (error) {
+    if (version !== forwardCheckVersion) return
+    forwardCheckFailed.value = true
+    getUiApi().message.error(error instanceof Error ? error.message : '检查端口转发失败。')
+  } finally {
+    if (version === forwardCheckVersion) checkingForward.value = false
+  }
+}
+
+watch([portActionVisible, selectedPort], () => { void checkExistingForward() })
 
 function getContainerRowMoreActionOptions(container: DockerContainer) {
   const paused = isPaused(container)
@@ -139,6 +196,24 @@ function toggleSelectedPortPin() {
 
   props.controller.toggleContainerPortDesktopPin(selectedPortContainer.value, selectedPort.value)
   portActionVisible.value = false
+}
+
+function handlePortActionMenu(key: string) {
+  switch (key) {
+    case 'create-forward':
+      if (forwardCheckFailed.value) void checkExistingForward()
+      else void createSelectedForward()
+      break
+    case 'open-forward':
+      openForwardedPort()
+      break
+    case 'copy-forward':
+      void copyForwardedPort()
+      break
+    case 'pin':
+      toggleSelectedPortPin()
+      break
+  }
 }
 
 function getContainerNetworksTitle(container: DockerContainer) {
@@ -344,7 +419,7 @@ function isPaused(container: DockerContainer) {
       v-model:show="portActionVisible"
       preset="card"
       title="端口操作"
-      style="width: min(620px, 92vw)"
+      style="width: min(460px, 92vw)"
     >
       <div class="port-action-content">
         <div>
@@ -369,25 +444,20 @@ function isPaused(container: DockerContainer) {
       <template #action>
         <div class="port-action-buttons">
           <NSpace :wrap="false" :size="8" justify="end">
-            <NButton @click="portActionVisible = false">取消</NButton>
-            <NButton
-              v-if="!forwardedUrl"
-              :disabled="!canCreateForward"
-              :loading="creatingForward"
-              @click="createSelectedForward"
-            >
-              HTTP 转发
-            </NButton>
-            <template v-else>
-              <NButton @click="copyForwardedPort">复制地址</NButton>
-              <NButton @click="openForwardedPort">打开转发</NButton>
-            </template>
-            <NButton :disabled="!selectedPortUrl" @click="toggleSelectedPortPin">
-              {{ selectedPortPinned ? '取消固定' : '固定到桌面' }}
-            </NButton>
             <NButton type="primary" :disabled="!selectedPortUrl" @click="openSelectedPort">
               打开
             </NButton>
+            <NButton @click="portActionVisible = false">取消</NButton>
+            <NDropdown
+              trigger="click"
+              :options="portActionMenuOptions"
+              @select="(key: string | number) => handlePortActionMenu(String(key))"
+            >
+              <NButton :loading="creatingForward">
+                <template #icon><Ellipsis :size="16" /></template>
+                更多
+              </NButton>
+            </NDropdown>
           </NSpace>
         </div>
       </template>

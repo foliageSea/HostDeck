@@ -17,7 +17,7 @@ export function parseDockerHttpPort(portText: string): DockerPublishedPort | nul
   }
 }
 
-// Deduplicate clicks across Docker windows sharing the same SSH connection.
+// Deduplicate clicks across Docker windows with the same published target.
 const pendingForwards = new Map<string, Promise<PortForwardRule>>()
 
 export function createDockerHttpForward(
@@ -25,19 +25,19 @@ export function createDockerHttpForward(
   containerName: string,
   target: DockerPublishedPort,
 ): Promise<PortForwardRule> {
-  const key = JSON.stringify([connectionId, target.remoteHost, target.remotePort])
+  const key = JSON.stringify([target.remoteHost, target.remotePort])
   const pending = pendingForwards.get(key)
   if (pending) return pending
   const task = (async () => {
     const rules = await portForwardApi.list()
-    const existing = rules.find((rule) =>
-      rule.protocol === 'http' &&
-      rule.connectionId === connectionId &&
-      rule.status === 'running' &&
-      rule.remoteHost === target.remoteHost &&
-      rule.remotePort === target.remotePort,
+    const existing = rules.find(
+      (rule) =>
+        rule.protocol === 'http' &&
+        rule.remoteHost === target.remoteHost &&
+        rule.remotePort === target.remotePort,
     )
-    if (existing) return existing
+    if (existing && existing.status === 'running') return existing
+    if (existing) return portForwardApi.start(existing.id, connectionId)
     return portForwardApi.create({
       protocol: 'http',
       name: `${containerName}:${target.remotePort}`,

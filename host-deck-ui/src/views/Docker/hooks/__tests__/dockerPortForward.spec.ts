@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PortForwardRule } from '@/api/port-forward'
 
-const { list, create } = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn() }))
-vi.mock('@/api/port-forward', () => ({ portForwardApi: { list, create } }))
+const { list, create, start } = vi.hoisted(() => ({
+  list: vi.fn(),
+  create: vi.fn(),
+  start: vi.fn(),
+}))
+vi.mock('@/api/port-forward', () => ({ portForwardApi: { list, create, start } }))
 import { createDockerHttpForward, parseDockerHttpPort } from '../dockerPortForward'
 
 describe('Docker HTTP forwards', () => {
@@ -29,14 +33,26 @@ describe('Docker HTTP forwards', () => {
     accessPath: '/port-forward/12/',
   } as PortForwardRule
 
-  it('reuses only a matching HTTP forward on the selected connection', async () => {
-    list.mockResolvedValue([{ ...rule, connectionId: 'conn-1' }, { ...rule, protocol: 'tcp' }, rule])
-    expect(await createDockerHttpForward('conn-2', 'web', target)).toBe(rule)
+  it('reuses an existing saved HTTP forward and never creates a duplicate', async () => {
+    const running = { ...rule, connectionId: 'conn-1' }
+    list.mockResolvedValue([running, { ...rule, protocol: 'tcp' }, rule])
+    expect(await createDockerHttpForward('conn-2', 'web', target)).toBe(running)
+    expect(create).not.toHaveBeenCalled()
+    expect(start).not.toHaveBeenCalled()
+  })
+
+  it('starts a saved stopped HTTP forward instead of creating another rule', async () => {
+    const stopped = { ...rule, status: 'stopped' as const, connectionId: null }
+    const started = { ...stopped, status: 'running' as const, connectionId: 'conn-2' }
+    list.mockResolvedValue([stopped])
+    start.mockResolvedValue(started)
+    expect(await createDockerHttpForward('conn-2', 'web', target)).toBe(started)
+    expect(start).toHaveBeenCalledWith(12, 'conn-2')
     expect(create).not.toHaveBeenCalled()
   })
 
   it('deduplicates concurrent clicks and creates without a local port', async () => {
-    list.mockResolvedValue([{ ...rule, connectionId: 'conn-1' }])
+    list.mockResolvedValue([])
     create.mockResolvedValue(rule)
     const first = createDockerHttpForward('conn-2', 'web', target)
     const second = createDockerHttpForward('conn-2', 'web', target)
