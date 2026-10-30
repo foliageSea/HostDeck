@@ -14,6 +14,8 @@ const isDragging = ref(false)
 const isResizing = ref(false)
 let dragOffsetX = 0
 let dragOffsetY = 0
+let activePointerId: number | undefined
+let captureTarget: HTMLElement | undefined
 type ResizeDirection = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
 
 const resizeHandles: { direction: ResizeDirection; class: string }[] = [
@@ -116,7 +118,7 @@ function isWindowControlActionTarget(target: EventTarget | null) {
   return target instanceof HTMLElement && Boolean(target.closest('[data-window-control-action]'))
 }
 
-function handleDrag(event: MouseEvent) {
+function handleDrag(event: PointerEvent) {
   if (!isDragging.value || props.window.isMaximized) {
     return
   }
@@ -126,13 +128,66 @@ function handleDrag(event: MouseEvent) {
   desktopStore.updateWindowPosition(props.window.id, nextX, nextY)
 }
 
-function stopDrag() {
+function stopInteraction() {
+  const target = captureTarget
+  const pointerId = activePointerId
+  activePointerId = undefined
+  captureTarget = undefined
   isDragging.value = false
-  window.removeEventListener('mousemove', handleDrag)
-  window.removeEventListener('mouseup', stopDrag)
+  isResizing.value = false
+  window.removeEventListener('pointermove', moveInteraction, true)
+  window.removeEventListener('pointerup', finishInteraction, true)
+  window.removeEventListener('pointercancel', finishInteraction, true)
+  window.removeEventListener('blur', stopInteraction)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  target?.removeEventListener('lostpointercapture', finishInteraction)
+  if (pointerId !== undefined && target?.hasPointerCapture?.(pointerId)) {
+    target.releasePointerCapture(pointerId)
+  }
 }
 
-function startDrag(event: MouseEvent) {
+function handleVisibilityChange() {
+  if (document.hidden) stopInteraction()
+}
+
+function finishInteraction(event: PointerEvent) {
+  if (event.pointerId === activePointerId) stopInteraction()
+}
+
+function moveInteraction(event: PointerEvent) {
+  if (event.pointerId !== activePointerId) return
+  if (
+    (event.buttons & 1) === 0 ||
+    props.window.isMaximized ||
+    props.window.isMinimized ||
+    props.window.isClosing ||
+    (isResizing.value && !props.window.resizable)
+  ) {
+    stopInteraction()
+    return
+  }
+  if (isDragging.value) handleDrag(event)
+  else if (isResizing.value) handleResize(event)
+}
+
+function startInteraction(event: PointerEvent) {
+  if (event.button !== 0 || activePointerId !== undefined) return false
+  if (!(event.currentTarget instanceof HTMLElement)) return false
+
+  activePointerId = event.pointerId
+  captureTarget = event.currentTarget
+  captureTarget.addEventListener('lostpointercapture', finishInteraction)
+  window.addEventListener('pointermove', moveInteraction, true)
+  window.addEventListener('pointerup', finishInteraction, true)
+  window.addEventListener('pointercancel', finishInteraction, true)
+  window.addEventListener('blur', stopInteraction)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  captureTarget.setPointerCapture?.(event.pointerId)
+  focusWindow()
+  return true
+}
+
+function startDrag(event: PointerEvent) {
   if (isWindowControlActionTarget(event.target)) {
     return
   }
@@ -141,15 +196,13 @@ function startDrag(event: MouseEvent) {
     return
   }
 
-  focusWindow()
+  if (!startInteraction(event)) return
   isDragging.value = true
   dragOffsetX = event.clientX - props.window.x
   dragOffsetY = event.clientY - props.window.y
-  window.addEventListener('mousemove', handleDrag)
-  window.addEventListener('mouseup', stopDrag)
 }
 
-function handleResize(event: MouseEvent) {
+function handleResize(event: PointerEvent) {
   if (!isResizing.value || props.window.isMaximized || !props.window.resizable) {
     return
   }
@@ -175,18 +228,12 @@ function handleResize(event: MouseEvent) {
   desktopStore.updateWindowSize(props.window.id, nextWidth, nextHeight)
 }
 
-function stopResize() {
-  isResizing.value = false
-  window.removeEventListener('mousemove', handleResize)
-  window.removeEventListener('mouseup', stopResize)
-}
-
-function startResize(event: MouseEvent, direction: ResizeDirection) {
+function startResize(event: PointerEvent, direction: ResizeDirection) {
   if (props.window.isMaximized || !props.window.resizable) {
     return
   }
 
-  focusWindow()
+  if (!startInteraction(event)) return
   isResizing.value = true
   resizeDirection = direction
   resizeStartX = props.window.x
@@ -195,16 +242,9 @@ function startResize(event: MouseEvent, direction: ResizeDirection) {
   resizeStartHeight = props.window.height
   resizeStartClientX = event.clientX
   resizeStartClientY = event.clientY
-  window.addEventListener('mousemove', handleResize)
-  window.addEventListener('mouseup', stopResize)
 }
 
-onUnmounted(() => {
-  window.removeEventListener('mousemove', handleDrag)
-  window.removeEventListener('mouseup', stopDrag)
-  window.removeEventListener('mousemove', handleResize)
-  window.removeEventListener('mouseup', stopResize)
-})
+onUnmounted(stopInteraction)
 </script>
 
 <template>
@@ -228,11 +268,11 @@ onUnmounted(() => {
     :style="windowStyle"
     :aria-hidden="window.isMinimized"
     :data-window-blur="settingsStore.windowBlur ? 'true' : undefined"
-    @mousedown="focusWindow"
+    @pointerdown="focusWindow"
   >
     <header
       data-window-title-bar
-      class="relative z-[1] flex h-[48px] items-center justify-between gap-[12px] border-b border-b-solid px-[14px]"
+      class="relative z-[1] flex h-[48px] touch-none select-none items-center justify-between gap-[12px] border-b border-b-solid px-[14px]"
       :class="[
         settingsStore.isDark
           ? 'border-[rgba(148,163,184,0.14)]'
@@ -243,10 +283,10 @@ onUnmounted(() => {
             ? 'bg-black'
             : 'bg-white',
       ]"
-      @mousedown.prevent="startDrag"
+      @pointerdown.prevent="startDrag"
       @dblclick="maximizeWindow"
     >
-      <div v-if="isMacWindowControls" class="flex items-center gap-[8px]" @mousedown.stop>
+      <div v-if="isMacWindowControls" class="flex items-center gap-[8px]" @pointerdown.stop>
         <button
           data-window-control-action
           class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border-0 bg-[#ff5f57] p-0 transition-[filter,transform] duration-[180ms] ease-in-out hover:scale-[1.06] hover:brightness-[0.96] cursor-pointer"
@@ -286,7 +326,7 @@ onUnmounted(() => {
       <div
         class="flex min-w-[36px] items-center justify-end"
         :class="isMacWindowControls ? 'gap-[8px]' : 'gap-0 -mr-[14px]'"
-        @mousedown.stop
+        @pointerdown.stop
       >
         <button
           v-for="action in windowActions"
@@ -393,9 +433,9 @@ onUnmounted(() => {
         v-for="handle in resizeHandles"
         :key="handle.direction"
         :data-window-resize-handle="handle.direction"
-        class="absolute z-10"
+        class="absolute z-10 touch-none select-none"
         :class="handle.class"
-        @mousedown.prevent.stop="startResize($event, handle.direction)"
+        @pointerdown.prevent.stop="startResize($event, handle.direction)"
       />
     </template>
   </section>
