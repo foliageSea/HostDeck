@@ -800,11 +800,7 @@ watch(
     </header>
 
     <div v-if="!hasConnection" class="cs-center">
-      <NEmpty description="未连接 SSH，无法打开远端 IDE">
-        <template #extra>
-          <span class="cs-muted">请先在主界面连接一台 Linux 主机。</span>
-        </template>
-      </NEmpty>
+      <NEmpty description="未连接 SSH" />
     </div>
 
     <div v-else class="cs-body">
@@ -887,7 +883,6 @@ watch(
             <Package :size="15" aria-hidden="true" />
             <h2>安装 IDE</h2>
           </header>
-          <p class="cs-muted">通过 SSH 将离线包推送到目标机安装，无需目标机联网。</p>
           <div v-if="matchingPackages.length" class="cs-row">
             <NSelect
               v-model:value="selectedPackageId"
@@ -917,9 +912,8 @@ watch(
             <Play :size="15" aria-hidden="true" />
             <h2>启动 IDE</h2>
           </header>
-          <p class="cs-muted">将以 {{ folderText }} 作为工作区打开。</p>
           <div class="cs-row cs-row-between">
-            <span class="cs-installed">已安装 v{{ installedVersion }}</span>
+            <span class="cs-muted">工作区：{{ folderText }}</span>
             <div class="cs-row">
               <NButton
                 type="error"
@@ -1027,9 +1021,6 @@ watch(
                 }}%）
               </span>
             </div>
-            <p class="cs-tip">
-              文件名需包含版本与架构，例如 hostdeck-code-server-4.143.1-linux-amd64.tar.gz。
-            </p>
           </div>
         </section>
       </div>
@@ -1372,11 +1363,6 @@ watch(
   width: 190px;
 }
 
-.cs-installed {
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .cs-empty-row {
   display: flex;
   align-items: center;
@@ -1449,12 +1435,6 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.cs-tip {
-  margin: 0;
-  color: var(--cs-muted);
-  font-size: 12px;
 }
 
 .cs-download {
