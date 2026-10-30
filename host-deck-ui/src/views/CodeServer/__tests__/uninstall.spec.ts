@@ -118,9 +118,39 @@ beforeEach(() => {
 afterEach(() => {
   wrapper?.unmount()
   wrapper = undefined
+  vi.useRealTimers()
 })
 
 describe('CodeServer uninstall', () => {
+  it('clears refresh loading when polling overtakes the post-uninstall refresh', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    const view = await mountView()
+    const confirmation = await requestUninstall(view)
+    const refresh = deferred<CodeServerTargetStatus>()
+    mocks.api.status.mockReturnValueOnce(refresh.promise)
+    mocks.api.status.mockResolvedValue(targetStatus(null))
+
+    const completion = confirmation.onPositiveClick()
+    await flushPromises()
+
+    const refreshButton = () => view.findAllComponents(ButtonStub)
+      .find((button) => button.text() === '刷新状态')!
+    expect(refreshButton().props('loading')).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(1000)
+    await flushPromises()
+    expect(mocks.api.status).toHaveBeenCalledTimes(3)
+
+    refresh.resolve(targetStatus())
+    await completion
+    await flushPromises()
+
+    expect(refreshButton().props('loading')).toBe(false)
+    expect(view.text()).toContain('未安装')
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(mocks.api.status).toHaveBeenCalledTimes(3)
+  })
+
   it('requires confirmation before sending an uninstall request', async () => {
     const view = await mountView()
     const confirmation = await requestUninstall(view)

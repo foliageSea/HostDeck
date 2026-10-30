@@ -118,6 +118,7 @@ type TagType = 'default' | 'success' | 'warning' | 'error' | 'info'
 
 let pollTimer: number | null = null
 let statusRequestSeq = 0
+let refreshRequestSeq = 0
 let isUnmounted = false
 
 const hasConnection = computed(() => Boolean(sshStore.connectionId && sshStore.isConnected))
@@ -320,7 +321,10 @@ async function fetchStatus(options: { silent?: boolean } = {}) {
   }
 
   const requestSeq = ++statusRequestSeq
-  if (!options.silent) refreshing.value = true
+  if (!options.silent) {
+    refreshRequestSeq = requestSeq
+    refreshing.value = true
+  }
 
   try {
     const nextStatus = await codeServerApi.status(connectionId)
@@ -333,8 +337,8 @@ async function fetchStatus(options: { silent?: boolean } = {}) {
     if (requestSeq !== statusRequestSeq || isUnmounted) return
     if (!options.silent) fatalError.value = errorMessage(error, '加载 IDE 状态失败。')
   } finally {
+    if (!options.silent && requestSeq === refreshRequestSeq) refreshing.value = false
     if (requestSeq === statusRequestSeq) {
-      if (!options.silent) refreshing.value = false
       loading.value = false
       syncPolling()
     }
