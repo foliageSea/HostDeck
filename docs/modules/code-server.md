@@ -102,6 +102,8 @@ code-server 固定参数：
 
 这是常见开发服务器的兼容处理：动态拼接的根路径、写死的绝对域名、自定义 WebSocket 地址、Service Worker 作用域及基于站点根目录的路由，仍可能需要被预览应用配置自己的 base/public path。应用已经配置完整转发前缀时不会重复添加。
 
+HTTP／WebSocket 代理和正文适配的公共实现位于 `core/http/path_http_proxy.dart`、`proxy_content_rewriter.dart`；独立 HTTP 端口转发复用该实现，详见 [端口转发](port-forwards.md)。
+
 ## 已知限制
 
 1. 未实现 HostDeck 重启后的远端进程**接管**：重启后会按新端口启动新实例，旧实例依赖 1 小时 idle timeout 回收。

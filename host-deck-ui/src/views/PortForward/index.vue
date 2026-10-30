@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import {
   Copy,
+  ExternalLink,
   Laptop,
   Network,
   Pencil,
@@ -21,6 +22,7 @@ import type { FormInst, FormItemRule, FormRules } from 'naive-ui'
 import {
   portForwardApi,
   type PortForwardPayload,
+  type PortForwardProtocol,
   type PortForwardRule,
   type PortForwardStatus,
 } from '@/api/port-forward'
@@ -45,6 +47,7 @@ interface PortForwardNodeData {
 }
 
 const form = reactive({
+  protocol: 'tcp' as PortForwardProtocol,
   bindHost: '127.0.0.1',
   enabled: true,
   localPort: 8081,
@@ -103,6 +106,7 @@ function validatePort(_rule: FormItemRule, value: number | null) {
 }
 
 function validateLocalEndpoint(_rule: FormItemRule, value: number | null) {
+  if (form.protocol === 'http') return true
   const portResult = validatePort(_rule, value)
   if (portResult instanceof Error) {
     return portResult
@@ -118,7 +122,7 @@ function validateLocalEndpoint(_rule: FormItemRule, value: number | null) {
       return false
     }
 
-    return rule.bindHost.trim() === bindHost && rule.localPort === value
+    return rule.protocol !== 'http' && rule.bindHost.trim() === bindHost && rule.localPort === value
   })
 
   if (duplicateRule) {
@@ -243,6 +247,9 @@ function statusText(status: PortForwardStatus) {
 }
 
 function localAddress(rule: PortForwardRule) {
+  if (rule.protocol === 'http' && rule.accessPath) {
+    return new URL(rule.accessPath, window.location.origin).href
+  }
   const host =
     rule.bindHost === '0.0.0.0' || rule.bindHost === '::' ? window.location.hostname : rule.bindHost
   return `${host}:${rule.localPort}`
@@ -262,6 +269,7 @@ function handleNodesInitialized() {
 }
 
 function resetForm() {
+  form.protocol = 'tcp'
   editingId.value = null
   form.bindHost = '127.0.0.1'
   form.enabled = true
@@ -273,9 +281,10 @@ function resetForm() {
 
 function payloadFromForm(): PortForwardPayload {
   return {
-    bindHost: form.bindHost.trim(),
+    protocol: form.protocol,
+    bindHost: form.protocol === 'tcp' ? form.bindHost.trim() : undefined,
     enabled: form.enabled,
-    localPort: Number(form.localPort),
+    localPort: form.protocol === 'tcp' ? Number(form.localPort) : undefined,
     name: form.name.trim(),
     remoteHost: form.remoteHost.trim(),
     remotePort: Number(form.remotePort),
@@ -311,6 +320,7 @@ function openCreateDialog() {
 }
 
 function openEditDialog(rule: PortForwardRule) {
+  form.protocol = rule.protocol ?? 'tcp'
   editingId.value = rule.id
   form.bindHost = rule.bindHost
   form.enabled = rule.enabled
@@ -389,7 +399,11 @@ function removeRule(rule: PortForwardRule) {
 
 async function copyLocalUrl(rule: PortForwardRule) {
   await navigator.clipboard.writeText(localAddress(rule))
-  getUiApi().message.success('本地监听地址已复制。')
+  getUiApi().message.success('访问地址已复制。')
+}
+
+function openHttpForward(rule: PortForwardRule) {
+  window.open(localAddress(rule), '_blank', 'noopener,noreferrer')
 }
 
 onMounted(() => {
@@ -482,7 +496,7 @@ onMounted(() => {
                 </div>
               </div>
               <NTag :type="statusType(data.rule.status)" size="small">
-                {{ statusText(data.rule.status) }}
+                {{ data.rule.protocol?.toUpperCase() || 'TCP' }} · {{ statusText(data.rule.status) }}
               </NTag>
             </div>
             <div v-if="data.rule.error" class="node-error" :title="data.rule.error">
@@ -548,18 +562,30 @@ onMounted(() => {
             <Handle type="target" :position="Position.Left" />
             <div class="node-icon"><Laptop :size="20" /></div>
             <div class="min-w-0 flex-1">
-              <div class="node-label">本地服务</div>
+              <div class="node-label">{{ data.rule.protocol === 'http' ? 'HTTP 访问' : '本地服务' }}</div>
               <div class="node-address" :title="localAddress(data.rule)">
                 {{ localAddress(data.rule) }}
               </div>
-              <button
-                class="node-link nodrag nopan"
-                type="button"
-                @pointerdown.stop
-                @click.stop="copyLocalUrl(data.rule)"
-              >
-                <Copy :size="12" />复制地址
-              </button>
+              <div class="node-links">
+                <button
+                  class="node-link nodrag nopan"
+                  type="button"
+                  @pointerdown.stop
+                  @click.stop="copyLocalUrl(data.rule)"
+                >
+                  <Copy :size="12" />复制地址
+                </button>
+                <button
+                  v-if="data.rule.protocol === 'http'"
+                  class="node-link nodrag nopan"
+                  type="button"
+                  :disabled="data.rule.status !== 'running'"
+                  @pointerdown.stop
+                  @click.stop="openHttpForward(data.rule)"
+                >
+                  <ExternalLink :size="12" />打开
+                </button>
+              </div>
             </div>
           </article>
         </template>
@@ -594,7 +620,13 @@ onMounted(() => {
         <NFormItem label="名称" path="name">
           <NInput v-model:value="form.name" placeholder="例如：远端 Web 服务" />
         </NFormItem>
-        <div class="grid grid-cols-2 gap-[12px] lt-md:grid-cols-1">
+        <NFormItem label="协议" path="protocol">
+          <NRadioGroup v-model:value="form.protocol">
+            <NRadioButton value="tcp">TCP</NRadioButton>
+            <NRadioButton value="http">HTTP</NRadioButton>
+          </NRadioGroup>
+        </NFormItem>
+        <div v-if="form.protocol === 'tcp'" class="grid grid-cols-2 gap-[12px] lt-md:grid-cols-1">
           <NFormItem label="本地绑定地址" path="bindHost">
             <NInput v-model:value="form.bindHost" placeholder="127.0.0.1" />
           </NFormItem>
@@ -829,11 +861,17 @@ onMounted(() => {
   color: #f1f5f9;
 }
 
+.node-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 7px;
+}
+
 .node-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 7px;
   padding: 0;
   border: 0;
   color: #0284c7;
@@ -841,6 +879,11 @@ onMounted(() => {
   font: inherit;
   font-size: 11px;
   cursor: pointer;
+}
+
+.node-link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .node-caption {

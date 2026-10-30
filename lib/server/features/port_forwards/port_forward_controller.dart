@@ -26,6 +26,8 @@ class PortForwardController {
     try {
       final data = await _readJson(request);
       final inputRule = PortForwardRule.fromJson(data);
+      _service.validateRule(inputRule);
+      if (inputRule.enabled) _requireConnectionId(data);
       var rule = _repository.addRule(inputRule.copyWith(enabled: false));
       if (inputRule.enabled) {
         await _service.start(_requireConnectionId(data), rule);
@@ -46,6 +48,8 @@ class PortForwardController {
 
       final data = await _readJson(request);
       final inputRule = PortForwardRule.fromJson(data).copyWith(id: id);
+      _service.validateRule(inputRule);
+      if (inputRule.enabled) _requireConnectionId(data);
       final rule = inputRule.copyWith(enabled: false);
       final success = _repository.updateRule(id, rule);
       if (!success) {

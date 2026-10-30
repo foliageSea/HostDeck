@@ -7,6 +7,8 @@ import CopyableText from '@/components/common/CopyableText.vue'
 import type { DockerViewController } from '../hooks/useDockerView'
 import { getContainerStatusPresentation } from '../hooks/dockerViewHelpers'
 import DockerTabToolbar from './DockerTabToolbar.vue'
+import { parseDockerHttpPort } from '../hooks/dockerPortForward'
+import { getUiApi } from '@/lib/ui'
 
 const props = defineProps<{
   controller: DockerViewController
@@ -15,6 +17,9 @@ const props = defineProps<{
 const selectedPortContainer = ref<DockerContainer | null>(null)
 const selectedPort = ref('')
 const portActionVisible = ref(false)
+const creatingForward = ref(false)
+const forwardedUrl = ref<string | null>(null)
+const canCreateForward = computed(() => Boolean(parseDockerHttpPort(selectedPort.value)))
 const selectedPortUrl = computed(() => props.controller.getContainerPortUrl(selectedPort.value))
 const selectedPortPinned = computed(() =>
   props.controller.isContainerPortPinned(selectedPort.value),
@@ -48,6 +53,7 @@ function handleContainerRowMoreAction(container: DockerContainer, key: string) {
   if (key.startsWith('port:')) {
     selectedPortContainer.value = container
     selectedPort.value = key.slice('port:'.length)
+    forwardedUrl.value = null
     portActionVisible.value = true
     return
   }
@@ -99,6 +105,31 @@ function toggleContainerState(container: DockerContainer) {
 function openSelectedPort() {
   props.controller.openContainerPort(selectedPort.value)
   portActionVisible.value = false
+}
+
+async function createSelectedForward() {
+  const container = selectedPortContainer.value
+  if (!container || creatingForward.value) return
+  const port = selectedPort.value
+  creatingForward.value = true
+  try {
+    const url = await props.controller.createContainerHttpForward(container, port)
+    if (selectedPortContainer.value === container && selectedPort.value === port) {
+      forwardedUrl.value = url
+    }
+  } finally {
+    creatingForward.value = false
+  }
+}
+
+function openForwardedPort() {
+  if (forwardedUrl.value) window.open(forwardedUrl.value, '_blank', 'noopener,noreferrer')
+}
+
+async function copyForwardedPort() {
+  if (!forwardedUrl.value) return
+  await navigator.clipboard.writeText(forwardedUrl.value)
+  getUiApi().message.success('转发地址已复制。')
 }
 
 function toggleSelectedPortPin() {
@@ -313,7 +344,7 @@ function isPaused(container: DockerContainer) {
       v-model:show="portActionVisible"
       preset="card"
       title="端口操作"
-      style="width: min(460px, 92vw)"
+      style="width: min(620px, 92vw)"
     >
       <div class="port-action-content">
         <div>
@@ -330,17 +361,35 @@ function isPaused(container: DockerContainer) {
             {{ selectedPortUrl || '未映射宿主机端口' }}
           </strong>
         </div>
+        <div v-if="forwardedUrl">
+          <span>转发地址</span>
+          <strong :title="forwardedUrl">{{ forwardedUrl }}</strong>
+        </div>
       </div>
       <template #action>
-        <NSpace justify="end">
-          <NButton @click="portActionVisible = false">取消</NButton>
-          <NButton :disabled="!selectedPortUrl" @click="toggleSelectedPortPin">
-            {{ selectedPortPinned ? '取消固定' : '固定到桌面' }}
-          </NButton>
-          <NButton type="primary" :disabled="!selectedPortUrl" @click="openSelectedPort">
-            打开
-          </NButton>
-        </NSpace>
+        <div class="port-action-buttons">
+          <NSpace :wrap="false" :size="8" justify="end">
+            <NButton @click="portActionVisible = false">取消</NButton>
+            <NButton
+              v-if="!forwardedUrl"
+              :disabled="!canCreateForward"
+              :loading="creatingForward"
+              @click="createSelectedForward"
+            >
+              HTTP 转发
+            </NButton>
+            <template v-else>
+              <NButton @click="copyForwardedPort">复制地址</NButton>
+              <NButton @click="openForwardedPort">打开转发</NButton>
+            </template>
+            <NButton :disabled="!selectedPortUrl" @click="toggleSelectedPortPin">
+              {{ selectedPortPinned ? '取消固定' : '固定到桌面' }}
+            </NButton>
+            <NButton type="primary" :disabled="!selectedPortUrl" @click="openSelectedPort">
+              打开
+            </NButton>
+          </NSpace>
+        </div>
       </template>
     </NModal>
   </div>
@@ -530,6 +579,17 @@ function isPaused(container: DockerContainer) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.port-action-buttons {
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.port-action-buttons :deep(.n-space) {
+  width: max-content;
+  margin-left: auto;
 }
 
 @media (max-width: 1100px) {

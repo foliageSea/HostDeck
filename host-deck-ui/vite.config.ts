@@ -177,6 +177,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: false,
           ws: true,
         },
+        '/port-forward': {
+          target: proxyTarget,
+          changeOrigin: false,
+          ws: true,
+        },
         '/wallpapers': {
           target: proxyTarget,
           changeOrigin: false,

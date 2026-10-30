@@ -34,6 +34,7 @@ import {
   parseContainerHostPort,
 } from './dockerViewHelpers'
 import type { DangerActionConfirmOptions, DockerTabName, DockerViewProps } from './dockerViewTypes'
+import { createDockerHttpForward, parseDockerHttpPort } from './dockerPortForward'
 
 export type { DockerViewProps } from './dockerViewTypes'
 
@@ -290,6 +291,22 @@ export function useDockerView(props: DockerViewProps) {
     }
 
     window.open(url, '_blank', 'noopener')
+  }
+
+  async function createContainerHttpForward(container: DockerContainer, portText: string) {
+    const target = parseDockerHttpPort(portText)
+    if (!target) {
+      getUiApi().message.warning('请选择已映射宿主机的 TCP 端口。')
+      return null
+    }
+    try {
+      const rule = await createDockerHttpForward(requireConnectionId(), container.name, target)
+      getUiApi().message.success('HTTP 转发已就绪。')
+      return rule.accessPath ? new URL(rule.accessPath, window.location.origin).href : null
+    } catch (error) {
+      getUiApi().message.error(error instanceof Error ? error.message : '创建 HTTP 转发失败。')
+      return null
+    }
   }
 
   function isContainerPortPinned(portText: string) {
@@ -1801,6 +1818,7 @@ export function useDockerView(props: DockerViewProps) {
     networks,
     openImageTagDialog,
     openContainerPort,
+    createContainerHttpForward,
     openComposeConfigDirectory,
     openComposeServices,
     openVolumeDirectory,

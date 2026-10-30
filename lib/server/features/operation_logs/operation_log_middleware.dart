@@ -331,6 +331,9 @@ String? _portForwardTarget(
   final localPort = _string(data?['localPort']);
   final remoteHost = _string(data?['remoteHost']);
   final remotePort = _string(data?['remotePort']);
+  if (data?['protocol'] == 'http' && remoteHost != null && remotePort != null) {
+    return 'HTTP → $remoteHost:$remotePort';
+  }
   if (bindHost != null &&
       localPort != null &&
       remoteHost != null &&
@@ -347,6 +350,9 @@ String? _portForwardTarget(
   if (ruleId != null) {
     final rule = portForwardRepository.getRule(ruleId);
     if (rule != null) {
+      if (rule.protocol == 'http') {
+        return '/port-forward/$ruleId/ → ${rule.remoteHost}:${rule.remotePort}';
+      }
       return _formatPortForwardTarget(
         rule.bindHost,
         rule.localPort.toString(),

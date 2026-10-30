@@ -95,6 +95,7 @@ class ServerService {
       portForwardRepository: _container!.portForwardRepository,
       serverRepository: _container!.serverRepository,
       codeServerProxy: _container!.codeServerProxy,
+      portForwardHttpProxy: _container!.portForwardHttpProxy,
     );
 
     final bindAddress = _parseBindAddress(host);

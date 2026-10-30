@@ -25,11 +25,12 @@ class PortForwardRepository {
   PortForwardRule addRule(PortForwardRule rule) {
     final now = DateTime.now().millisecondsSinceEpoch;
     final stmt = _dbService.db.prepare(
-      'INSERT INTO port_forwards (name, enabled, bindHost, localPort, remoteHost, remotePort, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO port_forwards (name, protocol, enabled, bindHost, localPort, remoteHost, remotePort, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     );
     try {
       stmt.execute([
         rule.name,
+        rule.protocol,
         rule.enabled ? 1 : 0,
         rule.bindHost,
         rule.localPort,
@@ -51,11 +52,12 @@ class PortForwardRepository {
   bool updateRule(int id, PortForwardRule rule) {
     final now = DateTime.now().millisecondsSinceEpoch;
     final stmt = _dbService.db.prepare(
-      'UPDATE port_forwards SET name = ?, enabled = ?, bindHost = ?, localPort = ?, remoteHost = ?, remotePort = ?, updatedAt = ? WHERE id = ?',
+      'UPDATE port_forwards SET name = ?, protocol = ?, enabled = ?, bindHost = ?, localPort = ?, remoteHost = ?, remotePort = ?, updatedAt = ? WHERE id = ?',
     );
     try {
       stmt.execute([
         rule.name,
+        rule.protocol,
         rule.enabled ? 1 : 0,
         rule.bindHost,
         rule.localPort,
@@ -94,6 +96,7 @@ class PortForwardRepository {
     return PortForwardRule(
       id: row['id'] as int,
       name: row['name'] as String,
+      protocol: row['protocol'] as String,
       enabled: (row['enabled'] as int) == 1,
       bindHost: row['bindHost'] as String,
       localPort: row['localPort'] as int,

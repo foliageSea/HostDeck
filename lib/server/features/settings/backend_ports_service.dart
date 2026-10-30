@@ -41,7 +41,9 @@ class BackendPortsService {
         'name': listener.name,
         'host': listener.host,
         'port': listener.port,
-        'purpose': '通过 SSH 转发本地 TCP 连接',
+        'purpose': listener.protocol == 'http'
+            ? 'HTTP 转发内部隧道，访问 /port-forward/${listener.ruleId}/'
+            : '通过 SSH 转发本地 TCP 连接',
         'status': listener.error == null ? 'running' : 'error',
         'target': '${listener.remoteHost}:${listener.remotePort}',
         'connectionId': listener.connectionId,

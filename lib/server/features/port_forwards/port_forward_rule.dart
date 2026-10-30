@@ -1,6 +1,7 @@
 class PortForwardRule {
   final int? id;
   final String name;
+  final String protocol;
   final bool enabled;
   final String bindHost;
   final int localPort;
@@ -12,6 +13,7 @@ class PortForwardRule {
   const PortForwardRule({
     this.id,
     required this.name,
+    this.protocol = 'tcp',
     required this.enabled,
     required this.bindHost,
     required this.localPort,
@@ -25,9 +27,10 @@ class PortForwardRule {
     return PortForwardRule(
       id: json['id'] == null ? null : int.tryParse(json['id'].toString()),
       name: (json['name'] ?? '').toString().trim(),
+      protocol: (json['protocol'] ?? 'tcp').toString().toLowerCase(),
       enabled: json['enabled'] == true || json['enabled'] == 1,
       bindHost: (json['bindHost'] ?? '127.0.0.1').toString().trim(),
-      localPort: int.parse(json['localPort'].toString()),
+      localPort: int.tryParse(json['localPort']?.toString() ?? '') ?? 0,
       remoteHost: (json['remoteHost'] ?? '127.0.0.1').toString().trim(),
       remotePort: int.parse(json['remotePort'].toString()),
       createdAt: json['createdAt'] == null
@@ -42,6 +45,10 @@ class PortForwardRule {
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
+    'protocol': protocol,
+    'accessPath': protocol == 'http' && id != null
+        ? '/port-forward/$id/'
+        : null,
     'enabled': enabled,
     'bindHost': bindHost,
     'localPort': localPort,
@@ -54,6 +61,7 @@ class PortForwardRule {
   PortForwardRule copyWith({
     int? id,
     String? name,
+    String? protocol,
     bool? enabled,
     String? bindHost,
     int? localPort,
@@ -65,6 +73,7 @@ class PortForwardRule {
     return PortForwardRule(
       id: id ?? this.id,
       name: name ?? this.name,
+      protocol: protocol ?? this.protocol,
       enabled: enabled ?? this.enabled,
       bindHost: bindHost ?? this.bindHost,
       localPort: localPort ?? this.localPort,

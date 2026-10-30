@@ -1,10 +1,13 @@
 import { http } from '@/lib/http'
 
 export type PortForwardStatus = 'running' | 'stopped' | 'error'
+export type PortForwardProtocol = 'tcp' | 'http'
 
 export interface PortForwardRule {
   id: number
   name: string
+  protocol: PortForwardProtocol
+  accessPath?: string | null
   enabled: boolean
   bindHost: string
   localPort: number
@@ -21,9 +24,10 @@ export interface PortForwardRule {
 
 export interface PortForwardPayload {
   name: string
+  protocol?: PortForwardProtocol
   enabled: boolean
-  bindHost: string
-  localPort: number
+  bindHost?: string
+  localPort?: number
   remoteHost: string
   remotePort: number
   connectionId?: string | null

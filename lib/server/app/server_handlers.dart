@@ -15,6 +15,7 @@ import 'package:host_deck/server/features/code_server/code_server_proxy_middlewa
 import 'package:host_deck/server/features/operation_logs/operation_log_middleware.dart';
 import 'package:host_deck/server/features/operation_logs/operation_log_service.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_repository.dart';
+import 'package:host_deck/server/features/port_forwards/port_forward_http_proxy.dart';
 import 'package:host_deck/server/features/servers/server_repository.dart';
 import 'package:host_deck/utils/app_settings.dart';
 
@@ -31,7 +32,8 @@ Middleware accessLogMiddleware(Logger log) {
           stopwatch.elapsed,
         );
         // IDE 静态资源请求很多，避免 access log 淹没正常日志。
-        if (request.url.path.startsWith('ide/')) {
+        if (request.url.path.startsWith('ide/') ||
+            request.url.path.startsWith('port-forward/')) {
           log.fine(message);
         } else if (response.statusCode >= 500) {
           log.severe(message);
@@ -88,6 +90,7 @@ Future<Handler> buildServerHandler({
   required PortForwardRepository portForwardRepository,
   required ServerRepository serverRepository,
   required CodeServerProxy codeServerProxy,
+  required PortForwardHttpProxy portForwardHttpProxy,
 }) async {
   Handler? staticHandler;
   final wallpaperDir = await AppSettings.resolveWallpaperDirectory();
@@ -162,5 +165,6 @@ Future<Handler> buildServerHandler({
       .addMiddleware(accessLogMiddleware(log))
       .addMiddleware(sshActivityMiddleware(sshService))
       .addMiddleware(codeServerProxyMiddleware(codeServerProxy))
+      .addMiddleware(portForwardProxyMiddleware(portForwardHttpProxy))
       .addHandler(cascade.handler);
 }

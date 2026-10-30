@@ -5,6 +5,7 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:logging/logging.dart';
 
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
+import 'package:host_deck/server/core/http/path_http_proxy.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_rule.dart';
 
 typedef PortForwardRunningChanged = void Function(int ruleId, bool running);
@@ -42,6 +43,7 @@ class PortForwardService {
         .map(
           (active) => PortForwardListenerSnapshot(
             ruleId: active.ruleId,
+            protocol: active.rule.protocol,
             name: active.rule.name,
             host: active.server.address.address,
             port: active.server.port,
@@ -72,7 +74,10 @@ class PortForwardService {
 
     late final ServerSocket server;
     try {
-      server = await ServerSocket.bind(rule.bindHost, rule.localPort);
+      server = await ServerSocket.bind(
+        rule.protocol == 'http' ? '127.0.0.1' : rule.bindHost,
+        rule.protocol == 'http' ? 0 : rule.localPort,
+      );
     } catch (error) {
       throw Exception('本地端口监听失败：$error');
     }
@@ -85,6 +90,9 @@ class PortForwardService {
       startedAt: DateTime.now().millisecondsSinceEpoch,
     );
     _activeForwards[id] = active;
+    if (rule.protocol == 'http') {
+      _sshService.attachLease(connectionId, 'port-forward:$id');
+    }
     _onRunningChanged?.call(id, true);
 
     active.subscription = server.listen(
@@ -96,6 +104,7 @@ class PortForwardService {
       onDone: () {
         if (_activeForwards[id] == active) {
           _activeForwards.remove(id);
+          _sshService.detachLease(connectionId, 'port-forward:$id');
           _onRunningChanged?.call(id, false);
         }
       },
@@ -110,6 +119,7 @@ class PortForwardService {
     }
 
     await active.close();
+    _sshService.detachLease(active.connectionId, 'port-forward:$ruleId');
     _onRunningChanged?.call(ruleId, false);
   }
 
@@ -142,6 +152,7 @@ class PortForwardService {
     StreamSubscription<List<int>>? channelSub;
 
     active.activeConnections++;
+    active.sockets.add(socket);
 
     Future<void> closeBoth() async {
       await socketSub?.cancel();
@@ -154,9 +165,16 @@ class PortForwardService {
       channel = await client.forwardLocal(
         rule.remoteHost,
         rule.remotePort,
-        localHost: rule.bindHost,
-        localPort: rule.localPort,
+        localHost: active.server.address.address,
+        localPort: active.server.port,
       );
+      if (active.closed) {
+        channel.destroy();
+        socket.destroy();
+        return;
+      }
+      active.channels.add(channel);
+      _sshService.touch(active.connectionId);
 
       socketSub = socket.listen(
         channel.sink.add,
@@ -171,27 +189,45 @@ class PortForwardService {
         cancelOnError: true,
       );
 
-      await Future.wait([socket.done, channel.done]);
+      await Future.any([socket.done, channel.done]);
     } catch (error) {
       active.error = error.toString();
       _log.warning('Port forward connection error for rule ${rule.id}: $error');
       await closeBoth();
     } finally {
+      await closeBoth();
       active.activeConnections--;
+      active.sockets.remove(socket);
+      active.channels.remove(channel);
     }
   }
 
+  HttpProxyUpstream? resolveHttp(String id) {
+    final active = _activeForwards[int.tryParse(id)];
+    if (active == null || active.rule.protocol != 'http' || active.closed) {
+      return null;
+    }
+    _sshService.touch(active.connectionId);
+    return HttpProxyUpstream('127.0.0.1', active.server.port);
+  }
+
+  void validateRule(PortForwardRule rule) => _validateRule(rule);
+
   void _validateRule(PortForwardRule rule) {
+    if (rule.protocol != 'tcp' && rule.protocol != 'http') {
+      throw ArgumentError('协议仅支持 TCP 或 HTTP。');
+    }
     if (rule.name.trim().isEmpty) {
       throw ArgumentError('名称不能为空。');
     }
-    if (rule.bindHost.trim().isEmpty) {
+    if (rule.protocol == 'tcp' && rule.bindHost.trim().isEmpty) {
       throw ArgumentError('本地绑定地址不能为空。');
     }
     if (rule.remoteHost.trim().isEmpty) {
       throw ArgumentError('远端主机不能为空。');
     }
-    if (!_isValidPort(rule.localPort) || !_isValidPort(rule.remotePort)) {
+    if ((rule.protocol == 'tcp' && !_isValidPort(rule.localPort)) ||
+        !_isValidPort(rule.remotePort)) {
       throw ArgumentError('端口范围必须是 1-65535。');
     }
   }
@@ -208,6 +244,9 @@ class _ActivePortForward {
   StreamSubscription<Socket>? subscription;
   String? error;
   int activeConnections = 0;
+  bool closed = false;
+  final Set<Socket> sockets = {};
+  final Set<SSHForwardChannel> channels = {};
 
   _ActivePortForward({
     required this.connectionId,
@@ -218,13 +257,21 @@ class _ActivePortForward {
   });
 
   Future<void> close() async {
+    closed = true;
     await subscription?.cancel();
     await server.close();
+    for (final socket in sockets.toList()) {
+      socket.destroy();
+    }
+    for (final channel in channels.toList()) {
+      channel.destroy();
+    }
   }
 }
 
 class PortForwardListenerSnapshot {
   final int ruleId;
+  final String protocol;
   final String name;
   final String host;
   final int port;
@@ -237,6 +284,7 @@ class PortForwardListenerSnapshot {
 
   const PortForwardListenerSnapshot({
     required this.ruleId,
+    this.protocol = 'tcp',
     required this.name,
     required this.host,
     required this.port,

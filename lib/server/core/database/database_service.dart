@@ -565,6 +565,27 @@ class DatabaseService {
       }
       _setVersion(21);
     }
+    // v21 -> v22: HTTP forwards share the main service port.
+    if (currentVersion < 22) {
+      _db.execute('''CREATE TABLE IF NOT EXISTS port_forwards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        bindHost TEXT NOT NULL,
+        localPort INTEGER NOT NULL,
+        remoteHost TEXT NOT NULL,
+        remotePort INTEGER NOT NULL,
+        createdAt INTEGER,
+        updatedAt INTEGER
+      )''');
+      final columns = _db.select('PRAGMA table_info(port_forwards)');
+      if (!columns.any((row) => row['name'] == 'protocol')) {
+        _db.execute(
+          "ALTER TABLE port_forwards ADD COLUMN protocol TEXT NOT NULL DEFAULT 'tcp'",
+        );
+      }
+      _setVersion(22);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

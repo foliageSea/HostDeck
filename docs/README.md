@@ -36,6 +36,7 @@
 - `modules/ai-agent.md`：AI 运维 Agent、审批与 SSE 合约
 - `modules/runtime-sessions.md`：运行态会话
 - `modules/docker.md`：Docker 管理
+- `modules/port-forwards.md`：TCP／HTTP 端口转发与 Docker 快捷创建
 - `modules/desktop-shell.md`：桌面工作台与窗口系统
 - `modules/settings.md`：设置、主题与壁纸
 - `modules/media-editor.md`：文本编辑与媒体预览

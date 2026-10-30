@@ -31,6 +31,7 @@ import 'package:host_deck/server/features/code_server/code_server_controller.dar
 import 'package:host_deck/server/features/code_server/code_server_manager.dart';
 import 'package:host_deck/server/features/code_server/code_server_models.dart';
 import 'package:host_deck/server/features/code_server/code_server_proxy.dart';
+import 'package:host_deck/server/features/port_forwards/port_forward_http_proxy.dart';
 import 'package:host_deck/server/features/code_server/ide_package_store.dart';
 import 'package:host_deck/server/features/code_server/remote_ide_provider.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_controller.dart';
@@ -94,6 +95,7 @@ class ServerContainer {
   final ServerRepository serverRepository;
   final CodeServerManager codeServerManager;
   final CodeServerProxy codeServerProxy;
+  final PortForwardHttpProxy portForwardHttpProxy;
 
   ServerContainer._({
     required GetIt getIt,
@@ -109,6 +111,7 @@ class ServerContainer {
     required this.serverRepository,
     required this.codeServerManager,
     required this.codeServerProxy,
+    required this.portForwardHttpProxy,
   }) : _getIt = getIt;
 
   static Future<ServerContainer> create({
@@ -359,6 +362,13 @@ class ServerContainer {
     getIt.registerLazySingleton<SecureBrowserTunnelService>(
       () => SecureBrowserTunnelService(getIt<SshService>()),
     );
+    getIt.registerLazySingleton<PortForwardHttpProxy>(
+      () => PortForwardHttpProxy(
+        service: getIt<PortForwardService>(),
+        accessService: getIt<AccessAuthService>(),
+      ),
+      dispose: (proxy) => proxy.dispose(),
+    );
     getIt.registerLazySingleton<LogExportService>(
       () => LogExportService(
         logDirectory: logDir == null ? null : Directory(logDir),
@@ -501,6 +511,7 @@ class ServerContainer {
       serverRepository: getIt<ServerRepository>(),
       codeServerManager: getIt<CodeServerManager>(),
       codeServerProxy: getIt<CodeServerProxy>(),
+      portForwardHttpProxy: getIt<PortForwardHttpProxy>(),
       apiRoutes: getIt<ApiRoutes>(),
       sshService: getIt<SshService>(),
     );
