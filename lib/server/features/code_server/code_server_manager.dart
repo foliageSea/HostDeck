@@ -62,6 +62,29 @@ class CodeServerManager implements CodeServerUpstreamResolver {
     return owner == null ? null : _sessions[owner];
   }
 
+  List<IdeListenerSnapshot> listActiveListeners() {
+    final listeners = <IdeListenerSnapshot>[];
+    for (final entry in _bridges.entries) {
+      final bridge = entry.value;
+      final session = _sessions[entry.key];
+      if (bridge.isClosed || session?.state != IdeSessionState.running) {
+        continue;
+      }
+      listeners.add(
+        IdeListenerSnapshot(
+          sessionId: session!.id,
+          connectionId: entry.key,
+          host: bridge.localHost,
+          port: bridge.localPort,
+          remotePort: bridge.remotePort,
+          activeConnections: bridge.activeConnections,
+          startedAt: session.startedAt,
+        ),
+      );
+    }
+    return listeners;
+  }
+
   /// 找到真正持有会话的 connectionId。
   ///
   /// 同一目标重连后会得到新的 connectionId，但运行中的会话仍登记在旧连接上；

@@ -70,6 +70,12 @@ class LoopbackSshBridge {
   /// 本地监听端口，代理通过它访问远端 code-server。
   int get localPort => _server.port;
 
+  String get localHost => _server.address.address;
+
+  int get remotePort => _remotePort;
+
+  int get activeConnections => _connections.length;
+
   bool get isClosed => _closed;
 
   void _start() {

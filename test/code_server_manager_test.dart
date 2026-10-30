@@ -87,6 +87,35 @@ void main() {
   }
 
   test(
+    'active listeners follow IDE start, reuse, stop and disconnect',
+    () async {
+      expect(manager.listActiveListeners(), isEmpty);
+      ssh.online('old');
+      final started = await manager.start('old');
+      final listener = manager.listActiveListeners().single;
+      final upstream = await manager.resolve(started.id);
+      expect(listener.sessionId, started.id);
+      expect(listener.connectionId, 'old');
+      expect(listener.host, '127.0.0.1');
+      expect(listener.port, upstream!.port);
+      expect(listener.remotePort, 18090);
+      expect(listener.activeConnections, greaterThanOrEqualTo(0));
+      expect(listener.startedAt, started.startedAt);
+
+      ssh.online('new');
+      await manager.start('new');
+      expect(manager.listActiveListeners(), hasLength(1));
+      await manager.stop('new');
+      expect(manager.listActiveListeners(), isEmpty);
+
+      await manager.start('new');
+      expect(manager.listActiveListeners(), hasLength(1));
+      await ssh.disconnect('new');
+      expect(manager.listActiveListeners(), isEmpty);
+    },
+  );
+
+  test(
     'stop from a reconnected connection stops the running session',
     () async {
       ssh.online('old');

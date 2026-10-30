@@ -72,6 +72,8 @@ HostDeck 端：
 - HostDeck 本地 bridge 绑定 127.0.0.1:0（随机）。
 - 禁止把 code-server 改成 0.0.0.0；禁止直接映射端口。
 
+设置中的“后端端口”通过 `/api/settings/ports` 汇总运行中的 IDE 内部隧道，显示本地监听地址、远端目标、SSH 连接 ID、活跃连接数、启动时间和 `/ide/<sessionId>/` 访问路径。停止或 SSH 断开后，刷新列表即移除；同一目标复用的会话只显示一条，不会为查询创建隧道。
+
 ## 启动参数
 
 code-server 固定参数：

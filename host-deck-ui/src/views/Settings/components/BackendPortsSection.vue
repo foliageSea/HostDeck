@@ -12,6 +12,7 @@ const typeLabels: Record<BackendPortInfo['type'], string> = {
   'port-forward': '端口转发',
   'secure-browser': '安全浏览器',
   docker: 'Docker',
+  ide: '远程 IDE',
 }
 
 function formatStartedAt(value: number) {
@@ -93,6 +94,12 @@ onMounted(refresh)
           </div>
           <div class="mt-[6px] break-all font-mono text-[13px] text-[rgba(71,85,105,0.94)]">
             {{ portInfo.host }}:{{ portInfo.port }}
+          </div>
+          <div
+            v-if="portInfo.purpose"
+            class="mt-[6px] break-all text-[12px] text-[rgba(100,116,139,0.9)]"
+          >
+            {{ portInfo.purpose }}
           </div>
         </div>
 

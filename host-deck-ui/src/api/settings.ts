@@ -17,7 +17,7 @@ export interface ServiceVersion {
 
 export interface BackendPortInfo {
   id: string
-  type: 'server' | 'port-forward' | 'secure-browser' | 'docker'
+  type: 'server' | 'port-forward' | 'secure-browser' | 'docker' | 'ide'
   name: string
   host: string
   port: number

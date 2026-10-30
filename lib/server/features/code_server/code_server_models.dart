@@ -170,6 +170,27 @@ class IdeSessionSnapshot {
   };
 }
 
+/// 当前仍在监听的 IDE 内部 SSH 隧道。
+class IdeListenerSnapshot {
+  final String sessionId;
+  final String connectionId;
+  final String host;
+  final int port;
+  final int remotePort;
+  final int activeConnections;
+  final DateTime? startedAt;
+
+  const IdeListenerSnapshot({
+    required this.sessionId,
+    required this.connectionId,
+    required this.host,
+    required this.port,
+    required this.remotePort,
+    required this.activeConnections,
+    required this.startedAt,
+  });
+}
+
 /// 代理目标。
 class CodeServerUpstream {
   final String host;

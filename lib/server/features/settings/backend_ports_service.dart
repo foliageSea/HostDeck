@@ -1,3 +1,4 @@
+import 'package:host_deck/server/features/code_server/code_server_manager.dart';
 import 'package:host_deck/server/features/docker/docker_socket_tunnel_service.dart';
 import 'package:host_deck/server/features/port_forwards/port_forward_service.dart';
 import 'package:host_deck/server/features/port_forwards/secure_browser_tunnel_service.dart';
@@ -8,6 +9,7 @@ class BackendPortsService {
   final PortForwardService _portForwardService;
   final SecureBrowserTunnelService _secureBrowserTunnelService;
   final DockerSocketTunnelService _dockerSocketTunnelService;
+  final CodeServerManager _codeServerManager;
 
   BackendPortsService({
     required String Function() serverHost,
@@ -15,11 +17,13 @@ class BackendPortsService {
     required PortForwardService portForwardService,
     required SecureBrowserTunnelService secureBrowserTunnelService,
     required DockerSocketTunnelService dockerSocketTunnelService,
+    required CodeServerManager codeServerManager,
   }) : _serverHost = serverHost,
        _serverPort = serverPort,
        _portForwardService = portForwardService,
        _secureBrowserTunnelService = secureBrowserTunnelService,
-       _dockerSocketTunnelService = dockerSocketTunnelService;
+       _dockerSocketTunnelService = dockerSocketTunnelService,
+       _codeServerManager = codeServerManager;
 
   Future<List<Map<String, dynamic>>> list() async {
     final items = <Map<String, dynamic>>[
@@ -50,6 +54,23 @@ class BackendPortsService {
         'activeConnections': listener.activeConnections,
         'startedAt': listener.startedAt,
         'error': ?listener.error,
+      });
+    }
+
+    for (final listener in _codeServerManager.listActiveListeners()) {
+      items.add({
+        'id': 'ide-${listener.sessionId}',
+        'type': 'ide',
+        'name': '远程 IDE',
+        'host': listener.host,
+        'port': listener.port,
+        'purpose': 'IDE 内部隧道，访问 /ide/${listener.sessionId}/',
+        'status': 'running',
+        'target': '127.0.0.1:${listener.remotePort}',
+        'connectionId': listener.connectionId,
+        'activeConnections': listener.activeConnections,
+        if (listener.startedAt != null)
+          'startedAt': listener.startedAt!.millisecondsSinceEpoch,
       });
     }
 

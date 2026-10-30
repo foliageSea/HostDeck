@@ -409,6 +409,7 @@ class ServerContainer {
         portForwardService: getIt<PortForwardService>(),
         secureBrowserTunnelService: getIt<SecureBrowserTunnelService>(),
         dockerSocketTunnelService: getIt<DockerSocketTunnelService>(),
+        codeServerManager: getIt<CodeServerManager>(),
       ),
     );
     getIt.registerLazySingleton<ApiRoutes>(
