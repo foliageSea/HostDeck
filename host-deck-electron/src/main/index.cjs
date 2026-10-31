@@ -305,7 +305,10 @@ app
     const url = await loadApplication()
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length !== 0) return
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        showMainWindow()
+        return
+      }
       createWindow()
       applicationUrl = url
       void loadShellPage('tabs')
