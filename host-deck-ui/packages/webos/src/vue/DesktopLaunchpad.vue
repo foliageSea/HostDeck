@@ -92,7 +92,7 @@ function toggleDockPin(appId: DesktopAppId) {
         aria-label="应用启动台"
         role="dialog"
         aria-modal="true"
-        @click.self="emit('close')"
+        @click="emit('close')"
       >
         <button
           type="button"
@@ -107,6 +107,7 @@ function toggleDockPin(appId: DesktopAppId) {
         <div class="launchpad-content mx-auto w-full max-w-[1040px]">
           <div
             class="mx-auto flex max-w-[360px] items-center gap-[9px] rounded-[10px] bg-[rgba(255,255,255,0.2)] px-[12px] ring-1 ring-[rgba(148,163,184,0.32)] focus-within:ring-[var(--app-primary-color)]"
+            @click.stop
           >
             <Search :size="17" class="shrink-0 opacity-60" aria-hidden="true" />
             <input
@@ -129,7 +130,7 @@ function toggleDockPin(appId: DesktopAppId) {
               <button
                 type="button"
                 class="mx-auto flex w-full flex-col items-center border-0 bg-transparent p-0 text-current cursor-pointer"
-                @click="openApp(app.id)"
+                @click.stop="openApp(app.id)"
               >
                 <span
                   class="flex h-[76px] w-[76px] items-center justify-center transition-transform duration-150 group-hover:scale-[1.06] group-active:scale-[0.96]"
