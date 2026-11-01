@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:logging/logging.dart';
@@ -35,6 +36,7 @@ class ChromeLauncher {
   final Map<String, String> environment;
   final bool Function(String path) executableExists;
   final ChromeProcessStarter processStarter;
+  final Future<void> Function(String directory, int proxyPort) profilePreparer;
   final _log = Logger('ChromeLauncher');
 
   ChromeLauncher({
@@ -44,10 +46,12 @@ class ChromeLauncher {
     Map<String, String>? environment,
     bool Function(String path)? executableExists,
     ChromeProcessStarter? processStarter,
+    Future<void> Function(String directory, int proxyPort)? profilePreparer,
   }) : platform = platform ?? Platform.operatingSystem,
        environment = environment ?? Platform.environment,
        executableExists = executableExists ?? _fileExists,
-       processStarter = processStarter ?? _startProcess;
+       processStarter = processStarter ?? _startProcess,
+       profilePreparer = profilePreparer ?? _prepareProfile;
 
   String? findExecutable() {
     final customPath = executablePath?.trim();
@@ -101,6 +105,7 @@ class ChromeLauncher {
         p.join(dataDirectory.path, 'secure-browser-profiles', profileId),
       );
       await profileDirectory.create(recursive: true);
+      await profilePreparer(profileDirectory.path, proxyPort);
       await processStarter(executable, [
         '--user-data-dir=${profileDirectory.path}',
         '--proxy-server=socks5://127.0.0.1:$proxyPort',
@@ -137,6 +142,75 @@ class ChromeLauncher {
   }
 
   static bool _fileExists(String path) => File(path).existsSync();
+
+  static bool _usesProfile(String command, String directory) {
+    return ['--user-data-dir=$directory', '--user-data-dir="$directory"'].any(
+      (argument) =>
+          command.endsWith(argument) || command.contains('$argument '),
+    );
+  }
+
+  static Future<List<({int pid, String command})>> _chromeProcesses() async {
+    if (Platform.isWindows) {
+      final result = await Process.run('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        'ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter "Name = \'chrome.exe\'" | Select-Object ProcessId,CommandLine)',
+      ]);
+      if (result.exitCode != 0) throw StateError('无法检查安全浏览器进程。');
+      return (jsonDecode(result.stdout as String) as List).map((entry) {
+        final process = entry as Map<String, dynamic>;
+        return (
+          pid: process['ProcessId'] as int,
+          command: process['CommandLine'] as String? ?? '',
+        );
+      }).toList();
+    }
+    final result = await Process.run('/bin/ps', ['-axww', '-o', 'pid=,args=']);
+    if (result.exitCode != 0) throw StateError('无法检查安全浏览器进程。');
+    return (result.stdout as String).split('\n').expand((line) {
+      final match = RegExp(r'^\s*(\d+)\s+(.+)$').firstMatch(line);
+      return [
+        if (match != null) (pid: int.parse(match[1]!), command: match[2]!),
+      ];
+    }).toList();
+  }
+
+  static Future<void> _prepareProfile(String directory, int proxyPort) async {
+    final stale = (await _chromeProcesses())
+        .where(
+          (process) =>
+              _usesProfile(process.command, directory) &&
+              !process.command.contains('--type=') &&
+              !process.command
+                  .split(RegExp(r'\s+'))
+                  .contains('--proxy-server=socks5://127.0.0.1:$proxyPort'),
+        )
+        .toList();
+    for (final process in stale) {
+      if (Platform.isWindows) {
+        final result = await Process.run('taskkill.exe', [
+          '/PID',
+          '${process.pid}',
+          '/T',
+        ]);
+        if (result.exitCode != 0) throw StateError('请关闭此主机的安全浏览器窗口后重试。');
+      } else {
+        Process.killPid(process.pid, ProcessSignal.sigterm);
+      }
+    }
+    for (var attempt = 0; stale.isNotEmpty && attempt < 100; attempt++) {
+      final remaining = (await _chromeProcesses()).any(
+        (process) =>
+            _usesProfile(process.command, directory) &&
+            !process.command.contains('--type='),
+      );
+      if (!remaining) return;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    if (stale.isNotEmpty) throw StateError('请关闭此主机的安全浏览器窗口后重试。');
+  }
 
   static Future<void> _startProcess(
     String executable,

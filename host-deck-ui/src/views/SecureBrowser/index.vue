@@ -79,7 +79,7 @@ async function launchTunnelInChrome(tunnel: SecureBrowserTunnel) {
   const launcher = window.hostDeck?.app?.openInSecureChrome
   if (launcher) {
     const result = await launcher({
-      profileId: tunnel.id,
+      profileId: tunnel.profileId,
       proxyPort: tunnel.bindPort,
     })
     if (!result.success) throw new Error(result.message)

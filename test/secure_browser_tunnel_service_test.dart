@@ -6,6 +6,46 @@ import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/port_forwards/secure_browser_tunnel_service.dart';
 
 void main() {
+  test(
+    'reuses profiles across tunnels and reconnects, isolates SSH targets',
+    () async {
+      final sshService = _FakeSshService();
+      final service = SecureBrowserTunnelService(
+        sshService,
+        forwardFactory: (_, _) async => _FakeDynamicForward(),
+      );
+      addTearDown(service.stopAll);
+      final first = await service.create(connectionId: 'connection-1');
+      await service.stop(first.id);
+      final second = await service.create(connectionId: 'connection-2');
+      expect(second.id, isNot(first.id));
+      expect(second.profileId, first.profileId);
+      expect(second.toJson()['profileId'], first.profileId);
+      for (final metadata in [
+        const SshConnectionMetadata(
+          host: 'other.internal',
+          port: 22,
+          username: 'root',
+        ),
+        const SshConnectionMetadata(
+          host: 'host.internal',
+          port: 2222,
+          username: 'root',
+        ),
+        const SshConnectionMetadata(
+          host: 'host.internal',
+          port: 22,
+          username: 'user',
+        ),
+      ]) {
+        await service.stop(second.id);
+        sshService.metadata = metadata;
+        final other = await service.create(connectionId: metadata.targetKey);
+        expect(other.profileId, isNot(first.profileId));
+      }
+    },
+  );
+
   test('creates a reusable dynamic forward and stops it', () async {
     final sshService = _FakeSshService();
     late SSHDynamicConnectionFilter filter;
@@ -65,6 +105,11 @@ void main() {
 }
 
 class _FakeSshService extends SshService {
+  SshConnectionMetadata metadata = const SshConnectionMetadata(
+    host: 'host.internal',
+    port: 22,
+    username: 'root',
+  );
   final bool connected;
   final SSHClient _client = _FakeSshClient();
   FutureOr<void> Function(String connectionId)? disconnectListener;
@@ -73,6 +118,9 @@ class _FakeSshService extends SshService {
 
   @override
   SSHClient? getClient(String connectionId) => connected ? _client : null;
+
+  @override
+  SshConnectionMetadata? getConnectionMetadata(String connectionId) => metadata;
 
   @override
   void addDisconnectListener(

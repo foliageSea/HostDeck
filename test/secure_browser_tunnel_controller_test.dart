@@ -29,6 +29,7 @@ void main() {
         dataDirectory: dataDirectory,
         executablePath: '/custom/chrome',
         executableExists: (_) => true,
+        profilePreparer: (_, _) async {},
         processStarter: (_, arguments) async {
           startedArguments = arguments;
         },
@@ -53,6 +54,7 @@ void main() {
       contains('--proxy-server=socks5://127.0.0.1:49152'),
     );
     expect(startedArguments.last, 'https://grafana.internal');
+    expect(startedArguments, contains(endsWith('/${tunnel.profileId}')));
   });
 
   test(
@@ -82,6 +84,14 @@ class _FakeSshService extends SshService {
 
   @override
   SSHClient? getClient(String connectionId) => _client;
+
+  @override
+  SshConnectionMetadata? getConnectionMetadata(String connectionId) =>
+      const SshConnectionMetadata(
+        host: 'host.internal',
+        port: 22,
+        username: 'root',
+      );
 
   @override
   void addDisconnectListener(

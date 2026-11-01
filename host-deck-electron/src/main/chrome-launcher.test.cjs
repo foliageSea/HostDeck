@@ -34,6 +34,7 @@ test('launch starts an isolated Chrome instance with a fail-closed SOCKS proxy',
   child.unref = () => calls.push(['unref'])
   const launcher = createChromeLauncher({
     app: { getPath: () => '/hostdeck' },
+    prepareProfile: async () => {},
     fileSystem: {
       constants: { X_OK: 1 },
       accessSync: () => undefined,
@@ -79,4 +80,29 @@ test('launch reports when Chrome is unavailable', async () => {
     reason: 'not-installed',
     message: '未检测到 Google Chrome。',
   })
+})
+
+test('does not launch when the previous browser cannot be closed', async () => {
+  let started = false
+  const launcher = createChromeLauncher({
+    app: { getPath: () => '/hostdeck' },
+    fileSystem: {
+      constants: { X_OK: 1 },
+      accessSync: () => {},
+      mkdirSync: () => {},
+    },
+    processPlatform: 'darwin',
+    prepareProfile: async (directory, port) => {
+      assert.equal(directory, '/hostdeck/secure-browser-profiles/host-1')
+      assert.equal(port, 49152)
+      throw new Error('close browser first')
+    },
+    spawnProcess: () => {
+      started = true
+    },
+  })
+  const result = await launcher.launch({ profileId: 'host-1', proxyPort: 49152 })
+  assert.equal(result.success, false)
+  assert.equal(result.reason, 'launch-failed')
+  assert.equal(started, false)
 })

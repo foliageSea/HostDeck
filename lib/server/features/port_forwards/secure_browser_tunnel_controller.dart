@@ -74,7 +74,7 @@ class SecureBrowserTunnelController {
         url = value as String?;
       }
       final result = await launcher.launch(
-        profileId: tunnel.id,
+        profileId: tunnel.profileId,
         proxyPort: tunnel.bindPort,
         url: url,
       );

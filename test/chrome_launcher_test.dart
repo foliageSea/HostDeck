@@ -5,6 +5,38 @@ import 'package:host_deck/server/features/port_forwards/chrome_launcher.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
+  test(
+    'does not launch when the existing profile cannot be prepared',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'hostdeck-profile-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      var started = false;
+      final launcher = ChromeLauncher(
+        dataDirectory: directory,
+        executablePath: '/custom/chrome',
+        executableExists: (_) => true,
+        profilePreparer: (path, port) async {
+          expect(
+            path,
+            p.join(directory.path, 'secure-browser-profiles', 'host-1'),
+          );
+          expect(port, 49152);
+          throw StateError('close browser first');
+        },
+        processStarter: (_, _) async => started = true,
+      );
+      final result = await launcher.launch(
+        profileId: 'host-1',
+        proxyPort: 49152,
+      );
+      expect(result.success, isFalse);
+      expect(result.reason, 'launch-failed');
+      expect(started, isFalse);
+    },
+  );
+
   test('uses an explicit Chrome path and fail-closed proxy arguments', () async {
     final dataDirectory = await Directory.systemTemp.createTemp(
       'hostdeck-chrome-launcher-',
@@ -16,6 +48,7 @@ void main() {
       dataDirectory: dataDirectory,
       executablePath: '/custom/chrome',
       executableExists: (path) => path == '/custom/chrome',
+      profilePreparer: (_, _) async {},
       processStarter: (executable, arguments) async {
         startedExecutable = executable;
         startedArguments = arguments;

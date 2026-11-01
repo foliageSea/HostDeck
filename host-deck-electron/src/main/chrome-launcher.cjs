@@ -1,6 +1,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { spawn } = require('node:child_process')
+const { prepareChromeProfile } = require('./chrome-profile.cjs')
 
 function isValidProfileId(value) {
   return typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value)
@@ -69,6 +70,7 @@ function createChromeLauncher({
   processEnv = process.env,
   processPlatform = process.platform,
   spawnProcess = spawn,
+  prepareProfile = prepareChromeProfile,
 }) {
   function findChrome() {
     return chromeCandidates(processPlatform, processEnv).find((candidate) => {
@@ -111,6 +113,7 @@ function createChromeLauncher({
     ]
 
     try {
+      await prepareProfile(profileDirectory, parsed.proxyPort)
       const child = spawnProcess(executable, args, {
         detached: true,
         stdio: 'ignore',

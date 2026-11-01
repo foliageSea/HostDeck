@@ -1,5 +1,6 @@
 class SecureBrowserTunnel {
   final String id;
+  final String profileId;
   final String connectionId;
   final String bindHost;
   final int bindPort;
@@ -7,6 +8,7 @@ class SecureBrowserTunnel {
 
   const SecureBrowserTunnel({
     required this.id,
+    required this.profileId,
     required this.connectionId,
     required this.bindHost,
     required this.bindPort,
@@ -15,6 +17,7 @@ class SecureBrowserTunnel {
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    'profileId': profileId,
     'connectionId': connectionId,
     'bindHost': bindHost,
     'bindPort': bindPort,

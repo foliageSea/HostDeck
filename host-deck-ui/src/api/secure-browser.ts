@@ -2,6 +2,7 @@ import { http } from '@/lib/http'
 
 export interface SecureBrowserTunnel {
   id: string
+  profileId: string
   connectionId: string
   bindHost: string
   bindPort: number

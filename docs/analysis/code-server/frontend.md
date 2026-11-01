@@ -54,6 +54,7 @@
 - 前端：创建隧道 `POST /api/secure-browser-tunnels`（`host-deck-ui/src/api/secure-browser.ts:21-25`），然后用 `window.hostDeck.app.openInSecureChrome({ profileId, proxyPort })` 启动（`host-deck-ui/src/views/SecureBrowser/index.vue:78-92`）；无 Electron 时回退 CLI `launch`（`api/secure-browser.ts:36-42`）。能力探测：`/capabilities` → `launchEnabled/chromeDetected`（`secure_browser_tunnel_controller.dart:25-26`），CLI 需 `--enable-secure-browser`（`lib/server/app/server_cli.dart:41`、`:102`）。
 - 后端：隧道 = `client.forwardDynamic(bindHost: '127.0.0.1', maxConnections: 128)`，即 SSH 动态转发/SOCKS5（`secure_browser_tunnel_service.dart:61-86`、`:139-148`），一个连接只保留一条隧道（`:43-47`）。
 - 壳层：Electron 用 `--user-data-dir=<userData>/secure-browser-profiles/<profileId>` + `--proxy-server=socks5://127.0.0.1:<bindPort>` + `--proxy-bypass-list=<-loopback>` 拉起本机 Chrome（`host-deck-electron/src/main/chrome-launcher.cjs:97-111`）；后端 CLI 路径同构（`lib/server/features/port_forwards/chrome_launcher.dart:106`）。
+- `profileId` 由 SSH 主机地址、端口和用户名生成固定 SHA-256 标识，通过隧道 API 返回，与随机隧道 ID 分离。同一目标跨隧道、重连和重启复用 Cookie 等浏览器数据。启动前检查该目录的浏览器主进程；代理端口变化时先关闭旧进程，等待退出后再启动，关闭失败则提示用户关闭窗口后重试。旧随机目录不自动迁移或删除。
 
 差异结论：
 | 维度 | iframe 内嵌 | SecureBrowser |

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:logging/logging.dart';
 
@@ -64,6 +66,7 @@ class SecureBrowserTunnelService {
       throw StateError('SSH 连接不存在或已断开。');
     }
 
+    final profileId = _profileId(connectionId);
     final forward = await _forwardFactory(client, _allowTarget);
     if (_disconnectedConnections.contains(connectionId) ||
         _sshService.getClient(connectionId) != client ||
@@ -73,6 +76,7 @@ class SecureBrowserTunnelService {
     }
     final tunnel = SecureBrowserTunnel(
       id: _generateId(),
+      profileId: profileId,
       connectionId: connectionId,
       bindHost: forward.host,
       bindPort: forward.port,
@@ -134,6 +138,19 @@ class SecureBrowserTunnelService {
     return values
         .map((value) => value.toRadixString(16).padLeft(2, '0'))
         .join();
+  }
+
+  String _profileId(String connectionId) {
+    final metadata = _sshService.getConnectionMetadata(connectionId);
+    if (metadata == null) {
+      throw StateError('SSH 连接缺少主机信息。');
+    }
+    final identity = jsonEncode([
+      metadata.host.trim().toLowerCase(),
+      metadata.port,
+      metadata.username,
+    ]);
+    return 'host-${sha256.convert(utf8.encode(identity))}';
   }
 
   static Future<SSHDynamicForward> _createDynamicForward(
