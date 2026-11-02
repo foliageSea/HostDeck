@@ -19,6 +19,10 @@ HostDeck 是一个跨平台远程主机工作台，在桌面式界面中集中�
 
 当前开发、Docker 构建和发布流程都以 `host-deck-ui/` 为准。
 
+## 软件截图
+
+![HostDeck 软件截图](docs/image.png)
+
 ## 功能概览
 
 - SSH 登录与服务器保存
