@@ -1,7 +1,7 @@
 {
   "name": "host-deck-electron",
   "private": true,
-  "version": "0.3.1",
+  "version": "1.0.0",
   "license": "GPL-3.0-only",
   "main": "src/main/index.cjs",
   "engines": {
