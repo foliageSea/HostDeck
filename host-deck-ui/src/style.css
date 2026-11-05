@@ -291,6 +291,14 @@ button:focus-visible {
   outline: none;
 }
 
+.n-dialog__action > .n-button,
+.n-popconfirm__action > .n-button {
+  min-width: 64px;
+  height: 34px;
+  border-radius: 999px;
+  padding: 0 16px;
+}
+
 .app-scrollbar {
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
