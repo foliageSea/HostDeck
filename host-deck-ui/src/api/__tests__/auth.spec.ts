@@ -47,4 +47,24 @@ describe('authApi', () => {
       params: { connectionId: 'conn-1' },
     })
   })
+
+  it('passes a cancellation signal and request id when connecting', async () => {
+    post.mockResolvedValue({ data: { connectionId: 'conn-2' } })
+    const controller = new AbortController()
+    const payload = { host: 'host.example', port: 22, username: 'deploy' }
+    await authApi.connect(payload, { requestId: 'request-123', signal: controller.signal })
+    expect(post).toHaveBeenCalledWith(
+      '/api/connect',
+      { ...payload, requestId: 'request-123' },
+      { signal: controller.signal },
+    )
+  })
+
+  it('cancels a pending connection by request id', async () => {
+    deleteRequest.mockResolvedValue({ data: { success: true } })
+    await authApi.cancelConnect('request-123')
+    expect(deleteRequest).toHaveBeenCalledWith('/api/connect/pending', {
+      params: { requestId: 'request-123' },
+    })
+  })
 })

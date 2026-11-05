@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
@@ -16,6 +17,35 @@ typedef SshClientFactory =
       String? password,
       String? privateKey,
     });
+
+class SshConnectionCancelled implements Exception {
+  const SshConnectionCancelled();
+
+  @override
+  String toString() => '连接已取消';
+}
+
+class _ConnectionAttempt {
+  final createdAt = DateTime.now();
+  final cancelled = Completer<void>();
+  void Function()? onCancel;
+  String? connectionId;
+
+  void cancel() {
+    if (cancelled.isCompleted) return;
+    cancelled.complete();
+    onCancel?.call();
+  }
+
+  void checkCancelled() {
+    if (cancelled.isCompleted) throw const SshConnectionCancelled();
+  }
+
+  Future<T> wait<T>(Future<T> future) => Future.any([
+    future,
+    cancelled.future.then<T>((_) => throw const SshConnectionCancelled()),
+  ]);
+}
 
 class SshSessionLimitExceeded implements Exception {
   final int maxSessions;
@@ -100,13 +130,14 @@ class SshService {
   final Map<String, DateTime> _lastSocketDataAt = {};
   Timer? _idleReaperTimer;
   Timer? _socketSilenceTimer;
-  final SshSocketConnector _socketConnector;
+  final SshSocketConnector? _socketConnector;
   final SshClientFactory _clientFactory;
+  final Map<String, _ConnectionAttempt> _connectionAttempts = {};
 
   final logger = Logger('SshService');
 
   SshService({
-    SshSocketConnector socketConnector = SSHSocket.connect,
+    SshSocketConnector? socketConnector,
     SshClientFactory clientFactory = _createClient,
   }) : _socketConnector = socketConnector,
        _clientFactory = clientFactory;
@@ -135,63 +166,153 @@ class SshService {
     int? serverId,
     String? password,
     String? privateKey,
+    String? requestId,
   }) async {
-    final socket = await _socketConnector(host, port);
-    String? trackedConnectionId;
-    final trackedSocket = _TrackedSshSocket(
-      socket,
-      onData: () {
-        final connectionId = trackedConnectionId;
-        if (connectionId != null) {
-          _lastSocketDataAt[connectionId] = DateTime.now();
-        }
-      },
-    );
-    final client = _clientFactory(
-      trackedSocket,
-      username: username,
-      password: password,
-      privateKey: privateKey,
-    );
-
+    _pruneConnectionAttempts();
+    final attempt = requestId == null
+        ? _ConnectionAttempt()
+        : _connectionAttempts.putIfAbsent(requestId, _ConnectionAttempt.new);
+    attempt.checkCancelled();
+    if (attempt.onCancel != null || attempt.connectionId != null) {
+      throw StateError('Duplicate connection request');
+    }
+    SSHSocket? socket;
+    SSHClient? client;
     try {
-      await client.authenticated;
+      final connectedSocket = await attempt.wait(
+        _connectSocket(host, port, attempt),
+      );
+      socket = connectedSocket;
+      attempt.checkCancelled();
+      attempt.onCancel = connectedSocket.destroy;
+      String? trackedConnectionId;
+      final trackedSocket = _TrackedSshSocket(
+        connectedSocket,
+        onData: () {
+          final connectionId = trackedConnectionId;
+          if (connectionId != null) {
+            _lastSocketDataAt[connectionId] = DateTime.now();
+          }
+        },
+      );
+      client = _clientFactory(
+        trackedSocket,
+        username: username,
+        password: password,
+        privateKey: privateKey,
+      );
+
+      attempt.onCancel = () {
+        client!.close();
+        socket!.destroy();
+      };
+      await attempt.wait(client.authenticated);
+      attempt.checkCancelled();
+
+      final connectionId = _generateId();
+      attempt.connectionId = connectionId;
+      attempt.onCancel = null;
+      trackedConnectionId = connectionId;
+      _clients[connectionId] = client;
+      _connectionServerIds[connectionId] = serverId;
+      _connectionMetadata[connectionId] = SshConnectionMetadata(
+        host: host,
+        port: port,
+        username: username,
+        serverId: serverId,
+      );
+      _operationLimiters[connectionId] = SshOperationLimiter(
+        maxConcurrentOperations: maxConcurrentOperations,
+      );
+      _lastActivityAt[connectionId] = DateTime.now();
+      _lastSocketDataAt[connectionId] = DateTime.now();
+      _startSupervision();
+
+      // Handle unexpected disconnection, including futures completed with errors.
+      unawaited(
+        client.done
+            .whenComplete(() {
+              logger.warning('Connection $connectionId closed');
+              _disconnectInternal(connectionId);
+            })
+            .catchError(
+              (error) =>
+                  logger.severe('Error $error on connection $connectionId'),
+            ),
+      );
+
+      return connectionId;
     } catch (_) {
-      client.close();
+      if (attempt.cancelled.isCompleted) {
+        throw const SshConnectionCancelled();
+      }
+      if (client != null) {
+        client.close();
+      } else {
+        socket?.destroy();
+      }
       rethrow;
+    } finally {
+      attempt.onCancel = null;
+    }
+  }
+
+  Future<SSHSocket> _connectSocket(
+    String host,
+    int port,
+    _ConnectionAttempt attempt,
+  ) async {
+    final connector = _socketConnector;
+    if (connector != null) {
+      // Test/custom transports may not expose a cancellable TCP task.
+      attempt.onCancel = () {};
+      final socket = await connector(host, port);
+      if (attempt.cancelled.isCompleted) {
+        socket.destroy();
+        throw const SshConnectionCancelled();
+      }
+      attempt.onCancel = socket.destroy;
+      return socket;
     }
 
-    final connectionId = _generateId();
-    trackedConnectionId = connectionId;
-    _clients[connectionId] = client;
-    _connectionServerIds[connectionId] = serverId;
-    _connectionMetadata[connectionId] = SshConnectionMetadata(
-      host: host,
-      port: port,
-      username: username,
-      serverId: serverId,
-    );
-    _operationLimiters[connectionId] = SshOperationLimiter(
-      maxConcurrentOperations: maxConcurrentOperations,
-    );
-    _lastActivityAt[connectionId] = DateTime.now();
-    _lastSocketDataAt[connectionId] = DateTime.now();
-    _startSupervision();
+    attempt.onCancel = () {};
+    final task = await Socket.startConnect(host, port);
+    if (attempt.cancelled.isCompleted) {
+      task.cancel();
+      // Always observe the socket future, including cancellation errors.
+      unawaited(
+        task.socket.then((socket) => socket.destroy()).catchError((_) {}),
+      );
+      throw const SshConnectionCancelled();
+    }
+    attempt.onCancel = task.cancel;
+    final socket = await task.socket;
+    if (attempt.cancelled.isCompleted) {
+      socket.destroy();
+      throw const SshConnectionCancelled();
+    }
+    attempt.onCancel = socket.destroy;
+    return _NativeSshSocket(socket);
+  }
 
-    // Handle unexpected disconnection, including futures completed with errors.
-    unawaited(
-      client.done
-          .whenComplete(() {
-            logger.warning('Connection $connectionId closed');
-            _disconnectInternal(connectionId);
-          })
-          .catchError(
-            (error) =>
-                logger.severe('Error $error on connection $connectionId'),
-          ),
+  void _pruneConnectionAttempts() {
+    final cutoff = DateTime.now().subtract(const Duration(minutes: 10));
+    _connectionAttempts.removeWhere(
+      (_, attempt) =>
+          attempt.onCancel == null && attempt.createdAt.isBefore(cutoff),
     );
+  }
 
-    return connectionId;
+  Future<void> cancelConnect(String requestId) async {
+    _pruneConnectionAttempts();
+    // Keep a tombstone so cancellation can arrive before the connect request.
+    final attempt = _connectionAttempts.putIfAbsent(
+      requestId,
+      _ConnectionAttempt.new,
+    );
+    attempt.cancel();
+    final connectionId = attempt.connectionId;
+    if (connectionId != null) await disconnect(connectionId);
   }
 
   int? getServerId(String connectionId) => _connectionServerIds[connectionId];
@@ -618,6 +739,30 @@ class SshService {
 }
 
 /// 记录 SSH 传输层最后一次收到字节的时间，用于识别半开连接。
+class _NativeSshSocket implements SSHSocket {
+  final Socket _socket;
+
+  _NativeSshSocket(this._socket);
+
+  @override
+  Stream<Uint8List> get stream => _socket;
+
+  @override
+  StreamSink<List<int>> get sink => _socket;
+
+  @override
+  Future<void> get done => _socket.done;
+
+  @override
+  Future<void> close() async => _socket.close();
+
+  @override
+  void destroy() => _socket.destroy();
+
+  @override
+  Future<void> flush() => _socket.flush();
+}
+
 class _TrackedSshSocket implements SSHSocket {
   final SSHSocket _inner;
   final void Function() _onData;

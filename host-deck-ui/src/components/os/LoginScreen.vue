@@ -2,7 +2,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
 import { Check, LogOut, Pencil, Plus, RefreshCw, Server, Trash2 } from '@lucide/vue'
-import { authApi, type ConnectParams, type ConnectResponse } from '@/api/auth'
+import { authApi, type ConnectParams } from '@/api/auth'
+import { useLoginConnection } from '@/hooks/useLoginConnection'
 import BrandLogo from '@/components/common/BrandLogo.vue'
 import type { SavedServer, ServerUpdatePayload } from '@/api/server'
 import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
@@ -28,6 +29,7 @@ const LAST_SELECTED_SERVER_STORAGE_KEY = 'host-deck-ui.login.lastSelectedServerI
 
 const emit = defineEmits<{
   'connection-error': []
+  'connection-cancel': []
   'connection-start': [target: { endpoint: string; serverName: string }]
 }>()
 
@@ -239,21 +241,13 @@ function handleCredentialModeChange(mode: string | number) {
   }
 }
 
-const connectMutation = useMutation<ConnectResponse, Error, ConnectParams>({
-  mutationFn: authApi.connect,
-  onSuccess: (data) => {
-    sshStore.setSession(
-      data.connectionId,
-      connectionForm.host,
-      connectionForm.port,
-      connectionForm.username,
-      {
-        serverId: selectedServer.value?.id,
-        host: connectionForm.host,
-        port: connectionForm.port,
-        username: connectionForm.username,
-      },
-    )
+const {
+  connect,
+  cancel: cancelConnection,
+  isConnecting,
+} = useLoginConnection({
+  onSuccess: (data, payload) => {
+    sshStore.setSession(data.connectionId, payload.host, payload.port, payload.username, payload)
   },
   onError: (error) => {
     emit('connection-error')
@@ -262,9 +256,12 @@ const connectMutation = useMutation<ConnectResponse, Error, ConnectParams>({
       isShaking.value = false
     }, 500)
 
-    getUiApi().message.error(error.message || '连接失败')
+    getUiApi().message.error(error instanceof Error ? error.message : '连接失败')
   },
+  onCancel: () => emit('connection-cancel'),
 })
+
+defineExpose({ cancelConnection })
 
 const saveServerMutation = useMutation<SavedServer | void, Error, void>({
   mutationFn: async () => {
@@ -339,7 +336,6 @@ const testConnectionMutation = useMutation<{ success: boolean }, Error, ConnectP
   },
 })
 
-const isConnecting = computed(() => connectMutation.isPending.value)
 const isSavingServer = computed(() => saveServerMutation.isPending.value)
 const isTesting = computed(() => testConnectionMutation.isPending.value)
 const hasSelectedCredential = computed(() =>
@@ -372,6 +368,7 @@ const connectionTargetEndpoint = computed(
 )
 
 function handleConnect() {
+  if (isConnecting.value) return
   if (!selectedServer.value) {
     getUiApi().message.warning('请先选择一个服务器。')
     return
@@ -386,7 +383,7 @@ function handleConnect() {
     endpoint: connectionTargetEndpoint.value,
     serverName: connectionTargetName.value,
   })
-  connectMutation.mutate({
+  void connect({
     serverId: selectedServer.value.id,
     host: connectionForm.host,
     port: connectionForm.port,
@@ -684,7 +681,11 @@ onMounted(async () => {
           </div>
 
           <form @submit.prevent="handleConnect">
+            <NButton v-if="isConnecting" block size="large" @click="cancelConnection">
+              取消连接
+            </NButton>
             <NButton
+              v-else
               attr-type="submit"
               type="primary"
               block

@@ -13,9 +13,26 @@ export interface ConnectResponse {
   connectionId: string
 }
 
+export interface ConnectOptions {
+  requestId: string
+  signal: AbortSignal
+}
+
 export const authApi = {
-  connect: async (data: ConnectParams) => {
-    const response = await http.post<ConnectResponse>('/api/connect', data)
+  connect: async (data: ConnectParams, options?: ConnectOptions) => {
+    const response = options
+      ? await http.post<ConnectResponse>(
+          '/api/connect',
+          { ...data, requestId: options.requestId },
+          { signal: options.signal },
+        )
+      : await http.post<ConnectResponse>('/api/connect', data)
+    return response.data
+  },
+  cancelConnect: async (requestId: string) => {
+    const response = await http.delete<{ success: boolean }>('/api/connect/pending', {
+      params: { requestId },
+    })
     return response.data
   },
   testConnect: async (data: ConnectParams) => {

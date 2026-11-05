@@ -25,6 +25,10 @@ class AuthController {
     try {
       final payload = await request.readAsString();
       final data = jsonDecode(payload);
+      final requestId = _stringOrNull(data['requestId']);
+      if (requestId != null && !_validRequestId(requestId)) {
+        return Result.fail(400, 'Invalid requestId');
+      }
       final server = _getSavedServer(data['serverId']);
       _logAuthRequest('Connect', data['serverId'], server);
       final connectionId = await _sshService.connect(
@@ -34,9 +38,12 @@ class AuthController {
         serverId: server?.id,
         password: server?.password ?? _stringOrNull(data['password']),
         privateKey: server?.privateKey ?? _stringOrNull(data['privateKey']),
+        requestId: requestId,
       );
 
       return Result.ok({'connectionId': connectionId});
+    } on SshConnectionCancelled {
+      return Result.fail(499, '连接已取消');
     } catch (e) {
       _log.severe('Connect Error: $e');
       return Result.fail(500, e.toString());
@@ -80,6 +87,18 @@ class AuthController {
       _log.severe('Disconnect Error: $e');
       return Result.fail(500, e.toString());
     }
+  }
+
+  bool _validRequestId(String value) =>
+      RegExp(r'^[a-zA-Z0-9_-]{16,128}$').hasMatch(value);
+
+  Future<Response> cancelConnect(Request request) async {
+    final requestId = request.url.queryParameters['requestId'];
+    if (requestId == null || !_validRequestId(requestId)) {
+      return Result.fail(400, 'Invalid requestId');
+    }
+    await _sshService.cancelConnect(requestId);
+    return Result.ok({'success': true});
   }
 
   ServerConfig? _getSavedServer(dynamic serverId) {

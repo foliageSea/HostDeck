@@ -27,6 +27,7 @@ const accessStore = useAccessStore()
 const desktopStore = useDesktopStore()
 const uploadCenterStore = useUploadCenterStore()
 const desktopTransitionVisible = ref(false)
+const loginScreen = ref<InstanceType<typeof LoginScreen> | null>(null)
 const desktopTransitionTarget = ref({ endpoint: '', serverName: '远程主机' })
 const desktopTransitionStartedAt = ref(0)
 const DESKTOP_TRANSITION_MIN_DURATION = 1200
@@ -125,14 +126,18 @@ onBeforeUnmount(() => {
                 <DesktopShell v-else-if="sshStore.isConnected" @ready="handleDesktopReady" />
                 <LoginScreen
                   v-else
+                  ref="loginScreen"
                   @connection-start="handleConnectionStart"
                   @connection-error="handleConnectionError"
+                  @connection-cancel="handleConnectionError"
                 />
               </Transition>
               <DesktopTransitionLoading
                 :show="desktopTransitionVisible"
                 :server-name="desktopTransitionTarget.serverName"
                 :endpoint="desktopTransitionTarget.endpoint"
+                :cancellable="!sshStore.isConnected"
+                @cancel="loginScreen?.cancelConnection()"
               />
             </div>
           </NMessageProvider>

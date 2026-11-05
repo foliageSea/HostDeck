@@ -6,7 +6,10 @@ defineProps<{
   endpoint: string
   serverName: string
   show: boolean
+  cancellable?: boolean
 }>()
+
+defineEmits<{ cancel: [] }>()
 
 const settingsStore = useSettingsStore()
 
@@ -99,6 +102,14 @@ function handleLeave(el: Element, done: () => void) {
           <span />
           <span />
         </div>
+        <NButton
+          v-if="cancellable"
+          class="desktop-loading-fade mt-[24px]"
+          secondary
+          @click="$emit('cancel')"
+        >
+          取消连接
+        </NButton>
       </div>
     </div>
   </Transition>
