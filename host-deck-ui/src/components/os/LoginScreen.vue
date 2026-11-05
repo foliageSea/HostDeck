@@ -1,7 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, defineAsyncComponent, h, onMounted, reactive, ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
-import { Check, LogOut, Pencil, Plus, RefreshCw, Server, Trash2 } from '@lucide/vue'
+import {
+  Check,
+  LogOut,
+  Monitor,
+  Moon,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Server,
+  Settings,
+  Sun,
+  Trash2,
+} from '@lucide/vue'
 import { authApi, type ConnectParams } from '@/api/auth'
 import { useLoginConnection } from '@/hooks/useLoginConnection'
 import BrandLogo from '@/components/common/BrandLogo.vue'
@@ -25,6 +37,7 @@ type ConnectionFormState = Omit<ServerFormState, 'name'>
 type CredentialMode = 'password' | 'privateKey'
 type ServerLatency = { status: 'checking' | 'online' | 'offline'; value?: number }
 
+const SettingsView = defineAsyncComponent(() => import('@/views/Settings/index.vue'))
 const LAST_SELECTED_SERVER_STORAGE_KEY = 'host-deck-ui.login.lastSelectedServerId'
 
 const emit = defineEmits<{
@@ -36,6 +49,22 @@ const emit = defineEmits<{
 const sshStore = useSshStore()
 const accessStore = useAccessStore()
 const settingsStore = useSettingsStore()
+const settingsVisible = ref(false)
+const themeOptions = [
+  { key: 'system', label: '跟随系统', icon: () => h(Monitor, { size: 16 }) },
+  { key: 'light', label: '浅色', icon: () => h(Sun, { size: 16 }) },
+  { key: 'dark', label: '深色', icon: () => h(Moon, { size: 16 }) },
+]
+const themeLabel = computed(
+  () => `主题：${themeOptions.find((option) => option.key === settingsStore.themeMode)?.label}`,
+)
+
+function handleThemeSelect(key: string | number) {
+  if (key === 'system' || key === 'light' || key === 'dark') {
+    settingsStore.setTheme(key)
+  }
+}
+
 const isShaking = ref(false)
 const isLoggingOut = ref(false)
 const selectedServerId = ref<number | null>(readLastSelectedServerId())
@@ -484,7 +513,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="relative min-h-screen overflow-hidden">
+  <div class="login-screen relative overflow-hidden">
     <video
       v-if="isVideoWallpaper"
       class="absolute inset-0 h-full w-full object-cover"
@@ -501,7 +530,40 @@ onMounted(async () => {
       :class="{ 'default-wallpaper-motion': isDefaultWallpaper }"
       :style="loginWallpaperStyle"
     />
-    <div class="relative z-1 grid min-h-screen place-items-center p-[40px] lt-lg:p-[20px]">
+    <div
+      class="app-radius-card absolute right-[20px] top-[20px] z-2 flex items-center gap-[4px] rounded-[18px] p-[6px] backdrop-blur-[18px]"
+      :class="settingsStore.isDark ? 'glass-panel-dark' : 'glass-panel-light'"
+      role="toolbar"
+      aria-label="页面设置"
+    >
+      <NDropdown
+        trigger="click"
+        placement="bottom-end"
+        :options="themeOptions"
+        :value="settingsStore.themeMode"
+        @select="handleThemeSelect"
+      >
+        <NButton quaternary circle :aria-label="themeLabel" :title="themeLabel">
+          <template #icon>
+            <Monitor v-if="settingsStore.themeMode === 'system'" :size="18" />
+            <Moon v-else-if="settingsStore.isDark" :size="18" />
+            <Sun v-else :size="18" />
+          </template>
+        </NButton>
+      </NDropdown>
+      <NButton
+        quaternary
+        circle
+        aria-label="HostDeck 设置"
+        title="HostDeck 设置"
+        @click="settingsVisible = true"
+      >
+        <template #icon><Settings :size="18" /></template>
+      </NButton>
+    </div>
+    <div
+      class="login-screen-stage relative z-1 grid place-items-center px-[40px] py-[80px] lt-lg:px-[20px]"
+    >
       <section
         class="app-radius-card w-full max-w-[520px] rounded-[24px] p-[24px] backdrop-blur-[18px]"
         :class="[
@@ -700,6 +762,16 @@ onMounted(async () => {
       </section>
 
       <NModal
+        v-model:show="settingsVisible"
+        preset="card"
+        title="HostDeck 设置"
+        style="width: min(960px, 94vw); height: min(720px, calc(100dvh - 96px))"
+        :content-style="{ padding: '0', minHeight: '0', overflow: 'hidden' }"
+      >
+        <SettingsView />
+      </NModal>
+
+      <NModal
         v-model:show="serverEditorVisible"
         preset="card"
         :title="serverEditorTitle"
@@ -783,6 +855,21 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.login-screen,
+.login-screen-stage {
+  min-height: 100dvh;
+}
+
+:global(:root[data-electron='true']) .login-screen,
+:global(:root[data-electron='true']) .login-screen-stage {
+  min-height: calc(100dvh - var(--electron-titlebar-height));
+}
+
+:global(:root[data-electron-shell='native-tabs']) .login-screen,
+:global(:root[data-electron-shell='native-tabs']) .login-screen-stage {
+  min-height: 100dvh;
+}
+
 .form-panel-shake {
   animation: panel-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
