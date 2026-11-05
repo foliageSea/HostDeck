@@ -17,6 +17,8 @@ import {
 import { authApi, type ConnectParams } from '@/api/auth'
 import { useLoginConnection } from '@/hooks/useLoginConnection'
 import BrandLogo from '@/components/common/BrandLogo.vue'
+import LoginClock from './LoginClock.vue'
+import LoginHostSwitcher from './LoginHostSwitcher.vue'
 import type { SavedServer, ServerUpdatePayload } from '@/api/server'
 import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { getUiApi } from '@/lib/ui'
@@ -50,6 +52,7 @@ const sshStore = useSshStore()
 const accessStore = useAccessStore()
 const settingsStore = useSettingsStore()
 const settingsVisible = ref(false)
+const serverManagerVisible = ref(false)
 const themeOptions = [
   { key: 'system', label: '跟随系统', icon: () => h(Monitor, { size: 16 }) },
   { key: 'light', label: '浅色', icon: () => h(Sun, { size: 16 }) },
@@ -186,6 +189,11 @@ async function checkServerLatencies() {
 
 async function refreshServers() {
   await sshStore.fetchServers()
+  if (selectedServer.value) {
+    applyServer(selectedServer.value)
+  } else {
+    selectFirstAvailableServer()
+  }
   void checkServerLatencies()
 }
 
@@ -530,6 +538,7 @@ onMounted(async () => {
       :class="{ 'default-wallpaper-motion': isDefaultWallpaper }"
       :style="loginWallpaperStyle"
     />
+    <div class="lock-screen-shade absolute inset-0" />
     <div
       class="app-radius-card absolute right-[20px] top-[20px] z-2 flex items-center gap-[4px] rounded-[18px] p-[6px] backdrop-blur-[18px]"
       :class="settingsStore.isDark ? 'glass-panel-dark' : 'glass-panel-light'"
@@ -561,296 +570,308 @@ onMounted(async () => {
         <template #icon><Settings :size="18" /></template>
       </NButton>
     </div>
-    <div
-      class="login-screen-stage relative z-1 grid place-items-center px-[40px] py-[80px] lt-lg:px-[20px]"
-    >
+    <main class="login-screen-stage relative z-1">
+      <LoginClock />
       <section
-        class="app-radius-card w-full max-w-[520px] rounded-[24px] p-[24px] backdrop-blur-[18px]"
-        :class="[
-          settingsStore.isDark ? 'glass-panel-dark' : 'glass-panel-light',
-          { 'form-panel-shake': isShaking },
-        ]"
+        class="lock-screen-host"
+        :class="{ 'form-panel-shake': isShaking }"
+        aria-label="连接主机"
       >
-        <div class="mb-[22px] flex items-center justify-between gap-[16px]">
-          <div class="flex min-w-0 items-center gap-[12px]">
-            <div class="login-brand-icon flex-none" aria-hidden="true">
-              <BrandLogo :size="46" />
-            </div>
-            <h2
-              class="m-0 truncate font-bold"
-              :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
-            >
-              HostDeck
-            </h2>
-          </div>
-          <NSpace :wrap="false" :size="10" align="center">
-            <NTooltip>
-              <template #trigger>
-                <NButton
-                  quaternary
-                  circle
-                  size="small"
-                  aria-label="新建"
-                  @click="openCreateServerModal"
-                >
-                  <template #icon><Plus :size="15" /></template>
-                </NButton>
-              </template>
-              新建
-            </NTooltip>
-            <NTooltip>
-              <template #trigger>
-                <NButton quaternary circle size="small" aria-label="刷新" @click="refreshServers">
-                  <template #icon><RefreshCw :size="15" /></template>
-                </NButton>
-              </template>
-              刷新
-            </NTooltip>
-            <NTooltip v-if="accessStore.enabled">
-              <template #trigger>
-                <NButton
-                  quaternary
-                  circle
-                  size="small"
-                  type="error"
-                  aria-label="退出 HostDeck 登录"
-                  :loading="isLoggingOut"
-                  @click="handleAccessLogout"
-                >
-                  <template #icon><LogOut :size="15" /></template>
-                </NButton>
-              </template>
-              退出 HostDeck 登录
-            </NTooltip>
-          </NSpace>
-        </div>
-
-        <NEmpty v-if="sshStore.savedServers.length === 0" description="暂无服务器配置" size="large">
-          <template #extra>
-            <NButton type="primary" @click="openCreateServerModal">添加服务器</NButton>
-          </template>
-        </NEmpty>
-
-        <template v-else>
-          <div
-            class="mx-[-8px] mt-[-8px] mb-[14px] flex max-h-[376px] flex-col gap-[10px] overflow-y-auto p-[8px]"
+        <LoginHostSwitcher
+          :servers="sshStore.savedServers"
+          :selected-server="selectedServer"
+          :latencies="serverLatencies"
+          :disabled="isConnecting"
+          @select="applyServer"
+          @create="openCreateServerModal"
+        />
+        <h1 class="lock-screen-host-name">
+          {{ selectedServer?.name || selectedServer?.host || '添加主机' }}
+        </h1>
+        <p v-if="selectedServer" class="lock-screen-host-address">{{ connectionTargetEndpoint }}</p>
+        <form v-if="selectedServer" @submit.prevent="handleConnect">
+          <button
+            v-if="isConnecting"
+            type="button"
+            class="lock-screen-connect"
+            @click="cancelConnection"
           >
-            <div
-              v-for="server in sshStore.savedServers"
-              :key="server.id ?? `${server.host}-${server.port}`"
-              class="app-radius-card group server-list-item flex cursor-pointer items-center justify-between gap-[12px] rounded-[18px] border border-transparent px-[16px] py-[13px] text-left transition-[transform,background-color] duration-[180ms] ease-in-out hover:translate-y-[-2px] lt-sm:items-start"
-              :class="[
-                settingsStore.isDark
-                  ? server.id === selectedServerId
-                    ? 'bg-[rgba(30,41,59,0.62)]'
-                    : 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
-                  : server.id === selectedServerId
-                    ? 'bg-[rgba(255,255,255,0.78)]'
-                    : 'bg-[rgba(255,255,255,0.46)] hover:bg-[rgba(255,255,255,0.78)]',
-              ]"
-              @click="applyServer(server)"
-            >
-              <div class="flex min-w-0 flex-1 items-center gap-[12px]">
-                <div
-                  class="server-username-avatar flex-none"
-                  :class="
-                    settingsStore.isDark
-                      ? 'server-username-avatar-dark'
-                      : 'server-username-avatar-light'
-                  "
-                  aria-hidden="true"
-                >
-                  <Server :size="19" :stroke-width="2" />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div class="flex min-w-0 items-center gap-[8px]">
-                    <div
-                      class="min-w-0 truncate text-[0.98rem] font-600"
-                      :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
-                    >
-                      {{ server.name || server.host }}
-                    </div>
-                    <div
-                      v-if="server.id !== undefined"
-                      class="server-latency flex-none cursor-pointer text-[0.74rem] font-600 tabular-nums"
-                      :class="latencyClass(serverLatencies[server.id])"
-                      role="button"
-                      tabindex="0"
-                      title="刷新延迟"
-                      @click.stop="checkServerLatency(server)"
-                      @keydown.enter.stop="checkServerLatency(server)"
-                      @keydown.space.prevent.stop="checkServerLatency(server)"
-                    >
-                      {{ latencyText(serverLatencies[server.id]) }}
-                    </div>
+            取消连接
+          </button>
+          <button v-else type="submit" class="lock-screen-connect" :disabled="!canConnect">
+            连接
+          </button>
+        </form>
+        <button v-else type="button" class="lock-screen-connect" @click="openCreateServerModal">
+          添加主机 <Plus :size="17" />
+        </button>
+        <button type="button" class="lock-screen-manage" @click="serverManagerVisible = true">
+          主机管理
+        </button>
+      </section>
+      <button
+        v-if="accessStore.enabled"
+        type="button"
+        class="lock-screen-logout"
+        :disabled="isLoggingOut"
+        @click="handleAccessLogout"
+      >
+        <LogOut :size="15" />退出 HostDeck 登录
+      </button>
+    </main>
+    <NModal
+      v-model:show="serverManagerVisible"
+      preset="card"
+      title="主机管理"
+      style="width: min(560px, 94vw); max-height: calc(100dvh - 96px)"
+      :content-style="{ overflowY: 'auto' }"
+    >
+      <div class="mb-[22px] flex items-center justify-between gap-[16px]">
+        <div class="flex min-w-0 items-center gap-[12px]">
+          <div class="login-brand-icon flex-none" aria-hidden="true">
+            <BrandLogo :size="46" />
+          </div>
+          <h2
+            class="m-0 truncate font-bold"
+            :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
+          >
+            HostDeck
+          </h2>
+        </div>
+        <NSpace :wrap="false" :size="10" align="center">
+          <NTooltip>
+            <template #trigger>
+              <NButton
+                quaternary
+                circle
+                size="small"
+                aria-label="新建"
+                @click="openCreateServerModal"
+              >
+                <template #icon><Plus :size="15" /></template>
+              </NButton>
+            </template>
+            新建
+          </NTooltip>
+          <NTooltip>
+            <template #trigger>
+              <NButton quaternary circle size="small" aria-label="刷新" @click="refreshServers">
+                <template #icon><RefreshCw :size="15" /></template>
+              </NButton>
+            </template>
+            刷新
+          </NTooltip>
+        </NSpace>
+      </div>
+
+      <NEmpty v-if="sshStore.savedServers.length === 0" description="暂无服务器配置" size="large">
+        <template #extra>
+          <NButton type="primary" @click="openCreateServerModal">添加服务器</NButton>
+        </template>
+      </NEmpty>
+
+      <template v-else>
+        <div
+          class="mx-[-8px] mt-[-8px] mb-[14px] flex max-h-[376px] flex-col gap-[10px] overflow-y-auto p-[8px]"
+        >
+          <div
+            v-for="server in sshStore.savedServers"
+            :key="server.id ?? `${server.host}-${server.port}`"
+            class="app-radius-card group server-list-item flex cursor-pointer items-center justify-between gap-[12px] rounded-[18px] border border-transparent px-[16px] py-[13px] text-left transition-[transform,background-color] duration-[180ms] ease-in-out hover:translate-y-[-2px] lt-sm:items-start"
+            :class="[
+              settingsStore.isDark
+                ? server.id === selectedServerId
+                  ? 'bg-[rgba(30,41,59,0.62)]'
+                  : 'bg-[rgba(15,23,42,0.34)] hover:bg-[rgba(30,41,59,0.62)]'
+                : server.id === selectedServerId
+                  ? 'bg-[rgba(255,255,255,0.78)]'
+                  : 'bg-[rgba(255,255,255,0.46)] hover:bg-[rgba(255,255,255,0.78)]',
+            ]"
+            @click="applyServer(server)"
+          >
+            <div class="flex min-w-0 flex-1 items-center gap-[12px]">
+              <div
+                class="server-username-avatar flex-none"
+                :class="
+                  settingsStore.isDark
+                    ? 'server-username-avatar-dark'
+                    : 'server-username-avatar-light'
+                "
+                aria-hidden="true"
+              >
+                <Server :size="19" :stroke-width="2" />
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex min-w-0 items-center gap-[8px]">
+                  <div
+                    class="min-w-0 truncate text-[0.98rem] font-600"
+                    :class="settingsStore.isDark ? 'text-[#f8fafc]' : 'text-[#0f172a]'"
+                  >
+                    {{ server.name || server.host }}
                   </div>
                   <div
-                    class="mt-[4px] truncate text-[0.82rem]"
-                    :class="
-                      settingsStore.isDark
-                        ? 'text-[rgba(203,213,225,0.7)]'
-                        : 'text-[rgba(51,65,85,0.76)]'
-                    "
+                    v-if="server.id !== undefined"
+                    class="server-latency flex-none cursor-pointer text-[0.74rem] font-600 tabular-nums"
+                    :class="latencyClass(serverLatencies[server.id])"
+                    role="button"
+                    tabindex="0"
+                    title="刷新延迟"
+                    @click.stop="checkServerLatency(server)"
+                    @keydown.enter.stop="checkServerLatency(server)"
+                    @keydown.space.prevent.stop="checkServerLatency(server)"
                   >
-                    {{ server.username }}@{{ server.host }}:{{ server.port }}
+                    {{ latencyText(serverLatencies[server.id]) }}
                   </div>
                 </div>
-              </div>
-              <NSpace :size="8" :wrap="false" align="center" class="flex-none" @click.stop>
                 <div
-                  v-if="server.id === selectedServerId"
-                  class="selected-server-badge grid h-[22px] w-[22px] place-items-center self-center rounded-full text-[var(--app-primary-color)]"
-                  title="已选择"
-                  aria-label="已选择"
+                  class="mt-[4px] truncate text-[0.82rem]"
+                  :class="
+                    settingsStore.isDark
+                      ? 'text-[rgba(203,213,225,0.7)]'
+                      : 'text-[rgba(51,65,85,0.76)]'
+                  "
                 >
-                  <Check :size="14" :stroke-width="3" />
+                  {{ server.username }}@{{ server.host }}:{{ server.port }}
                 </div>
-                <NTooltip>
-                  <template #trigger>
-                    <NButton
-                      quaternary
-                      circle
-                      size="small"
-                      aria-label="编辑"
-                      @click="openEditServerModal(server)"
-                    >
-                      <template #icon><Pencil :size="14" /></template>
-                    </NButton>
-                  </template>
-                  编辑
-                </NTooltip>
-                <NPopconfirm
-                  :positive-button-props="{ loading: deletingServerId === server.id }"
-                  @positive-click="handleDeleteServer(server.id)"
-                >
-                  <template #trigger>
-                    <NButton
-                      quaternary
-                      circle
-                      type="error"
-                      size="small"
-                      title="删除"
-                      aria-label="删除"
-                      :disabled="server.id === undefined"
-                    >
-                      <template #icon><Trash2 :size="14" /></template>
-                    </NButton>
-                  </template>
-                  删除该服务器配置？
-                </NPopconfirm>
-              </NSpace>
+              </div>
             </div>
+            <NSpace :size="8" :wrap="false" align="center" class="flex-none" @click.stop>
+              <div
+                v-if="server.id === selectedServerId"
+                class="selected-server-badge grid h-[22px] w-[22px] place-items-center self-center rounded-full text-[var(--app-primary-color)]"
+                title="已选择"
+                aria-label="已选择"
+              >
+                <Check :size="14" :stroke-width="3" />
+              </div>
+              <NTooltip>
+                <template #trigger>
+                  <NButton
+                    quaternary
+                    circle
+                    size="small"
+                    aria-label="编辑"
+                    @click="openEditServerModal(server)"
+                  >
+                    <template #icon><Pencil :size="14" /></template>
+                  </NButton>
+                </template>
+                编辑
+              </NTooltip>
+              <NPopconfirm
+                :positive-button-props="{ loading: deletingServerId === server.id }"
+                @positive-click="handleDeleteServer(server.id)"
+              >
+                <template #trigger>
+                  <NButton
+                    quaternary
+                    circle
+                    type="error"
+                    size="small"
+                    title="删除"
+                    aria-label="删除"
+                    :disabled="server.id === undefined"
+                  >
+                    <template #icon><Trash2 :size="14" /></template>
+                  </NButton>
+                </template>
+                删除该服务器配置？
+              </NPopconfirm>
+            </NSpace>
           </div>
+        </div>
+      </template>
+    </NModal>
 
-          <form @submit.prevent="handleConnect">
-            <NButton v-if="isConnecting" block size="large" @click="cancelConnection">
-              取消连接
-            </NButton>
+    <NModal
+      v-model:show="settingsVisible"
+      preset="card"
+      title="HostDeck 设置"
+      style="width: min(960px, 94vw); height: min(720px, calc(100dvh - 96px))"
+      :content-style="{ padding: '0', minHeight: '0', overflow: 'hidden' }"
+    >
+      <SettingsView />
+    </NModal>
+
+    <NModal
+      v-model:show="serverEditorVisible"
+      preset="card"
+      :title="serverEditorTitle"
+      style="width: min(560px, 92vw)"
+    >
+      <NForm label-placement="top" :model="serverForm" @submit.prevent="handleSaveServer">
+        <NFormItem label="名称" path="name">
+          <NInput v-model:value="serverForm.name" placeholder="我的服务器" />
+        </NFormItem>
+
+        <NGrid :cols="2" :x-gap="12">
+          <NFormItemGi label="主机" path="host">
+            <NInput v-model:value="serverForm.host" placeholder="127.0.0.1" />
+          </NFormItemGi>
+          <NFormItemGi label="端口" path="port">
+            <NInputNumber v-model:value="serverForm.port" :min="1" :max="65535" class="w-full" />
+          </NFormItemGi>
+        </NGrid>
+
+        <NFormItem label="用户名" path="username">
+          <NInput v-model:value="serverForm.username" placeholder="root" />
+        </NFormItem>
+
+        <NFormItem label="认证方式">
+          <NTabs
+            :value="credentialMode"
+            type="segment"
+            animated
+            class="w-full"
+            @update:value="handleCredentialModeChange"
+          >
+            <NTabPane name="password" tab="密码">
+              <NInput
+                v-model:value="serverForm.password"
+                type="password"
+                show-password-on="click"
+                :placeholder="serverEditorMode === 'edit' ? '留空则保留已保存密码' : '请输入密码'"
+              />
+            </NTabPane>
+            <NTabPane name="privateKey" tab="私钥">
+              <NInput
+                v-model:value="serverForm.privateKey"
+                type="textarea"
+                :rows="4"
+                :placeholder="
+                  serverEditorMode === 'edit'
+                    ? '留空则保留已保存私钥'
+                    : '-----BEGIN OPENSSH PRIVATE KEY-----'
+                "
+              />
+            </NTabPane>
+          </NTabs>
+        </NFormItem>
+
+        <div
+          class="flex items-center justify-between gap-[12px] lt-sm:flex-col lt-sm:items-stretch"
+        >
+          <NButton
+            :loading="isTesting"
+            :disabled="!canTestConnection"
+            @click="handleTestConnection"
+          >
+            测试连接
+          </NButton>
+          <div class="flex justify-end gap-[12px]">
+            <NButton @click="handleCloseServerEditor">取消</NButton>
             <NButton
-              v-else
               attr-type="submit"
               type="primary"
-              block
-              size="large"
-              :loading="isConnecting"
-              :disabled="!canConnect"
+              :loading="isSavingServer"
+              :disabled="!canSaveServer"
             >
-              连接
+              {{ serverEditorMode === 'create' ? '保存' : '更新' }}
             </NButton>
-          </form>
-        </template>
-      </section>
-
-      <NModal
-        v-model:show="settingsVisible"
-        preset="card"
-        title="HostDeck 设置"
-        style="width: min(960px, 94vw); height: min(720px, calc(100dvh - 96px))"
-        :content-style="{ padding: '0', minHeight: '0', overflow: 'hidden' }"
-      >
-        <SettingsView />
-      </NModal>
-
-      <NModal
-        v-model:show="serverEditorVisible"
-        preset="card"
-        :title="serverEditorTitle"
-        style="width: min(560px, 92vw)"
-      >
-        <NForm label-placement="top" :model="serverForm" @submit.prevent="handleSaveServer">
-          <NFormItem label="名称" path="name">
-            <NInput v-model:value="serverForm.name" placeholder="我的服务器" />
-          </NFormItem>
-
-          <NGrid :cols="2" :x-gap="12">
-            <NFormItemGi label="主机" path="host">
-              <NInput v-model:value="serverForm.host" placeholder="127.0.0.1" />
-            </NFormItemGi>
-            <NFormItemGi label="端口" path="port">
-              <NInputNumber v-model:value="serverForm.port" :min="1" :max="65535" class="w-full" />
-            </NFormItemGi>
-          </NGrid>
-
-          <NFormItem label="用户名" path="username">
-            <NInput v-model:value="serverForm.username" placeholder="root" />
-          </NFormItem>
-
-          <NFormItem label="认证方式">
-            <NTabs
-              :value="credentialMode"
-              type="segment"
-              animated
-              class="w-full"
-              @update:value="handleCredentialModeChange"
-            >
-              <NTabPane name="password" tab="密码">
-                <NInput
-                  v-model:value="serverForm.password"
-                  type="password"
-                  show-password-on="click"
-                  :placeholder="serverEditorMode === 'edit' ? '留空则保留已保存密码' : '请输入密码'"
-                />
-              </NTabPane>
-              <NTabPane name="privateKey" tab="私钥">
-                <NInput
-                  v-model:value="serverForm.privateKey"
-                  type="textarea"
-                  :rows="4"
-                  :placeholder="
-                    serverEditorMode === 'edit'
-                      ? '留空则保留已保存私钥'
-                      : '-----BEGIN OPENSSH PRIVATE KEY-----'
-                  "
-                />
-              </NTabPane>
-            </NTabs>
-          </NFormItem>
-
-          <div
-            class="flex items-center justify-between gap-[12px] lt-sm:flex-col lt-sm:items-stretch"
-          >
-            <NButton
-              :loading="isTesting"
-              :disabled="!canTestConnection"
-              @click="handleTestConnection"
-            >
-              测试连接
-            </NButton>
-            <div class="flex justify-end gap-[12px]">
-              <NButton @click="handleCloseServerEditor">取消</NButton>
-              <NButton
-                attr-type="submit"
-                type="primary"
-                :loading="isSavingServer"
-                :disabled="!canSaveServer"
-              >
-                {{ serverEditorMode === 'create' ? '保存' : '更新' }}
-              </NButton>
-            </div>
           </div>
-        </NForm>
-      </NModal>
-    </div>
+        </div>
+      </NForm>
+    </NModal>
   </div>
 </template>
 
@@ -858,6 +879,138 @@ onMounted(async () => {
 .login-screen,
 .login-screen-stage {
   min-height: 100dvh;
+}
+
+.login-screen-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 48px;
+  padding: clamp(90px, 12dvh, 132px) 24px 76px;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.lock-screen-shade {
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.12),
+    transparent 45%,
+    rgba(15, 23, 42, 0.28)
+  );
+  pointer-events: none;
+}
+
+.lock-screen-host {
+  display: flex;
+  width: min(360px, 100%);
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.3);
+}
+
+.lock-screen-host-name {
+  max-width: 100%;
+  margin: 16px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.lock-screen-host-address {
+  max-width: 100%;
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.lock-screen-connect {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  width: 144px;
+  height: 38px;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  padding: 0 18px;
+  background: transparent;
+  color: white;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  text-shadow: none;
+  cursor: pointer;
+}
+
+.lock-screen-connect::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(18px);
+  clip-path: inset(0 round 999px);
+  content: '';
+  transition: background 180ms ease;
+}
+
+.lock-screen-connect:hover::before {
+  background: rgba(255, 255, 255, 0.32);
+}
+.lock-screen-connect:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.lock-screen-manage,
+.lock-screen-logout {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  opacity: 0.8;
+}
+.lock-screen-manage {
+  margin-top: 16px;
+  padding: 6px 12px;
+}
+.lock-screen-logout {
+  position: absolute;
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.lock-screen-manage:hover,
+.lock-screen-logout:hover {
+  opacity: 1;
+}
+.lock-screen-connect:focus-visible,
+.lock-screen-manage:focus-visible,
+.lock-screen-logout:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 4px;
+}
+
+@media (max-height: 640px) {
+  .login-screen-stage {
+    gap: 28px;
+    padding-top: 84px;
+    padding-bottom: 64px;
+  }
+  .login-screen-stage :deep(.login-clock-time) {
+    font-size: 80px;
+  }
 }
 
 :global(:root[data-electron='true']) .login-screen,

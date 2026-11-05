@@ -25,6 +25,8 @@ declare module 'vue' {
     DesktopWidgets: typeof import('./src/components/widgets/DesktopWidgets.vue')['default']
     DesktopWindow: typeof import('./src/components/os/DesktopWindow.vue')['default']
     DesktopWindowSwitcher: typeof import('./src/components/os/DesktopWindowSwitcher.vue')['default']
+    LoginClock: typeof import('./src/components/os/LoginClock.vue')['default']
+    LoginHostSwitcher: typeof import('./src/components/os/LoginHostSwitcher.vue')['default']
     LoginScreen: typeof import('./src/components/os/LoginScreen.vue')['default']
     NAlert: typeof import('naive-ui')['NAlert']
     NBadge: typeof import('naive-ui')['NBadge']
