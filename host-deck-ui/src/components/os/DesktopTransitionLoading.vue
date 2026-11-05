@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import BrandLogo from '@/components/common/BrandLogo.vue'
+import { createWallpaperFilter, createWallpaperStyle } from '@/lib/wallpapers'
 import { useSettingsStore } from '@/stores/settings'
 
 defineProps<{
@@ -12,6 +14,16 @@ defineProps<{
 defineEmits<{ cancel: [] }>()
 
 const settingsStore = useSettingsStore()
+const wallpaperStyle = computed(() =>
+  createWallpaperStyle('desktop', settingsStore.desktopWallpaper, settingsStore.isDark),
+)
+const wallpaperFilter = computed(() => createWallpaperFilter(settingsStore.desktopWallpaper))
+const videoWallpaperUrl = computed(() => {
+  const wallpaper = settingsStore.desktopWallpaper
+  return wallpaper.mode === 'custom' && wallpaper.customType === 'video'
+    ? wallpaper.customDataUrl || undefined
+    : undefined
+})
 
 const FLY_DURATION = 640
 const FLY_EASING = 'cubic-bezier(0.65, 0, 0.35, 1)'
@@ -68,9 +80,20 @@ function handleLeave(el: Element, done: () => void) {
       aria-live="polite"
       aria-busy="true"
     >
-      <div class="desktop-loading-backdrop">
-        <div class="desktop-loading-glow desktop-loading-glow-primary" />
-        <div class="desktop-loading-glow desktop-loading-glow-secondary" />
+      <div class="desktop-loading-backdrop" aria-hidden="true">
+        <div class="desktop-loading-wallpaper-blur">
+          <video
+            v-if="videoWallpaperUrl"
+            class="desktop-loading-wallpaper"
+            :src="videoWallpaperUrl"
+            :style="{ filter: wallpaperFilter }"
+            autoplay
+            muted
+            loop
+            playsinline
+          />
+          <div v-else class="desktop-loading-wallpaper" :style="wallpaperStyle" />
+        </div>
       </div>
 
       <div class="relative z-1 flex max-w-[min(420px,calc(100vw-48px))] flex-col items-center">
@@ -124,10 +147,28 @@ function handleLeave(el: Element, done: () => void) {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background:
-    linear-gradient(rgba(2, 6, 23, 0.72), rgba(2, 6, 23, 0.82)),
-    radial-gradient(circle at 50% 42%, rgba(var(--app-primary-rgb), 0.28), transparent 34%), #020617;
-  backdrop-filter: blur(22px) saturate(125%);
+  background: #020617;
+}
+
+.desktop-loading-backdrop::after {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.36);
+  content: '';
+}
+
+.desktop-loading-wallpaper-blur {
+  position: absolute;
+  inset: -48px;
+  filter: blur(24px);
+}
+
+.desktop-loading-wallpaper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .desktop-transition-loading-light {
@@ -135,33 +176,11 @@ function handleLeave(el: Element, done: () => void) {
 }
 
 .desktop-transition-loading-light .desktop-loading-backdrop {
-  background:
-    linear-gradient(rgba(241, 245, 249, 0.78), rgba(226, 232, 240, 0.86)),
-    radial-gradient(circle at 50% 42%, rgba(var(--app-primary-rgb), 0.2), transparent 34%), #e2e8f0;
+  background: #e2e8f0;
 }
 
-.desktop-loading-glow {
-  position: absolute;
-  width: min(520px, 72vw);
-  height: min(520px, 72vw);
-  border-radius: 50%;
-  filter: blur(72px);
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-.desktop-loading-glow-primary {
-  top: -24%;
-  left: -12%;
-  background: rgba(var(--app-primary-rgb), 0.55);
-  animation: desktop-loading-glow-drift 5s ease-in-out infinite alternate;
-}
-
-.desktop-loading-glow-secondary {
-  right: -16%;
-  bottom: -28%;
-  background: rgba(45, 212, 191, 0.32);
-  animation: desktop-loading-glow-drift 5s ease-in-out 0.8s infinite alternate-reverse;
+.desktop-transition-loading-light .desktop-loading-backdrop::after {
+  background: rgba(241, 245, 249, 0.48);
 }
 
 .desktop-loading-mark {
@@ -291,14 +310,7 @@ function handleLeave(el: Element, done: () => void) {
   }
 }
 
-@keyframes desktop-loading-glow-drift {
-  to {
-    transform: translate3d(8%, 6%, 0) scale(1.08);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .desktop-loading-glow,
   .desktop-loading-ring,
   .desktop-loading-dots span {
     animation: none;
