@@ -42,7 +42,7 @@ export const useDesktopPreferencesStore = defineStore('desktopPreferences', () =
           : 'win',
     windowBlur: storage.getItem('host-deck-ui.windowBlur') === 'true',
     darkWindowBorder: storage.getItem('host-deck-ui.darkWindowBorder') !== 'false',
-    cornerStyle: normalizeCornerStyle(storage.getItem('host-deck-ui.cornerStyle')),
+    cornerStyle: 'rounded',
     dockAutoHide: storage.getItem('host-deck-ui.dockAutoHide') === 'true',
     dockPosition: normalizeDockPosition(storage.getItem('host-deck-ui.dockPosition')),
     windowSwitchShortcut: shortcut('windowSwitchShortcut', createDefaultWindowSwitchShortcut()),

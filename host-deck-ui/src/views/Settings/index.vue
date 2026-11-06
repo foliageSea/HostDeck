@@ -297,18 +297,6 @@ async function exportLogs() {
                 />
               </div>
             </NFormItem>
-            <NFormItem label="圆角风格">
-              <NRadioGroup
-                :value="settingsStore.cornerStyle"
-                @update:value="settingsStore.setCornerStyle"
-              >
-                <NSpace>
-                  <NRadio value="square">直角</NRadio>
-                  <NRadio value="soft">小圆角</NRadio>
-                  <NRadio value="rounded">圆角</NRadio>
-                </NSpace>
-              </NRadioGroup>
-            </NFormItem>
             <NFormItem label="Dock 栏位置">
               <NRadioGroup
                 :value="settingsStore.dockPosition"
