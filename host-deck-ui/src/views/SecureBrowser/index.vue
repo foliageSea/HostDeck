@@ -185,7 +185,7 @@ onMounted(() => {
       <div class="sb-body">
         <div class="sb-status-panel" :class="{ 'sb-status-active': activeTunnel }">
           <div class="sb-status-icon" aria-hidden="true">
-            <AppWindow :size="22" />
+            <AppWindow :size="26" />
           </div>
           <div class="sb-status-copy">
             <strong>{{ activeTunnel ? '浏览器正在运行' : '浏览器尚未启动' }}</strong>
@@ -233,8 +233,8 @@ onMounted(() => {
   height: 100%;
   min-height: 0;
   overflow: auto;
-  padding: 24px;
-  place-items: center;
+  padding: 12px;
+  align-items: stretch;
 }
 
 .secure-browser-dark {
@@ -247,7 +247,10 @@ onMounted(() => {
 }
 
 .sb-control-card {
-  width: min(100%, 480px);
+  display: flex;
+  width: 100%;
+  min-height: min-content;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--sb-border);
   border-radius: var(--app-radius-card, 12px);
@@ -282,12 +285,13 @@ onMounted(() => {
 
 .sb-card-header h1 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 650;
 }
 
 .sb-body {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 14px;
   padding: 20px;
@@ -295,6 +299,8 @@ onMounted(() => {
 
 .sb-status-panel {
   display: flex;
+  min-height: 88px;
+  flex: 1;
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
@@ -311,8 +317,8 @@ onMounted(() => {
 .sb-status-icon {
   display: grid;
   flex: none;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   color: var(--sb-muted);
   border-radius: 50%;
   background: rgba(148, 163, 184, 0.13);
@@ -333,14 +339,14 @@ onMounted(() => {
 }
 
 .sb-status-copy strong {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 650;
 }
 
 .sb-status-copy .sb-muted {
   overflow: hidden;
   color: var(--sb-muted);
-  font-size: 12px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -351,9 +357,4 @@ onMounted(() => {
   text-align: center;
 }
 
-@media (max-width: 560px) {
-  .secure-browser-view {
-    padding: 12px;
-  }
-}
 </style>
