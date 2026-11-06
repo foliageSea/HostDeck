@@ -346,7 +346,7 @@ onBeforeUnmount(() => {
         <NButton size="small" secondary :loading="loading" :disabled="!connected" @click="loadTasks"
           ><RefreshCw :size="15" /></NButton
         ><NDropdown trigger="click" :options="createOptions" @select="handleCreate"
-          ><NButton size="small" type="primary" :disabled="!connected"
+          ><NButton round size="small" type="primary" :disabled="!connected"
             ><template #icon><Plus :size="16" /></template>新增任务</NButton
           ></NDropdown
         >
@@ -387,8 +387,8 @@ onBeforeUnmount(() => {
       ></NForm>
       <template #footer
         ><div class="flex justify-end gap-2">
-          <NButton @click="editorVisible = false">取消</NButton
-          ><NButton type="primary" :loading="saving" @click="saveTask">保存</NButton>
+          <NButton round @click="editorVisible = false">取消</NButton
+          ><NButton round type="primary" :loading="saving" @click="saveTask">保存</NButton>
         </div></template
       >
     </NModal>
