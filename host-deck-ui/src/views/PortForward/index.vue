@@ -621,10 +621,10 @@ onMounted(() => {
           <NInput v-model:value="form.name" placeholder="例如：远端 Web 服务" />
         </NFormItem>
         <NFormItem label="协议" path="protocol">
-          <NRadioGroup v-model:value="form.protocol">
-            <NRadioButton value="tcp">TCP</NRadioButton>
-            <NRadioButton value="http">HTTP</NRadioButton>
-          </NRadioGroup>
+          <NSelect
+            v-model:value="form.protocol"
+            :options="[{ label: 'TCP', value: 'tcp' }, { label: 'HTTP', value: 'http' }]"
+          />
         </NFormItem>
         <div v-if="form.protocol === 'tcp'" class="grid grid-cols-2 gap-[12px] lt-md:grid-cols-1">
           <NFormItem label="本地绑定地址" path="bindHost">
