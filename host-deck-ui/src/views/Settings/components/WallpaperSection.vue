@@ -150,9 +150,6 @@ function resetWallpaperEffects() {
               ? {
                   backgroundColor: isDark ? '#020617' : '#e2e8f0',
                   backgroundImage: `url(${wallpaperSettings.customDataUrl})`,
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundSize: 'contain',
                 }
               : undefined
           "
