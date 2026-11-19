@@ -4,9 +4,11 @@ import {
   Copy,
   ExternalLink,
   Laptop,
+  List,
   Network,
   Pencil,
   Plus,
+  Workflow,
   RefreshCw,
   Server,
   Trash2,
@@ -40,7 +42,15 @@ const saving = ref(false)
 const operatingId = ref<number | null>(null)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
+const viewMode = ref<'list' | 'flow'>('list')
 const hasFittedDiagram = ref(false)
+
+function setViewMode(mode: typeof viewMode.value) {
+  if (viewMode.value === mode) return
+
+  hasFittedDiagram.value = false
+  viewMode.value = mode
+}
 
 interface PortForwardNodeData {
   rule: PortForwardRule | null
@@ -426,10 +436,6 @@ onMounted(() => {
         </div>
       </div>
       <div class="flex flex-wrap items-center justify-end gap-[8px]">
-        <div class="connection-pill" :class="{ connected: hasConnection }">
-          <i aria-hidden="true"></i>
-          <span class="max-w-[260px] truncate">{{ connectionText }}</span>
-        </div>
         <div class="flow-metric">
           <strong>{{ runningCount }}</strong
           ><span>运行</span>
@@ -438,6 +444,26 @@ onMounted(() => {
           <strong>{{ totalCount }}</strong
           ><span>规则</span>
         </div>
+        <NButtonGroup role="group" aria-label="端口转发视图">
+          <NButton
+            :type="viewMode === 'list' ? 'primary' : 'default'"
+            secondary
+            :aria-pressed="viewMode === 'list'"
+            @click="setViewMode('list')"
+          >
+            <template #icon><List :size="16" /></template>
+            列表
+          </NButton>
+          <NButton
+            :type="viewMode === 'flow' ? 'primary' : 'default'"
+            secondary
+            :aria-pressed="viewMode === 'flow'"
+            @click="setViewMode('flow')"
+          >
+            <template #icon><Workflow :size="16" /></template>
+            流程图
+          </NButton>
+        </NButtonGroup>
         <NTooltip>
           <template #trigger>
             <NButton circle secondary :loading="loading" aria-label="刷新" @click="fetchRules">
@@ -453,7 +479,76 @@ onMounted(() => {
       </div>
     </header>
 
-    <main class="flow-canvas">
+    <main v-if="viewMode === 'list'" class="rule-list-panel" :aria-busy="loading">
+      <ul v-if="rules.length" class="rule-list" aria-label="端口转发规则">
+        <li v-for="rule in rules" :key="rule.id" class="rule-row app-radius-item">
+          <div class="rule-summary">
+            <strong class="rule-name">{{ rule.name }}</strong>
+            <NTag size="small">{{ rule.protocol?.toUpperCase() || 'TCP' }}</NTag>
+            <NTag :type="statusType(rule.status)" size="small">{{ statusText(rule.status) }}</NTag>
+          </div>
+          <dl class="rule-details">
+            <div>
+              <dt>{{ rule.protocol === 'http' ? 'HTTP 访问地址' : '本地访问地址' }}</dt>
+              <dd class="rule-address">{{ localAddress(rule) }}</dd>
+            </div>
+            <div>
+              <dt>远程服务</dt>
+              <dd class="rule-address">{{ rule.remoteHost }}:{{ rule.remotePort }}</dd>
+            </div>
+            <div>
+              <dt>活跃连接</dt>
+              <dd>{{ rule.activeConnections ?? 0 }}</dd>
+            </div>
+          </dl>
+          <p v-if="rule.error" class="rule-error">{{ rule.error }}</p>
+          <div class="rule-actions">
+            <NSwitch
+              :value="rule.enabled"
+              :loading="operatingId === rule.id"
+              :aria-label="'启用 ' + rule.name"
+              size="small"
+              @update:value="toggleRule(rule, $event)"
+            />
+            <span>{{ rule.enabled ? '已启用' : '已停用' }}</span>
+            <NButton size="small" tertiary @click="copyLocalUrl(rule)">
+              <template #icon><Copy :size="14" /></template>
+              复制地址
+            </NButton>
+            <NButton
+              v-if="rule.protocol === 'http'"
+              size="small"
+              tertiary
+              :disabled="rule.status !== 'running'"
+              @click="openHttpForward(rule)"
+            >
+              <template #icon><ExternalLink :size="14" /></template>
+              打开
+            </NButton>
+            <NButton size="small" tertiary @click="openEditDialog(rule)">
+              <template #icon><Pencil :size="14" /></template>
+              编辑
+            </NButton>
+            <NButton size="small" tertiary type="error" @click="removeRule(rule)">
+              <template #icon><Trash2 :size="14" /></template>
+              删除
+            </NButton>
+          </div>
+        </li>
+      </ul>
+      <div v-if="loading && !rules.length" class="rule-list-placeholder"><NSpin size="large" /></div>
+      <div v-else-if="!rules.length" class="rule-list-placeholder">
+        <NEmpty description="暂无端口转发规则">
+          <template #extra>
+            <NButton type="primary" @click="openCreateDialog">
+              <template #icon><Plus :size="16" /></template>
+              创建第一条规则
+            </NButton>
+          </template>
+        </NEmpty>
+      </div>
+    </main>
+    <main v-else class="flow-canvas">
       <VueFlow
         id="port-forward-flow"
         :nodes="flowNodes"
@@ -701,37 +796,12 @@ onMounted(() => {
   background: rgba(14, 165, 233, 0.15);
 }
 
-.connection-pill {
-  display: flex;
-  height: 30px;
-  align-items: center;
-  gap: 7px;
-  padding: 0 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  color: #64748b;
-  background: #f8fafc;
-  font-size: 12px;
-}
-
-.connection-pill i,
 .flow-legend i {
   width: 7px;
   height: 7px;
   flex: 0 0 auto;
   border-radius: 50%;
   background: #f59e0b;
-}
-
-.connection-pill.connected i {
-  background: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
-}
-
-.is-dark .connection-pill {
-  border-color: #334155;
-  color: #94a3b8;
-  background: #172033;
 }
 
 .flow-metric {
@@ -751,6 +821,90 @@ onMounted(() => {
 
 .is-dark .flow-metric strong {
   color: #f8fafc;
+}
+
+.rule-list-panel {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.rule-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 16px clamp(12px, 3vw, 24px);
+  list-style: none;
+}
+
+.rule-row {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.is-dark .rule-row {
+  background: rgba(23, 32, 51, 0.72);
+}
+
+.rule-summary,
+.rule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.rule-name,
+.rule-address,
+.rule-error {
+  overflow-wrap: anywhere;
+}
+
+.rule-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
+  gap: 10px 20px;
+  margin: 12px 0;
+}
+
+.rule-details dt,
+.rule-actions > span {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.rule-details dd {
+  margin: 3px 0 0;
+}
+
+.rule-address {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.rule-error {
+  margin: 0 0 12px;
+  color: #b91c1c;
+}
+
+.is-dark .rule-error {
+  color: #fca5a5;
+}
+
+.rule-actions {
+  justify-content: flex-end;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.rule-list-placeholder {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: 16px;
 }
 
 .flow-canvas {
@@ -1072,17 +1226,15 @@ onMounted(() => {
     padding: 12px 14px;
   }
 
-  .flow-header > div:last-child {
-    max-width: 190px;
-  }
-
-  .connection-pill,
   .flow-metric {
     display: none;
   }
+}
 
-  .flow-canvas {
-    min-height: 420px;
+@media (max-width: 480px) {
+  .flow-header {
+    flex-wrap: wrap;
+    gap: 10px;
   }
 }
 </style>
