@@ -48,7 +48,6 @@ export function useRemoteFileTasks({
     try {
       const task = await filesApi.createTask(connectionId, type, items)
       uploadCenterStore.upsertRemoteTask(task, { snapshot: true, windowId: getWindowId() })
-      getUiApi().message.success('已加入任务中心。')
       return task
     } catch (error) {
       console.error('Failed to create file task', error)
