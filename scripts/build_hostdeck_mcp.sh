@@ -42,30 +42,17 @@ case "$OUTPUT_DIR" in
   *) OUTPUT_DIR="$ROOT_DIR/$OUTPUT_DIR" ;;
 esac
 
-if command -v fvm.bat >/dev/null 2>&1; then
-  dart_tool() {
-    fvm.bat dart "$@"
-  }
-elif command -v fvm >/dev/null 2>&1; then
-  dart_tool() {
-    fvm dart "$@"
-  }
-else
-  require_command dart
-  dart_tool() {
-    dart "$@"
-  }
-fi
+require_command dart
 
 cd "$ROOT_DIR"
 
 [ -f "$ROOT_DIR/bin/hostdeck_mcp.dart" ] || fail "bin/hostdeck_mcp.dart not found"
 
 echo "Resolving Dart dependencies..."
-dart_tool pub get
+dart pub get
 
 echo "Building hostdeck_mcp..."
 rm -rf "$OUTPUT_DIR"
-dart_tool build cli --target bin/hostdeck_mcp.dart --output "$OUTPUT_DIR"
+dart build cli --target bin/hostdeck_mcp.dart --output "$OUTPUT_DIR"
 
 echo "Done. Output directory: $OUTPUT_DIR"

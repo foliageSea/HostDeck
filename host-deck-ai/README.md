@@ -91,11 +91,10 @@ executable for the current OS/architecture, then copies only
 longer shipped at runtime. Set `HOSTDECK_AI_BUN_TARGET` to cross-compile (for
 example `bun-linux-arm64`) and `HOSTDECK_AI_BUN` to use a specific Bun binary.
 
-Docker and the Electron build scripts use the same path. Flutter desktop
-distributions built manually also need this `ai/` directory next to the
-executable (set `HOSTDECK_AI_BRIDGE` if using another layout); the bridge is a
-server resource, not a Flutter web asset. Sign the executable on platforms that
-require it, such as macOS notarization or Windows code signing.
+Docker and the Electron build scripts use the same bundle layout. When packaging
+the Dart server manually, include the `ai/` directory in the bundle or set
+`HOSTDECK_AI_BRIDGE` to the bridge executable. Sign the executable on platforms
+that require it, such as macOS notarization or Windows code signing.
 
 Verification uses local mock upstream servers; no provider credentials are
 required. Live provider access requires configuring a key or completing OpenAI

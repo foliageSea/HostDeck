@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/features/terminal/terminal_snippet.dart';
 import 'package:host_deck/server/features/terminal/terminal_snippet_repository.dart';

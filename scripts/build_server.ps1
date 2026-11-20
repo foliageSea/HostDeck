@@ -3,18 +3,24 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$RootDir = (Resolve-Path -LiteralPath $RootDir).Path
 
 function Invoke-Native {
   param(
     [Parameter(Mandatory = $true)]
     [string]$Command,
     [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$Args
+    [string[]]$Arguments
   )
 
-  & $Command @Args
-  if ($LASTEXITCODE -ne 0) {
-    throw "Command failed: $Command $($Args -join ' ')"
+  Push-Location -LiteralPath $RootDir
+  try {
+    & $Command @Arguments
+    if ($LASTEXITCODE -ne 0) {
+      throw "Command failed: $Command $($Arguments -join ' ')"
+    }
+  } finally {
+    Pop-Location
   }
 }
 
@@ -22,25 +28,26 @@ $buildDir = Join-Path $RootDir 'build\server'
 $uiDir = Join-Path $RootDir 'host-deck-ui'
 
 Write-Host 'Building frontend...'
-Invoke-Native -Command pnpm -Args @('--dir', "$uiDir", 'install', '--frozen-lockfile')
-Invoke-Native -Command pnpm -Args @('--dir', "$uiDir", 'build')
+Invoke-Native -Command pnpm -Arguments @('--dir', "$uiDir", 'install', '--frozen-lockfile')
+Invoke-Native -Command pnpm -Arguments @('--dir', "$uiDir", 'build')
 
 Write-Host 'Resolving Dart dependencies...'
-Invoke-Native -Command flutter -Args @('pub', 'get')
+Invoke-Native -Command dart -Arguments @('pub', 'get')
 
 Write-Host 'Building Dart CLI bundle...'
-if (Test-Path $buildDir) {
-  Remove-Item $buildDir -Recurse -Force
-}
 $pubspecPath = Join-Path $RootDir 'pubspec.yaml'
-$versionLine = Get-Content -LiteralPath $pubspecPath | Where-Object { $_ -match '^version:\s*\S+' } | Select-Object -First 1
-if ($versionLine -notmatch '^version:\s*(?<version>\S+)') {
+$versionLine = Get-Content -LiteralPath $pubspecPath | Where-Object { $_ -match '^version:\s*[^\s#]+' } | Select-Object -First 1
+if ($versionLine -notmatch '^version:\s*(?<version>[^\s#]+)') {
   throw "Unable to resolve the application version from $pubspecPath"
 }
-Invoke-Native -Command dart -Args @('build', 'cli', '--target', 'bin/server.dart', '--output', $buildDir)
-Invoke-Native -Command node -Args @((Join-Path $RootDir 'scripts\sidecar_assets.mjs'), 'stage', (Join-Path $buildDir 'bundle'))
-Invoke-Native -Command node -Args @((Join-Path $RootDir 'scripts\build_ai.mjs'), (Join-Path $buildDir 'bundle'))
-Set-Content -LiteralPath (Join-Path $buildDir 'bundle\VERSION') -Value $Matches.version -NoNewline -Encoding ascii
+$appVersion = $Matches.version
+if (Test-Path -LiteralPath $buildDir) {
+  Remove-Item -LiteralPath $buildDir -Recurse -Force
+}
+Invoke-Native -Command dart -Arguments @('build', 'cli', '--target', 'bin/server.dart', '--output', $buildDir)
+Invoke-Native -Command node -Arguments @((Join-Path $RootDir 'scripts\sidecar_assets.mjs'), 'stage', (Join-Path $buildDir 'bundle'))
+Invoke-Native -Command node -Arguments @((Join-Path $RootDir 'scripts\build_ai.mjs'), (Join-Path $buildDir 'bundle'))
+Set-Content -LiteralPath (Join-Path $buildDir 'bundle\VERSION') -Value $appVersion -NoNewline -Encoding ascii
 Copy-Item (Join-Path $RootDir 'LICENSE') (Join-Path $buildDir 'bundle\LICENSE')
 Copy-Item (Join-Path $RootDir 'THIRD_PARTY_NOTICES.md') (Join-Path $buildDir 'bundle\THIRD_PARTY_NOTICES.md')
 

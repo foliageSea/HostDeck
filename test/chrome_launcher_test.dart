@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/server/features/port_forwards/chrome_launcher.dart';
 import 'package:path/path.dart' as p;
 

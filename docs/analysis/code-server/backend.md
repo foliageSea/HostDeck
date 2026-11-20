@@ -65,7 +65,7 @@
 - `ChromeLauncher`：候选路径探测 `/usr/bin/google-chrome*`、macOS app 路径、Windows 三个位置（`chrome_launcher.dart:154-188`），以 `ProcessStartMode.detached` 启动、**不保留 Process 句柄/退出码**（:141-151）；`--chrome-path` 可覆盖（:52-61）。
 - `AiAgentPiBridge`：短命 `Process.start`（`lib/server/features/ai_agent/ai_agent_pi_bridge.dart:54-64`），JSON 走 stdin/stdout，主动 drain stderr 防泄密（:69-70），结束 `process.kill()`（:116-120,123-126）。这就是「一次请求一个进程」的模型，**不支持常驻**。
 - 生命周期：`bin/server.dart:53-68` 启动 + `registerServerShutdownHandlers`（`lib/server/app/server_lifecycle.dart:6-36`）；`ServerService.stop` → `container.dispose` 停三个隧道服务（`server_container.dart:464-470`、`server_service.dart:117-129`）。**要杀的 code-server 子进程必须挂进这条链**，现有代码没有该挂载点。
-- 双入口：Flutter 调试壳也 `new ServerService()`（`lib/main.dart:51`），子进程能力必须同时覆盖 `bin/server.dart:34-49` 与 `lib/main.dart` 两个入口。
+- 服务入口：独立 B/S 服务和 Electron 打包服务共用 `bin/server.dart`；子进程能力应接入 `ServerService` 的生命周期。
 - 能力开关先例：`--enable-secure-browser`/`--chrome-path` 解析（`server_cli.dart:41-44,70-79`）与注入（`bin/server.dart:25-32`）、帮助文案（:102-104）→ code-server 可照抄成 `--enable-code-server`/`--code-server-path`/`--code-server-port`。
 - 配置持久化：schema 版本化迁移（`lib/server/core/database/database_service.dart:38-52,604-606`），当前最新 **v21**（:566）→ 新增 code-server 配置表= v22。
 

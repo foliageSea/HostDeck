@@ -102,9 +102,10 @@ function Start-Backend {
 
     Remove-Item $backendReadyFile -ErrorAction SilentlyContinue
     Write-Host "Starting backend on ${BackendHost}:${BackendPort} ..." -ForegroundColor Cyan
+    # Start the SDK executable directly so Windows can track and stop its process tree.
     $process = Start-Process `
-        -FilePath "fvm" `
-        -ArgumentList @("dart", "run", "--enable-experiment=native-assets", "bin/server.dart", "--host", $BackendHost, "--port", $BackendPort, "--enable-secure-browser", "--ready-file", ('"' + $backendReadyFile + '"')) `
+        -FilePath (Get-Command dart.exe -CommandType Application -ErrorAction Stop).Source `
+        -ArgumentList @("run", "bin/server.dart", "--host", $BackendHost, "--port", $BackendPort, "--enable-secure-browser", "--ready-file", ('"' + $backendReadyFile + '"')) `
         -WorkingDirectory $projectRoot `
         -NoNewWindow `
         -PassThru

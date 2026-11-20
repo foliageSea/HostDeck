@@ -29,8 +29,10 @@ HTTP 转发复用 HostDeck 认证。不会向应用发送 HostDeck 的 Authoriza
 
 ## 验证
 
-- `fvm flutter test test/port_forward_http_proxy_test.dart test/port_forward_service_test.dart test/port_forward_repository_test.dart test/code_server_proxy_test.dart test/ide_port_proxy_rewriter_test.dart`
+在仓库根目录执行：
+
+- `dart test test/port_forward_http_proxy_test.dart test/port_forward_service_test.dart test/port_forward_repository_test.dart test/code_server_proxy_test.dart test/ide_port_proxy_rewriter_test.dart`
 - `pnpm --dir host-deck-ui exec vitest run src/views/Docker/hooks/__tests__/dockerPortForward.spec.ts src/views/Docker/hooks/__tests__/useDockerView.spec.ts`
-- `fvm flutter analyze`
+- `dart analyze`
 - `pnpm --dir host-deck-ui exec vue-tsc -p tsconfig.app.json --noEmit`
 - `pnpm --dir host-deck-ui build`

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/features/crontabs/cron_task.dart';
 import 'package:host_deck/server/features/crontabs/cron_task_repository.dart';
@@ -204,24 +204,32 @@ void main() {
       ).readAsStringSync();
     }
 
-    test('uses the login shell environment when the profile works', () async {
-      final log = await runScript(
-        r'echo "marker=$HOSTDECK_FROM_PROFILE"',
-        profile: 'export HOSTDECK_FROM_PROFILE=yes\n',
-      );
+    test(
+      'uses the login shell environment when the profile works',
+      () async {
+        final log = await runScript(
+          r'echo "marker=$HOSTDECK_FROM_PROFILE"',
+          profile: 'export HOSTDECK_FROM_PROFILE=yes\n',
+        );
 
-      expect(log, contains('OUT\tmarker=yes'));
-      expect(log, contains('END'));
-    }, skip: Platform.isWindows);
+        expect(log, contains('OUT\tmarker=yes'));
+        expect(log, contains('END'));
+      },
+      skip: Platform.isWindows,
+    );
 
-    test('falls back to a plain shell when the profile is broken', () async {
-      // A profile that aborts every login shell (e.g. a bash-only file
-      // sourced from sh) must not make the scheduled command fail.
-      final log = await runScript('echo ran-anyway', profile: 'exit 3\n');
+    test(
+      'falls back to a plain shell when the profile is broken',
+      () async {
+        // A profile that aborts every login shell (e.g. a bash-only file
+        // sourced from sh) must not make the scheduled command fail.
+        final log = await runScript('echo ran-anyway', profile: 'exit 3\n');
 
-      expect(log, contains('OUT\tran-anyway'));
-      expect(RegExp(r'END\t\d+\t0').hasMatch(log), isTrue, reason: log);
-    }, skip: Platform.isWindows);
+        expect(log, contains('OUT\tran-anyway'));
+        expect(RegExp(r'END\t\d+\t0').hasMatch(log), isTrue, reason: log);
+      },
+      skip: Platform.isWindows,
+    );
   });
 
   group('CronTask schedule validation', () {

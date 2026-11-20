@@ -692,14 +692,15 @@ extension SshRepositoryStreaming on SshRepository {
 
       unawaited(() async {
         try {
+          final activeSession = commandSession!;
           await Future.wait([
             stdoutDone.future,
             stderrDone.future,
-            commandSession!.done,
+            activeSession.done,
           ]).timeout(timeout);
           if (!outputController!.isClosed) {
             outputController.add(
-              SshExecStreamEvent.completed(commandSession.exitCode),
+              SshExecStreamEvent.completed(activeSession.exitCode),
             );
           }
         } on TimeoutException {

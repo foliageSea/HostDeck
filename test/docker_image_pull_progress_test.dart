@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/server/features/docker/docker_image_pull_progress.dart';
 
 void main() {

@@ -1,5 +1,6 @@
 ARG HOSTDECK_VERSION=dev
 ARG HOSTDECK_REVISION=unknown
+ARG DART_VERSION=3.11.0
 
 FROM node:22-bookworm-slim AS web-builder
 WORKDIR /src/host-deck-ui
@@ -13,7 +14,14 @@ COPY host-deck-ui/ ./
 COPY LICENSE THIRD_PARTY_NOTICES.md /src/
 RUN pnpm build
 
-FROM ghcr.io/cirruslabs/flutter:stable AS server-builder
+FROM dart:${DART_VERSION}-sdk AS server-sdk
+# Use the same Debian release as the runtime when building native assets.
+FROM debian:bookworm-slim AS server-builder
+ENV PATH="/usr/lib/dart/bin:${PATH}"
+COPY --from=server-sdk /usr/lib/dart /usr/lib/dart
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 
 COPY pubspec.yaml pubspec.lock ./
@@ -22,7 +30,7 @@ COPY lib ./lib
 COPY host-deck-sidecar/pubspec.yaml ./host-deck-sidecar/pubspec.yaml
 COPY host-deck-sidecar/lib ./host-deck-sidecar/lib
 
-RUN flutter pub get
+RUN dart pub get --enforce-lockfile
 RUN dart build cli --target bin/server.dart -o build/server
 
 FROM oven/bun:1.4.3 AS bun-runtime
@@ -36,7 +44,7 @@ COPY host-deck-ai/ ./
 RUN node build-bin.mjs dist/bridge
 
 # The official 3.11.0 SDK tag is based on trixie; run the SDK on bookworm for these assets.
-FROM --platform=$BUILDPLATFORM dart:3.11.0-sdk AS sidecar-sdk
+FROM --platform=$BUILDPLATFORM dart:${DART_VERSION}-sdk AS sidecar-sdk
 FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS sidecar-toolchain
 ENV PATH="/usr/lib/dart/bin:${PATH}"
 COPY --from=sidecar-sdk /usr/lib/dart /usr/lib/dart
@@ -80,12 +88,10 @@ ENV HOSTDECK_VERSION="${HOSTDECK_VERSION}"
 ENV HOSTDECK_ACCESS_TOTP_SECRET=""
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        libsqlite3-0 \
-        libsqlite3-dev \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Keep the SQLite native library from the Dart CLI bundle alongside the executable.
 COPY --from=server-builder /src/build/server/bundle/ ./
 COPY --from=sidecar-assets --chmod=0644 /manifest.json ./sidecars/
 COPY --from=sidecar-assets --chmod=0755 /hostdeck-file-sidecar-linux-amd64 /hostdeck-file-sidecar-linux-arm64 ./sidecars/

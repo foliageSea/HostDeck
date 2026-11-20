@@ -1,10 +1,10 @@
 # 构建与发布
 
-本文档记录桌面应用、纯 Dart 服务、Agent CLI 和 Docker 镜像的构建流程。
+本文档记录桌面应用、纯 Dart 服务、Agent CLI 和 Docker 镜像的构建流程。本机编译 Dart 服务与 CLI 需安装[独立 Dart SDK](https://dart.dev/get-dart) 3.11.0+，并将 `dart` 加入 `PATH`。
 
 ## 桌面 release
 
-Flutter 桌面 release 已弃用：`pubspec.yaml` 不再声明 `assets/web/`，工作流中的 Flutter 桌面 job 已注释。桌面安装包使用 Electron 构建：
+桌面安装包使用 Electron 构建，打包应用前端与编译后的 Dart 服务：
 
 ```bash
 pnpm --dir host-deck-electron install --frozen-lockfile
@@ -51,11 +51,11 @@ pnpm run release -- 1.0.1
 
 ## 纯 Dart 服务打包
 
-手动构建 CLI bundle：
+可以在仓库根目录运行 `pnpm run build:server:unix`（macOS / Linux）或 `pnpm run build:server:windows`（Windows）。也可手动构建 CLI bundle（以下为 Bash 示例）：
 
 ```bash
 pnpm run build:web
-flutter pub get
+dart pub get
 APP_VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml)"
 dart build cli --target bin/server.dart --output build/server
 node scripts/build_ai.mjs build/server/bundle
@@ -76,13 +76,13 @@ printf '%s' "$APP_VERSION" > build/server/bundle/VERSION
 
 ## 文件 SideCar 资产
 
-[纯 Dart SideCar](../host-deck-sidecar/bin/hostdeck_file_sidecar.dart) 使用 Dart 3.11.0 生成 Linux glibc amd64/arm64 单文件。Release 在原生架构上构建并执行冒烟检查，将同一批资产放入 Electron 服务和 Docker 的 `sidecars/` 下，也单独发布 `host-deck-sidecars-<tag>.tar.gz`。Windows Agent CLI 不需要该资产。
+[纯 Dart SideCar](../host-deck-sidecar/bin/hostdeck_file_sidecar.dart) 生成 Linux glibc amd64/arm64 单文件。Release 使用固定的 Dart 3.11.0 SDK 在原生架构上构建并执行冒烟检查，将同一批资产放入 Electron 服务和 Docker 的 `sidecars/` 下，也单独发布 `host-deck-sidecars-<tag>.tar.gz`。Windows Agent CLI 不需要该资产。
 
 在开发环境导出资产：
 
 ```sh
 docker buildx build --target sidecar-assets --build-arg HOSTDECK_VERSION=dev --output type=local,dest=build/sidecar-assets .
-# 或者在 Linux 使用 Dart 3.11.0 和 Node.js：
+# 或者在 Linux 使用 Dart 3.11.0+ 和 Node.js：
 node scripts/sidecar_assets.mjs build build/sidecar-assets dev amd64 arm64
 node scripts/sidecar_assets.mjs manifest build/sidecar-assets dev
 node scripts/sidecar_assets.mjs verify build/sidecar-assets dev

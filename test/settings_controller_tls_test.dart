@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/server/features/settings/log_export_service.dart';
 import 'package:host_deck/server/features/settings/settings_controller.dart';
 import 'package:host_deck/server/features/settings/tls_service.dart';

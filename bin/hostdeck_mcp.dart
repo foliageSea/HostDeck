@@ -94,6 +94,6 @@ MCP client configuration example (e.g. .mcp.json):
   }
 
 Build:
-  fvm dart build cli --target bin/hostdeck_mcp.dart --output build/hostdeck-mcp
+  dart build cli --target bin/hostdeck_mcp.dart --output build/hostdeck-mcp
 ''');
 }

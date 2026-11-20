@@ -78,5 +78,5 @@ CLI 将进度写到 stderr。退出码 0 为成功，1 为操作失败，2 为�
 ## 相关测试
 
 - [文件选择器](../../host-deck-ui/src/views/Files/components/__tests__/FilePickerDialog.spec.ts)、[任务中心进度](../../host-deck-ui/src/views/TaskCenter/file-task-progress.spec.ts)、[任务订阅](../../host-deck-ui/src/stores/__tests__/upload-center.spec.ts)。
-- [SideCar 单元测试](../../host-deck-sidecar/test/)：在纯 Dart 包目录运行 dart test，覆盖协议、文件操作和归档。
-- [OpenSSH 集成测试](../../test/file_sidecar_openssh_integration_test.dart)：对一次性的本机 OpenSSH 测试账号运行。设置 HOSTDECK_TEST_SIDECAR_SSH_PORT、HOSTDECK_TEST_SIDECAR_SSH_USER、HOSTDECK_TEST_SIDECAR_SSH_KEY（私钥文件路径）和 HOSTDECK_TEST_SIDECAR_ASSETS（资产目录），再运行 fvm flutter test test/file_sidecar_openssh_integration_test.dart。
+- [SideCar 单元测试](../../host-deck-sidecar/test/)：在 `host-deck-sidecar/` 目录运行 `dart test`，覆盖协议、文件操作和归档。
+- [OpenSSH 集成测试](../../test/file_sidecar_openssh_integration_test.dart)：对一次性的本机 OpenSSH 测试账号运行。设置 HOSTDECK_TEST_SIDECAR_SSH_PORT、HOSTDECK_TEST_SIDECAR_SSH_USER、HOSTDECK_TEST_SIDECAR_SSH_KEY（私钥文件路径）和 HOSTDECK_TEST_SIDECAR_ASSETS（资产目录），再从仓库根目录运行 `dart test test/file_sidecar_openssh_integration_test.dart`。

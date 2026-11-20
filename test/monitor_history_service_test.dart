@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/server/features/system/monitor_history_service.dart';
 import 'package:host_deck/server/features/system/system_status.dart';
 

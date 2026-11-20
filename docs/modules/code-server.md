@@ -118,9 +118,11 @@ HTTP／WebSocket 代理和正文适配的公共实现位于 `core/http/path_http
 
 ## 验证
 
-- fvm flutter analyze
-- fvm flutter test test/code_server_proxy_test.dart test/code_server_package_store_test.dart test/remote_ide_provider_test.dart
-- pnpm --dir host-deck-ui build
+在仓库根目录执行：
+
+- `dart analyze`
+- `dart test test/code_server_proxy_test.dart test/code_server_package_store_test.dart test/remote_ide_provider_test.dart`
+- `pnpm --dir host-deck-ui build`
 - 真实链路（本地 sshd + 219MB 离线包）：上传 → 安装（约 17s）→ 启动（约 2s）→ /ide/ HTML 200、workbench.js 5.4MB 200、/healthz 正常、带 Cookie 的 WS 升级成功。
 
 ## 性能与诊断

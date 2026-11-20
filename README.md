@@ -8,8 +8,7 @@ HostDeck 是一个跨平台远程主机工作台，在桌面式界面中集中�
 
 当前项目由以下部分组成（Dart 包名为 `host_deck`）：
 
-- Flutter 桌面壳：负责窗口承载、日志面板和内置后端服务，仅用于开发调试；Flutter 桌面 release 已弃用
-- Dart CLI 服务：入口为 `bin/server.dart`，可独立以 B/S 模式运行
+- 纯 Dart HTTP/WebSocket 服务：入口为 `bin/server.dart`，可独立提供 B/S 服务，也供 Electron 桌面版使用
 - Agent CLI：入口为 `bin/hostdeck_cli.dart`，供本地工具调用已运行的 HostDeck 服务
 - Agent MCP：入口为 `bin/hostdeck_mcp.dart`，以 stdio MCP 服务形式向本地 Agent 暴露 HostDeck 能力
 - Vue 3 前端：当前主前端位于 `host-deck-ui/`
@@ -61,9 +60,8 @@ HostDeck 是一个跨平台远程主机工作台，在桌面式界面中集中�
 
 ## 技术栈
 
-### 后端 / 桌面壳
+### 后端
 
-- Flutter
 - Dart
 - shelf / shelf_router / shelf_web_socket
 - dartssh2
@@ -88,17 +86,16 @@ HostDeck 是一个跨平台远程主机工作台，在桌面式界面中集中�
 
 ## 前置要求
 
-- Flutter SDK
-- FVM（推荐，用于锁定 Flutter/Dart 工具链）
+- [独立 Dart SDK](https://dart.dev/get-dart) 3.11.0+（将 `dart` 加入 `PATH`，用 `dart --version` 确认版本）
 - Node.js 22.19+（低于 23，版本范围以根目录 `package.json` 为准）
 - pnpm 10.34.5（仓库根目录 `package.json` 已固定版本）
 - Bun 1.4+（构建 pi-ai 独立可执行程序）
 
-先安装依赖：
+在仓库根目录安装依赖：
 
 ```bash
 git submodule update --init --recursive
-fvm flutter pub get
+dart pub get
 pnpm run install:all
 ```
 
@@ -118,7 +115,7 @@ Windows PowerShell：
 .\dev.ps1
 ```
 
-脚本通过 FVM 的 Dart SDK 启动后端，等待服务就绪后启动 Vite。默认后端地址为 `http://127.0.0.1:8080`，前端端口为 `5178`。运行期间按 `r` 重启后端，按 `q` 退出并停止前后端进程；Windows 前端使用隐藏的后台进程。
+脚本通过 `PATH` 中的 `dart` 启动后端，等待服务就绪后启动 Vite。默认后端地址为 `http://127.0.0.1:8080`，前端端口为 `5178`。运行期间按 `r` 重启后端，按 `q` 退出并停止前后端进程；Windows 前端使用隐藏的后台进程。
 
 可指定端口，或在 macOS/Linux 调试 TOTP 登录：
 
@@ -131,7 +128,7 @@ Windows PowerShell：
 
 ### 2. Electron 桌面开发
 
-先启动后端（可使用上面的一键开发脚本），再启动 Electron：
+启动 Electron 开发模式。脚本会启动应用前端和壳层的两个 Vite 服务，Electron 主进程会启动独立的 Dart 后端，无须手动另起服务：
 
 ```bash
 pnpm --dir host-deck-electron electron:dev
@@ -139,32 +136,7 @@ pnpm --dir host-deck-electron electron:dev
 
 Electron 开发模式会分别从 `host-deck-ui/vite.config.ts` 和 `host-deck-electron/vite.config.mjs` 读取应用前端和壳界面的开发服务器地址，也可通过 `HOST_DECK_ELECTRON_APP_DEV_URL` 和 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖。
 
-### 3. Flutter 桌面壳调试模式
-
-当前 Flutter 桌面调试模式会在 WebView 中加载 Vite 开发服务器，所以需要前端和 Flutter 同时启动。
-
-终端 A：
-
-```bash
-pnpm --dir host-deck-ui dev
-```
-
-终端 B：
-
-```bash
-fvm flutter run -d windows
-```
-
-说明：
-
-- Vite 开发服务器端口以 `host-deck-ui/vite.config.ts` 的 `server.port` 为准。
-- `lib/main.dart` 的 Flutter debug WebView 与 Vite 默认统一使用 `http://localhost:5178`。
-- Flutter 内置后端默认监听 `http://localhost:8080`
-- Vite 将 `/api` 代理到 `VITE_DEV_PROXY_TARGET`，默认 `http://localhost:8080`；终端 WebSocket 使用 `/api/ws/terminal`
-
-如需在 macOS/Linux 调试桌面壳，把 `windows` 替换为对应设备即可。
-
-### 4. 纯 Dart B/S 模式
+### 3. 纯 Dart B/S 模式
 
 先构建前端，再启动 CLI 服务：
 
@@ -207,7 +179,7 @@ dart run bin/server.dart --web-dir host-deck-ui/dist --enable-secure-browser
 
 ## 桌面发布构建
 
-Flutter 桌面 release 已弃用：`pubspec.yaml` 不再声明 `assets/web/`，发布工作流中的 Flutter 桌面 job 也已注释。桌面安装包统一使用 Electron 构建。
+桌面安装包统一使用 Electron 构建，内含编译后的 Dart 服务。
 
 GitHub Actions 的 [.github/workflows/release.yml](.github/workflows/release.yml) 在推送 `v*` 标签时运行，发布以下产物：
 
@@ -215,8 +187,7 @@ GitHub Actions 的 [.github/workflows/release.yml](.github/workflows/release.yml
 - Windows Agent CLI zip（`bin/hostdeck_cli.dart` + pi-ai bridge，需连接已运行的 HostDeck 服务）
 - Electron Windows exe/zip
 - Electron macOS Apple Silicon dmg/zip
-
-Flutter 桌面（Linux、macOS、Windows）、Android 和纯 Dart bundle 的发布 job 目前保留在工作流中但处于注释状态。
+- Linux amd64/arm64 文件 SideCar 资产包
 
 Electron 打包复用 `build-web` 生成的前端 artifact；Docker 构建在镜像内部重新构建前端、Dart 服务与 pi-ai bridge。
 
@@ -224,7 +195,7 @@ Electron 打包复用 `build-web` 生成的前端 artifact；Docker 构建在镜
 
 Electron 壳（Windows、macOS Apple Silicon）位于 `host-deck-electron/`，其中 `src/main/` 承载主进程、`src/preload/` 承载桥接层、`src/renderer/` 使用 Vue 构建壳界面。构建时会先生成 Dart CLI 服务 bundle，再把前端 `host-deck-ui/dist/` 和服务可执行文件打入安装包；开发模式下分别使用 `HOST_DECK_ELECTRON_APP_DEV_URL` 和 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖两个 Vite 地址。
 
-Electron 的服务构建脚本会执行 `flutter pub get`，若该步骤失败但 `.dart_tool/package_config.json` 已存在，会继续使用现有依赖配置执行 `dart compile exe`；因此 Electron 打包本身不强制依赖 `fvm` 命令可用。
+Electron 的服务构建脚本在仓库根目录执行 `dart pub get`，再用 `dart build cli` 构建服务 bundle。
 
 ```bash
 pnpm --dir host-deck-electron install --frozen-lockfile
@@ -249,13 +220,13 @@ Windows PowerShell：
 .\scripts\build_server.ps1
 ```
 
-脚本会安装并构建 `host-deck-ui/`，执行 `flutter pub get` 和 `dart build cli`，用 Bun 编译 pi-ai bridge，再把前端产物复制到 `build/server/bundle/web/`，并生成 `build/server/start_server.bat`。
+脚本会安装并构建 `host-deck-ui/`，执行 `dart pub get` 和 `dart build cli`，用 Bun 编译 pi-ai bridge，再把前端产物复制到 `build/server/bundle/web/`。Windows 脚本还会生成 `build/server/start_server.bat`。
 
 也可以手动构建：
 
 ```bash
 pnpm --dir host-deck-ui build
-flutter pub get
+dart pub get
 dart build cli --target bin/server.dart --output build/server
 node scripts/build_ai.mjs build/server/bundle
 # 将 host-deck-ui/dist 的内容同步到 build/server/bundle/web/
@@ -368,8 +339,9 @@ pnpm run test
 也可单独校验 Dart：
 
 ```bash
-fvm flutter analyze
-fvm flutter test
+dart format .
+dart analyze
+dart test
 ```
 
 前端：
@@ -401,14 +373,14 @@ pnpm --dir host-deck-ai test:bin
 host_deck/
 ├── bin/                 # Dart CLI 服务、Agent CLI 与 MCP 入口
 ├── docs/                # 架构、开发、构建、测试与模块文档
-├── lib/                 # Flutter 桌面壳与内置后端服务
+├── lib/                 # Dart 服务与 Agent CLI / MCP 共用代码
 ├── host-deck-ui/        # 当前主前端工程
 │   └── packages/webos/  # 可复用的 Vue 桌面交互组件包
 ├── host-deck-electron/  # Electron Windows / macOS arm64 桌面壳
 ├── host-deck-ai/        # pi-ai bridge 工程（Bun 独立可执行程序）
 ├── package.json         # 仓库级 Node 命令编排入口
 ├── scripts/             # 服务打包、发版脚本
-├── test/                # Flutter/Dart 测试
+├── test/                # Dart 测试
 └── README.md
 ```
 

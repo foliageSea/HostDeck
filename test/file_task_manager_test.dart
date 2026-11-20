@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:dartssh2/dartssh2.dart';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/server/core/database/database_service.dart';
 import 'package:host_deck/server/core/ssh/ssh_repository.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';

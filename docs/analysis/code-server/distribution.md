@@ -14,7 +14,7 @@
 | Electron macOS arm64 | dmg/zip，同上 | 同上 |
 | Windows CLI zip | dart build cli 产物 + web/，默认端口 18080 | 通过 --data-dir 指定；默认静态资源在 exe 旁 ../web（scripts/build_server.ps1、server_cli.dart:82-86） |
 | Linux 原生/CLI | ./scripts/build_server.sh 产物；也可 dart run bin/server.dart | --data-dir；默认 127.0.0.1:8080 |
-| 发布流水线 | .github/workflows/release.yml：web → CLI zip / Docker / Electron win+mac（Flutter release job 已注释） | — |
+| 发布流水线 | .github/workflows/release.yml：web → CLI zip / Docker / Electron win+mac | — |
 
 关键约束：
 

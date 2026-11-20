@@ -4,51 +4,34 @@
 
 ## 前置要求
 
-- Flutter SDK
-- Node.js 22
+- [独立 Dart SDK](https://dart.dev/get-dart) 3.11.0+（将 `dart` 加入 `PATH`，用 `dart --version` 确认版本）
+- Node.js 22.19+（低于 23）
 - pnpm 10.34.5（仓库根目录 `package.json` 已固定版本）
 - Bun 1.4+（构建 pi-ai 独立可执行程序）
 
-安装依赖：
+在仓库根目录安装依赖：
 
 ```bash
 git submodule update --init --recursive
-flutter pub get
+dart pub get
 pnpm run install:all
 ```
 
-## Flutter 桌面壳调试
+## 一键启动后端与前端
 
-当前 Flutter debug 模式会在 WebView 中加载 Vite 开发服务器，同时 Flutter 侧会启动内置后端服务。
-
-启动前端：
+macOS / Linux：
 
 ```bash
-pnpm --dir host-deck-ui dev
+./dev.sh
 ```
 
-启动桌面壳：
+Windows PowerShell：
 
-```bash
-flutter run -d windows
+```powershell
+.\dev.ps1
 ```
 
-注意：
-
-- 后端默认监听 `http://localhost:8080`。
-- Vite 开发服务器端口以 `host-deck-ui/vite.config.ts` 的 `server.port` 为准。
-- Electron 开发模式由 `host-deck-electron/` 启动，并分别从 `host-deck-ui/vite.config.ts` 与 `host-deck-electron/vite.config.mjs` 读取开发服务器地址，也可通过 `HOST_DECK_ELECTRON_APP_DEV_URL` 与 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖。
-- `lib/main.dart` 的 Flutter debug WebView 与 Vite 默认统一使用 `http://localhost:5178`。
-
-## 纯 Dart B/S 模式
-
-先构建前端，再启动服务：
-
-```bash
-pnpm --dir host-deck-ui build
-$env:HOSTDECK_ACCESS_PASSWORD = 'replace-with-a-strong-password'
-dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
-```
+脚本使用 `PATH` 中的 `dart` 启动后端，等待服务就绪后再启动 Vite。默认后端地址为 `http://127.0.0.1:8080`，浏览器访问 `http://localhost:5178`。
 
 [dev.sh](../dev.sh) 默认把仓库根目录下的 `build/sidecar-assets` 作为文件 SideCar 资产目录，只加载已有产物，不在启动时编译。可通过 `HOSTDECK_FILE_SIDECAR_DIR` 覆盖（相对路径仍以仓库根目录为基准），或用 `HOSTDECK_FILE_SIDECAR=off` 禁用。缺少资产时，文件任务沿用兼容模式。生成方法见[文件 SideCar 资产](build-and-release.md#文件-sidecar-资产)。
 
@@ -65,6 +48,25 @@ dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
 ```
 
 脚本会在启动时打印该开发 Secret。它只适用于本地调试，不要用于生产环境。也可以直接通过 `HOSTDECK_ACCESS_TOTP_SECRET` 环境变量配置 Secret。
+
+## Electron 桌面开发
+
+运行以下命令启动两个 Vite 开发服务和 Electron。Electron 主进程会启动自己的 Dart 后端，默认使用端口 18080，被占用时会选用空闲端口：
+
+```bash
+pnpm --dir host-deck-electron electron:dev
+```
+
+两个开发服务器的地址分别来自 `host-deck-ui/vite.config.ts` 与 `host-deck-electron/vite.config.mjs`，也可通过 `HOST_DECK_ELECTRON_APP_DEV_URL` 与 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖。
+
+## 纯 Dart B/S 模式
+
+先构建前端，再启动含静态资源的服务：
+
+```bash
+pnpm run build:web
+dart run bin/server.dart --web-dir host-deck-ui/dist
+```
 
 启动后访问 `http://localhost:8080`。
 
@@ -91,7 +93,7 @@ dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
 pnpm --dir host-deck-ui dev
 ```
 
-Vite 会将 `/api` 代理到 `VITE_DEV_PROXY_TARGET`，默认是 `http://localhost:8080`；终端 WebSocket 使用 `/api/ws/terminal`。前端独立开发时，需要确保后端服务已经启动。
+Vite 开发服务器端口以 `host-deck-ui/vite.config.ts` 的 `server.port` 为准。Vite 会将 `/api` 代理到 `VITE_DEV_PROXY_TARGET`，默认是 `http://localhost:8080`；终端 WebSocket 使用 `/api/ws/terminal`。前端独立开发时，需要确保后端服务已经启动。
 
 ## 新功能开发流程
 

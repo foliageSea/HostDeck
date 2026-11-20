@@ -7,7 +7,7 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:dartssh2/src/message/msg_channel.dart';
 // ignore: implementation_imports
 import 'package:dartssh2/src/ssh_channel.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 void main() {
   const windowSize = 2 * 1024 * 1024;

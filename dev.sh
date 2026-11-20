@@ -202,7 +202,7 @@ start_backend() {
   (
     cd "$project_root"
     export HOSTDECK_FILE_SIDECAR_DIR="${HOSTDECK_FILE_SIDECAR_DIR:-build/sidecar-assets}"
-    exec fvm dart run --enable-experiment=native-assets bin/server.dart \
+    exec dart run bin/server.dart \
       --host "$backend_host" --port "$backend_port" \
       --enable-secure-browser --ready-file "$backend_ready_file"
   ) &

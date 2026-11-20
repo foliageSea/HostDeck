@@ -82,7 +82,7 @@ pnpm exec vue-tsc -p tsconfig.app.json --noEmit
 - 可通过 `.env` 中的 `VITE_DEV_PROXY_TARGET` 覆盖，例如：`VITE_DEV_PROXY_TARGET=http://127.0.0.1:9000`
 - Electron 壳未最大化时，UI 内部窗口默认不自动最大化；如需开启，可在构建前设置 `VITE_ELECTRON_MAXIMIZE_UI_WHEN_WINDOWED=true`。
 - WebSocket 也通过 `/api` 代理到同一后端
-- 启动联调前请先确认 Flutter 侧内置服务监听端口与这里一致
+- 启动联调前请确认 Dart 后端的监听端口与 Vite 代理目标一致。
 
 ## 约定
 

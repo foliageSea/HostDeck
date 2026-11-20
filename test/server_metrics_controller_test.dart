@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/server/features/server_metrics/server_metrics_controller.dart';
 import 'package:host_deck/server/features/server_metrics/server_metrics_service.dart';
 import 'package:shelf/shelf.dart';

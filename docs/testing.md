@@ -2,33 +2,34 @@
 
 本文档记录项目常用验证命令和变更类型对应的测试范围。
 
-## 后端与桌面校验
+## Dart 服务与 Agent CLI / MCP 校验
 
-仓库根目录执行：
+使用独立 Dart SDK 3.11.0+，在仓库根目录执行：
 
 ```bash
+dart pub get
 dart format .
-flutter analyze
-flutter test
+dart analyze
+dart test
 ```
 
 单个测试文件示例：
 
 ```bash
-flutter test test/monitor_service_test.dart
+dart test test/monitor_service_test.dart
 ```
 
 按测试名称执行示例：
 
 ```bash
-flutter test --name "MonitorService parses system status correctly"
+dart test --name "MonitorService parses system status correctly"
 ```
 
-仓库级 Node/Dart 校验入口：
+仓库级聚合脚本（`check:dart` 和 `test:dart` 分别调用 `dart analyze` 和 `dart test`）：
 
 ```bash
 pnpm run check
-pnpm test
+pnpm run test
 ```
 
 pi-ai bridge 的 Bun 编译产物需要额外验证：
@@ -66,13 +67,13 @@ pnpm --dir host-deck-ui exec vitest run src/views/Files/components/__tests__/Fil
 
 ## 当前测试索引
 
-后端/Flutter 测试：
+Dart 测试：
 
 - `test/ssh_operation_limiter_test.dart`
 - `test/monitor_service_test.dart`
 - `test/docker_engine_mapper_test.dart`
 - `test/monitor_history_service_test.dart`
-- `test/widget_test.dart`
+- `test/server_cli_test.dart`
 - `test/ssh_service_test.dart`
 - `test/file_service_test.dart`
 
@@ -88,8 +89,8 @@ pnpm --dir host-deck-ui exec vitest run src/views/Files/components/__tests__/Fil
 后端 Dart 代码变更：
 
 - `dart format .`
-- `flutter analyze`
-- 相关 `flutter test ...`
+- `dart analyze`
+- 相关 `dart test ...`
 
 前端代码变更：
 

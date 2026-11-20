@@ -93,7 +93,7 @@ iframe 语义分析（SameSite=Strict）：
 
 边界：单文件读写、无文件树、无搜索替换跨文件、无 LSP/补全服务端、无终端、无 git、无扩展。code-server 提供完整 VS Code 工作台（工作区、终端、扩展市场），二者是"单文件编辑"与"完整 IDE"的定位差，不宜互相替代。
 
-## 7 Electron / Flutter 壳层承载能力
+## 7 Electron 壳层承载能力
 
 【事实：Electron】
 - 结构：`BrowserWindow`（只加载 tab 栏壳页面）+ 每个 Tab 一个 `WebContentsView`（`host-deck-electron/src/main/index.cjs:219-233`、`src/main/tab-manager.cjs:152-163`）。
@@ -102,10 +102,6 @@ iframe 语义分析（SameSite=Strict）：
 - 全仓无 `webviewTag`、`<webview>`、`BrowserView`（grep 只命中 `WebContentsView`），即当前**没有通用的内嵌第三方站点入口**。
 - `createTab(url)` 本身支持传 URL（`tab-manager.cjs:152`），但 IPC `tabs:create` 不接收参数、只用应用自身 URL（`src/main/ipc.cjs:91`；preload `src/preload/tabs.cjs:5`；UI 侧 `TabsShell.vue:312` `api.create()`）。
 - 对外能力白名单：`window.hostDeck.app.*`（openInBrowser / openInSecureChrome / openDevTools / forceReload / clearBrowserCache / externalAccess）与 `window.hostDeck.window.*`（`src/preload/host-deck.cjs:3-26`）。
-
-【事实：Flutter】
-- `pubspec.yaml` 无任何 webview 插件（grep `webview|inappwebview|desktop_webview` 无命中）；`lib/main.dart:61-63` 只拼出 `http://localhost:5178`（debug）/`http://localhost:<port>`（release）字符串，真正的打开动作是 `launchUrl(uri, mode: LaunchMode.externalApplication)`（`lib/main.dart:154`，依赖 `pubspec.yaml:51` `url_launcher`）。
-- 即：AGENTS.md 中"Flutter debug 的 WebView 加载 localhost:5178"与现状不符，Flutter 壳只能把地址交给系统浏览器，不构成 code-server 承载点。
 
 ## 8 可复用组件 / 改造点清单
 

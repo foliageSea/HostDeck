@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/agent/hostdeck_agent_client.dart';
 
 void main() {
@@ -12,7 +12,6 @@ void main() {
         'hostdeck-tls-server-',
       );
       Process? process;
-      var logs = '';
       Future<void> stop() async {
         final child = process;
         process = null;
@@ -26,6 +25,30 @@ void main() {
         await stop();
         await directory.delete(recursive: true);
       });
+      // Running `dart run` here rewrites native assets already mapped by
+      // the test runner. Use separate bundles, as in release builds.
+      Future<String> buildExecutable(String name) async {
+        final output = '${directory.path}/$name-build';
+        final result = await Process.run(Platform.resolvedExecutable, [
+          'build',
+          'cli',
+          '--target',
+          'bin/$name.dart',
+          '--output',
+          output,
+        ]);
+        expect(
+          result.exitCode,
+          0,
+          reason: '${result.stdout}\n${result.stderr}',
+        );
+        final suffix = Platform.isWindows ? '.exe' : '';
+        return '$output/bundle/bin/$name$suffix';
+      }
+
+      final serverExecutable = await buildExecutable('server');
+      final cliExecutable = await buildExecutable('hostdeck_cli');
+
       Future<Map<String, dynamic>> start() async {
         final ready = File('${directory.path}/ready.json');
         if (await ready.exists()) await ready.delete();
@@ -35,11 +58,9 @@ void main() {
         );
         final port = reservation.port;
         await reservation.close();
-        process = await Process.start(
-          'dart',
+        final child = await Process.start(
+          serverExecutable,
           [
-            'run',
-            'bin/server.dart',
             '--port',
             '$port',
             '--data-dir',
@@ -53,13 +74,14 @@ void main() {
             'HOSTDECK_API_TOKEN': 'test-token',
           },
         );
-        process!.stdout
-            .transform(utf8.decoder)
-            .listen((value) => logs += value);
-        process!.stderr
-            .transform(utf8.decoder)
-            .listen((value) => logs += value);
-        for (var i = 0; i < 400; i++) {
+        process = child;
+        final logs = StringBuffer();
+        child.stdout.transform(utf8.decoder).listen(logs.write);
+        child.stderr.transform(utf8.decoder).listen(logs.write);
+        int? exitCode;
+        child.exitCode.then((code) => exitCode = code);
+        final startupTime = Stopwatch()..start();
+        while (startupTime.elapsed < const Duration(seconds: 45)) {
           if (await ready.exists()) {
             try {
               return jsonDecode(await ready.readAsString())
@@ -67,6 +89,9 @@ void main() {
             } on FormatException {
               // The ready file may still be in its first write.
             }
+          }
+          if (exitCode != null) {
+            fail('Server exited before startup (exit code $exitCode): $logs');
           }
           await Future<void>.delayed(const Duration(milliseconds: 50));
         }
@@ -159,26 +184,20 @@ waitForUrl(ready.baseUrl, 2000, probeOptions(ready.certificatePem)).catch((error
         http.close(force: true);
       }
       final cli = await Process.run(
-        'dart',
-        ['run', 'bin/hostdeck_cli.dart', 'discover'],
+        cliExecutable,
+        ['discover'],
         environment: {
           'HOSTDECK_DISCOVERY_FILE': '${directory.path}/instance.json',
           'HOSTDECK_TOKEN': 'test-token',
         },
       );
       expect(cli.exitCode, 0, reason: '${cli.stdout}\n${cli.stderr}');
-      final cliOutput = cli.stdout as String;
-      expect(
-        jsonDecode(
-          cliOutput.substring(cliOutput.indexOf('{')),
-        )['data']['baseUrl'],
-        tlsUrl,
-      );
+      expect(jsonDecode(cli.stdout as String)['data']['baseUrl'], tlsUrl);
       await save(tlsUrl, false, ready['certificatePem'] as String);
       await stop();
       ready = await start();
       expect(ready['baseUrl'], startsWith('http://'));
     },
-    timeout: const Timeout(Duration(seconds: 90)),
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 }

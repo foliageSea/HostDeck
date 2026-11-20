@@ -4,18 +4,17 @@
 
 ## 组成部分
 
-- Flutter 桌面壳：入口 `lib/main.dart`，负责桌面窗口、WebView 承载和内置后端服务生命周期；仅用于开发调试，release 已弃用。
-- Dart HTTP/WebSocket 服务：核心组装在 `lib/server/server_service.dart`，独立入口是 `bin/server.dart`。
-- Vue 3 前端：当前唯一前端工程位于 `host-deck-ui/`，构建产物由桌面壳或 Dart 服务作为静态资源提供。
+- 纯 Dart HTTP/WebSocket 服务：入口是 `bin/server.dart`，核心组装在 `lib/server/app/server_service.dart`。
+- Vue 3 前端：位于 `host-deck-ui/`，构建产物由 Dart 服务作为静态资源提供。
+- Electron 桌面壳：位于 `host-deck-electron/`，负责桌面窗口、标签页和打包后端的生命周期。
 
 ## 运行形态
 
-桌面调试模式：
+开发模式：
 
-- 前端通过 Vite 开发服务器运行。
-- 后端由 Flutter 桌面壳内置启动，默认监听 `http://localhost:8080`。
-- Vite 代理 `/api` 到后端，其中终端 WebSocket 使用 `/api/ws/terminal`。
-- 注意：Vite 与 `lib/main.dart` 的 Flutter debug WebView 默认统一使用 `http://localhost:5178`；`host-deck-electron/` 的 Electron 开发模式还会启动自身的壳层 Vite 服务 `host-deck-electron/vite.config.mjs`，也可通过 `HOST_DECK_ELECTRON_APP_DEV_URL` 与 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖。
+- Dart 后端由 `dart run bin/server.dart` 启动，默认监听 `http://127.0.0.1:8080`。
+- Vite 提供应用前端并代理 `/api` 到后端，其中终端 WebSocket 使用 `/api/ws/terminal`。浏览器开发可通过根目录 `dev.sh` 或 `dev.ps1` 同时启动后端与 Vite。
+- `electron:dev` 启动应用前端和壳层各自的 Vite 服务，Electron 主进程启动 Dart 后端。两个 Vite 地址可通过 `HOST_DECK_ELECTRON_APP_DEV_URL` 与 `HOST_DECK_ELECTRON_SHELL_DEV_URL` 覆盖。
 
 纯 B/S 模式：
 
@@ -25,7 +24,7 @@
 
 发布模式：
 
-- 桌面 release 使用 Electron，打包 `host-deck-ui/dist` 与 Dart CLI 服务；Flutter 桌面 release 已弃用。
+- 桌面 release 使用 Electron，打包 `host-deck-ui/dist` 与编译后的 Dart 服务；Electron 主进程将服务作为独立子进程启动。
 - Docker 镜像直接复制 `host-deck-ui/dist` 到 `/app/web`。
 - CLI bundle 默认尝试从可执行文件旁的 `../web` 查找静态资源。
 

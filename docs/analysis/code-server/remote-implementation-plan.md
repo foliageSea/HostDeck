@@ -238,7 +238,7 @@ GET    /ide/<sessionId>/...                    代理（自行鉴权，非 /api�
 
 - 后端：代理中间件、会话管理、离线包存储、SSH 预检/SFTP 安装/启动/停止、SSH bridge、API、容器/路由装配。
 - 前端：CodeServerView、API 客户端、应用注册/图标、Vite /ide 代理、离线包上传/删除/扫描、状态轮询、iframe。
-- 测试：proxy 6 项、package store 14 项、remote provider 20 项；全仓库 341 项测试通过；flutter analyze 零告警；前端 build + vue-tsc 通过。
+- 测试：proxy 6 项、package store 14 项、remote provider 20 项；全仓库 341 项测试通过；当时的静态分析无告警；前端 build + vue-tsc 通过。
 - 真实链路：本地 sshd + 219MB 离线包，上传 4.4s、远端安装 17s、启动 1.9s；/ide/ HTML 200、workbench.js 5.4MB 200、/healthz 正常、带 Cookie 的 WebSocket 升级成功；stop 后进程/端口/bridge 清理完成。
 
 未完成（见 docs/modules/code-server.md「已知限制」）：重启接管、SSE 进度、VSIX 离线安装、版本切换 UI、CLI 配置、共享主机强隔离。

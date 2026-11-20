@@ -151,7 +151,7 @@ Examples:
   hostdeck_cli patch --connection <id> --cwd /repo < fix.diff
 
 Build:
-  fvm dart build cli --target bin/hostdeck_cli.dart --output build/hostdeck-cli
+  dart build cli --target bin/hostdeck_cli.dart --output build/hostdeck-cli
 ''');
 }
 

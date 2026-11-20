@@ -12,7 +12,7 @@
 
 ## 入口
 
-桌面内置服务由 `lib/main.dart` 启动，纯 B/S 服务由 `bin/server.dart` 启动。两者最终都使用 `ServerService`。
+独立 B/S 部署和 Electron 桌面版共用 `bin/server.dart`，由该入口组装并启动 `ServerService`。打包后的 Electron 应用将编译好的 Dart 服务作为子进程启动。
 
 `bin/server.dart` 支持参数：
 

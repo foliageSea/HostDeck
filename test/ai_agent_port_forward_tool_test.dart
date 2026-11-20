@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:dartssh2/dartssh2.dart';
 
 import 'package:host_deck/server/core/database/database_service.dart';

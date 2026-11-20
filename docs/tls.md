@@ -83,7 +83,7 @@ export HOSTDECK_DEV_TLS=true
 export HOSTDECK_DEV_TLS_CERT=/absolute/path/cert.pem
 export HOSTDECK_DEV_TLS_KEY=/absolute/path/key.pem
 ./dev.sh
-# 或启动 Electron 开发模式（后端另行运行）
+# 或启动 Electron 开发模式（主进程启动自己的 Dart 后端）
 pnpm --dir host-deck-electron electron:dev
 ```
 
@@ -100,7 +100,7 @@ $env:HOSTDECK_DEV_TLS_KEY = 'C:\certs\key.pem'
 
 `dev.sh` / `dev.ps1` 会通过临时 ready 文件读取后端实际协议和公开证书。按 `r` 重启后端时，Vite 会重新加载代理配置，适配后端 TLS 开关和证书变化；前端 HTTPS 配置保持原样。后端 TLS 启用后，登录 Cookie 带有 `Secure`，开发前端也应启用 HTTPS，以便在非 localhost 地址正常登录。
 
-手动运行 Vite 或 Electron 开发模式时，如后端使用 HTTPS，需要同时配置代理目标和受信证书：
+单独使用 Vite 代理 HTTPS 后端时，需要同时配置代理目标和受信证书：
 
 ```bash
 export VITE_DEV_PROXY_TARGET=https://127.0.0.1:8080

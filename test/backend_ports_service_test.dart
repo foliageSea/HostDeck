@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/code_server/code_server_manager.dart';
 import 'package:host_deck/server/features/code_server/code_server_models.dart';
@@ -173,6 +173,14 @@ class _FakeSshService extends SshService {
 
   @override
   SSHClient? getClient(String connectionId) => _client;
+
+  @override
+  SshConnectionMetadata? getConnectionMetadata(String connectionId) =>
+      const SshConnectionMetadata(
+        host: 'host.internal',
+        port: 22,
+        username: 'user',
+      );
 
   @override
   void addDisconnectListener(

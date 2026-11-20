@@ -9,7 +9,7 @@ import 'package:host_deck/server/routes/code_server_routes.dart';
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:host_deck/server/core/ssh/ssh_service.dart';
 import 'package:host_deck/server/features/code_server/code_server_manager.dart';
 import 'package:host_deck/server/features/code_server/code_server_models.dart';
