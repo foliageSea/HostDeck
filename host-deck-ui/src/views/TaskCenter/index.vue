@@ -280,7 +280,22 @@ function handleRowAction(key: string | number, batch: UploadBatch) {
               getStatusLabel(getBatchStatus(batch))
             }}</NTag>
           </div>
-          <div>{{ getSourceLabel(batch.source) }}</div>
+          <div>
+            <div>{{ getSourceLabel(batch.source) }}</div>
+            <div
+              v-if="remoteProgress[batch.id]?.modeLabels.length"
+              class="mt-[4px] flex flex-wrap gap-[4px]"
+            >
+              <NTag
+                v-for="label in remoteProgress[batch.id].modeLabels"
+                :key="label"
+                size="small"
+                :bordered="false"
+              >
+                {{ label }}
+              </NTag>
+            </div>
+          </div>
           <div class="flex justify-end">
             <NDropdown
               trigger="click"

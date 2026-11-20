@@ -9,6 +9,25 @@ const phaseLabels: Record<FileTaskProgress['phase'], string> = {
   legacy: '兼容模式处理中',
 }
 
+function getModeLabels(items: FileTask['items']) {
+  let usedSidecar = false
+  let usedLegacy = false
+  for (const item of items) {
+    const phase = item.progress?.phase
+    if (phase === 'legacy') {
+      usedLegacy = true
+    } else if (phase && (phase !== 'deploying' || item.status === 'success')) {
+      // Deployment alone is inconclusive unless the item succeeded without a fallback.
+      usedSidecar = true
+    }
+  }
+
+  const labels: string[] = []
+  if (usedSidecar) labels.push('SideCar 模式')
+  if (usedLegacy) labels.push('兼容模式')
+  return labels
+}
+
 function getMeasurement(progress?: FileTaskProgress | null) {
   if (!progress || ['deploying', 'scanning', 'legacy'].includes(progress.phase)) return null
 
@@ -56,6 +75,7 @@ export function getRemoteTaskProgress(task: FileTask) {
     processed,
     completed: task.items.filter((item) => item.status === 'success').length,
     total: task.items.length,
+    modeLabels: getModeLabels(task.items),
     currentPath: current?.sourcePath,
     phaseLabel: current?.progress
       ? phaseLabels[current.progress.phase]

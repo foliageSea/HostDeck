@@ -28,6 +28,44 @@ function task(status: FileTaskStatus, ...items: FileTaskItem[]): FileTask {
 }
 
 describe('remote task progress presentation', () => {
+  it.each(['running', 'failed', 'cancelled'] as const)(
+    'does not assume a mode for a %s item without confirmed execution',
+    (status) => {
+      const deploying = item(1, status, progress({ phase: 'deploying' }))
+      const noProgress = item(2, status, null)
+      expect(getRemoteTaskProgress(task(status, deploying, noProgress)).modeLabels).toEqual([])
+    },
+  )
+
+  it('shows SideCar mode once remote scanning starts', () => {
+    const scanning = item(1, 'running', progress({ phase: 'scanning' }))
+    expect(getRemoteTaskProgress(task('running', scanning)).modeLabels).toEqual(['SideCar 模式'])
+  })
+
+  it('shows compatibility mode after fallback, including on completed tasks', () => {
+    const legacy = progress({ phase: 'legacy' })
+    for (const status of ['running', 'success'] as const) {
+      expect(getRemoteTaskProgress(task(status, item(1, status, legacy))).modeLabels).toEqual([
+        '兼容模式',
+      ])
+    }
+  })
+
+  it('recognizes SideCar success even when no progress arrived after deployment', () => {
+    const done = item(1, 'success', progress({ phase: 'deploying' }))
+    expect(getRemoteTaskProgress(task('success', done)).modeLabels).toEqual(['SideCar 模式'])
+  })
+
+  it('shows both modes only once in a mixed batch, including finished items', () => {
+    const legacy = item(1, 'success', progress({ phase: 'legacy' }))
+    const sidecar = item(2, 'failed', progress({ phase: 'committing' }))
+    const other = item(3, 'success', progress())
+    const cancelled = item(4, 'cancelled')
+    expect(
+      getRemoteTaskProgress(task('failed', legacy, sidecar, other, cancelled)).modeLabels,
+    ).toEqual(['SideCar 模式', '兼容模式'])
+  })
+
   it('does not report a false percentage for old or unmeasurable tasks', () => {
     for (const value of [
       undefined,
@@ -71,7 +109,12 @@ describe('remote task progress presentation', () => {
   )
 
   it('shows the source-removal phase and reports 100 only after overall success', () => {
-    const value = progress({ phase: 'removingSource', bytesTotal: 0, entriesDone: 1, entriesTotal: 1 })
+    const value = progress({
+      phase: 'removingSource',
+      bytesTotal: 0,
+      entriesDone: 1,
+      entriesTotal: 1,
+    })
     expect(getRemoteTaskProgress(task('running', item(1, 'running', value)))).toMatchObject({
       percentage: 99,
       phaseLabel: '正在删除源文件',
