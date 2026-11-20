@@ -78,11 +78,19 @@ printf '%s' "$APP_VERSION" > build/server/bundle/VERSION
 
 [纯 Dart SideCar](../host-deck-sidecar/bin/hostdeck_file_sidecar.dart) 生成 Linux glibc amd64/arm64 单文件。Release 使用固定的 Dart 3.11.0 SDK 在原生架构上构建并执行冒烟检查，将同一批资产放入 Electron 服务和 Docker 的 `sidecars/` 下，也单独发布 `host-deck-sidecars-<tag>.tar.gz`。Windows Agent CLI 不需要该资产。
 
-在开发环境导出资产：
+开发环境中，启动 Docker 后，从仓库根目录运行：
 
 ```sh
-docker buildx build --target sidecar-assets --build-arg HOSTDECK_VERSION=dev --output type=local,dest=build/sidecar-assets .
-# 或者在 Linux 使用 Dart 3.11.0+ 和 Node.js：
+pnpm --dir host-deck-ui build:sidecar
+# 或指定版本和输出目录（相对路径以仓库根目录为准）：
+pnpm --dir host-deck-ui build:sidecar 1.2.3 build/sidecar-custom
+```
+
+[构建脚本](../host-deck-ui/packages/sidecar/build.mjs) 通过 Docker Buildx 生成并校验 Linux amd64、arm64 二进制及 `manifest.json`。默认版本为 `dev`（可用 `HOSTDECK_VERSION` 覆盖），默认输出到仓库根目录下的 `build/sidecar-assets`。普通前端构建不会执行此脚本。
+
+也可在 Linux 上用 Dart **3.11.0** 和 Node.js 直接构建：
+
+```sh
 node scripts/sidecar_assets.mjs build build/sidecar-assets dev amd64 arm64
 node scripts/sidecar_assets.mjs manifest build/sidecar-assets dev
 node scripts/sidecar_assets.mjs verify build/sidecar-assets dev

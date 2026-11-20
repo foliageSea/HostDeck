@@ -8,6 +8,7 @@
     "node": "22.x"
   },
   "scripts": {
+    "build:sidecar": "node packages/sidecar/build.mjs",
     "build:webos": "pnpm --filter @host-deck/webos build",
     "test:webos": "pnpm --filter @host-deck/webos test",
     "test:webos-demo": "pnpm build:webos && pnpm --filter @host-deck/webos-demo test",
