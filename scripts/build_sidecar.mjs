@@ -2,13 +2,13 @@ import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const root = fileURLToPath(new URL('../../../', import.meta.url))
+const root = fileURLToPath(new URL('../', import.meta.url))
 const [
   version = process.env.HOSTDECK_VERSION || 'dev',
   directory = 'build/sidecar-assets',
   ...extra
 ] = process.argv.slice(2)
-const usage = 'pnpm --dir host-deck-ui build:sidecar [version] [output-dir]'
+const usage = 'pnpm run build:sidecar [version] [output-dir]'
 
 if (version === '--help' || version === '-h') {
   console.log(usage)

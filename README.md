@@ -189,7 +189,7 @@ GitHub Actions 的 [.github/workflows/release.yml](.github/workflows/release.yml
 - Electron macOS Apple Silicon dmg/zip
 - Linux amd64/arm64 文件 SideCar 资产包
 
-本地可运行 `pnpm --dir host-deck-ui build:sidecar` 生成 SideCar 资产（需要 Docker Buildx），详见[文件 SideCar 资产](docs/build-and-release.md#文件-sidecar-资产)。
+在仓库根目录运行 `pnpm run build:sidecar` 可生成 SideCar 资产（需要 Docker Buildx），详见[文件 SideCar 资产](docs/build-and-release.md#文件-sidecar-资产)。
 
 Electron 打包复用 `build-web` 生成的前端 artifact；Docker 构建在镜像内部重新构建前端、Dart 服务与 pi-ai bridge。
 

@@ -21,6 +21,7 @@
     "build:ai:bin": "pnpm --dir host-deck-ai build:bin",
     "build:server:unix": "bash scripts/build_server.sh",
     "build:server:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_server.ps1",
+    "build:sidecar": "node scripts/build_sidecar.mjs",
     "build:electron:win": "pnpm run build:web && pnpm --dir host-deck-electron electron:pack:win:prepared",
     "build:electron:mac": "pnpm run build:web && pnpm --dir host-deck-electron electron:pack:mac:prepared",
     "build:electron": "pnpm run build:electron:win",

@@ -81,12 +81,12 @@ printf '%s' "$APP_VERSION" > build/server/bundle/VERSION
 开发环境中，启动 Docker 后，从仓库根目录运行：
 
 ```sh
-pnpm --dir host-deck-ui build:sidecar
+pnpm run build:sidecar
 # 或指定版本和输出目录（相对路径以仓库根目录为准）：
-pnpm --dir host-deck-ui build:sidecar 1.2.3 build/sidecar-custom
+pnpm run build:sidecar 1.2.3 build/sidecar-custom
 ```
 
-[构建脚本](../host-deck-ui/packages/sidecar/build.mjs) 通过 Docker Buildx 生成并校验 Linux amd64、arm64 二进制及 `manifest.json`。默认版本为 `dev`（可用 `HOSTDECK_VERSION` 覆盖），默认输出到仓库根目录下的 `build/sidecar-assets`。普通前端构建不会执行此脚本。
+[构建脚本](../scripts/build_sidecar.mjs) 通过 Docker Buildx 生成并校验 Linux amd64、arm64 二进制及 `manifest.json`。默认版本为 `dev`（可用 `HOSTDECK_VERSION` 覆盖），默认输出到仓库根目录下的 `build/sidecar-assets`。普通前端构建不会执行此脚本。
 
 也可在 Linux 上用 Dart **3.11.0** 和 Node.js 直接构建：
 
