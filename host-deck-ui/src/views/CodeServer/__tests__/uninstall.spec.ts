@@ -29,7 +29,10 @@ vi.mock('@/api/code-server', () => ({ codeServerApi: mocks.api, uploadPackage: v
 vi.mock('@/stores/ssh', () => ({ useSshStore: () => mocks.ssh }))
 vi.mock('@/stores/settings', () => ({ useSettingsStore: () => ({ isDark: false }) }))
 vi.mock('@/stores/desktop', () => ({
-  useDesktopStore: () => ({ updateWindowProps: mocks.updateWindowProps }),
+  useDesktopStore: () => ({
+    apps: { 'code-server': { title: '远程 IDE' } },
+    updateWindowProps: mocks.updateWindowProps,
+  }),
 }))
 vi.mock('@/lib/ui', () => ({
   getUiApi: () => ({ dialog: { warning: mocks.warningDialog }, message: mocks.message }),

@@ -16,7 +16,11 @@ vi.mock('@/api/code-server', () => ({ codeServerApi: mocks.api, uploadPackage: v
 vi.mock('@/stores/ssh', () => ({ useSshStore: () => mocks.ssh }))
 vi.mock('@/stores/settings', () => ({ useSettingsStore: () => ({ isDark: false }) }))
 vi.mock('@/stores/desktop', () => ({
-  useDesktopStore: () => ({ updateWindowProps: mocks.updateWindowProps, openWindow: mocks.openWindow }),
+  useDesktopStore: () => ({
+    apps: { 'code-server': { title: '远程 IDE' } },
+    updateWindowProps: mocks.updateWindowProps,
+    openWindow: mocks.openWindow,
+  }),
 }))
 vi.mock('@/lib/ui', () => ({
   getUiApi: () => ({ dialog: { warning: vi.fn() }, message: mocks.message }),
@@ -127,6 +131,15 @@ afterEach(() => {
   observer = undefined
   wrapper?.unmount()
   wrapper = undefined
+})
+
+it.each([false, true])('shows the app title instead of the SSH address (running: %s)', async (running) => {
+  mocks.api.status.mockResolvedValue(targetStatus(running))
+  const view = await mountView()
+
+  expect(view.get('.cs-target-text').text()).toBe('远程 IDE')
+  expect(view.get('.cs-target-text').attributes('title')).toBe('远程 IDE')
+  expect(view.get('.cs-toolbar').text()).not.toContain('alice@host-1:22')
 })
 
 describe('CodeServer install progress', () => {

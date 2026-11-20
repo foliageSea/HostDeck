@@ -10,7 +10,6 @@ import {
   Play,
   Power,
   RefreshCw,
-  Server,
   Trash2,
   TriangleAlert,
   Upload,
@@ -27,6 +26,7 @@ import {
   type CodeServerSessionState,
   type CodeServerTargetStatus,
 } from '@/api/code-server'
+import AppIcon from '@/components/common/AppIcon.vue'
 import { getUiApi } from '@/lib/ui'
 import { useDesktopStore } from '@/stores/desktop'
 import { useSettingsStore } from '@/stores/settings'
@@ -40,6 +40,7 @@ const props = defineProps<{
 }>()
 
 const desktopStore = useDesktopStore()
+const ideAppTitle = computed(() => desktopStore.apps['code-server']?.title ?? '远程 IDE')
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
 
@@ -723,8 +724,8 @@ watch(
   <div class="code-server-view" :class="{ 'code-server-dark': settingsStore.isDark }">
     <header v-if="!headerCollapsed" class="cs-toolbar">
       <div class="cs-target">
-        <Server :size="16" aria-hidden="true" />
-        <span class="cs-target-text" :title="connectionText">{{ connectionText }}</span>
+        <AppIcon name="code-server" :size="16" />
+        <span class="cs-target-text" :title="ideAppTitle">{{ ideAppTitle }}</span>
         <NTag v-if="sessionLabel" size="small" :type="sessionTagType" :bordered="false">
           {{ sessionLabel }}
         </NTag>
@@ -1143,11 +1144,6 @@ watch(
   min-width: 0;
   align-items: center;
   gap: 8px;
-}
-
-.cs-target svg {
-  flex: none;
-  color: var(--cs-primary);
 }
 
 .cs-target-text {
