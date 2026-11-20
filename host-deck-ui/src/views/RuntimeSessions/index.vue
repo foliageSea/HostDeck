@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RefreshCw } from '@lucide/vue'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
-import { Handle, Position, VueFlow, useVueFlow } from '@vue-flow/core'
+import { Handle, Position, VueFlow } from '@vue-flow/core'
 import type { Edge, Node } from '@vue-flow/core'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
@@ -15,10 +15,11 @@ import type {
   RuntimeSessionSummary,
   RuntimeSnapshot,
 } from '@/api/runtime'
+import { useInitialFlowFit } from '@/hooks/useInitialFlowFit'
 import { useSettingsStore } from '@/stores/settings'
 
 const settingsStore = useSettingsStore()
-const { fitView } = useVueFlow({ id: 'runtime-sessions' })
+const { flowReady } = useInitialFlowFit('runtime-sessions', 0.16)
 
 interface RuntimeClientRow {
   connectionId: string
@@ -48,7 +49,6 @@ const snapshot = ref<RuntimeSnapshot | null>(null)
 const streamStatus = ref<'connecting' | 'connected' | 'reconnecting' | 'disconnected'>(
   'disconnected',
 )
-const hasFittedInitialSnapshot = ref(false)
 let runtimeSource: EventSource | null = null
 let isIntentionalClose = false
 
@@ -239,7 +239,6 @@ function startRuntimeStream() {
   runtimeSource = source
   source.onopen = () => {
     streamStatus.value = 'connected'
-    loading.value = false
   }
 
   source.addEventListener('snapshot', (event) => {
@@ -252,6 +251,7 @@ function startRuntimeStream() {
 
   source.addEventListener('snapshot-error', (event) => {
     console.error('Runtime SSE snapshot failed', (event as MessageEvent<string>).data)
+    loading.value = false
   })
 
   source.onerror = () => {
@@ -273,15 +273,6 @@ async function requestRefresh() {
   } finally {
     loading.value = false
   }
-}
-
-function handleNodesInitialized() {
-  if (hasFittedInitialSnapshot.value || flowNodes.value.length === 0) {
-    return
-  }
-
-  hasFittedInitialSnapshot.value = true
-  void fitView({ padding: 0.16, maxZoom: 1, duration: 280 })
 }
 
 function formatPurpose(purpose: RuntimeSessionPurpose) {
@@ -379,7 +370,8 @@ onBeforeUnmount(() => {
         :max-zoom="1.5"
         :zoom-on-double-click="false"
         :delete-key-code="null"
-        @nodes-initialized="handleNodesInitialized"
+        :style="flowReady ? undefined : { opacity: 0 }"
+        :inert="!flowReady"
       >
         <Background :gap="20" :size="1" :color="settingsStore.isDark ? '#334155' : '#cbd5e1'" />
         <Controls position="bottom-left" />
@@ -444,7 +436,10 @@ onBeforeUnmount(() => {
         </template>
       </VueFlow>
 
-      <div v-if="!loading && !snapshot" class="empty-state">
+      <div v-if="snapshot ? !flowReady : loading" class="canvas-overlay">
+        <NSpin size="large" />
+      </div>
+      <div v-else-if="!snapshot" class="canvas-overlay">
         <NEmpty description="当前没有运行中的客户端或会话" />
       </div>
     </main>
@@ -761,7 +756,7 @@ onBeforeUnmount(() => {
   fill: currentColor;
 }
 
-.empty-state {
+.canvas-overlay {
   pointer-events: none;
   position: absolute;
   inset: 0;

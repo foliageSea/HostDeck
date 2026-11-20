@@ -1,5 +1,5 @@
 import { flushPromises, shallowMount } from '@vue/test-utils'
-import { defineComponent } from 'vue'
+import { defineComponent, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import PortForwardView from '../index.vue'
 
@@ -15,7 +15,8 @@ vi.mock('@/lib/ui', () => ({ getUiApi: () => ({
   message: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }) }))
 vi.mock('@vue-flow/core', () => ({
-  useVueFlow: () => ({ fitView: mocks.fitView }),
+  useVueFlow: () => ({ fitView: mocks.fitView, viewportHelper: ref({ viewportInitialized: false }) }),
+  useNodesInitialized: () => ref(false),
   Position: { Left: 'left', Right: 'right' },
   VueFlow: { template: '<div />' },
   Handle: { template: '<div />' },
@@ -51,15 +52,15 @@ describe('PortForward protocol form', () => {
         NEmpty: true,
         NInput: defineComponent({ name: 'NInput', emits: ['update:value'], template: '<input />' }),
         NInputNumber: defineComponent({ name: 'NInputNumber', emits: ['update:value'], template: '<input />' }),
-        NRadioGroup: defineComponent({ name: 'NRadioGroup', emits: ['update:value'], template: '<div><slot /></div>' }),
-        NRadioButton: true,
+        NSelect: defineComponent({ name: 'NSelect', emits: ['update:value'], template: '<div />' }),
+        NButtonGroup: Slot,
       } },
     })
     await flushPromises()
     view.findAll('button').find((button) => button.text() === '新增转发')!.trigger('click')
     await flushPromises()
     expect(view.findAllComponents({ name: 'NInputNumber' })).toHaveLength(2)
-    view.findComponent({ name: 'NRadioGroup' }).vm.$emit('update:value', 'http')
+    view.findComponent({ name: 'NSelect' }).vm.$emit('update:value', 'http')
     await flushPromises()
     expect(view.findAllComponents({ name: 'NInputNumber' })).toHaveLength(1)
     view.findAllComponents({ name: 'NInput' })[0]!.vm.$emit('update:value', 'Web')

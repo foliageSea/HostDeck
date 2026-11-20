@@ -15,7 +15,7 @@ import {
 } from '@lucide/vue'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
-import { Handle, Position, VueFlow, useVueFlow } from '@vue-flow/core'
+import { Handle, Position, VueFlow } from '@vue-flow/core'
 import type { Edge, Node } from '@vue-flow/core'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
@@ -29,12 +29,12 @@ import {
   type PortForwardStatus,
 } from '@/api/port-forward'
 import { getUiApi } from '@/lib/ui'
+import { useInitialFlowFit } from '@/hooks/useInitialFlowFit'
 import { useSettingsStore } from '@/stores/settings'
 import { useSshStore } from '@/stores/ssh'
 
 const settingsStore = useSettingsStore()
 const sshStore = useSshStore()
-const { fitView } = useVueFlow({ id: 'port-forward-flow' })
 const formRef = ref<FormInst | null>(null)
 const rules = ref<PortForwardRule[]>([])
 const loading = ref(false)
@@ -43,12 +43,9 @@ const operatingId = ref<number | null>(null)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
 const viewMode = ref<'list' | 'flow'>('list')
-const hasFittedDiagram = ref(false)
+const { flowReady } = useInitialFlowFit('port-forward-flow', 0.12, () => viewMode.value === 'flow')
 
 function setViewMode(mode: typeof viewMode.value) {
-  if (viewMode.value === mode) return
-
-  hasFittedDiagram.value = false
   viewMode.value = mode
 }
 
@@ -263,19 +260,6 @@ function localAddress(rule: PortForwardRule) {
   const host =
     rule.bindHost === '0.0.0.0' || rule.bindHost === '::' ? window.location.hostname : rule.bindHost
   return `${host}:${rule.localPort}`
-}
-
-function fitDiagram() {
-  void nextTick(() => fitView({ padding: 0.12, maxZoom: 1, duration: 280 }))
-}
-
-function handleNodesInitialized() {
-  if (hasFittedDiagram.value || flowNodes.value.length === 0) {
-    return
-  }
-
-  hasFittedDiagram.value = true
-  fitDiagram()
 }
 
 function resetForm() {
@@ -558,7 +542,8 @@ onMounted(() => {
         :max-zoom="1.5"
         :zoom-on-double-click="false"
         :delete-key-code="null"
-        @nodes-initialized="handleNodesInitialized"
+        :style="flowReady ? undefined : { opacity: 0 }"
+        :inert="!flowReady"
       >
         <Background :gap="22" :size="1.2" :color="settingsStore.isDark ? '#334155' : '#cbd5e1'" />
         <Controls position="bottom-left" />
@@ -686,7 +671,9 @@ onMounted(() => {
         </template>
       </VueFlow>
 
-      <div v-if="loading" class="canvas-overlay"><NSpin size="large" /></div>
+      <div v-if="loading || (rules.length && !flowReady)" class="canvas-overlay">
+        <NSpin size="large" />
+      </div>
       <div v-else-if="rules.length === 0" class="canvas-overlay">
         <NEmpty description="暂无端口转发流程">
           <template #extra>
