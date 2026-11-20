@@ -25,10 +25,6 @@ const capabilitiesLoading = ref(true)
 
 const hasConnection = computed(() => Boolean(sshStore.connectionId && sshStore.isConnected))
 const activeTunnel = computed(() => tunnels.value[0] ?? null)
-const connectionText = computed(() => {
-  if (!hasConnection.value) return '未连接 SSH'
-  return `${sshStore.username}@${sshStore.host}:${sshStore.port}`
-})
 const canLaunch = computed(
   () =>
     hasConnection.value &&
@@ -189,12 +185,9 @@ onMounted(() => {
           </div>
           <div class="sb-status-copy">
             <strong>{{ activeTunnel ? '浏览器正在运行' : '浏览器尚未启动' }}</strong>
-            <span class="sb-muted">
-              {{
-                activeTunnel
-                  ? `代理 ${activeTunnel.bindHost}:${activeTunnel.bindPort} · 已启动 ${formatTime(activeTunnel.startedAt)}`
-                  : connectionText
-              }}
+            <span v-if="activeTunnel" class="sb-muted">
+              代理 {{ activeTunnel.bindHost }}:{{ activeTunnel.bindPort }} · 已启动
+              {{ formatTime(activeTunnel.startedAt) }}
             </span>
           </div>
         </div>
