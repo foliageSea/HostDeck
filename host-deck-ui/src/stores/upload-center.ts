@@ -1,6 +1,6 @@
-import { computed, ref } from 'vue'
+import { computed, onScopeDispose, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { FileTask, FileTaskStatus, FileTaskType } from '@/api/files'
+import { filesApi, type FileTask, type FileTaskStatus, type FileTaskType } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 
 export type UploadTaskStatus =
@@ -28,7 +28,7 @@ export interface UploadTaskItem {
   loaded: number
   name: string
   path: string
-  progress: number
+  progress: number | null
   source: UploadTaskSource
   status: UploadTaskStatus
   total: number
@@ -42,6 +42,8 @@ export interface UploadBatch {
   path: string
   source: UploadTaskSource
   tasks: UploadTaskItem[]
+  remoteTask?: FileTask
+  remoteTaskWindowId?: string
 }
 
 export interface UploadBatchFile {
@@ -63,30 +65,79 @@ function isFinishedFileTask(status: FileTaskStatus) {
   return status === 'success' || status === 'failed' || status === 'cancelled'
 }
 
+export function getRemoteTaskStatus(status: FileTaskStatus): UploadTaskStatus {
+  if (status === 'queued') return 'pending'
+  if (status === 'running') return 'processing'
+  if (status === 'failed') return 'error'
+  return status
+}
+
 function getFileTaskSummary(task: FileTask) {
   return task.items.length === 1 ? task.items[0]?.sourcePath : `${task.items.length} 个项目`
+}
+
+function getRemoteTaskError(task: FileTask) {
+  return (
+    task.items.find((item) => item.status === 'failed' && item.errorMessage)?.errorMessage ||
+    task.items.find((item) => item.errorMessage)?.errorMessage ||
+    task.errorMessage ||
+    ''
+  )
+}
+
+interface RemoteTaskWatch {
+  controller?: AbortController
+  retryTimer?: ReturnType<typeof setTimeout>
+  retryDelay: number
+}
+
+const initialRetryDelay = 1000
+const maxRetryDelay = 30_000
+
+export function isBatchActive(batch: UploadBatch) {
+  if (batch.remoteTask) return !isFinishedFileTask(batch.remoteTask.status)
+  return batch.tasks.some((task) => isTaskActive(task.status))
+}
+
+function isTaskActive(status: UploadTaskStatus) {
+  return (
+    status === 'pending' ||
+    status === 'processing' ||
+    status === 'uploading' ||
+    status === 'downloading'
+  )
 }
 
 export const useUploadCenterStore = defineStore('upload-center', () => {
   const batches = ref<UploadBatch[]>([])
   const batchControllers = new Map<string, AbortController>()
   const cancelledBatchIds = new Set<string>()
-  const notifiedRemoteTaskIds = new Set<string>()
+  const dismissedRemoteTaskIds = new Set<string>()
+  const remoteTaskWatches = new Map<string, RemoteTaskWatch>()
+  const remoteTaskCancellations = new Set<string>()
+  const remoteTaskCompletionListeners = new Set<(task: FileTask, windowId?: string) => void>()
+  let remoteTaskClearGeneration = 0
+  let disposed = false
 
-  function isTaskActive(status: UploadTaskStatus) {
-    return (
-      status === 'pending' ||
-      status === 'processing' ||
-      status === 'uploading' ||
-      status === 'downloading'
-    )
+  function onRemoteTaskCompleted(listener: (task: FileTask, windowId?: string) => void) {
+    remoteTaskCompletionListeners.add(listener)
+    return () => {
+      remoteTaskCompletionListeners.delete(listener)
+    }
   }
 
+  onScopeDispose(() => {
+    disposed = true
+    for (const taskId of remoteTaskWatches.keys()) stopWatchingRemoteTask(taskId)
+    remoteTaskCompletionListeners.clear()
+  })
+
   const activeTaskCount = computed(() =>
-    batches.value.reduce(
-      (count, batch) => count + batch.tasks.filter((task) => isTaskActive(task.status)).length,
-      0,
-    ),
+    batches.value.reduce((count, batch) => {
+      if (batch.remoteTask && !isBatchActive(batch)) return count
+      const activeItems = batch.tasks.filter((task) => isTaskActive(task.status)).length
+      return count + (batch.remoteTask ? Math.max(1, activeItems) : activeItems)
+    }, 0),
   )
 
   const totalTaskCount = computed(() =>
@@ -161,9 +212,6 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
   }
 
   function notifyRemoteTask(task: FileTask) {
-    if (!isFinishedFileTask(task.status) || notifiedRemoteTaskIds.has(task.id)) return
-
-    notifiedRemoteTaskIds.add(task.id)
     const label = fileTaskTypeLabels[task.type]
     const summary = getFileTaskSummary(task)
 
@@ -177,10 +225,9 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     }
 
     if (task.status === 'failed') {
-      const itemError = task.items.find((item) => item.errorMessage)?.errorMessage
       getUiApi().notification.error({
         title: `${label}任务失败`,
-        content: task.errorMessage || itemError || summary,
+        content: getRemoteTaskError(task) || summary,
         duration: 8000,
       })
       return
@@ -193,31 +240,44 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     })
   }
 
-  function upsertRemoteTask(task: FileTask, options: { notify?: boolean } = {}) {
-    const source = `files-${task.type}` as UploadTaskSource
-    const mapStatus = (status: typeof task.status): UploadTaskStatus => {
-      if (status === 'queued') return 'pending'
-      if (status === 'running') return 'processing'
-      if (status === 'failed') return 'error'
-      return status
+  function upsertRemoteTask(
+    task: FileTask,
+    options: { notify?: boolean; snapshot?: boolean; windowId?: string } = {},
+  ) {
+    if (disposed || dismissedRemoteTaskIds.has(task.id)) return
+
+    const existingBatch = findBatch(task.id)
+    const previous = existingBatch?.remoteTask
+    const finished = isFinishedFileTask(task.status)
+    // History and cancel responses can race the stream. An observed terminal task is immutable,
+    // and an active HTTP snapshot must not overwrite the live progress already in the store.
+    if (previous && isFinishedFileTask(previous.status)) return
+    if (previous && !finished) {
+      if (options.windowId && existingBatch) existingBatch.remoteTaskWindowId = options.windowId
+      if (options.snapshot) return
+      if (previous.status === 'running' && task.status === 'queued') return
     }
+
+    const source: UploadTaskSource = `files-${task.type}`
     const batch: UploadBatch = {
       connectionId: task.connectionId,
       createdAt: task.createdAt,
-      errorMessage: task.errorMessage ?? '',
+      errorMessage: getRemoteTaskError(task),
       id: task.id,
       path: task.items[0]?.targetPath ?? task.items[0]?.sourcePath ?? '/',
       source,
+      remoteTask: task,
+      remoteTaskWindowId: options.windowId ?? existingBatch?.remoteTaskWindowId,
       tasks: task.items.map((item) => ({
         connectionId: task.connectionId,
         id: `${task.id}-${item.id}`,
-        loaded: item.status === 'success' ? 1 : 0,
+        loaded: 0,
         name: item.sourcePath,
         path: item.targetPath ?? item.sourcePath,
-        progress: item.status === 'success' ? 100 : 0,
+        progress: null,
         source,
-        status: mapStatus(item.status),
-        total: 1,
+        status: getRemoteTaskStatus(item.status),
+        total: 0,
       })),
     }
     const index = batches.value.findIndex((item) => item.id === task.id)
@@ -227,7 +287,86 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
       batches.value.unshift(batch)
     }
 
-    if (options.notify !== false) notifyRemoteTask(task)
+    if (!finished) {
+      watchRemoteTask(task.id)
+      return
+    }
+
+    stopWatchingRemoteTask(task.id)
+    // A terminal entry first discovered in history is silent. A known active task completing
+    // during that same request still needs its usual notification and file refresh.
+    if (previous || options.notify !== false) {
+      notifyRemoteTask(task)
+      for (const listener of remoteTaskCompletionListeners) listener(task, batch.remoteTaskWindowId)
+    }
+  }
+
+  function stopWatchingRemoteTask(taskId: string) {
+    const watch = remoteTaskWatches.get(taskId)
+    if (!watch) return
+
+    remoteTaskWatches.delete(taskId)
+    clearTimeout(watch.retryTimer)
+    watch.controller?.abort()
+  }
+
+  function watchRemoteTask(taskId: string) {
+    if (remoteTaskWatches.has(taskId)) return
+    const watch: RemoteTaskWatch = { retryDelay: initialRetryDelay }
+    remoteTaskWatches.set(taskId, watch)
+
+    async function connect() {
+      const controller = new AbortController()
+      const connectedAt = Date.now()
+      watch.retryTimer = undefined
+      watch.controller = controller
+      try {
+        await filesApi.watchTask(
+          taskId,
+          (nextTask) => {
+            if (
+              watch.controller === controller &&
+              !controller.signal.aborted &&
+              nextTask.id === taskId
+            ) {
+              upsertRemoteTask(nextTask)
+            }
+          },
+          controller.signal,
+        )
+      } catch {
+        // Both a transport error and EOF without a terminal event reconnect.
+      }
+      if (remoteTaskWatches.get(taskId) !== watch) return
+
+      watch.controller = undefined
+      // Replaying the initial snapshot on a short-lived reconnect doesn't reset backoff.
+      if (Date.now() - connectedAt >= maxRetryDelay) watch.retryDelay = initialRetryDelay
+      watch.retryTimer = setTimeout(() => void connect(), watch.retryDelay)
+      watch.retryDelay = Math.min(watch.retryDelay * 2, maxRetryDelay)
+    }
+
+    void connect()
+  }
+
+  async function restoreRemoteTasks(connectionId: string) {
+    const generation = remoteTaskClearGeneration
+    const tasks = await filesApi.listTasks(connectionId)
+    if (generation !== remoteTaskClearGeneration) return
+    for (const task of tasks) upsertRemoteTask(task, { notify: false, snapshot: true })
+  }
+
+  async function cancelRemoteTask(taskId: string) {
+    if (remoteTaskCancellations.has(taskId)) return
+    remoteTaskCancellations.add(taskId)
+    try {
+      const task = await filesApi.cancelTask(taskId)
+      upsertRemoteTask(task, { snapshot: true })
+    } catch {
+      if (!disposed) getUiApi().message.error('中断文件任务失败。')
+    } finally {
+      remoteTaskCancellations.delete(taskId)
+    }
   }
 
   function markBatchError(batchId: string, message: string) {
@@ -268,7 +407,9 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
       return
     }
 
-    if (!batch.tasks.some((task) => isTaskActive(task.status))) {
+    if (!isBatchActive(batch)) return
+    if (batch.remoteTask) {
+      void cancelRemoteTask(batchId)
       return
     }
 
@@ -291,8 +432,10 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
 
   function removeBatch(batchId: string) {
     const batch = findBatch(batchId)
-    if (batch?.tasks.some((task) => isTaskActive(task.status))) {
-      cancelBatch(batchId)
+    if (batch && isBatchActive(batch)) cancelBatch(batchId)
+    if (batch?.remoteTask) {
+      dismissedRemoteTaskIds.add(batchId)
+      stopWatchingRemoteTask(batchId)
     }
 
     clearBatchController(batchId)
@@ -301,15 +444,19 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
   }
 
   function clearFinished() {
-    batches.value = batches.value.filter((batch) =>
-      batch.tasks.some((task) => isTaskActive(task.status)),
-    )
+    for (const batch of batches.value) {
+      if (batch.remoteTask && !isBatchActive(batch)) dismissedRemoteTaskIds.add(batch.id)
+    }
+    batches.value = batches.value.filter(isBatchActive)
   }
 
   function clearAll() {
+    remoteTaskClearGeneration++
     for (const batch of batches.value) {
-      if (batch.tasks.some((task) => isTaskActive(task.status))) {
-        cancelBatch(batch.id)
+      if (isBatchActive(batch)) cancelBatch(batch.id)
+      if (batch.remoteTask) {
+        dismissedRemoteTaskIds.add(batch.id)
+        stopWatchingRemoteTask(batch.id)
       }
     }
 
@@ -330,8 +477,10 @@ export const useUploadCenterStore = defineStore('upload-center', () => {
     hasTasks,
     isBatchCancelled,
     markBatchError,
+    onRemoteTaskCompleted,
     registerBatchController,
     removeBatch,
+    restoreRemoteTasks,
     totalTaskCount,
     updateTask,
     upsertRemoteTask,

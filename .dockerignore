@@ -2,4 +2,6 @@
 **/dist
 .dart_tool
 build
+host-deck-sidecar/.dart_tool
+host-deck-sidecar/build
 .git

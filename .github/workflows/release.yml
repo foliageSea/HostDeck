@@ -48,6 +48,71 @@ jobs:
           name: web-build
           path: host-deck-ui/dist
 
+  build-sidecars:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Resolve release version
+        id: version
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Build and smoke-test native SideCar on Debian 12
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: sidecar-native
+          platforms: linux/${{ matrix.arch }}
+          build-args: HOSTDECK_VERSION=${{ steps.version.outputs.value }}
+          outputs: type=local,dest=build/sidecar-native
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sidecar-linux-${{ matrix.arch }}
+          path: build/sidecar-native/hostdeck-file-sidecar-linux-${{ matrix.arch }}
+          if-no-files-found: error
+
+  merge-sidecars:
+    needs: build-sidecars
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sidecar-linux-*
+          merge-multiple: true
+          path: build/sidecar-release/sidecars
+      - name: Generate and verify SideCar manifest
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          dir=build/sidecar-release/sidecars
+          node scripts/sidecar_assets.mjs manifest "$dir" "$version"
+          node scripts/sidecar_assets.mjs verify "$dir" "$version"
+          chmod 0755 "$dir"/hostdeck-file-sidecar-linux-{amd64,arm64}
+          cp LICENSE THIRD_PARTY_NOTICES.md build/sidecar-release/
+          tar -czf "build/host-deck-sidecars-$GITHUB_REF_NAME.tar.gz" -C build/sidecar-release sidecars LICENSE THIRD_PARTY_NOTICES.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sidecar-assets
+          path: build/sidecar-release/sidecars
+          if-no-files-found: error
+      - name: Upload SideCar Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/host-deck-sidecars-${{ github.ref_name }}.tar.gz
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-cli-windows:
     runs-on: windows-latest
     steps:
@@ -77,7 +142,7 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path build\hostdeck-cli\bundle\* -DestinationPath host-deck-cli-windows-${{ github.ref_name }}.zip
       - name: Upload HostDeck CLI
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: host-deck-cli-windows-${{ github.ref_name }}.zip
         env:
@@ -162,15 +227,25 @@ jobs:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-docker:
-    needs: build-web
+    needs: [build-web, merge-sidecars]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Resolve release version
+      - uses: actions/download-artifact@v4
+        with:
+          name: sidecar-assets
+          path: build/sidecar-assets
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Resolve release version and verify SideCar assets
         id: version
-        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          node scripts/sidecar_assets.mjs verify build/sidecar-assets "$version"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build Docker Image Tar
@@ -178,6 +253,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          build-contexts: sidecar-assets=./build/sidecar-assets
           push: false
           build-args: |
             HOSTDECK_VERSION=${{ steps.version.outputs.value }}
@@ -189,7 +265,7 @@ jobs:
       - name: Compress Docker Image Tar
         run: gzip -f /tmp/host-deck-${{ github.ref_name }}.tar
       - name: Upload Docker Image Asset
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: /tmp/host-deck-${{ github.ref_name }}.tar.gz
         env:
@@ -243,7 +319,10 @@ jobs:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-electron-windows:
-    needs: build-web
+    needs: [build-web, merge-sidecars]
+    env:
+      HOSTDECK_SIDECAR_ASSETS_DIR: build/sidecar-assets
+      HOSTDECK_REQUIRE_SIDECARS: "1"
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -251,6 +330,10 @@ jobs:
         with:
           name: web-build
           path: host-deck-ui/dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: sidecar-assets
+          path: build/sidecar-assets
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -273,8 +356,11 @@ jobs:
           }
       - name: Build Electron Windows
         run: pnpm --dir host-deck-electron electron:pack:win:prepared
+      - name: Verify packaged SideCar assets
+        shell: pwsh
+        run: node scripts/sidecar_assets.mjs verify host-deck-electron/release/win-unpacked/resources/server/sidecars ($env:GITHUB_REF_NAME.Substring(1))
       - name: Upload Electron Windows
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             host-deck-electron/release/*.exe
@@ -283,7 +369,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-electron-macos-arm64:
-    needs: build-web
+    needs: [build-web, merge-sidecars]
+    env:
+      HOSTDECK_SIDECAR_ASSETS_DIR: build/sidecar-assets
+      HOSTDECK_REQUIRE_SIDECARS: "1"
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -291,6 +380,10 @@ jobs:
         with:
           name: web-build
           path: host-deck-ui/dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: sidecar-assets
+          path: build/sidecar-assets
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -314,8 +407,10 @@ jobs:
         run: node --test host-deck-electron/src/scripts/after-pack.test.cjs
       - name: Build Electron macOS ARM64
         run: pnpm --dir host-deck-electron electron:pack:mac:prepared
+      - name: Verify packaged SideCar assets
+        run: node scripts/sidecar_assets.mjs verify host-deck-electron/release/mac-arm64/HostDeck.app/Contents/Resources/server/sidecars "${GITHUB_REF_NAME#v}"
       - name: Upload Electron macOS ARM64
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             host-deck-electron/release/*.dmg

@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:host_deck/server/core/database/database_service.dart';
+import 'package:host_deck_sidecar/protocol.dart';
 import 'package:host_deck/server/features/files/file_task.dart';
 
 class FileTaskRepository {
@@ -101,6 +104,22 @@ class FileTaskRepository {
     );
   }
 
+  void updateItemProgress(int id, SidecarProgress progress) {
+    _databaseService.db.execute(
+      "UPDATE file_task_items SET progressJson = ? WHERE id = ? AND status = 'running'",
+      [jsonEncode(progress.toJson()), id],
+    );
+  }
+
+  SidecarProgress? _readProgress(String? persisted) {
+    if (persisted == null) return null;
+    try {
+      return SidecarProgress.fromJson(jsonDecode(persisted));
+    } on FormatException {
+      return null;
+    }
+  }
+
   void markUnfinishedAsFailed() {
     final now = DateTime.now().millisecondsSinceEpoch;
     _databaseService.db.execute(
@@ -117,7 +136,7 @@ class FileTaskRepository {
     final id = row['id'] as String;
     final items = _databaseService.db
         .select(
-          'SELECT id, sourcePath, targetPath, status, errorMessage, startedAt, finishedAt FROM file_task_items WHERE taskId = ? ORDER BY itemOrder ASC',
+          'SELECT id, sourcePath, targetPath, status, errorMessage, startedAt, finishedAt, progressJson FROM file_task_items WHERE taskId = ? ORDER BY itemOrder ASC',
           [id],
         )
         .map(
@@ -125,6 +144,7 @@ class FileTaskRepository {
             id: item['id'] as int,
             sourcePath: item['sourcePath'] as String,
             targetPath: item['targetPath'] as String?,
+            progress: _readProgress(item['progressJson'] as String?),
             status: FileTaskStatus.values.byName(item['status'] as String),
             errorMessage: item['errorMessage'] as String?,
             startedAt: item['startedAt'] as int?,

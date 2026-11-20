@@ -36,7 +36,7 @@ void main() {
       database.db
           .select('SELECT version FROM schema_version')
           .single['version'],
-      22,
+      23,
     );
 
     repository.createConversation('conversation-1', 'server:7');
@@ -129,7 +129,7 @@ void main() {
         database.db
             .select('SELECT version FROM schema_version')
             .single['version'],
-        22,
+        23,
       );
     },
   );

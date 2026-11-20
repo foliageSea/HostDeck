@@ -7,12 +7,13 @@ const { projectRoot, repoRoot } = require('../shared/project-paths.cjs')
 const outputDir = path.join(repoRoot, 'build', 'electron-server')
 const packageConfig = path.join(repoRoot, '.dart_tool', 'package_config.json')
 const serverName = process.platform === 'win32' ? 'server.exe' : 'server'
-const serverExecutable = path.join(outputDir, 'bundle', 'bin', serverName)
+const bundleDir = path.join(outputDir, 'bundle')
+const serverExecutable = path.join(bundleDir, 'bin', serverName)
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
-    shell: process.platform === 'win32',
+    shell: process.platform === 'win32' && command !== process.execPath,
     stdio: 'inherit',
   })
 
@@ -34,7 +35,8 @@ if (pubGetStatus !== 0) {
 }
 
 run('dart', ['build', 'cli', '--target', path.join('bin', 'server.dart'), '--output', outputDir])
-run(process.execPath, [path.join('scripts', 'build_ai.mjs'), path.join(outputDir, 'bundle')])
+run(process.execPath, [path.join('scripts', 'sidecar_assets.mjs'), 'stage', bundleDir])
+run(process.execPath, [path.join('scripts', 'build_ai.mjs'), bundleDir])
 
 if (!fs.existsSync(serverExecutable)) {
   console.error('Server executable was not generated: ' + serverExecutable)

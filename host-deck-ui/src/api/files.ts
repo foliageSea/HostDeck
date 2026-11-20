@@ -17,6 +17,14 @@ export interface DirectorySizeResult {
 export type FileTaskType = 'copy' | 'move' | 'delete' | 'extract' | 'compress'
 export type FileTaskStatus = 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
 
+export interface FileTaskProgress {
+  phase: 'deploying' | 'scanning' | 'working' | 'committing' | 'removingSource' | 'legacy'
+  bytesDone: number
+  bytesTotal: number | null
+  entriesDone: number
+  entriesTotal: number | null
+}
+
 export interface FileTask {
   id: string
   connectionId: string
@@ -32,6 +40,7 @@ export interface FileTask {
     targetPath?: string | null
     status: FileTaskStatus
     errorMessage?: string | null
+    progress?: FileTaskProgress | null
   }>
 }
 

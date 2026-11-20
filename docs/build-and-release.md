@@ -17,7 +17,7 @@ pnpm run build:electron:mac
 
 ## GitHub Actions release
 
-`.github/workflows/release.yml` 会构建 `host-deck-ui/dist` 并作为 artifact 供后续 job 使用，当前启用的发布产物为：Docker 镜像 tar.gz、Windows CLI zip、Electron Windows exe/zip、Electron macOS Apple Silicon dmg/zip。
+`.github/workflows/release.yml` 会构建 `host-deck-ui/dist` 并作为 artifact 供后续 job 使用，当前启用的发布产物为：Docker 镜像 tar.gz、Windows CLI zip、Electron Windows exe/zip、Electron macOS Apple Silicon dmg/zip、Linux x64/arm64 文件 SideCar 资产包。
 
 Electron 打包链路会单独构建 `host-deck-electron/dist`，其中 `src/main/` 是主进程，`src/preload/` 是桥接层，`src/renderer/` 是 Vue 壳界面。
 
@@ -73,6 +73,22 @@ printf '%s' "$APP_VERSION" > build/server/bundle/VERSION
 `scripts/build_ai.mjs` 需要本机安装 Bun 1.4+，并为当前系统和架构编译，不再复制 Node.js 与 `node_modules`。可通过 `HOSTDECK_AI_BUN_TARGET` 指定 Bun 目标平台，例如 `bun-linux-arm64`。
 
 注意：仓库中的 `scripts/build_server.ps1` 和 `scripts/build_server.sh` 当前都以 `host-deck-ui/` 为前端来源。
+
+## 文件 SideCar 资产
+
+[纯 Dart SideCar](../host-deck-sidecar/bin/hostdeck_file_sidecar.dart) 使用 Dart 3.11.0 生成 Linux glibc amd64/arm64 单文件。Release 在原生架构上构建并执行冒烟检查，将同一批资产放入 Electron 服务和 Docker 的 `sidecars/` 下，也单独发布 `host-deck-sidecars-<tag>.tar.gz`。Windows Agent CLI 不需要该资产。
+
+在开发环境导出资产：
+
+```sh
+docker buildx build --target sidecar-assets --build-arg HOSTDECK_VERSION=dev --output type=local,dest=build/sidecar-assets .
+# 或者在 Linux 使用 Dart 3.11.0 和 Node.js：
+node scripts/sidecar_assets.mjs build build/sidecar-assets dev amd64 arm64
+node scripts/sidecar_assets.mjs manifest build/sidecar-assets dev
+node scripts/sidecar_assets.mjs verify build/sidecar-assets dev
+```
+
+给本地运行的后端设置 `HOSTDECK_FILE_SIDECAR_DIR` 指向资产目录。给 Bash、PowerShell 或 Electron 打包脚本设置 `HOSTDECK_SIDECAR_ASSETS_DIR`（如 `build/sidecar-assets`），脚本会验证并将其复制进 bundle；使用 `HOSTDECK_REQUIRE_SIDECARS=1` 可要求缺资产时即失败。只有运行后端的管理员才应配置该目录，不应接收不可信的二进制或 manifest。
 
 ## Agent CLI 打包
 

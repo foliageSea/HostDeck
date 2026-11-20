@@ -16,6 +16,7 @@ void main() {
       final raw = sqlite3.open('${directory.path}/host_deck.db');
       raw.execute('CREATE TABLE schema_version (version INTEGER NOT NULL)');
       raw.execute('INSERT INTO schema_version VALUES (21)');
+      raw.execute('CREATE TABLE file_task_items (id INTEGER PRIMARY KEY)');
       raw.execute('''CREATE TABLE port_forwards (
       id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
       enabled INTEGER NOT NULL, bindHost TEXT NOT NULL, localPort INTEGER NOT NULL,

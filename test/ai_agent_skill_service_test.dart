@@ -210,7 +210,7 @@ void main() {
           database.db
               .select('SELECT version FROM schema_version')
               .single['version'],
-          22,
+          23,
         );
         final repository = AiAgentSkillRepository(database);
         final dbContent = fileSystem.addSkill(
@@ -319,6 +319,7 @@ void main() {
       final raw = sqlite3.open('${dir.path}/host_deck.db');
       raw.execute('CREATE TABLE schema_version (version INTEGER NOT NULL)');
       raw.execute('INSERT INTO schema_version (version) VALUES (15)');
+      raw.execute('CREATE TABLE file_task_items (id INTEGER PRIMARY KEY)');
       raw.execute('CREATE TABLE existing_data (value TEXT)');
       raw.execute("INSERT INTO existing_data (value) VALUES ('retained')");
       raw.close();
@@ -329,7 +330,7 @@ void main() {
           database.db
               .select('SELECT version FROM schema_version')
               .single['version'],
-          22,
+          23,
         );
         expect(
           database.db.select('SELECT value FROM existing_data').single['value'],

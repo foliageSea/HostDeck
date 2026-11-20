@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { Ellipsis, Folder, Trash2, XCircle } from '@lucide/vue'
-import { filesApi, type FileTask } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
 import { useSettingsStore } from '@/stores/settings'
 import {
+  getRemoteTaskStatus,
+  isBatchActive,
   useUploadCenterStore,
   type UploadBatch,
   type UploadTaskSource,
   type UploadTaskStatus,
 } from '@/stores/upload-center'
+import { getRemoteTaskProgress } from './file-task-progress'
 
 type TaskTab = 'uploads' | 'files' | 'other'
 
@@ -32,20 +34,17 @@ function getTaskTab(source: UploadTaskSource): TaskTab {
 const visibleBatches = computed(() =>
   uploadCenterStore.batches.filter((batch) => getTaskTab(batch.source) === activeTab.value),
 )
-const hasActiveTasks = computed(() =>
-  uploadCenterStore.batches.some((batch) => isBatchActive(batch)),
+const remoteProgress = computed(() =>
+  Object.fromEntries(
+    visibleBatches.value.flatMap((batch) =>
+      batch.remoteTask ? [[batch.id, getRemoteTaskProgress(batch.remoteTask)] as const] : [],
+    ),
+  ),
 )
+const hasActiveTasks = computed(() => uploadCenterStore.batches.some(isBatchActive))
 const hasFinishedTasks = computed(() =>
   uploadCenterStore.batches.some((batch) => !isBatchActive(batch)),
 )
-
-function isTaskActive(status: UploadTaskStatus) {
-  return ['pending', 'processing', 'uploading', 'downloading'].includes(status)
-}
-
-function isBatchActive(batch: UploadBatch) {
-  return batch.tasks.some((task) => isTaskActive(task.status))
-}
 
 function getBatchProgress(batch: UploadBatch) {
   const total = batch.tasks.reduce((sum, task) => sum + task.total, 0)
@@ -53,7 +52,9 @@ function getBatchProgress(batch: UploadBatch) {
   if (total > 0) return Math.min(100, Math.round((loaded / total) * 100))
 
   return batch.tasks.length > 0
-    ? Math.round(batch.tasks.reduce((sum, task) => sum + task.progress, 0) / batch.tasks.length)
+    ? Math.round(
+        batch.tasks.reduce((sum, task) => sum + (task.progress ?? 0), 0) / batch.tasks.length,
+      )
     : 0
 }
 
@@ -62,6 +63,7 @@ function getCompletedCount(batch: UploadBatch) {
 }
 
 function getBatchStatus(batch: UploadBatch): UploadTaskStatus {
+  if (batch.remoteTask) return getRemoteTaskStatus(batch.remoteTask.status)
   const statuses = batch.tasks.map((task) => task.status)
   if (statuses.some((status) => status === 'error')) return 'error'
   if (statuses.some((status) => status === 'downloading')) return 'downloading'
@@ -112,18 +114,10 @@ function getBatchTitle(batch: UploadBatch) {
   return `${batch.tasks[0]?.name ?? batch.path} 等 ${batch.tasks.length} 项`
 }
 
-function cancelBatch(batch: UploadBatch) {
-  if (batch.source.startsWith('files-') && batch.source !== 'files-download') {
-    void filesApi
-      .cancelTask(batch.id)
-      .then((task: FileTask) => uploadCenterStore.upsertRemoteTask(task))
-    return
-  }
-  uploadCenterStore.cancelBatch(batch.id)
-}
-
 function cancelAll() {
-  uploadCenterStore.batches.filter(isBatchActive).forEach(cancelBatch)
+  uploadCenterStore.batches.filter(isBatchActive).forEach((batch) => {
+    uploadCenterStore.cancelBatch(batch.id)
+  })
 }
 
 function clearAll() {
@@ -145,7 +139,7 @@ function getRowOptions(batch: UploadBatch) {
 }
 
 function handleRowAction(key: string | number, batch: UploadBatch) {
-  if (key === 'cancel') cancelBatch(batch)
+  if (key === 'cancel') uploadCenterStore.cancelBatch(batch.id)
   if (key === 'remove') uploadCenterStore.removeBatch(batch.id)
 }
 </script>
@@ -227,7 +221,46 @@ function handleRowAction(key: string | number, batch: UploadBatch) {
             <Folder :size="17" class="shrink-0 text-[#e6ad25]" fill="currentColor" />
             <span class="truncate">{{ getBatchTitle(batch) }}</span>
           </div>
-          <div class="min-w-0 pr-[12px]">
+          <div v-if="remoteProgress[batch.id]" class="min-w-0 pr-[12px]">
+            <NProgress
+              v-if="remoteProgress[batch.id].percentage !== null"
+              type="line"
+              :percentage="remoteProgress[batch.id].percentage"
+              :show-indicator="false"
+              :height="4"
+              :processing="isBatchActive(batch)"
+            />
+            <div class="mt-[4px] flex justify-between gap-[8px] text-[11px] opacity-62">
+              <span>
+                {{ remoteProgress[batch.id].phaseLabel ?? getStatusLabel(getBatchStatus(batch)) }}
+                <template v-if="remoteProgress[batch.id].percentage !== null">
+                  {{ remoteProgress[batch.id].percentage }}%
+                </template>
+              </span>
+              <span class="shrink-0">
+                {{ remoteProgress[batch.id].completed }}/{{ remoteProgress[batch.id].total }} 项
+              </span>
+            </div>
+            <div
+              v-if="
+                remoteProgress[batch.id].percentage === null && remoteProgress[batch.id].processed
+              "
+              class="mt-[2px] truncate text-[11px] opacity-62"
+            >
+              已处理 {{ remoteProgress[batch.id].processed }}
+              <template v-if="remoteProgress[batch.id].currentPercentage !== null">
+                （当前项 {{ remoteProgress[batch.id].currentPercentage }}%）
+              </template>
+            </div>
+            <div
+              v-if="remoteProgress[batch.id].total > 1 && remoteProgress[batch.id].currentPath"
+              class="mt-[2px] truncate text-[11px] opacity-62"
+              :title="remoteProgress[batch.id].currentPath"
+            >
+              当前项：{{ remoteProgress[batch.id].currentPath }}
+            </div>
+          </div>
+          <div v-else class="min-w-0 pr-[12px]">
             <NProgress
               type="line"
               :percentage="getBatchProgress(batch)"

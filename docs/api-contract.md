@@ -59,7 +59,9 @@ WebSocket 路由不走统一 JSON API 解包。新增 WebSocket 时需要明确�
 
 - `/api/runtime/sessions/stream`：运行态会话推送。
 
-SSE 路由不走统一 JSON API 解包。前端使用 `EventSource` 接收命名事件，并由浏览器处理断线重连。
+- `/api/files/tasks/<id>/events`：文件任务 `task` / `done` 快照，见[文件管理](modules/files.md#文件任务-sidecar)。
+
+SSE 成功响应不走统一 JSON API 解包。运行态等页面可使用 `EventSource`；文件任务客户端通过同源 `fetch` 解析并在意外断线后重订阅。
 
 ## 非统一响应场景
 

@@ -32,7 +32,7 @@
 - `modules/auth.md`：SSH 连接与认证
 - `modules/server-config.md`：服务器配置管理
 - `modules/terminal.md`：终端会话
-- `modules/files.md`：文件管理
+- [文件管理](modules/files.md)：文件任务、SideCar 自动部署和实时进度
 - `modules/system-monitor.md`：系统监控
 - `modules/ai-agent.md`：AI 运维 Agent、审批与 SSE 合约
 - `modules/runtime-sessions.md`：运行态会话

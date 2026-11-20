@@ -1,3 +1,5 @@
+import 'package:host_deck_sidecar/protocol.dart';
+
 enum FileTaskType { copy, move, delete, extract, compress }
 
 enum FileTaskStatus { queued, running, success, failed, cancelled }
@@ -6,6 +8,7 @@ class FileTaskItem {
   final int id;
   final String sourcePath;
   final String? targetPath;
+  final SidecarProgress? progress;
   final FileTaskStatus status;
   final String? errorMessage;
   final int? startedAt;
@@ -15,6 +18,7 @@ class FileTaskItem {
     required this.id,
     required this.sourcePath,
     required this.targetPath,
+    this.progress,
     required this.status,
     required this.errorMessage,
     required this.startedAt,
@@ -25,6 +29,7 @@ class FileTaskItem {
     'id': id,
     'sourcePath': sourcePath,
     'targetPath': targetPath,
+    'progress': progress?.toJson(),
     'status': status.name,
     'errorMessage': errorMessage,
     'startedAt': startedAt,

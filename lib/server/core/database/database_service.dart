@@ -586,6 +586,15 @@ class DatabaseService {
       }
       _setVersion(22);
     }
+
+    // v22 -> v23: Persist the last measured file task item progress.
+    if (currentVersion < 23) {
+      final columns = _db.select('PRAGMA table_info(file_task_items)');
+      if (!columns.any((row) => row['name'] == 'progressJson')) {
+        _db.execute('ALTER TABLE file_task_items ADD COLUMN progressJson TEXT');
+      }
+      _setVersion(23);
+    }
   }
 
   /// Encrypts existing plaintext password and privateKey values.

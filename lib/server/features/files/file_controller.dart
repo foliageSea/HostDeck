@@ -1,5 +1,10 @@
-import 'dart:io';
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:dartssh2/dartssh2.dart';
+import 'package:logging/logging.dart';
+import 'package:mime/mime.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
 
@@ -14,6 +19,7 @@ import 'package:host_deck/server/features/files/file_task.dart';
 import 'package:host_deck/server/features/files/file_task_manager.dart';
 
 class FileController {
+  final _log = Logger('FileController');
   final FileService _fileService;
   final FileTaskManager _taskManager;
   final SharedSshSessionResolver _sessionResolver;
@@ -48,14 +54,22 @@ class FileController {
       }
       final items = rawItems.map((item) {
         if (item is! Map) throw ArgumentError('Invalid task item');
-        final sourcePath = item['sourcePath']?.toString().trim() ?? '';
-        final targetPath = item['targetPath']?.toString().trim();
-        if (sourcePath.isEmpty ||
-            ((type != FileTaskType.delete) &&
-                (targetPath == null || targetPath.isEmpty))) {
+        final sourcePath = item['sourcePath'];
+        final targetPath = item['targetPath'];
+        bool valid(Object? path) =>
+            path is String &&
+            path.isNotEmpty &&
+            !path.contains(String.fromCharCode(0));
+        if (!valid(sourcePath) ||
+            (type != FileTaskType.delete && !valid(targetPath))) {
           throw ArgumentError('Invalid task path');
         }
-        return {'sourcePath': sourcePath, 'targetPath': targetPath};
+        return {
+          'sourcePath': sourcePath as String,
+          'targetPath': type == FileTaskType.delete
+              ? null
+              : targetPath as String,
+        };
       }).toList();
       return Result.ok(_taskManager.create(connectionId, type, items).toJson());
     } on ArgumentError catch (error) {
@@ -276,30 +290,86 @@ class FileController {
       return _sessionErrorResponse(error);
     }
 
+    Response? failure;
+    var uploaded = false;
     try {
-      if (request.multipart() case var multipart?) {
-        await for (final part in multipart.parts) {
-          final contentDisposition = part.headers['content-disposition'];
-          if (contentDisposition == null) continue;
-
-          final headerValue = HeaderValue.parse(contentDisposition);
-          final filename = headerValue.parameters['filename'];
-
-          if (filename == null) continue;
-
-          String targetPath = path;
-          if (!targetPath.endsWith('/')) targetPath += '/';
-          targetPath += filename;
-
-          await _fileService.writeFileStream(session, targetPath, part);
-        }
-      } else {
+      final multipart = request.multipart();
+      if (multipart == null) {
         return Result.fail(400, 'Expected multipart request');
       }
+      await for (final part in multipart.parts) {
+        if (failure != null) {
+          await part.drain<void>();
+          continue;
+        }
+        final contentDisposition = part.headers['content-disposition'];
+        final filename = contentDisposition == null
+            ? null
+            : HeaderValue.parse(contentDisposition).parameters['filename'];
+        if (filename == null) {
+          await part.drain<void>();
+          continue;
+        }
+        if (filename.isEmpty ||
+            filename == '.' ||
+            filename == '..' ||
+            filename.contains('/') ||
+            filename.contains(String.fromCharCode(92)) ||
+            filename.contains(String.fromCharCode(0))) {
+          failure = Result.fail(400, '上传文件名无效。');
+          await part.drain<void>();
+          continue;
+        }
 
-      return Result.ok('Upload complete');
-    } catch (e) {
-      return Result.fail(500, describeFileOperationError(e));
+        final target = path.endsWith('/')
+            ? '$path$filename'
+            : '$path/$filename';
+        // Keep ownership of the multipart subscription. SFTP can cancel its
+        // stream before it has read the part, e.g. if opening the remote file
+        // fails or a write is rejected. Drain the remainder before replying
+        // so HTTP proxies and the browser can receive the JSON error.
+        final input = StreamIterator<List<int>>(part);
+        try {
+          await _fileService.writeFileStream(
+            session,
+            target,
+            _uploadPart(input),
+          );
+          uploaded = true;
+        } catch (error) {
+          final status = switch (error) {
+            SftpStatusError(code: SftpErrorCode.permissionDenied) => 403,
+            SftpStatusError(code: SftpErrorCode.noSuchFile) => 404,
+            _ => 500,
+          };
+          final remoteStatus = error is SftpStatusError
+              ? ' (SFTP code ${error.code})'
+              : '';
+          _log.warning('文件上传失败：${error.runtimeType}$remoteStatus');
+          failure = Result.fail(status, describeFileOperationError(error));
+          while (await input.moveNext()) {
+            // Discard in chunks; do not retain the rest of the request.
+          }
+        } finally {
+          await input.cancel();
+        }
+      }
+      return failure ??
+          (uploaded
+              ? Result.ok('Upload complete')
+              : Result.fail(400, '请求未包含文件。'));
+    } on FormatException {
+      return failure ?? Result.fail(400, '上传请求格式无效。');
+    } on MimeMultipartException {
+      return failure ?? Result.fail(400, '上传请求不完整。');
+    } catch (error) {
+      return failure ?? Result.fail(500, describeFileOperationError(error));
+    }
+  }
+
+  Stream<List<int>> _uploadPart(StreamIterator<List<int>> input) async* {
+    while (await input.moveNext()) {
+      yield input.current;
     }
   }
 

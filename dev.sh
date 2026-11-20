@@ -37,6 +37,10 @@ Options:
   --enable-totp                      Enable a fixed development TOTP Secret
   -h, --help                         Show this help message
 
+File SideCar:
+  HOSTDECK_FILE_SIDECAR_DIR=build/sidecar-assets  Default, relative to the repository
+  HOSTDECK_FILE_SIDECAR=off                      Disable SideCar
+
 Development HTTPS:
   HOSTDECK_DEV_TLS=true
   HOSTDECK_DEV_TLS_CERT=/absolute/path/cert.pem
@@ -197,6 +201,7 @@ start_backend() {
   printf 'Starting backend on %s:%s ...\n' "$backend_host" "$backend_port"
   (
     cd "$project_root"
+    export HOSTDECK_FILE_SIDECAR_DIR="${HOSTDECK_FILE_SIDECAR_DIR:-build/sidecar-assets}"
     exec fvm dart run --enable-experiment=native-assets bin/server.dart \
       --host "$backend_host" --port "$backend_port" \
       --enable-secure-browser --ready-file "$backend_ready_file"

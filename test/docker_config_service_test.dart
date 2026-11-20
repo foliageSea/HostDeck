@@ -22,6 +22,9 @@ void main() {
       'CREATE TABLE schema_version (version INTEGER NOT NULL)',
     );
     rawDatabase.execute('INSERT INTO schema_version (version) VALUES (7)');
+    rawDatabase.execute(
+      'CREATE TABLE file_task_items (id INTEGER PRIMARY KEY)',
+    );
     rawDatabase.execute('''
       CREATE TABLE docker_registries (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +62,7 @@ void main() {
         migrated.db
             .select('SELECT version FROM schema_version')
             .single['version'],
-        22,
+        23,
       );
     } finally {
       migrated.close();

@@ -5,6 +5,7 @@ import { useUploadCenterStore } from '@/stores/upload-center'
 import { resolve } from '@/utils/path'
 import {
   getUploadDirectory,
+  getUploadErrorMessage,
   getUploadFilename,
   getUploadRelativePath,
   isTransferCancelled,
@@ -273,12 +274,10 @@ export function useFileUploads({
         })
       }
 
-      uploadCenterStore.markBatchError(
-        batchId,
-        error instanceof Error ? error.message : '上传失败。',
-      )
+      const message = getUploadErrorMessage(error)
+      uploadCenterStore.markBatchError(batchId, message)
       console.error('Failed to upload files', error)
-      getUiApi().message.error('上传失败。')
+      getUiApi().message.error(message)
     } finally {
       uploadCenterStore.clearBatchController(batchId)
     }

@@ -21,6 +21,18 @@ export function isTransferCancelled(error: unknown): boolean {
   )
 }
 
+export function getUploadErrorMessage(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'ERR_NETWORK'
+  ) {
+    return '上传连接中断，未收到服务器响应。请检查连接后重试。'
+  }
+  return error instanceof Error && error.message ? error.message : '上传失败。'
+}
+
 export function getDownloadProgress(loaded: number, total: number): number {
   if (total <= 0) {
     return loaded > 0 ? 1 : 0

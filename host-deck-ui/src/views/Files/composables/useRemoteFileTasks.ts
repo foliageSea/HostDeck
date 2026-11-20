@@ -1,9 +1,8 @@
 import { onBeforeUnmount } from 'vue'
-import { filesApi, type FileTask, type FileTaskType } from '@/api/files'
+import { filesApi, type FileTaskType } from '@/api/files'
 import { getUiApi } from '@/lib/ui'
-import { useFileClipboardStore } from '@/stores/file-clipboard'
 import { useUploadCenterStore } from '@/stores/upload-center'
-import { isTransferCancelled } from '../utils/transfer'
+import { dirname } from '@/utils/path'
 
 interface RemoteFileTaskDependencies {
   getConnectionId: () => string | null
@@ -18,36 +17,26 @@ export function useRemoteFileTasks({
   getWindowId,
   refreshFiles,
 }: RemoteFileTaskDependencies) {
-  const fileClipboardStore = useFileClipboardStore()
   const uploadCenterStore = useUploadCenterStore()
-  const controllers = new Map<string, AbortController>()
 
-  function watchRemoteTask(task: FileTask) {
-    if (controllers.has(task.id)) return
-
-    const controller = new AbortController()
-    controllers.set(task.id, controller)
-    void filesApi
-      .watchTask(
-        task.id,
-        (nextTask) => {
-          uploadCenterStore.upsertRemoteTask(nextTask)
-          if (
-            nextTask.status === 'success' ||
-            nextTask.status === 'failed' ||
-            nextTask.status === 'cancelled'
-          ) {
-            controllers.delete(nextTask.id)
-            void refreshFiles()
-            fileClipboardStore.emitRefresh(getCurrentPath(), getWindowId())
-          }
-        },
-        controller.signal,
+  // Refresh the initiating window and sibling windows viewing affected paths, even if the
+  // initiator has closed. Unmount only detaches the UI callback, not the remote task stream.
+  const stopRefresh = uploadCenterStore.onRemoteTaskCompleted((task, sourceWindowId) => {
+    const localTask = sourceWindowId !== undefined && sourceWindowId === getWindowId()
+    if (task.connectionId !== getConnectionId()) return
+    const path = getCurrentPath()
+    if (
+      localTask ||
+      task.items.some(
+        (item) =>
+          dirname(item.sourcePath) === path ||
+          (item.targetPath && dirname(item.targetPath) === path),
       )
-      .catch((error: unknown) => {
-        if (!isTransferCancelled(error)) console.error('Failed to watch file task', error)
-      })
-  }
+    ) {
+      void refreshFiles().catch((error) => console.error('Failed to refresh files', error))
+    }
+  })
+  onBeforeUnmount(stopRefresh)
 
   async function startRemoteTask(
     type: FileTaskType,
@@ -58,8 +47,7 @@ export function useRemoteFileTasks({
 
     try {
       const task = await filesApi.createTask(connectionId, type, items)
-      uploadCenterStore.upsertRemoteTask(task)
-      watchRemoteTask(task)
+      uploadCenterStore.upsertRemoteTask(task, { snapshot: true, windowId: getWindowId() })
       getUiApi().message.success('已加入任务中心。')
       return task
     } catch (error) {
@@ -74,20 +62,11 @@ export function useRemoteFileTasks({
     if (!connectionId) return
 
     try {
-      const tasks = await filesApi.listTasks(connectionId)
-      tasks.forEach((task) => {
-        uploadCenterStore.upsertRemoteTask(task, { notify: false })
-        if (task.status === 'queued' || task.status === 'running') watchRemoteTask(task)
-      })
+      await uploadCenterStore.restoreRemoteTasks(connectionId)
     } catch (error) {
       console.error('Failed to restore file tasks', error)
     }
   }
-
-  onBeforeUnmount(() => {
-    for (const controller of controllers.values()) controller.abort()
-    controllers.clear()
-  })
 
   return { restoreRemoteTasks, startRemoteTask }
 }

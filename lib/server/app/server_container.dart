@@ -49,6 +49,7 @@ import 'package:host_deck/server/features/docker/docker_registry_repository.dart
 import 'package:host_deck/server/features/docker/docker_socket_tunnel_service.dart';
 import 'package:host_deck/server/features/files/file_controller.dart';
 import 'package:host_deck/server/features/files/file_service.dart';
+import 'package:host_deck/server/features/files/file_sidecar_executor.dart';
 import 'package:host_deck/server/features/files/file_task_manager.dart';
 import 'package:host_deck/server/features/files/file_task_repository.dart';
 import 'package:host_deck/server/features/logs/server_log_controller.dart';
@@ -241,6 +242,7 @@ class ServerContainer {
         getIt<SshService>(),
         getIt<SshRepository>(),
         getIt<FileTaskRepository>(),
+        sidecar: SshFileSidecarExecutor(getIt<SshRepository>()),
       ),
       dispose: (manager) => manager.dispose(),
     );

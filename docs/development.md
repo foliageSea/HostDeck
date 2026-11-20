@@ -50,6 +50,8 @@ $env:HOSTDECK_ACCESS_PASSWORD = 'replace-with-a-strong-password'
 dart run bin/server.dart --host 0.0.0.0 --port 8080 --web-dir host-deck-ui/dist
 ```
 
+[dev.sh](../dev.sh) 默认把仓库根目录下的 `build/sidecar-assets` 作为文件 SideCar 资产目录，只加载已有产物，不在启动时编译。可通过 `HOSTDECK_FILE_SIDECAR_DIR` 覆盖（相对路径仍以仓库根目录为基准），或用 `HOSTDECK_FILE_SIDECAR=off` 禁用。缺少资产时，文件任务沿用兼容模式。生成方法见[文件 SideCar 资产](build-and-release.md#文件-sidecar-资产)。
+
 使用 `dev.sh` 调试 Authenticator/TOTP 登录时，可以传入已有的 Base32 Secret：
 
 ```bash

@@ -463,6 +463,12 @@ class SshService {
     _disconnectListeners.add(listener);
   }
 
+  void removeDisconnectListener(
+    FutureOr<void> Function(String connectionId) listener,
+  ) {
+    _disconnectListeners.remove(listener);
+  }
+
   Map<String, dynamic> getRuntimeSnapshot() {
     final sessionCounts = <String, int>{};
     for (final session in _sessions.values) {
