@@ -23,10 +23,15 @@ function run(command, args) {
   if (result.status !== 0) process.exit(result.status || 1)
 }
 
+const pubspecPath = path.join(repoRoot, 'pubspec.yaml')
+const appVersion = fs.readFileSync(pubspecPath, 'utf8').match(/^version:[ \t]*([^\s#]+)/m)?.[1]
+if (!appVersion) throw new Error(`Unable to resolve the application version from ${pubspecPath}`)
+
 fs.rmSync(outputDir, { recursive: true, force: true })
 
 run(dart, ['pub', 'get'])
 run(dart, ['build', 'cli', '--target', path.join('bin', 'server.dart'), '--output', outputDir])
+fs.writeFileSync(path.join(bundleDir, 'VERSION'), appVersion)
 run(process.execPath, [path.join('scripts', 'sidecar_assets.mjs'), 'stage', bundleDir])
 run(process.execPath, [path.join('scripts', 'build_ai.mjs'), bundleDir])
 

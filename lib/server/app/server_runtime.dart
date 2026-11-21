@@ -28,15 +28,17 @@ Future<String> resolveAppVersion() async {
     return runtimeVersion;
   }
 
-  if (_compiledAppVersion != 'dev') {
-    final executableDir = File(Platform.resolvedExecutable).parent;
-    final versionFile = File(p.join(executableDir.parent.path, 'VERSION'));
-    if (await versionFile.exists()) {
-      final bundledVersion = (await versionFile.readAsString()).trim();
-      if (bundledVersion.isNotEmpty) {
-        return bundledVersion;
-      }
+  // `dart build cli` bundles store VERSION next to the bin directory.
+  final executableDir = File(Platform.resolvedExecutable).parent;
+  final versionFile = File(p.join(executableDir.parent.path, 'VERSION'));
+  if (await versionFile.exists()) {
+    final bundledVersion = (await versionFile.readAsString()).trim();
+    if (bundledVersion.isNotEmpty) {
+      return bundledVersion;
     }
+  }
+
+  if (_compiledAppVersion != 'dev') {
     return _compiledAppVersion;
   }
 
