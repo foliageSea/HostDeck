@@ -1,7 +1,7 @@
 {
   "name": "host-deck-electron",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "GPL-3.0-only",
   "main": "src/main/index.cjs",
   "engines": {
@@ -80,7 +80,9 @@
     "mac": {
       "icon": "../host-deck-ui/public/favicon.png",
       "identity": "-",
-      "signIgnore": ["/Resources/server/sidecars/[^/]+$"],
+      "signIgnore": [
+        "/Resources/server/sidecars/[^/]+$"
+      ],
       "extendInfo": {
         "NSLocalNetworkUsageDescription": "HostDeck 需要访问本地网络，以通过 SSH 连接和管理局域网中的服务器。"
       },
