@@ -4,16 +4,40 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release tag to rebuild Windows CLI and macOS assets for"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
+env:
+  RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+
 jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verify existing release for manual rebuild
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch ]]; then exit 0; fi
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || exit 1
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+
   build-web:
+    needs: validate-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.release_tag) || github.sha }}
           submodules: recursive
       - uses: actions/setup-node@v4
         with:
@@ -49,6 +73,7 @@ jobs:
           path: host-deck-ui/dist
 
   build-sidecars:
+    needs: validate-release
     strategy:
       fail-fast: false
       matrix:
@@ -60,10 +85,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.release_tag) || github.sha }}
       - uses: docker/setup-buildx-action@v3
       - name: Resolve release version
         id: version
-        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "value=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
       - name: Build and smoke-test native SideCar on Debian 12
         uses: docker/build-push-action@v6
         with:
@@ -83,6 +110,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.release_tag) || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -93,19 +122,20 @@ jobs:
           path: build/sidecar-release/sidecars
       - name: Generate and verify SideCar manifest
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${RELEASE_TAG#v}"
           dir=build/sidecar-release/sidecars
           node scripts/sidecar_assets.mjs manifest "$dir" "$version"
           node scripts/sidecar_assets.mjs verify "$dir" "$version"
           chmod 0755 "$dir"/hostdeck-file-sidecar-linux-{amd64,arm64}
           cp LICENSE THIRD_PARTY_NOTICES.md build/sidecar-release/
-          tar -czf "build/host-deck-sidecars-$GITHUB_REF_NAME.tar.gz" -C build/sidecar-release sidecars LICENSE THIRD_PARTY_NOTICES.md
+          tar -czf "build/host-deck-sidecars-$RELEASE_TAG.tar.gz" -C build/sidecar-release sidecars LICENSE THIRD_PARTY_NOTICES.md
       - uses: actions/upload-artifact@v4
         with:
           name: sidecar-assets
           path: build/sidecar-release/sidecars
           if-no-files-found: error
       - name: Upload SideCar Release Asset
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           files: build/host-deck-sidecars-${{ github.ref_name }}.tar.gz
@@ -114,9 +144,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-cli-windows:
+    needs: validate-release
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.release_tag) || github.sha }}
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: "3.11.0"
@@ -130,6 +163,8 @@ jobs:
         run: dart pub get --enforce-lockfile
       - name: Build HostDeck CLI
         run: dart build cli --target bin/hostdeck_cli.dart --output build/hostdeck-cli
+      - name: Install pnpm
+        run: npm install -g pnpm@10.34.5
       - name: Build pi-ai bridge
         run: node scripts/build_ai.mjs build/hostdeck-cli/bundle
       - name: Include License Notices
@@ -139,15 +174,18 @@ jobs:
           Copy-Item THIRD_PARTY_NOTICES.md build\hostdeck-cli\bundle\THIRD_PARTY_NOTICES.md
       - name: Archive HostDeck CLI
         shell: pwsh
-        run: Compress-Archive -Path build\hostdeck-cli\bundle\* -DestinationPath host-deck-cli-windows-${{ github.ref_name }}.zip
+        run: Compress-Archive -Path build\hostdeck-cli\bundle\* -DestinationPath "host-deck-cli-windows-$env:RELEASE_TAG.zip"
       - name: Upload HostDeck CLI
         uses: softprops/action-gh-release@v2
         with:
-          files: host-deck-cli-windows-${{ github.ref_name }}.zip
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: host-deck-cli-windows-${{ env.RELEASE_TAG }}.zip
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-docker:
+    if: github.event_name == 'push'
     needs: [build-web, merge-sidecars]
     runs-on: ubuntu-latest
     steps:
@@ -193,6 +231,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-electron-windows:
+    if: github.event_name == 'push'
     needs: [build-web, merge-sidecars]
     env:
       HOSTDECK_SIDECAR_ASSETS_DIR: build/sidecar-assets
@@ -246,9 +285,11 @@ jobs:
     env:
       HOSTDECK_SIDECAR_ASSETS_DIR: build/sidecar-assets
       HOSTDECK_REQUIRE_SIDECARS: "1"
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.release_tag) || github.sha }}
       - uses: actions/download-artifact@v4
         with:
           name: web-build
@@ -280,10 +321,12 @@ jobs:
       - name: Build Electron macOS ARM64
         run: pnpm --dir host-deck-electron electron:pack:mac:prepared
       - name: Verify packaged SideCar assets
-        run: node scripts/sidecar_assets.mjs verify host-deck-electron/release/mac-arm64/HostDeck.app/Contents/Resources/server/sidecars "${GITHUB_REF_NAME#v}"
+        run: node scripts/sidecar_assets.mjs verify host-deck-electron/release/mac-arm64/HostDeck.app/Contents/Resources/server/sidecars "${RELEASE_TAG#v}"
       - name: Upload Electron macOS ARM64
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          fail_on_unmatched_files: true
           files: |
             host-deck-electron/release/*.dmg
             host-deck-electron/release/*.zip
