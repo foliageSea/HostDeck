@@ -167,6 +167,9 @@ class DockerEngineMapper {
       'memPercent': _formatPercent(memoryPercent),
       'memUsage': '${_formatBytes(memoryUsage)} / ${_formatBytes(memoryLimit)}',
       'netIO': '${_formatBytes(rxBytes)} / ${_formatBytes(txBytes)}',
+      'timestamp': sample['timestamp'],
+      'networkRxBytes': rxBytes,
+      'networkTxBytes': txBytes,
       'blockIO': '${_formatBytes(readBytes)} / ${_formatBytes(writeBytes)}',
       'pids': sample['pids'].toString(),
     };

@@ -79,6 +79,9 @@ export interface DockerContainerStats {
   memPercent: string
   memUsage: string
   netIO: string
+  timestamp: number
+  networkRxBytes: number
+  networkTxBytes: number
   blockIO: string
   pids: string
 }
@@ -853,11 +856,13 @@ export const dockerApi = {
     return response.data
   },
 
-  async getContainerStats(connectionId: string, containerId: string) {
+  async getContainerStats(connectionId: string, containerId: string, signal?: AbortSignal) {
     const response = await http.get<DockerContainerStats>(
-      `/api/docker/containers/${containerId}/stats`,
+      `/api/docker/containers/${encodeURIComponent(containerId)}/stats`,
       {
         params: { connectionId },
+        signal,
+        timeout: 10000,
       },
     )
     return response.data

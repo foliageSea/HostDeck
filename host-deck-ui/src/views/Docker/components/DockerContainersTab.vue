@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useDocumentVisibility } from '@vueuse/core'
 import { portForwardApi, type PortForwardRule } from '@/api/port-forward'
 import { Add } from '@vicons/carbon'
-import { Box, ChevronDown, Ellipsis, LogIn, RefreshCw, Search } from '@lucide/vue'
+import { ArrowDown, ArrowUp, Box, ChevronDown, Ellipsis, LogIn, RefreshCw, Search } from '@lucide/vue'
 import type { DockerContainer } from '@/api/docker'
 import CopyableText from '@/components/common/CopyableText.vue'
 import type { DockerViewController } from '../hooks/useDockerView'
 import { getContainerStatusPresentation } from '../hooks/dockerViewHelpers'
+import { useContainerListStats } from '../hooks/useContainerListStats'
 import DockerTabToolbar from './DockerTabToolbar.vue'
 import { parseDockerHttpPort } from '../hooks/dockerPortForward'
 import { getUiApi } from '@/lib/ui'
@@ -14,6 +16,38 @@ import { getUiApi } from '@/lib/ui'
 const props = defineProps<{
   controller: DockerViewController
 }>()
+
+const documentVisibility = useDocumentVisibility()
+const runningContainerIds = computed(() =>
+  props.controller.containers
+    .filter((container) => container.state === 'running' && !isPaused(container))
+    .map((container) => container.id),
+)
+const containerStats = useContainerListStats(
+  () =>
+    props.controller.activeTab === 'containers' && documentVisibility.value === 'visible'
+      ? props.controller.activeConnectionId
+      : undefined,
+  () => runningContainerIds.value,
+)
+
+function getUsageBarWidth(percent?: string) {
+  const value = Number.parseFloat(percent ?? '')
+  return `${Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0}%`
+}
+
+function formatNetworkRate(bytesPerSecond?: number) {
+  if (bytesPerSecond === undefined) return '—'
+
+  const units = ['B/s', 'KiB/s', 'MiB/s', 'GiB/s', 'TiB/s']
+  let size = bytesPerSecond
+  let unit = 0
+  while (unit < units.length - 1 && size >= 1024) {
+    size /= 1024
+    unit++
+  }
+  return `${size.toFixed(size === 0 || size >= 10 ? 0 : 1)} ${units[unit]}`
+}
 
 const selectedPortContainer = ref<DockerContainer | null>(null)
 const selectedPort = ref('')
@@ -343,6 +377,45 @@ function isPaused(container: DockerContainer) {
             </span>
           </div>
 
+          <div class="container-card__stats">
+            <div class="container-card__metric">
+              <span class="container-card__metric-label">CPU</span>
+              <div class="container-card__meter" aria-hidden="true">
+                <div
+                  class="container-card__meter-fill"
+                  :style="{ width: getUsageBarWidth(containerStats.get(container.id)?.cpuPercent) }"
+                />
+              </div>
+              <span class="container-card__metric-value">
+                {{ containerStats.get(container.id)?.cpuPercent ?? '—' }}
+              </span>
+            </div>
+            <div class="container-card__metric container-card__metric--ram">
+              <span class="container-card__metric-label">RAM</span>
+              <div class="container-card__meter" aria-hidden="true">
+                <div
+                  class="container-card__meter-fill"
+                  :style="{ width: getUsageBarWidth(containerStats.get(container.id)?.memPercent) }"
+                />
+              </div>
+              <span class="container-card__metric-value">
+                {{ containerStats.get(container.id)?.memUsage ?? '—' }}
+              </span>
+            </div>
+            <div class="container-card__network">
+              <span class="container-card__rate" title="上行速率">
+                <ArrowUp :size="15" class="container-card__rate-up" aria-hidden="true" />
+                <span class="sr-only">上行速率：</span>
+                {{ formatNetworkRate(containerStats.get(container.id)?.networkTxBytesPerSecond) }}
+              </span>
+              <span class="container-card__rate" title="下行速率">
+                <ArrowDown :size="15" class="container-card__rate-down" aria-hidden="true" />
+                <span class="sr-only">下行速率：</span>
+                {{ formatNetworkRate(containerStats.get(container.id)?.networkRxBytesPerSecond) }}
+              </span>
+            </div>
+          </div>
+
           <div class="container-card__footer">
             <span class="container-card__id" :title="container.id">
               ID
@@ -491,6 +564,7 @@ function isPaused(container: DockerContainer) {
 
 .container-list {
   display: flex;
+  container-type: inline-size;
   min-height: 0;
   flex: 1;
   flex-direction: column;
@@ -510,9 +584,9 @@ function isPaused(container: DockerContainer) {
 .container-card {
   display: grid;
   min-width: 0;
-  grid-template-columns: 64px minmax(0, 1fr) auto;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   border: 1px solid var(--docker-tab-card-border, rgba(148, 163, 184, 0.2));
   border-radius: 12px;
   background: var(--docker-card-background, transparent);
@@ -531,9 +605,10 @@ function isPaused(container: DockerContainer) {
 
 .container-card__icon {
   display: grid;
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   place-items: center;
+  align-self: start;
   border-radius: 12px;
   background: var(--app-primary-soft);
   color: var(--app-primary-color);
@@ -560,7 +635,7 @@ function isPaused(container: DockerContainer) {
 .container-card__metadata {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(180px, 1.6fr) repeat(3, minmax(100px, 1fr));
+  grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(0, 1fr));
   margin-top: 10px;
 }
 
@@ -582,6 +657,75 @@ function isPaused(container: DockerContainer) {
 .container-card__meta small {
   margin-right: 6px;
   color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+}
+
+.container-card__stats {
+  display: grid;
+  max-width: 780px;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 10px 24px;
+  margin-top: 18px;
+  color: var(--docker-text-muted, rgba(100, 116, 139, 0.78));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.container-card__metric {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.container-card__metric-label {
+  color: var(--docker-text-primary, currentColor);
+  font-weight: 500;
+}
+
+.container-card__meter {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.container-card__meter-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--app-primary-color);
+}
+
+.container-card__metric--ram .container-card__meter-fill {
+  background: #7957ff;
+}
+
+.container-card__metric-value {
+  grid-column: 1 / -1;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.container-card__network {
+  display: flex;
+  flex-wrap: wrap;
+  align-self: start;
+  gap: 4px 16px;
+}
+
+.container-card__rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 76px;
+  white-space: nowrap;
+}
+
+.container-card__rate-up {
+  color: #16a34a;
+}
+
+.container-card__rate-down {
+  color: var(--app-primary-color);
 }
 
 .container-card__footer {
@@ -662,14 +806,9 @@ function isPaused(container: DockerContainer) {
   margin-left: auto;
 }
 
-@media (max-width: 1100px) {
+@container (max-width: 740px) {
   .container-card {
     grid-template-columns: 56px minmax(0, 1fr);
-  }
-
-  .container-card__icon {
-    width: 56px;
-    height: 56px;
   }
 
   .container-card__actions {
@@ -686,6 +825,14 @@ function isPaused(container: DockerContainer) {
     border-left: 0;
     padding-left: 0;
   }
+
+  .container-card__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .container-card__network {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 640px) {
@@ -699,7 +846,9 @@ function isPaused(container: DockerContainer) {
     min-width: 0;
     flex: 1;
   }
+}
 
+@container (max-width: 460px) {
   .container-card {
     grid-template-columns: 48px minmax(0, 1fr);
     gap: 10px;
@@ -724,6 +873,11 @@ function isPaused(container: DockerContainer) {
   .container-card__actions {
     grid-column: 2;
     gap: 8px;
+  }
+
+  .container-card__stats {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 12px;
   }
 
   .container-card__footer span:last-child {

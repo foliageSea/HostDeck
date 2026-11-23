@@ -60,6 +60,7 @@ void main() {
       final stats = mapper.mapContainerStats({
         'id': 'container-1',
         'name': '/web',
+        'read': '2026-08-13T10:00:00.000Z',
         'cpu_stats': {
           'system_cpu_usage': 2000000000,
           'online_cpus': 2,
@@ -95,6 +96,12 @@ void main() {
       expect(stats['memPercent'], '37.5%');
       expect(stats['memUsage'], '192 MB / 512 MB');
       expect(stats['netIO'], '1.0 KB / 2.0 KB');
+      expect(
+        stats['timestamp'],
+        DateTime.utc(2026, 8, 13, 10).millisecondsSinceEpoch,
+      );
+      expect(stats['networkRxBytes'], 1024);
+      expect(stats['networkTxBytes'], 2048);
       expect(stats['blockIO'], '4.0 KB / 8.0 KB');
       expect(stats['pids'], '12');
     });

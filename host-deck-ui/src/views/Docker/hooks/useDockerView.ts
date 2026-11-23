@@ -1736,6 +1736,7 @@ export function useDockerView(props: DockerViewProps) {
   })
 
   return {
+    activeConnectionId,
     activeTab,
     batchProcessing,
     batchStartSelected,
