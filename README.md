@@ -2,7 +2,14 @@
   <img src="host-deck-ui/public/favicon.png" alt="HostDeck" width="96" height="96" />
 </p>
 
-# HostDeck
+<h1 align="center">HostDeck</h1>
+
+<p align="center">
+  <a href="https://github.com/foliageSea/HostDeck/releases/latest"><img src="https://img.shields.io/github/v/release/foliageSea/HostDeck?color=orange" alt="最新发布版本" /></a>
+  <a href="https://github.com/foliageSea/HostDeck/actions/workflows/release.yml"><img src="https://github.com/foliageSea/HostDeck/actions/workflows/release.yml/badge.svg" alt="Release 构建状态" /></a>
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20arm64%20%7C%20Web-lightgrey" alt="支持平台：Windows、macOS arm64 和 Web" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-blue" alt="GPL-3.0-only 许可证" /></a>
+</p>
 
 HostDeck 是一个跨平台远程主机工作台，在桌面式界面中集中管理 SSH 连接、终端、文件、Docker 和远端开发环境。支持 Electron 桌面应用与浏览器访问，也可通过 Agent CLI / MCP 接入本地 AI 工具。
 
