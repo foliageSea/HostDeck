@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { use } from 'echarts/core'
 import type { EChartsOption } from 'echarts'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
-import { dockerApi, type DockerContainerStatsSample } from '@/api/docker'
+import type { DockerContainerStatsSample } from '@/api/docker'
+import { retryContainerStats, subscribeContainerStats } from '../hooks/dockerContainerStatsStream'
 import { useSettingsStore } from '@/stores/settings'
 
 use([CanvasRenderer, GridComponent, LegendComponent, LineChart, TooltipComponent])
@@ -15,13 +16,7 @@ const settingsStore = useSettingsStore()
 const samples = ref<DockerContainerStatsSample[]>([])
 const status = ref<'connecting' | 'reconnecting' | 'live' | 'ended' | 'error'>('connecting')
 const error = ref('')
-let abortController: AbortController | null = null
-let firstEventTimer: ReturnType<typeof setTimeout> | undefined
-let reconnectTimer: ReturnType<typeof setTimeout> | undefined
-let generation = 0
-let reconnectAttempt = 0
-const firstEventTimeoutMs = 15_000
-const reconnectDelaysMs = [1000, 2000, 4000, 8000]
+let unsubscribe: (() => void) | undefined
 const currentSample = computed(() => samples.value.at(-1))
 
 function formatPercent(value: number | string) {
@@ -105,93 +100,28 @@ const networkOption = computed(() =>
     (value) => `${formatBytes(value)}/s`,
   ),
 )
-function clearTimers() {
-  if (firstEventTimer) clearTimeout(firstEventTimer)
-  if (reconnectTimer) clearTimeout(reconnectTimer)
-  firstEventTimer = undefined
-  reconnectTimer = undefined
-}
-function stopStream() {
-  generation += 1
-  abortController?.abort()
-  abortController = null
-  clearTimers()
-}
-function scheduleReconnect(currentGeneration: number, message: string) {
-  if (currentGeneration !== generation) return
-  if (reconnectAttempt >= reconnectDelaysMs.length) {
-    status.value = 'error'
-    error.value = message
-    return
-  }
-  status.value = 'reconnecting'
-  error.value = ''
-  const delay = reconnectDelaysMs[reconnectAttempt] ?? 8000
-  reconnectAttempt += 1
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = undefined
-    if (currentGeneration === generation) void openStream(currentGeneration)
-  }, delay)
-}
-async function openStream(currentGeneration: number) {
-  if (currentGeneration !== generation) return
-  const controller = new AbortController()
-  abortController = controller
-  status.value = reconnectAttempt === 0 ? 'connecting' : 'reconnecting'
-  let receivedEvent = false
-  const currentFirstEventTimer = setTimeout(() => {
-    if (currentGeneration !== generation || receivedEvent) return
-    controller.abort()
-    scheduleReconnect(currentGeneration, '连接容器资源监控超时。')
-  }, firstEventTimeoutMs)
-  firstEventTimer = currentFirstEventTimer
-  try {
-    await dockerApi.streamContainerStats(
-      props.connectionId,
-      props.containerId,
-      (event) => {
-        if (currentGeneration !== generation) return
-        if (!receivedEvent) {
-          receivedEvent = true
-          clearTimeout(currentFirstEventTimer)
-          if (firstEventTimer === currentFirstEventTimer) firstEventTimer = undefined
-        }
-        if (event.event === 'stats') {
-          status.value = 'live'
-          reconnectAttempt = 0
-          const cutoff = event.data.timestamp - 5 * 60 * 1000
-          samples.value = [...samples.value, event.data]
-            .filter((sample) => sample.timestamp >= cutoff)
-            .slice(-300)
-        } else if (event.event === 'connected') {
-          status.value = 'live'
-          reconnectAttempt = 0
-        } else if (event.event === 'done') status.value = 'ended'
-      },
-      controller.signal,
-    )
-  } catch (caughtError) {
-    if (controller.signal.aborted || currentGeneration !== generation) return
-    scheduleReconnect(
-      currentGeneration,
-      caughtError instanceof Error ? caughtError.message : '容器资源监控失败。',
-    )
-  } finally {
-    clearTimeout(currentFirstEventTimer)
-    if (firstEventTimer === currentFirstEventTimer) firstEventTimer = undefined
-    if (abortController === controller) abortController = null
-  }
-}
-function refreshStats() {
-  stopStream()
+function connectStats() {
+  unsubscribe?.()
   samples.value = []
-  error.value = ''
-  status.value = 'connecting'
-  reconnectAttempt = 0
-  void openStream(generation)
+  unsubscribe = subscribeContainerStats(props.connectionId, props.containerId, (state) => {
+    status.value = state.status
+    error.value = state.error
+    const sample = state.sample
+    if (!sample) return
+    const cutoff = sample.timestamp - 5 * 60 * 1000
+    samples.value = [...samples.value, sample]
+      .filter((item) => item.timestamp >= cutoff)
+      .slice(-300)
+  })
 }
-onMounted(refreshStats)
-onBeforeUnmount(stopStream)
+
+function refreshStats() {
+  connectStats()
+  retryContainerStats(props.connectionId, props.containerId)
+}
+
+watch(() => [props.connectionId, props.containerId], connectStats, { immediate: true })
+onBeforeUnmount(() => unsubscribe?.())
 </script>
 
 <template>
