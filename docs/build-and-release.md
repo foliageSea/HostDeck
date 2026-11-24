@@ -17,7 +17,7 @@ pnpm run build:electron:mac
 
 ## GitHub Actions release
 
-`.github/workflows/release.yml` 会构建 `host-deck-ui/dist` 并作为 artifact 供后续 job 使用，当前启用的发布产物为：Docker 镜像 tar.gz、Windows CLI zip、Electron Windows exe/zip、Electron macOS Apple Silicon dmg/zip、Linux x64/arm64 文件 SideCar 资产包。
+`.github/workflows/release.yml` 会构建 `host-deck-ui/dist` 并作为 artifact 供后续 job 使用，当前启用的发布产物为：Docker 镜像（GHCR 与 Release tar.gz）、Windows CLI zip、Electron Windows exe/zip、Electron macOS Apple Silicon dmg/zip、Linux x64/arm64 文件 SideCar 资产包。
 
 Electron 打包链路会单独构建 `host-deck-electron/dist`，其中 `src/main/` 是主进程，`src/preload/` 是桥接层，`src/renderer/` 是 Vue 壳界面。
 
@@ -107,6 +107,21 @@ node scripts/sidecar_assets.mjs verify build/sidecar-assets dev
 ```
 
 默认构建结果位于 `build/hostdeck-cli/`，可通过 `--output <dir>` 指定输出目录。
+
+## Docker 镜像发布
+
+推送 `v*` 标签时，CI 构建 Linux amd64 镜像，并将同一个镜像发布到 GitHub Packages 和 GitHub Releases。GHCR 标签不含版本前缀 `v`，预发布版本不会更新 GHCR 上的 `latest`。
+
+```bash
+# 在线拉取：latest 为正式版，也可指定版本，例如 1.2.3
+docker pull ghcr.io/foliagesea/host-deck:latest
+docker pull ghcr.io/foliagesea/host-deck:1.2.3
+
+# 离线导入：先从 GitHub Releases 下载对应压缩包
+docker load -i host-deck-v1.2.3.tar.gz
+```
+
+首次推送后，在 GitHub Packages 的包设置中确认可见性。公开包支持匿名拉取；私有包需要包的读取权限，并使用有 `read:packages` 权限的 GitHub 经典个人访问令牌登录 `ghcr.io`。
 
 ## Docker 构建
 

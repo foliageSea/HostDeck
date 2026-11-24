@@ -190,7 +190,7 @@ dart run bin/server.dart --web-dir host-deck-ui/dist --enable-secure-browser
 
 GitHub Actions 的 [.github/workflows/release.yml](.github/workflows/release.yml) 在推送 `v*` 标签时运行，发布以下产物：
 
-- Docker 镜像 tar.gz
+- Docker 镜像（GitHub Packages 在线拉取，GitHub Releases 提供 tar.gz 离线包）
 - Windows Agent CLI zip（`bin/hostdeck_cli.dart` + pi-ai bridge，需连接已运行的 HostDeck 服务）
 - Electron Windows exe/zip
 - Electron macOS Apple Silicon dmg/zip
@@ -308,7 +308,15 @@ MCP 客户端配置示例：
 
 ## Docker
 
-`Dockerfile` 会直接构建 `host-deck-ui/`、Dart CLI 服务与 pi-ai bridge。构建并使用访问密码启动：
+发布镜像可从 GitHub Container Registry 拉取（目前为 Linux amd64）：
+
+```bash
+docker pull ghcr.io/foliagesea/host-deck:latest
+```
+
+`latest` 只随正式版更新；也可指定发布版本（不带前缀 `v`）。离线导入和私有包认证见 [Docker 发布文档](docs/build-and-release.md#docker-镜像发布)。
+
+如果需要本地构建，`Dockerfile` 会直接构建 `host-deck-ui/`、Dart CLI 服务与 pi-ai bridge。构建并使用访问密码启动：
 
 ```bash
 docker build -t host-deck:local .
